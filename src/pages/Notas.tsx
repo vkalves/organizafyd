@@ -1,8 +1,9 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Edit2, Star, Pin, Save, X } from "lucide-react";
-import { useState } from "react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, X } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RichTextEditor } from "@/components/notes/RichTextEditor";
 import { toast } from "sonner";
 
 interface Note {
@@ -28,12 +29,18 @@ const Notas = () => {
   const { data: folders, create: createFolder, remove: removeFolder } = useSupabaseCrud<Folder>("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [showDialog, setShowDialog] = useState(false);
   const [editNote, setEditNote] = useState<Note | null>(null);
-  const [form, setForm] = useState({ title: "", content: "", folder_id: "" });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editFolderId, setEditFolderId] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [showTitleDialog, setShowTitleDialog] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const autosaveRef = useRef<ReturnType<typeof setTimeout>>();
 
   const filtered = notes.filter((n) => {
     if (activeFolder && n.folder_id !== activeFolder) return false;
@@ -48,28 +55,56 @@ const Notas = () => {
     return 0;
   });
 
-  const openCreate = () => {
-    setEditNote(null);
-    setForm({ title: "", content: "", folder_id: activeFolder || "" });
-    setShowDialog(true);
-  };
-
-  const openEdit = (n: Note) => {
+  const openEditor = (n: Note) => {
     setEditNote(n);
-    setForm({ title: n.title, content: n.content || "", folder_id: n.folder_id || "" });
-    setShowDialog(true);
+    setEditTitle(n.title);
+    setEditContent(n.content || "");
+    setEditFolderId(n.folder_id || "");
+    setIsEditing(true);
   };
 
-  const handleSave = async () => {
-    if (!form.title.trim()) return toast.error("Título obrigatório");
-    const payload = { title: form.title, content: form.content, folder_id: form.folder_id || null };
-    if (editNote) await update(editNote.id, payload);
-    else await create(payload);
-    setShowDialog(false);
+  const handleCreateNote = async () => {
+    if (!newTitle.trim()) return toast.error("Título obrigatório");
+    const note = await create({ title: newTitle.trim(), content: "", folder_id: activeFolder || null });
+    if (note) {
+      setShowTitleDialog(false);
+      setNewTitle("");
+      openEditor(note);
+    }
   };
 
-  const togglePin = async (n: Note) => await update(n.id, { is_pinned: !n.is_pinned });
-  const toggleFav = async (n: Note) => await update(n.id, { is_favorite: !n.is_favorite });
+  const handleContentChange = useCallback((html: string) => {
+    setEditContent(html);
+    if (!editNote) return;
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    autosaveRef.current = setTimeout(async () => {
+      setSaving(true);
+      await update(editNote.id, { content: html });
+      setSaving(false);
+    }, 1500);
+  }, [editNote, update]);
+
+  const handleSaveTitle = async () => {
+    if (!editNote || !editTitle.trim()) return;
+    await update(editNote.id, { title: editTitle, folder_id: editFolderId || null });
+    toast.success("Nota salva!");
+  };
+
+  const closeEditor = () => {
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (editNote) {
+      update(editNote.id, { content: editContent, title: editTitle, folder_id: editFolderId || null });
+    }
+    setIsEditing(false);
+    setEditNote(null);
+  };
+
+  useEffect(() => {
+    return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
+  }, []);
+
+  const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
+  const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
@@ -77,6 +112,41 @@ const Notas = () => {
     setNewFolderName("");
     setShowFolderDialog(false);
   };
+
+  if (isEditing && editNote) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <button onClick={closeEditor} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Voltar
+          </button>
+          <div className="flex items-center gap-2">
+            {saving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
+            <button onClick={handleSaveTitle} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+              <Save className="w-3.5 h-3.5" /> Salvar
+            </button>
+          </div>
+        </div>
+
+        <input
+          type="text"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onBlur={handleSaveTitle}
+          className="w-full text-2xl font-bold bg-transparent text-foreground border-none focus:outline-none placeholder:text-muted-foreground"
+          placeholder="Título da nota"
+        />
+
+        <select value={editFolderId} onChange={(e) => setEditFolderId(e.target.value)}
+          className="h-9 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
+          <option value="">Sem pasta</option>
+          {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+
+        <RichTextEditor content={editContent} onChange={handleContentChange} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -89,7 +159,7 @@ const Notas = () => {
           <button onClick={() => setShowFolderDialog(true)} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
             <FolderOpen className="w-4 h-4" /> Pasta
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+          <button onClick={() => { setNewTitle(""); setShowTitleDialog(true); }} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" /> Nova Nota
           </button>
         </div>
@@ -126,7 +196,7 @@ const Notas = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((n) => (
-            <div key={n.id} className="bg-card border border-border rounded-lg p-4 hover:bg-card-hover transition-colors group cursor-pointer" onClick={() => openEdit(n)}>
+            <div key={n.id} className="bg-card border border-border rounded-lg p-4 hover:bg-card-hover transition-colors group cursor-pointer" onClick={() => openEditor(n)}>
               <div className="flex items-start justify-between mb-2">
                 <h3 className="text-sm font-medium text-foreground truncate flex-1">{n.title}</h3>
                 <div className="flex gap-1 ml-2">
@@ -134,13 +204,13 @@ const Notas = () => {
                   {n.is_favorite && <Star className="w-3 h-3 text-warning fill-warning" />}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-3">{n.content || "Sem conteúdo"}</p>
+              <p className="text-xs text-muted-foreground line-clamp-3">{n.content ? n.content.replace(/<[^>]*>/g, "").slice(0, 150) : "Sem conteúdo"}</p>
               <div className="flex items-center justify-between mt-3">
                 <span className="text-[10px] text-muted-foreground">{new Date(n.updated_at).toLocaleDateString("pt-BR")}</span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => togglePin(n)} className="p-1 rounded hover:bg-accent"><Pin className={cn("w-3 h-3", n.is_pinned ? "text-foreground" : "text-muted-foreground")} /></button>
-                  <button onClick={() => toggleFav(n)} className="p-1 rounded hover:bg-accent"><Star className={cn("w-3 h-3", n.is_favorite ? "text-warning fill-warning" : "text-muted-foreground")} /></button>
-                  <button onClick={() => setDeleteConfirm(n.id)} className="p-1 rounded hover:bg-accent"><Trash2 className="w-3 h-3 text-destructive" /></button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => togglePin(n, e)} className="p-1 rounded hover:bg-accent"><Pin className={cn("w-3 h-3", n.is_pinned ? "text-foreground" : "text-muted-foreground")} /></button>
+                  <button onClick={(e) => toggleFav(n, e)} className="p-1 rounded hover:bg-accent"><Star className={cn("w-3 h-3", n.is_favorite ? "text-warning fill-warning" : "text-muted-foreground")} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(n.id); }} className="p-1 rounded hover:bg-accent"><Trash2 className="w-3 h-3 text-destructive" /></button>
                 </div>
               </div>
             </div>
@@ -148,22 +218,15 @@ const Notas = () => {
         </div>
       )}
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="bg-card border-border max-w-2xl">
-          <DialogHeader><DialogTitle className="text-foreground">{editNote ? "Editar Nota" : "Nova Nota"}</DialogTitle></DialogHeader>
+      {/* Title dialog for new note */}
+      <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Nova Nota</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <input type="text" placeholder="Título" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            <select value={form.folder_id} onChange={(e) => setForm({ ...form, folder_id: e.target.value })}
-              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
-              <option value="">Sem pasta</option>
-              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-            <textarea placeholder="Escreva sua nota..." value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="w-full h-64 px-3 py-2 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
-            <button onClick={handleSave} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              <Save className="w-4 h-4 inline mr-2" />{editNote ? "Salvar" : "Criar"}
-            </button>
+            <input type="text" placeholder="Título da nota" value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateNote()}
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
+            <button onClick={handleCreateNote} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Criar e Editar</button>
           </div>
         </DialogContent>
       </Dialog>

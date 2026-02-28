@@ -1,5 +1,5 @@
-import { DollarSign, Plus, TrendingUp, TrendingDown, Wallet, Trash2, Edit2, Save } from "lucide-react";
-import { useState, useMemo } from "react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, Wallet, Trash2, Edit2, Save, Download, Target } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,13 +33,23 @@ interface Category {
   created_at: string;
 }
 
-const tabs = ["Transações", "Contas", "Categorias"];
+interface Goal {
+  id: string;
+  title: string;
+  target_amount: number;
+  current_amount: number | null;
+  target_date: string | null;
+  created_at: string;
+}
+
+const tabs = ["Transações", "Contas", "Categorias", "Metas"];
 
 const Financeiro = () => {
   const [activeTab, setActiveTab] = useState("Transações");
   const { data: transactions, loading, create: createTx, update: updateTx, remove: removeTx } = useSupabaseCrud<Transaction>("transactions", "date");
-  const { data: accounts, create: createAcc, remove: removeAcc } = useSupabaseCrud<Account>("financial_accounts");
+  const { data: accounts, create: createAcc, update: updateAcc, remove: removeAcc } = useSupabaseCrud<Account>("financial_accounts");
   const { data: categories, create: createCat, remove: removeCat } = useSupabaseCrud<Category>("financial_categories");
+  const { data: goals, create: createGoal, update: updateGoal, remove: removeGoal } = useSupabaseCrud<Goal>("financial_goals");
 
   const [showTxDialog, setShowTxDialog] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -49,6 +59,9 @@ const Financeiro = () => {
   const [accForm, setAccForm] = useState({ name: "", type: "wallet" });
   const [showCatDialog, setShowCatDialog] = useState(false);
   const [catForm, setCatForm] = useState({ name: "", type: "expense", budget_limit: "" });
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [editGoal, setEditGoal] = useState<Goal | null>(null);
+  const [goalForm, setGoalForm] = useState({ title: "", target_amount: "", current_amount: "", target_date: "" });
 
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -57,11 +70,20 @@ const Financeiro = () => {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
 
-  const income = monthTransactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const expense = monthTransactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const income = monthTransactions.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+  const expense = monthTransactions.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const balance = income - expense;
-
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const getCategoryName = (id: string | null) => {
+    if (!id) return "";
+    return categories.find(c => c.id === id)?.name || "";
+  };
+
+  const getAccountName = (id: string | null) => {
+    if (!id) return "";
+    return accounts.find(a => a.id === id)?.name || "";
+  };
 
   const openCreateTx = () => {
     setEditTx(null);
@@ -76,8 +98,10 @@ const Financeiro = () => {
   };
 
   const handleSaveTx = async () => {
-    if (!txForm.amount) return toast.error("Valor obrigatório");
-    const payload = { type: txForm.type, amount: Number(txForm.amount), description: txForm.description, date: txForm.date, category_id: txForm.category_id || null, account_id: txForm.account_id || null };
+    const amount = Number(txForm.amount);
+    if (!amount || amount <= 0) return toast.error("Valor deve ser maior que zero");
+    if (!txForm.date) return toast.error("Data obrigatória");
+    const payload = { type: txForm.type, amount, description: txForm.description || null, date: txForm.date, category_id: txForm.category_id || null, account_id: txForm.account_id || null };
     if (editTx) await updateTx(editTx.id, payload);
     else await createTx(payload);
     setShowTxDialog(false);
@@ -88,19 +112,69 @@ const Financeiro = () => {
     if (deleteConfirm.type === "tx") await removeTx(deleteConfirm.id);
     else if (deleteConfirm.type === "acc") await removeAcc(deleteConfirm.id);
     else if (deleteConfirm.type === "cat") await removeCat(deleteConfirm.id);
+    else if (deleteConfirm.type === "goal") await removeGoal(deleteConfirm.id);
     setDeleteConfirm(null);
+  };
+
+  const exportCSV = () => {
+    if (transactions.length === 0) return toast.error("Sem transações para exportar");
+    const headers = ["Data", "Tipo", "Descrição", "Valor", "Categoria", "Conta"];
+    const rows = transactions.map(t => [
+      t.date,
+      t.type === "income" ? "Receita" : "Despesa",
+      t.description || "",
+      String(t.amount),
+      getCategoryName(t.category_id),
+      getAccountName(t.account_id),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transacoes-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado!");
+  };
+
+  const openCreateGoal = () => {
+    setEditGoal(null);
+    setGoalForm({ title: "", target_amount: "", current_amount: "0", target_date: "" });
+    setShowGoalDialog(true);
+  };
+
+  const openEditGoal = (g: Goal) => {
+    setEditGoal(g);
+    setGoalForm({ title: g.title, target_amount: String(g.target_amount), current_amount: String(g.current_amount || 0), target_date: g.target_date || "" });
+    setShowGoalDialog(true);
+  };
+
+  const handleSaveGoal = async () => {
+    if (!goalForm.title.trim()) return toast.error("Título obrigatório");
+    const target = Number(goalForm.target_amount);
+    if (!target || target <= 0) return toast.error("Valor alvo deve ser maior que zero");
+    const payload = { title: goalForm.title, target_amount: target, current_amount: Number(goalForm.current_amount) || 0, target_date: goalForm.target_date || null };
+    if (editGoal) await updateGoal(editGoal.id, payload);
+    else await createGoal(payload);
+    setShowGoalDialog(false);
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Financeiro</h1>
           <p className="text-sm text-muted-foreground mt-1">Controle suas finanças pessoais</p>
         </div>
-        <button onClick={openCreateTx} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="w-4 h-4" /> Nova Transação
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button onClick={openCreateTx} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="w-4 h-4" /> Nova Transação
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -144,10 +218,14 @@ const Financeiro = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{t.description || (t.type === "income" ? "Receita" : "Despesa")}</p>
-                  <span className="text-[10px] text-muted-foreground">{new Date(t.date).toLocaleDateString("pt-BR")}</span>
+                  <div className="flex gap-2 text-[10px] text-muted-foreground">
+                    <span>{new Date(t.date).toLocaleDateString("pt-BR")}</span>
+                    {t.category_id && <span>· {getCategoryName(t.category_id)}</span>}
+                    {t.account_id && <span>· {getAccountName(t.account_id)}</span>}
+                  </div>
                 </div>
                 <span className={cn("text-sm font-medium", t.type === "income" ? "text-success" : "text-destructive")}>
-                  {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
+                  {t.type === "income" ? "+" : "-"}{fmt(Number(t.amount))}
                 </span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEditTx(t)} className="p-1.5 rounded hover:bg-accent"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
@@ -167,7 +245,7 @@ const Financeiro = () => {
           {accounts.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">Nenhuma conta criada</p> :
             accounts.map(a => (
               <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border group">
-                <div><p className="text-sm text-foreground">{a.name}</p><span className="text-[10px] text-muted-foreground capitalize">{a.type}</span></div>
+                <div><p className="text-sm text-foreground">{a.name}</p><span className="text-[10px] text-muted-foreground capitalize">{a.type === "wallet" ? "Carteira" : a.type === "bank" ? "Banco" : "Cartão"}</span></div>
                 <button onClick={() => setDeleteConfirm({ type: "acc", id: a.id })} className="p-1.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
               </div>
             ))
@@ -183,11 +261,51 @@ const Financeiro = () => {
           {categories.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">Nenhuma categoria criada</p> :
             categories.map(c => (
               <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border group">
-                <div><p className="text-sm text-foreground">{c.name}</p><span className="text-[10px] text-muted-foreground capitalize">{c.type === "income" ? "Receita" : "Despesa"}</span></div>
+                <div>
+                  <p className="text-sm text-foreground">{c.name}</p>
+                  <span className="text-[10px] text-muted-foreground">{c.type === "income" ? "Receita" : "Despesa"}{c.budget_limit ? ` · Limite: ${fmt(c.budget_limit)}` : ""}</span>
+                </div>
                 <button onClick={() => setDeleteConfirm({ type: "cat", id: c.id })} className="p-1.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
               </div>
             ))
           }
+        </div>
+      )}
+
+      {activeTab === "Metas" && (
+        <div className="space-y-3">
+          <button onClick={openCreateGoal} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+            <Plus className="w-4 h-4" /> Nova Meta
+          </button>
+          {goals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="p-4 rounded-full bg-secondary mb-4"><Target className="w-8 h-8 text-muted-foreground" /></div>
+              <h2 className="text-lg font-semibold text-foreground mb-1">Sem metas</h2>
+              <p className="text-sm text-muted-foreground max-w-sm">Defina metas para acompanhar seus objetivos financeiros.</p>
+            </div>
+          ) : (
+            goals.map(g => {
+              const pct = g.target_amount > 0 ? Math.min(100, ((g.current_amount || 0) / g.target_amount) * 100) : 0;
+              return (
+                <div key={g.id} className="p-4 rounded-lg bg-card border border-border group cursor-pointer" onClick={() => openEditGoal(g)}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-foreground">{g.title}</h3>
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: "goal", id: g.id }); }} className="p-1.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <span>{fmt(g.current_amount || 0)} / {fmt(g.target_amount)}</span>
+                    <span>{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  {g.target_date && <p className="text-[10px] text-muted-foreground mt-2">Meta: {new Date(g.target_date).toLocaleDateString("pt-BR")}</p>}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 
@@ -204,7 +322,7 @@ const Financeiro = () => {
                 )}>{t === "income" ? "Receita" : "Despesa"}</button>
               ))}
             </div>
-            <input type="number" placeholder="Valor" value={txForm.amount} onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+            <input type="number" placeholder="Valor" value={txForm.amount} onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })} min="0.01" step="0.01"
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             <input type="text" placeholder="Descrição" value={txForm.description} onChange={(e) => setTxForm({ ...txForm, description: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -237,7 +355,7 @@ const Financeiro = () => {
               <option value="bank">Banco</option>
               <option value="card">Cartão</option>
             </select>
-            <button onClick={async () => { if (!accForm.name) return; await createAcc(accForm); setShowAccDialog(false); }}
+            <button onClick={async () => { if (!accForm.name.trim()) return toast.error("Nome obrigatório"); await createAcc(accForm); setShowAccDialog(false); }}
               className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Criar</button>
           </div>
         </DialogContent>
@@ -256,8 +374,26 @@ const Financeiro = () => {
             </select>
             <input type="number" placeholder="Limite orçamento (opcional)" value={catForm.budget_limit} onChange={(e) => setCatForm({ ...catForm, budget_limit: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            <button onClick={async () => { if (!catForm.name) return; await createCat({ name: catForm.name, type: catForm.type, budget_limit: catForm.budget_limit ? Number(catForm.budget_limit) : null }); setShowCatDialog(false); }}
+            <button onClick={async () => { if (!catForm.name.trim()) return toast.error("Nome obrigatório"); await createCat({ name: catForm.name, type: catForm.type, budget_limit: catForm.budget_limit ? Number(catForm.budget_limit) : null }); setShowCatDialog(false); }}
               className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Criar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Goal Dialog */}
+      <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">{editGoal ? "Editar" : "Nova"} Meta</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <input type="text" placeholder="Nome da meta" value={goalForm.title} onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })}
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input type="number" placeholder="Valor alvo" value={goalForm.target_amount} onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })} min="0.01" step="0.01"
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input type="number" placeholder="Valor atual" value={goalForm.current_amount} onChange={(e) => setGoalForm({ ...goalForm, current_amount: e.target.value })} min="0" step="0.01"
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input type="date" placeholder="Data alvo (opcional)" value={goalForm.target_date} onChange={(e) => setGoalForm({ ...goalForm, target_date: e.target.value })}
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none" />
+            <button onClick={handleSaveGoal} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"><Save className="w-4 h-4 inline mr-2" />{editGoal ? "Salvar" : "Criar"}</button>
           </div>
         </DialogContent>
       </Dialog>
