@@ -36,7 +36,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="flex items-center gap-2">
-          <img src={logoImg} alt="Organify" className="h-7 w-auto invert" />
+          <img src={logoImg} alt="Organify" className="h-7 w-auto" />
         </div>
 
         <div className="hidden sm:flex flex-1 max-w-md mx-auto">
