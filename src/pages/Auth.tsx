@@ -47,7 +47,7 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex flex-col items-center gap-4">
-          <img src={logoImg} alt="Organify" className="h-10 w-auto invert" />
+          <img src={logoImg} alt="Organify" className="h-10 w-auto" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
