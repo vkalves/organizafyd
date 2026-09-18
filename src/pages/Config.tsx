@@ -1,8 +1,10 @@
-import { Settings, User, Globe, Download, Upload, LogOut, Save } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Download, Globe, LogOut, Save, Settings, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { supabase } from "@/integrations/supabase/client";
+import type { AppTableName } from "@/integrations/supabase/app-types";
+import { toLocalDateInput } from "@/lib/date";
 import { toast } from "sonner";
 
 interface Profile {
@@ -14,13 +16,31 @@ interface Profile {
   week_start: string | null;
 }
 
+const exportTables: AppTableName[] = [
+  "tasks",
+  "notes",
+  "links",
+  "folders",
+  "funnels",
+  "funnel_nodes",
+  "funnel_edges",
+  "transactions",
+  "financial_accounts",
+  "financial_categories",
+  "financial_goals",
+  "instagram_accounts",
+  "instagram_warmup_progress",
+  "instagram_videos",
+];
+
 const Config = () => {
   const { user, signOut } = useAuth();
-  const { data: profiles, update } = useSupabaseCrud<Profile>("profiles");
+  const { data: profiles, create, update, mutating } = useSupabaseCrud<Profile>("profiles");
   const profile = profiles[0];
   const [displayName, setDisplayName] = useState("");
   const [timezone, setTimezone] = useState("America/Sao_Paulo");
   const [weekStart, setWeekStart] = useState("monday");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -31,87 +51,124 @@ const Config = () => {
   }, [profile]);
 
   const handleSave = async () => {
-    if (!profile) return;
-    await update(profile.id, { display_name: displayName, timezone, week_start: weekStart });
+    if (!user) return;
+    const updates = { display_name: displayName.trim() || null, timezone, week_start: weekStart };
+    if (profile) {
+      await update(profile.id, updates);
+    } else {
+      await create({ user_id: user.id, ...updates });
+    }
   };
 
   const handleExport = async () => {
-    if (!user) return;
-    const tables = ["tasks", "notes", "links", "funnels", "transactions", "financial_accounts", "financial_categories", "folders"] as const;
-    const data: Record<string, any> = {};
-    for (const table of tables) {
-      const { data: rows } = await (supabase.from(table) as any).select("*").eq("user_id", user.id);
-      data[table] = rows || [];
+    if (!user || exporting) return;
+    setExporting(true);
+    try {
+      const results = await Promise.all(
+        exportTables.map(async (table) => {
+          const { data: rows, error } = await supabase.from(table).select("*").eq("user_id", user.id);
+          if (error) throw new Error(`${table}: ${error.message}`);
+          return [table, (rows || []) as unknown[]] as const;
+        }),
+      );
+      const data: Record<string, unknown[]> = Object.fromEntries(results);
+      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), data }, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `organizafy-backup-${toLocalDateInput()}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success("Backup exportado com sucesso.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível exportar o backup.");
+    } finally {
+      setExporting(false);
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `organify-backup-${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Backup exportado!");
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie seu perfil e preferências</p>
-      </div>
+    <div className="page-shell max-w-3xl">
+      <header className="page-header">
+        <div>
+          <p className="eyebrow"><Settings className="h-3.5 w-3.5" /> Preferências</p>
+          <h1 className="page-title">Configurações</h1>
+          <p className="page-description">Personalize seu perfil, o fuso horário e os seus dados.</p>
+        </div>
+      </header>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><User className="w-4 h-4" /> Perfil</h2>
+      <section className="surface-card space-y-5">
+        <div>
+          <h2 className="section-title"><User className="h-4 w-4" /> Perfil</h2>
+          <p className="section-description">Essas informações aparecem na sua área de trabalho.</p>
+        </div>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-            <User className="w-6 h-6 text-muted-foreground" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <User className="h-7 w-7" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm text-foreground font-medium">{profile?.display_name || "Usuário"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="font-medium text-foreground">{profile?.display_name || "Usuário"}</p>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Nome</label>
-          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+        <div className="form-field">
+          <label htmlFor="display-name">Nome de exibição</label>
+          <input className="field" id="display-name" type="text" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Como devemos chamar você?" />
         </div>
-        <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Save className="w-4 h-4" /> Salvar Perfil
+        <button type="button" onClick={handleSave} disabled={mutating} className="action-primary">
+          <Save className="h-4 w-4" aria-hidden="true" />
+          {mutating ? "Salvando…" : "Salvar perfil"}
         </button>
-      </div>
+      </section>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="w-4 h-4" /> Preferências</h2>
+      <section className="surface-card space-y-5">
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Fuso horário</label>
-          <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
-            <option value="America/Sao_Paulo">América/São Paulo (GMT-3)</option>
-            <option value="America/Manaus">América/Manaus (GMT-4)</option>
-            <option value="America/Fortaleza">América/Fortaleza (GMT-3)</option>
-          </select>
+          <h2 className="section-title"><Globe className="h-4 w-4" /> Preferências regionais</h2>
+          <p className="section-description">Defina como datas e semanas aparecem no Organizafy.</p>
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Início da semana</label>
-          <select value={weekStart} onChange={(e) => setWeekStart(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
-            <option value="monday">Segunda-feira</option>
-            <option value="sunday">Domingo</option>
-          </select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="form-field">
+            <label htmlFor="timezone">Fuso horário</label>
+            <select className="field" id="timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}>
+              <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
+              <option value="America/Manaus">Manaus (GMT-4)</option>
+              <option value="America/Fortaleza">Fortaleza (GMT-3)</option>
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="week-start">Início da semana</label>
+            <select className="field" id="week-start" value={weekStart} onChange={(event) => setWeekStart(event.target.value)}>
+              <option value="monday">Segunda-feira</option>
+              <option value="sunday">Domingo</option>
+            </select>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Download className="w-4 h-4" /> Backup & Exportação</h2>
-        <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
-          <Download className="w-4 h-4" /> Exportar JSON
+      <section className="surface-card space-y-4">
+        <div>
+          <h2 className="section-title"><Download className="h-4 w-4" /> Backup e exportação</h2>
+          <p className="section-description">Baixe uma cópia dos seus dados para guardar ou migrar.</p>
+        </div>
+        <button type="button" onClick={handleExport} disabled={exporting} className="action-secondary">
+          <Download className="h-4 w-4" aria-hidden="true" />
+          {exporting ? "Preparando backup…" : "Exportar backup JSON"}
         </button>
-      </div>
+      </section>
 
-      <button onClick={signOut} className="flex items-center gap-2 px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors">
-        <LogOut className="w-4 h-4" /> Sair da Conta
-      </button>
+      <section className="surface-card border-destructive/30">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-foreground">Sessão</h2>
+            <p className="section-description">Encerre o acesso neste dispositivo.</p>
+          </div>
+          <button type="button" onClick={signOut} className="action-danger">
+            <LogOut className="h-4 w-4" aria-hidden="true" /> Sair da conta
+          </button>
+        </div>
+      </section>
     </div>
   );
 };

@@ -1,123 +1,231 @@
-import { 
-  LayoutDashboard, GitBranch, CheckSquare, DollarSign, StickyNote, Link2, Settings,
-  Search, Plus, User, Menu, ChevronLeft, LogOut
+import {
+  CheckSquare,
+  ChevronLeft,
+  DollarSign,
+  GitBranch,
+  Instagram,
+  LayoutDashboard,
+  Link2,
+  LogOut,
+  Menu,
+  MoreHorizontal,
+  Search,
+  Settings,
+  StickyNote,
+  User,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@/components/ui/command";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImg from "@/assets/logo-organify.png";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { title: "Dashboard", path: "/", icon: LayoutDashboard },
-  { title: "Funis", path: "/funis", icon: GitBranch },
-  { title: "Tarefas", path: "/tarefas", icon: CheckSquare },
-  { title: "Financeiro", path: "/financeiro", icon: DollarSign },
-  { title: "Notas", path: "/notas", icon: StickyNote },
-  { title: "Links", path: "/links", icon: Link2 },
-  { title: "Configurações", path: "/config", icon: Settings },
-];
+  { title: "Dashboard", path: "/", icon: LayoutDashboard, shortcut: "D" },
+  { title: "Instagram", path: "/instagram", icon: Instagram, shortcut: "I" },
+  { title: "Funis", path: "/funis", icon: GitBranch, shortcut: "F" },
+  { title: "Tarefas", path: "/tarefas", icon: CheckSquare, shortcut: "T" },
+  { title: "Financeiro", path: "/financeiro", icon: DollarSign, shortcut: "$" },
+  { title: "Notas", path: "/notas", icon: StickyNote, shortcut: "N" },
+  { title: "Links", path: "/links", icon: Link2, shortcut: "L" },
+  { title: "Configurações", path: "/config", icon: Settings, shortcut: "," },
+] as const;
 
-const mobileNavItems = navItems.slice(0, 6);
+const mobileNavItems = navItems.filter((item) => ["/", "/tarefas", "/instagram", "/financeiro"].includes(item.path));
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+function isRouteActive(currentPath: string, itemPath: string) {
+  return itemPath === "/" ? currentPath === "/" : currentPath.startsWith(itemPath);
+}
+
+function NavigationItems({ compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }) {
   const location = useLocation();
-  const { signOut, user } = useAuth();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/90 backdrop-blur-md flex items-center px-4 gap-3">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 rounded-md hover:bg-accent transition-colors">
-          <Menu className="w-5 h-5 text-foreground" />
+    <nav className="space-y-1" aria-label="Navegação principal">
+      {navItems.map((item) => {
+        const active = isRouteActive(location.pathname, item.path);
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            onClick={onNavigate}
+            title={compact ? item.title : undefined}
+            className={cn(
+              "group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+              active
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+              compact && "justify-center px-2",
+            )}
+          >
+            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "stroke-[2.4]")} />
+            {!compact && <span className="truncate font-medium">{item.title}</span>}
+          </NavLink>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("organizafy:sidebar") === "collapsed");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+
+  const displayName = useMemo(() => {
+    const metadataName = user?.user_metadata?.display_name;
+    if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
+    return user?.email?.split("@")[0] || "Usuário";
+  }, [user]);
+  const initials = displayName.slice(0, 2).toLocaleUpperCase("pt-BR");
+
+  useEffect(() => {
+    localStorage.setItem("organizafy:sidebar", sidebarCollapsed ? "collapsed" : "expanded");
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((current) => !current);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  const goTo = (path: string) => {
+    setCommandOpen(false);
+    navigate(path);
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <a href="#conteudo-principal" className="skip-link">Pular para o conteúdo</a>
+
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-border/80 bg-background/90 px-3 backdrop-blur-xl sm:px-5">
+        <button
+          type="button"
+          aria-label="Abrir menu"
+          onClick={() => setMobileMenuOpen(true)}
+          className="icon-button lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
         </button>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden lg:flex p-2 rounded-md hover:bg-accent transition-colors">
-          {sidebarOpen ? <ChevronLeft className="w-5 h-5 text-foreground" /> : <Menu className="w-5 h-5 text-foreground" />}
+        <button
+          type="button"
+          aria-label={sidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          onClick={() => setSidebarCollapsed((current) => !current)}
+          className="icon-button hidden lg:inline-flex"
+        >
+          {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>
 
-        <div className="flex items-center gap-2">
-          <img src={logoImg} alt="Organify" className="h-7 w-auto" />
-        </div>
+        <Link to="/" aria-label="Ir para o dashboard" className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <img src={logoImg} alt="Organizafy" className="h-7 w-auto sm:h-8" />
+        </Link>
 
-        <div className="hidden sm:flex flex-1 max-w-md mx-auto">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Buscar..." className="w-full h-9 pl-9 pr-4 rounded-md bg-secondary border-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-          </div>
-        </div>
-
-        <div className="flex-1 sm:hidden" />
-
-        <button onClick={signOut} className="p-2 rounded-md hover:bg-accent transition-colors" title="Sair">
-          <LogOut className="w-4 h-4 text-muted-foreground" />
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="mx-auto flex h-10 w-full max-w-xl items-center gap-2 rounded-xl border border-border bg-secondary/70 px-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="truncate">Buscar ferramenta ou navegar…</span>
+          <kbd className="ml-auto hidden rounded-md border border-border bg-background px-1.5 py-0.5 font-sans text-[10px] text-muted-foreground sm:inline">Ctrl K</kbd>
         </button>
-        <button className="p-2 rounded-full bg-secondary hover:bg-accent transition-colors">
-          <User className="w-4 h-4 text-foreground" />
+
+        <Link
+          to="/config"
+          title={displayName}
+          aria-label="Abrir configurações do perfil"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {initials || <User className="h-4 w-4" />}
+        </Link>
+        <button type="button" onClick={() => void signOut()} className="icon-button shrink-0" title="Sair" aria-label="Sair da conta">
+          <LogOut className="h-4 w-4" />
         </button>
       </header>
 
-      <div className="flex flex-1 pt-14">
-        <aside className={cn(
-          "hidden lg:flex flex-col fixed top-14 left-0 bottom-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 z-40",
-          sidebarOpen ? "w-56" : "w-16"
-        )}>
-          <nav className="flex-1 py-4 px-2 space-y-1">
-            {navItems.map((item) => {
-              const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
-              return (
-                <NavLink key={item.path} to={item.path} className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-200",
-                  isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}>
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  {sidebarOpen && <span>{item.title}</span>}
-                </NavLink>
-              );
-            })}
-          </nav>
-        </aside>
+      <aside className={cn(
+        "fixed bottom-0 left-0 top-16 z-30 hidden border-r border-sidebar-border bg-sidebar px-2 py-4 transition-[width] duration-200 lg:block",
+        sidebarCollapsed ? "w-[72px]" : "w-60",
+      )}>
+        <NavigationItems compact={sidebarCollapsed} />
+      </aside>
 
-        {sidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-40 pt-14" onClick={() => setSidebarOpen(false)}>
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-            <aside className="relative w-64 h-full bg-sidebar border-r border-sidebar-border animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
-              <nav className="py-4 px-2 space-y-1">
-                {navItems.map((item) => {
-                  const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
-                  return (
-                    <NavLink key={item.path} to={item.path} onClick={() => setSidebarOpen(false)} className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors",
-                      isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                    )}>
-                      <item.icon className="w-5 h-5 shrink-0" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  );
-                })}
-              </nav>
-            </aside>
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-[min(86vw,320px)] border-sidebar-border bg-sidebar p-3 text-sidebar-foreground">
+          <SheetTitle className="sr-only">Menu principal</SheetTitle>
+          <Link to="/" onClick={() => setMobileMenuOpen(false)} className="mb-6 inline-flex px-2 pt-2">
+            <img src={logoImg} alt="Organizafy" className="h-8 w-auto" />
+          </Link>
+          <NavigationItems onNavigate={() => setMobileMenuOpen(false)} />
+          <div className="mt-6 border-t border-sidebar-border pt-4">
+            <p className="truncate px-3 text-xs text-muted-foreground">{user?.email}</p>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      <main
+        id="conteudo-principal"
+        className={cn(
+          "min-h-screen px-4 pb-24 pt-24 transition-[margin] duration-200 sm:px-6 lg:pb-10 lg:pt-24",
+          sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-60",
         )}
+      >
+        <div key={location.pathname} className="animate-fade-in">{children}</div>
+      </main>
 
-        <main className={cn("flex-1 min-h-[calc(100vh-3.5rem)] pb-20 lg:pb-0 transition-all duration-300", sidebarOpen ? "lg:ml-56" : "lg:ml-16")}>
-          <div className="p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</div>
-        </main>
-      </div>
-
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-2">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid h-[72px] grid-cols-5 border-t border-border/80 bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Navegação rápida">
         {mobileNavItems.map((item) => {
-          const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+          const active = isRouteActive(location.pathname, item.path);
           return (
-            <NavLink key={item.path} to={item.path} className={cn(
-              "flex flex-col items-center gap-1 px-2 py-1 rounded-md transition-colors min-w-0",
-              isActive ? "text-foreground" : "text-muted-foreground"
-            )}>
-              <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
-              <span className="text-[10px] font-medium truncate">{item.title}</span>
+            <NavLink key={item.path} to={item.path} className={cn("flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium", active ? "text-foreground" : "text-muted-foreground")}>
+              <item.icon className={cn("h-5 w-5", active && "stroke-[2.6]")} />
+              <span className="truncate">{item.title}</span>
             </NavLink>
           );
         })}
+        <button type="button" onClick={() => setMobileMenuOpen(true)} className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium text-muted-foreground">
+          <MoreHorizontal className="h-5 w-5" />
+          <span>Mais</span>
+        </button>
       </nav>
+
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+        <CommandInput placeholder="Digite o nome de uma ferramenta…" />
+        <CommandList>
+          <CommandEmpty>Nenhuma ferramenta encontrada.</CommandEmpty>
+          <CommandGroup heading="Navegar">
+            {navItems.map((item) => (
+              <CommandItem key={item.path} value={`${item.title} ${item.path}`} onSelect={() => goTo(item.path)}>
+                <item.icon className="mr-2 h-4 w-4" />
+                <span>{item.title}</span>
+                <CommandShortcut>{item.shortcut}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </div>
   );
 }

@@ -18,6 +18,28 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+interface ToolbarButtonProps {
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  title: string;
+}
+
+const ToolbarButton = ({ active, onClick, children, title }: ToolbarButtonProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title}
+    aria-label={title}
+    className={cn(
+      "p-1.5 rounded hover:bg-accent transition-colors",
+      active && "bg-accent text-foreground",
+    )}
+  >
+    {children}
+  </button>
+);
+
 export function RichTextEditor({ content, onChange, placeholder = "Escreva sua nota..." }: RichTextEditorProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -50,7 +72,7 @@ export function RichTextEditor({ content, onChange, placeholder = "Escreva sua n
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content || "");
     }
-  }, [content]);
+  }, [content, editor]);
 
   useEffect(() => {
     return () => {
@@ -68,65 +90,51 @@ export function RichTextEditor({ content, onChange, placeholder = "Escreva sua n
 
   if (!editor) return null;
 
-  const ToolBtn = ({ active, onClick, children, title }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cn(
-        "p-1.5 rounded hover:bg-accent transition-colors",
-        active && "bg-accent text-foreground"
-      )}
-    >
-      {children}
-    </button>
-  );
-
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-secondary">
       <div className="flex flex-wrap items-center gap-0.5 p-2 border-b border-border bg-secondary/50">
-        <ToolBtn active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Título 1">
+        <ToolbarButton active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Título 1">
           <Heading1 className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Título 2">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Título 2">
           <Heading2 className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
+        </ToolbarButton>
         <div className="w-px h-5 bg-border mx-1" />
-        <ToolBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title="Negrito">
+        <ToolbarButton active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title="Negrito">
           <Bold className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} title="Itálico">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} title="Itálico">
           <Italic className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Sublinhado">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Sublinhado">
           <UnderlineIcon className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} title="Riscado">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} title="Riscado">
           <Strikethrough className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()} title="Código">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()} title="Código">
           <Code className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
+        </ToolbarButton>
         <div className="w-px h-5 bg-border mx-1" />
-        <ToolBtn active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Lista">
+        <ToolbarButton active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Lista">
           <List className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Lista numerada">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Lista numerada">
           <ListOrdered className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("taskList")} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Checklist">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("taskList")} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Checklist">
           <CheckSquare className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn active={editor.isActive("link")} onClick={addLink} title="Link">
+        </ToolbarButton>
+        <ToolbarButton active={editor.isActive("link")} onClick={addLink} title="Link">
           <Link2 className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
+        </ToolbarButton>
         <div className="w-px h-5 bg-border mx-1" />
-        <ToolBtn onClick={() => editor.chain().focus().undo().run()} title="Desfazer">
+        <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Desfazer">
           <Undo className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
-        <ToolBtn onClick={() => editor.chain().focus().redo().run()} title="Refazer">
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Refazer">
           <Redo className="w-4 h-4 text-muted-foreground" />
-        </ToolBtn>
+        </ToolbarButton>
       </div>
       <EditorContent editor={editor} />
     </div>
