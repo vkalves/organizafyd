@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { Subtasks, type Subtask } from "@/components/tasks/Subtasks";
 
-const views = ["Hoje", "Semana", "Prioridade", "Concluídas", "Todas"];
+const views = ["Hoje", "Sem prazo", "Prioridade", "Concluídas", "Todas"];
 const priorities = [
   { value: "low", label: "Baixa", color: "text-muted-foreground" },
   { value: "medium", label: "Média", color: "text-warning" },
@@ -44,14 +44,7 @@ const Tarefas = () => {
     if (activeView === "Hoje") return t.due_date === today && t.status !== "done";
     if (activeView === "Prioridade") return t.priority === "high" && t.status !== "done";
     if (activeView === "Concluídas") return t.status === "done";
-    if (activeView === "Semana") {
-      if (!t.due_date) return false;
-      const d = new Date(t.due_date);
-      const now = new Date();
-      const weekEnd = new Date(now);
-      weekEnd.setDate(now.getDate() + 7);
-      return d >= now && d <= weekEnd && t.status !== "done";
-    }
+    if (activeView === "Sem prazo") return !t.due_date && t.status !== "done";
     return true;
   });
 
