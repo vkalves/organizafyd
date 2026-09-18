@@ -1,4 +1,4 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, X } from "lucide-react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -25,7 +25,7 @@ interface Folder {
 }
 
 const Notas = () => {
-  const { data: notes, loading, create, update, remove } = useSupabaseCrud<Note>("notes", "updated_at");
+  const { data: notes, loading, create, update, remove, refetch: refetchNotes } = useSupabaseCrud<Note>("notes", "updated_at");
   const { data: folders, create: createFolder, remove: removeFolder } = useSupabaseCrud<Folder>("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -37,6 +37,9 @@ const Notas = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<Folder | null>(null);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const folderBusyRef = useRef(false);
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [saving, setSaving] = useState(false);
@@ -106,12 +109,74 @@ const Notas = () => {
   const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
   const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-    await createFolder({ name: newFolderName.trim() });
+  const openFolderDialog = () => {
     setNewFolderName("");
-    setShowFolderDialog(false);
+    setShowFolderDialog(true);
   };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || folderBusyRef.current) return;
+    folderBusyRef.current = true;
+    setFolderBusy(true);
+    try {
+      const folder = await createFolder({ name: newFolderName.trim() });
+      if (!folder) return;
+      if (isEditing) setEditFolderId(folder.id);
+      setNewFolderName("");
+      setShowFolderDialog(false);
+    } finally {
+      folderBusyRef.current = false;
+      setFolderBusy(false);
+    }
+  };
+
+  const handleDeleteFolder = async () => {
+    if (!folderToDelete || folderBusyRef.current) return;
+    folderBusyRef.current = true;
+    setFolderBusy(true);
+    try {
+      const id = folderToDelete.id;
+      if (!(await removeFolder(id))) return;
+      if (activeFolder === id) setActiveFolder(null);
+      if (editFolderId === id) setEditFolderId("");
+      if (editNote?.folder_id === id) setEditNote({ ...editNote, folder_id: null });
+      setFolderToDelete(null);
+      await refetchNotes();
+    } finally {
+      folderBusyRef.current = false;
+      setFolderBusy(false);
+    }
+  };
+
+  const folderDialogs = (
+    <>
+      <Dialog open={showFolderDialog} onOpenChange={open => { if (!folderBusy) setShowFolderDialog(open); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Nova Pasta</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); void handleCreateFolder(); }} className="space-y-4">
+            <input type="text" aria-label="Nome da pasta" placeholder="Nome da pasta" value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)} disabled={folderBusy} autoFocus
+              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <button type="submit" disabled={folderBusy || !newFolderName.trim()} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {folderBusy ? "Criando..." : "Criar Pasta"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!folderToDelete} onOpenChange={open => { if (!open && !folderBusy) setFolderToDelete(null); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Excluir pasta</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Excluir a pasta “{folderToDelete?.name}”? As notas serão mantidas e ficarão sem pasta.</p>
+          <div className="flex gap-2 justify-end mt-4">
+            <button disabled={folderBusy} onClick={() => setFolderToDelete(null)} className="px-4 py-2 rounded-md bg-secondary text-sm text-foreground">Cancelar</button>
+            <button disabled={folderBusy} onClick={handleDeleteFolder} className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50">
+              {folderBusy ? "Excluindo..." : "Excluir pasta"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 
   if (isEditing && editNote) {
     return (
@@ -137,11 +202,20 @@ const Notas = () => {
           placeholder="Título da nota"
         />
 
-        <select value={editFolderId} onChange={(e) => setEditFolderId(e.target.value)}
+        <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="Pasta da nota" value={editFolderId} onChange={(e) => setEditFolderId(e.target.value)}
           className="h-9 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
           <option value="">Sem pasta</option>
           {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
+        <button onClick={openFolderDialog} className="flex items-center gap-2 h-9 px-3 rounded-md bg-secondary text-sm text-foreground hover:bg-accent">
+          <Plus className="w-4 h-4" /> Nova pasta
+        </button>
+        {editFolderId && <button aria-label="Excluir pasta selecionada" onClick={() => setFolderToDelete(folders.find(f => f.id === editFolderId) || null)} className="p-2 rounded-md text-destructive hover:bg-accent">
+          <Trash2 className="w-4 h-4" />
+        </button>}
+        </div>
+        {folderDialogs}
 
         <RichTextEditor content={editContent} onChange={handleContentChange} />
       </div>
@@ -156,7 +230,7 @@ const Notas = () => {
           <p className="text-sm text-muted-foreground mt-1">Suas ideias e anotações</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowFolderDialog(true)} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+          <button onClick={openFolderDialog} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
             <FolderOpen className="w-4 h-4" /> Pasta
           </button>
           <button onClick={() => { setNewTitle(""); setShowTitleDialog(true); }} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
@@ -176,12 +250,17 @@ const Notas = () => {
           !activeFolder ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
         )}>Todas</button>
         {folders.map((f) => (
-          <button key={f.id} onClick={() => setActiveFolder(f.id)} className={cn(
+          <div key={f.id} className="flex items-center shrink-0">
+          <button onClick={() => setActiveFolder(f.id)} className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
             activeFolder === f.id ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           )}>
             <FolderOpen className="w-3.5 h-3.5" /> {f.name}
           </button>
+          <button aria-label={`Excluir pasta: ${f.name}`} title="Excluir pasta" onClick={() => setFolderToDelete(f)} className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-accent">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          </div>
         ))}
       </div>
 
@@ -231,17 +310,7 @@ const Notas = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">Nova Pasta</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <input type="text" placeholder="Nome da pasta" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            <button onClick={handleCreateFolder} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Criar Pasta</button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {folderDialogs}
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <DialogContent className="bg-card border-border">
