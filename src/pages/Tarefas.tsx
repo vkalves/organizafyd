@@ -33,6 +33,7 @@ const Tarefas = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
+  const [quickNoDeadline, setQuickNoDeadline] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", priority: "medium", due_date: "", is_fixed_daily: false });
   const [checklist, setChecklist] = useState<Subtask[]>([]);
   const [saving, setSaving] = useState(false);
@@ -50,8 +51,8 @@ const Tarefas = () => {
 
   const handleQuickAdd = async () => {
     if (!quickTitle.trim()) return;
-    await create({ title: quickTitle.trim(), due_date: today, priority: "medium", status: "todo" });
-    setQuickTitle("");
+    const saved = await create({ title: quickTitle.trim(), due_date: quickNoDeadline ? null : today, priority: "medium", status: "todo" });
+    if (saved) setQuickTitle("");
   };
 
   const openCreate = () => {
@@ -122,11 +123,15 @@ const Tarefas = () => {
         ))}
       </div>
 
-      <div className="flex items-center gap-2 p-3 rounded-md border border-border/50 border-dashed">
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-md border border-border/50 border-dashed">
         <Plus className="w-4 h-4 text-muted-foreground" />
         <input type="text" placeholder="Adicionar tarefa rápida..." value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none" />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+          <input type="checkbox" checked={quickNoDeadline} onChange={e => setQuickNoDeadline(e.target.checked)} className="accent-primary" />
+          Sem prazo
+        </label>
         {quickTitle && <button onClick={handleQuickAdd} className="text-xs text-primary hover:underline">Adicionar</button>}
       </div>
 
@@ -201,8 +206,13 @@ const Tarefas = () => {
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Data</label>
-                <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                  className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none" />
+                <input type="date" aria-label="Data da tarefa" value={form.due_date} disabled={!form.due_date || saving} onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                  className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none disabled:opacity-50" />
+                <label className="flex items-center gap-2 mt-2 text-sm text-foreground cursor-pointer">
+                  <input type="checkbox" checked={!form.due_date} disabled={saving}
+                    onChange={e => setForm({ ...form, due_date: e.target.checked ? "" : today })} className="accent-primary" />
+                  Sem prazo
+                </label>
               </div>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
