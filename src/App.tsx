@@ -11,6 +11,8 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
 const Config = lazy(() => import("./pages/Config"));
+const Estruturas = lazy(() => import("./pages/Estruturas"));
+const PastaCompartilhada = lazy(() => import("./pages/PastaCompartilhada"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -42,7 +44,9 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
+              <Route path="/estruturas" element={<ProtectedRoute><Estruturas /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
+              <Route path="/shared/:token" element={<PastaCompartilhada />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

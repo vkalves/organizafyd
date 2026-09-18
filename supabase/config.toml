@@ -1,1 +1,4 @@
 project_id = "nsqpljtrwefjzbgvmoil"
+
+[functions.structure-share]
+verify_jwt = false

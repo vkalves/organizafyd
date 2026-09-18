@@ -134,6 +134,16 @@
   }
 }
 
+@layer components {
+  .form-control {
+    @apply h-10 w-full rounded-lg border border-border bg-secondary px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-muted-foreground focus:ring-1 focus:ring-ring;
+  }
+
+  .structures-workspace {
+    isolation: isolate;
+  }
+}
+
 /* App chrome and iOS/Android safe areas */
 .app-header {
   height: calc(3.5rem + env(safe-area-inset-top));

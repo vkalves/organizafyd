@@ -382,6 +382,206 @@ export type Database = {
         }
         Relationships: []
       }
+      structure_folder_shares: {
+        Row: {
+          active: boolean
+          allow_download: boolean
+          created_at: string
+          id: string
+          owner_id: string
+          root_folder_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allow_download?: boolean
+          created_at?: string
+          id?: string
+          owner_id: string
+          root_folder_id: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allow_download?: boolean
+          created_at?: string
+          id?: string
+          owner_id?: string
+          root_folder_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structure_folder_shares_root_folder_id_fkey"
+            columns: ["root_folder_id"]
+            isOneToOne: true
+            referencedRelation: "structure_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      structure_folders: {
+        Row: {
+          color: string
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          parent_id: string | null
+          position: number
+          structure_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          position?: number
+          structure_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          position?: number
+          structure_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structure_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "structure_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "structure_folders_structure_id_fkey"
+            columns: ["structure_id"]
+            isOneToOne: false
+            referencedRelation: "structures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      structure_items: {
+        Row: {
+          body: string | null
+          created_at: string
+          folder_id: string
+          id: string
+          kind: string
+          mime_type: string | null
+          original_name: string | null
+          size_bytes: number | null
+          storage_path: string | null
+          structure_id: string
+          title: string | null
+          updated_at: string
+          upload_group: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          folder_id: string
+          id?: string
+          kind: string
+          mime_type?: string | null
+          original_name?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          structure_id: string
+          title?: string | null
+          updated_at?: string
+          upload_group?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          folder_id?: string
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          original_name?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          structure_id?: string
+          title?: string | null
+          updated_at?: string
+          upload_group?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structure_items_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "structure_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "structure_items_structure_id_fkey"
+            columns: ["structure_id"]
+            isOneToOne: false
+            referencedRelation: "structures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      structures: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          icon: string
+          id: string
+          image_path: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          image_path?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          image_path?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           checklist: Json | null
@@ -498,7 +698,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      manage_structure_folder_share: {
+        Args: {
+          p_action: string
+          p_allow_download?: boolean
+          p_folder_id: string
+        }
+        Returns: Database["public"]["Tables"]["structure_folder_shares"]["Row"]
+      }
+      structure_folder_is_within: {
+        Args: { candidate: string; root: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
