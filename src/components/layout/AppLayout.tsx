@@ -1,6 +1,6 @@
 import { 
-  LayoutDashboard, GitBranch, CheckSquare, DollarSign, StickyNote, Link2, Settings,
-  Search, Plus, User, Menu, ChevronLeft, LogOut
+  LayoutDashboard, CheckSquare, StickyNote, Settings,
+  Search, User, Menu, ChevronLeft, LogOut
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
@@ -10,15 +10,12 @@ import logoImg from "@/assets/logo-organify.png";
 
 const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
-  { title: "Funis", path: "/funis", icon: GitBranch },
   { title: "Tarefas", path: "/tarefas", icon: CheckSquare },
-  { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   { title: "Notas", path: "/notas", icon: StickyNote },
-  { title: "Links", path: "/links", icon: Link2 },
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 
-const mobileNavItems = navItems.slice(0, 6);
+const mobileNavItems = navItems;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
