@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -49,12 +49,12 @@ const getNodeConfig = (type: string) => NODE_TYPES_CONFIG.find(n => n.type === t
 interface FunnelNodeData {
   dbId: string;
   title: string;
-  description?: string;
+  description?: string | null;
   node_type: string;
-  value?: number;
-  link?: string;
-  status?: string;
-  [key: string]: any;
+  value?: number | null;
+  link?: string | null;
+  status?: string | null;
+  [key: string]: unknown;
 }
 
 const FunnelNode = memo(({ data, selected }: NodeProps<Node<FunnelNodeData>>) => {
@@ -105,18 +105,24 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
     if (!user) return;
     setLoading(true);
     const [nodesRes, edgesRes] = await Promise.all([
-      (supabase.from("funnel_nodes") as any).select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
-      (supabase.from("funnel_edges") as any).select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
+      supabase.from("funnel_nodes").select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
+      supabase.from("funnel_edges").select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
     ]);
 
-    const loadedNodes: Node<FunnelNodeData>[] = (nodesRes.data || []).map((n: any) => ({
+    if (nodesRes.error || edgesRes.error) {
+      toast.error("Não foi possível carregar este funil");
+      setLoading(false);
+      return;
+    }
+
+    const loadedNodes: Node<FunnelNodeData>[] = (nodesRes.data || []).map((n) => ({
       id: n.id,
       type: "funnelNode",
       position: { x: Number(n.position_x), y: Number(n.position_y) },
       data: { dbId: n.id, title: n.title, description: n.description, node_type: n.node_type, value: n.value, link: n.link, status: n.status },
     }));
 
-    const loadedEdges: Edge[] = (edgesRes.data || []).map((e: any) => ({
+    const loadedEdges: Edge[] = (edgesRes.data || []).map((e) => ({
       id: e.id,
       source: e.source_node_id,
       target: e.target_node_id,
@@ -130,25 +136,38 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   }, [user, funnelId, setNodes, setEdges]);
 
   // Load on mount
-  useState(() => { loadCanvas(); });
+  useEffect(() => {
+    void loadCanvas();
+  }, [loadCanvas]);
+
+  useEffect(() => () => {
+    debounceMap.current.forEach((timeout) => clearTimeout(timeout));
+    debounceMap.current.clear();
+  }, []);
 
   const onConnect = useCallback(async (connection: Connection) => {
     if (!user || !connection.source || !connection.target) return;
-    const { data: edge, error } = await (supabase.from("funnel_edges") as any)
+    if (connection.source === connection.target) return toast.error("Conecte dois nós diferentes");
+    if (edges.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
+      return toast.error("Esta conexão já existe");
+    }
+    const { data: edge, error } = await supabase.from("funnel_edges")
       .insert({ funnel_id: funnelId, user_id: user.id, source_node_id: connection.source, target_node_id: connection.target })
       .select().single();
     if (error) return toast.error("Erro ao criar conexão");
     setEdges(eds => addEdge({ ...connection, id: edge.id, animated: true, style: { stroke: "hsl(0 0% 40%)" } }, eds));
-  }, [user, funnelId, setEdges]);
+  }, [edges, user, funnelId, setEdges]);
 
-  const onNodeDragStop = useCallback((_: any, node: Node) => {
+  const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
     if (!user) return;
     const existing = debounceMap.current.get(node.id);
     if (existing) clearTimeout(existing);
     debounceMap.current.set(node.id, setTimeout(async () => {
-      await (supabase.from("funnel_nodes") as any)
+      const { error } = await supabase.from("funnel_nodes")
         .update({ position_x: node.position.x, position_y: node.position.y })
-        .eq("id", node.id);
+        .eq("id", node.id)
+        .eq("user_id", user.id);
+      if (error) toast.error("Não foi possível salvar a posição do nó");
       debounceMap.current.delete(node.id);
     }, 500));
   }, [user]);
@@ -156,7 +175,7 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   const handleAddNode = async (type: string) => {
     if (!user) return;
     const config = getNodeConfig(type);
-    const { data: node, error } = await (supabase.from("funnel_nodes") as any)
+    const { data: node, error } = await supabase.from("funnel_nodes")
       .insert({ funnel_id: funnelId, user_id: user.id, title: config.label, node_type: type, position_x: 250 + Math.random() * 200, position_y: 150 + Math.random() * 200 })
       .select().single();
     if (error) return toast.error("Erro ao criar nó");
@@ -169,7 +188,7 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
     toast.success("Nó adicionado!");
   };
 
-  const openEditNode = (node: Node<FunnelNodeData>) => {
+  const openEditNode = useCallback((node: Node<FunnelNodeData>) => {
     setEditNode(node);
     setNodeForm({
       title: node.data.title,
@@ -179,19 +198,21 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
       link: node.data.link || "",
       status: node.data.status || "active",
     });
-  };
+  }, []);
 
   const handleSaveNode = async () => {
     if (!editNode || !nodeForm.title.trim()) return toast.error("Título obrigatório");
+    if (nodeForm.link && !/^https?:\/\//i.test(nodeForm.link)) return toast.error("Use um link iniciado por http:// ou https://");
     const payload = {
-      title: nodeForm.title,
-      description: nodeForm.description || null,
+      title: nodeForm.title.trim(),
+      description: nodeForm.description.trim() || null,
       node_type: nodeForm.node_type,
       value: nodeForm.value ? Number(nodeForm.value) : null,
-      link: nodeForm.link || null,
+      link: nodeForm.link.trim() || null,
       status: nodeForm.status,
     };
-    const { error } = await (supabase.from("funnel_nodes") as any).update(payload).eq("id", editNode.id);
+    if (!user) return;
+    const { error } = await supabase.from("funnel_nodes").update(payload).eq("id", editNode.id).eq("user_id", user.id);
     if (error) return toast.error("Erro ao salvar");
     setNodes(nds => nds.map(n => n.id === editNode.id ? { ...n, data: { ...n.data, ...payload } } : n));
     setEditNode(null);
@@ -201,26 +222,30 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   const handleDeleteNode = async () => {
     if (!deleteNodeId) return;
     // Delete edges first
-    await (supabase.from("funnel_edges") as any).delete().or(`source_node_id.eq.${deleteNodeId},target_node_id.eq.${deleteNodeId}`);
-    await (supabase.from("funnel_nodes") as any).delete().eq("id", deleteNodeId);
+    if (!user) return;
+    const { error } = await supabase.from("funnel_nodes").delete().eq("id", deleteNodeId).eq("user_id", user.id);
+    if (error) return toast.error("Não foi possível excluir o nó");
     setNodes(nds => nds.filter(n => n.id !== deleteNodeId));
     setEdges(eds => eds.filter(e => e.source !== deleteNodeId && e.target !== deleteNodeId));
     setDeleteNodeId(null);
     toast.success("Nó excluído!");
   };
 
-  const handleDeleteEdge = async (edgeId: string) => {
-    await (supabase.from("funnel_edges") as any).delete().eq("id", edgeId);
+  const handleDeleteEdge = useCallback(async (edgeId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("funnel_edges").delete().eq("id", edgeId).eq("user_id", user.id);
+    if (error) return toast.error("Não foi possível excluir a conexão");
     setEdges(eds => eds.filter(e => e.id !== edgeId));
-  };
+    toast.success("Conexão excluída");
+  }, [setEdges, user]);
 
-  const onNodeDoubleClick = useCallback((_: any, node: Node<FunnelNodeData>) => {
+  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node<FunnelNodeData>) => {
     openEditNode(node);
-  }, []);
+  }, [openEditNode]);
 
-  const onEdgeDoubleClick = useCallback((_: any, edge: Edge) => {
-    handleDeleteEdge(edge.id);
-  }, []);
+  const onEdgeDoubleClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    void handleDeleteEdge(edge.id);
+  }, [handleDeleteEdge]);
 
   const handleExportJSON = () => {
     const data = { nodes: nodes.map(n => ({ ...n.data, position: n.position })), edges: edges.map(e => ({ source: e.source, target: e.target })) };
@@ -228,7 +253,8 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `funil-${funnelTitle}.json`;
+    const safeTitle = funnelTitle.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+    a.download = `funil-${safeTitle || "sem-titulo"}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("JSON exportado!");

@@ -1,9 +1,10 @@
-import { DollarSign, Plus, TrendingUp, TrendingDown, Wallet, Trash2, Edit2, Save, Download, Target } from "lucide-react";
-import { useState } from "react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, Wallet, Trash2, Edit2, Save, Download, Target, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatCurrency, formatDate, parseLocalDate, toLocalDateInput } from "@/lib/date";
 
 interface Transaction {
   id: string;
@@ -48,32 +49,38 @@ const Financeiro = () => {
   const [activeTab, setActiveTab] = useState("Transações");
   const { data: transactions, loading, create: createTx, update: updateTx, remove: removeTx } = useSupabaseCrud<Transaction>("transactions", "date");
   const { data: accounts, create: createAcc, update: updateAcc, remove: removeAcc } = useSupabaseCrud<Account>("financial_accounts");
-  const { data: categories, create: createCat, remove: removeCat } = useSupabaseCrud<Category>("financial_categories");
+  const { data: categories, create: createCat, update: updateCat, remove: removeCat } = useSupabaseCrud<Category>("financial_categories");
   const { data: goals, create: createGoal, update: updateGoal, remove: removeGoal } = useSupabaseCrud<Goal>("financial_goals");
 
   const [showTxDialog, setShowTxDialog] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
-  const [txForm, setTxForm] = useState({ type: "expense", amount: "", description: "", date: new Date().toISOString().split("T")[0], category_id: "", account_id: "" });
+  const [txForm, setTxForm] = useState({ type: "expense", amount: "", description: "", date: toLocalDateInput(), category_id: "", account_id: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
   const [showAccDialog, setShowAccDialog] = useState(false);
-  const [accForm, setAccForm] = useState({ name: "", type: "wallet" });
+  const [editAccount, setEditAccount] = useState<Account | null>(null);
+  const [accForm, setAccForm] = useState({ name: "", type: "wallet", balance: "0" });
   const [showCatDialog, setShowCatDialog] = useState(false);
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [catForm, setCatForm] = useState({ name: "", type: "expense", budget_limit: "" });
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
   const [goalForm, setGoalForm] = useState({ title: "", target_amount: "", current_amount: "", target_date: "" });
+  const [monthCursor, setMonthCursor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [transactionScope, setTransactionScope] = useState<"month" | "all">("month");
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthTransactions = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
+  const currentMonth = monthCursor.getMonth();
+  const currentYear = monthCursor.getFullYear();
+  const monthTransactions = useMemo(() => transactions.filter((transaction) => {
+    const date = parseLocalDate(transaction.date);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  }), [currentMonth, currentYear, transactions]);
+  const visibleTransactions = transactionScope === "month" ? monthTransactions : transactions;
 
   const income = monthTransactions.filter(t => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
   const expense = monthTransactions.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const balance = income - expense;
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmt = formatCurrency;
+  const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(monthCursor);
 
   const getCategoryName = (id: string | null) => {
     if (!id) return "";
@@ -87,7 +94,7 @@ const Financeiro = () => {
 
   const openCreateTx = () => {
     setEditTx(null);
-    setTxForm({ type: "expense", amount: "", description: "", date: new Date().toISOString().split("T")[0], category_id: "", account_id: "" });
+    setTxForm({ type: "expense", amount: "", description: "", date: toLocalDateInput(), category_id: "", account_id: "" });
     setShowTxDialog(true);
   };
 
@@ -102,9 +109,8 @@ const Financeiro = () => {
     if (!amount || amount <= 0) return toast.error("Valor deve ser maior que zero");
     if (!txForm.date) return toast.error("Data obrigatória");
     const payload = { type: txForm.type, amount, description: txForm.description || null, date: txForm.date, category_id: txForm.category_id || null, account_id: txForm.account_id || null };
-    if (editTx) await updateTx(editTx.id, payload);
-    else await createTx(payload);
-    setShowTxDialog(false);
+    const saved = editTx ? await updateTx(editTx.id, payload) : await createTx(payload);
+    if (saved) setShowTxDialog(false);
   };
 
   const handleDelete = async () => {
@@ -127,12 +133,12 @@ const Financeiro = () => {
       getCategoryName(t.category_id),
       getAccountName(t.account_id),
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell.split('"').join('""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transacoes-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `transacoes-${toLocalDateInput()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exportado!");
@@ -155,31 +161,79 @@ const Financeiro = () => {
     const target = Number(goalForm.target_amount);
     if (!target || target <= 0) return toast.error("Valor alvo deve ser maior que zero");
     const payload = { title: goalForm.title, target_amount: target, current_amount: Number(goalForm.current_amount) || 0, target_date: goalForm.target_date || null };
-    if (editGoal) await updateGoal(editGoal.id, payload);
-    else await createGoal(payload);
-    setShowGoalDialog(false);
+    const saved = editGoal ? await updateGoal(editGoal.id, payload) : await createGoal(payload);
+    if (saved) setShowGoalDialog(false);
+  };
+
+  const openCreateAccount = () => {
+    setEditAccount(null);
+    setAccForm({ name: "", type: "wallet", balance: "0" });
+    setShowAccDialog(true);
+  };
+
+  const openEditAccount = (account: Account) => {
+    setEditAccount(account);
+    setAccForm({ name: account.name, type: account.type, balance: String(account.balance || 0) });
+    setShowAccDialog(true);
+  };
+
+  const handleSaveAccount = async () => {
+    if (!accForm.name.trim()) return toast.error("Nome obrigatório");
+    const balanceValue = Number(accForm.balance);
+    if (!Number.isFinite(balanceValue)) return toast.error("Saldo inválido");
+    const payload = { name: accForm.name.trim(), type: accForm.type, balance: balanceValue };
+    const saved = editAccount ? await updateAcc(editAccount.id, payload) : await createAcc(payload);
+    if (saved) setShowAccDialog(false);
+  };
+
+  const openCreateCategory = () => {
+    setEditCategory(null);
+    setCatForm({ name: "", type: "expense", budget_limit: "" });
+    setShowCatDialog(true);
+  };
+
+  const openEditCategory = (category: Category) => {
+    setEditCategory(category);
+    setCatForm({ name: category.name, type: category.type, budget_limit: category.budget_limit ? String(category.budget_limit) : "" });
+    setShowCatDialog(true);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!catForm.name.trim()) return toast.error("Nome obrigatório");
+    const budget = catForm.budget_limit ? Number(catForm.budget_limit) : null;
+    if (budget !== null && (!Number.isFinite(budget) || budget < 0)) return toast.error("Limite inválido");
+    const payload = { name: catForm.name.trim(), type: catForm.type, budget_limit: budget };
+    const saved = editCategory ? await updateCat(editCategory.id, payload) : await createCat(payload);
+    if (saved) setShowCatDialog(false);
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+    <div className="page-shell">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">Controle suas finanças pessoais</p>
+          <p className="eyebrow">Gestão financeira</p>
+          <h1 className="page-title">Financeiro</h1>
+          <p className="page-description">Acompanhe entradas, despesas, contas e metas.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+          <button onClick={exportCSV} className="action-secondary">
             <Download className="w-4 h-4" /> CSV
           </button>
-          <button onClick={openCreateTx} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-            <Plus className="w-4 h-4" /> Nova Transação
+          <button onClick={openCreateTx} className="action-primary">
+            <Plus className="w-4 h-4" /> Nova transação
           </button>
         </div>
       </div>
 
+      <div className="flex items-center justify-between rounded-xl border border-border/80 bg-card/60 p-2">
+        <button aria-label="Mês anterior" onClick={() => setMonthCursor(new Date(currentYear, currentMonth - 1, 1))} className="icon-button-sm"><ChevronLeft className="h-4 w-4" /></button>
+        <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+        <button aria-label="Próximo mês" onClick={() => setMonthCursor(new Date(currentYear, currentMonth + 1, 1))} className="icon-button-sm"><ChevronRight className="h-4 w-4" /></button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2"><Wallet className="w-4 h-4 text-muted-foreground" /><span className="text-xs text-muted-foreground">Saldo</span></div>
+          <div className="flex items-center gap-2 mb-2"><Wallet className="w-4 h-4 text-muted-foreground" /><span className="text-xs text-muted-foreground">Saldo do mês</span></div>
           <p className={cn("text-xl font-semibold", balance >= 0 ? "text-success" : "text-destructive")}>{fmt(balance)}</p>
         </div>
         <div className="bg-card border border-border rounded-lg p-4">
@@ -202,16 +256,22 @@ const Financeiro = () => {
       </div>
 
       {activeTab === "Transações" && (
-        loading ? <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div> :
-        transactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="p-4 rounded-full bg-secondary mb-4"><DollarSign className="w-8 h-8 text-muted-foreground" /></div>
-            <h2 className="text-lg font-semibold text-foreground mb-1">Sem transações</h2>
-            <p className="text-sm text-muted-foreground max-w-sm">Adicione suas receitas e despesas.</p>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <button onClick={() => setTransactionScope("month")} className={cn("filter-chip", transactionScope === "month" && "filter-chip-active")}>Mês selecionado</button>
+            <button onClick={() => setTransactionScope("all")} className={cn("filter-chip", transactionScope === "all" && "filter-chip-active")}>Todas</button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {transactions.map(t => (
+          {loading ? <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div> :
+          visibleTransactions.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon"><DollarSign className="h-7 w-7" /></span>
+              <h2 className="text-base font-semibold">Sem transações</h2>
+              <p>{transactionScope === "month" ? `Nenhum lançamento em ${monthLabel}.` : "Adicione suas receitas e despesas."}</p>
+              <button onClick={openCreateTx} className="action-primary mt-2"><Plus className="h-4 w-4" /> Adicionar transação</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {visibleTransactions.map(t => (
               <div key={t.id} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border hover:bg-card-hover transition-colors group">
                 <div className={cn("p-2 rounded-md", t.type === "income" ? "bg-success/10" : "bg-destructive/10")}>
                   {t.type === "income" ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
@@ -219,7 +279,7 @@ const Financeiro = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{t.description || (t.type === "income" ? "Receita" : "Despesa")}</p>
                   <div className="flex gap-2 text-[10px] text-muted-foreground">
-                    <span>{new Date(t.date).toLocaleDateString("pt-BR")}</span>
+                    <span>{formatDate(t.date)}</span>
                     {t.category_id && <span>· {getCategoryName(t.category_id)}</span>}
                     {t.account_id && <span>· {getAccountName(t.account_id)}</span>}
                   </div>
@@ -227,26 +287,30 @@ const Financeiro = () => {
                 <span className={cn("text-sm font-medium", t.type === "income" ? "text-success" : "text-destructive")}>
                   {t.type === "income" ? "+" : "-"}{fmt(Number(t.amount))}
                 </span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEditTx(t)} className="p-1.5 rounded hover:bg-accent"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                  <button onClick={() => setDeleteConfirm({ type: "tx", id: t.id })} className="p-1.5 rounded hover:bg-accent"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <button aria-label="Editar transação" onClick={() => openEditTx(t)} className="icon-button-sm"><Edit2 className="w-3.5 h-3.5" /></button>
+                  <button aria-label="Excluir transação" onClick={() => setDeleteConfirm({ type: "tx", id: t.id })} className="icon-button-sm text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
-            ))}
-          </div>
-        )
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === "Contas" && (
         <div className="space-y-3">
-          <button onClick={() => { setAccForm({ name: "", type: "wallet" }); setShowAccDialog(true); }} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+          <button onClick={openCreateAccount} className="action-secondary">
             <Plus className="w-4 h-4" /> Nova Conta
           </button>
           {accounts.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">Nenhuma conta criada</p> :
             accounts.map(a => (
               <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border group">
-                <div><p className="text-sm text-foreground">{a.name}</p><span className="text-[10px] text-muted-foreground capitalize">{a.type === "wallet" ? "Carteira" : a.type === "bank" ? "Banco" : "Cartão"}</span></div>
-                <button onClick={() => setDeleteConfirm({ type: "acc", id: a.id })} className="p-1.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                <div><p className="text-sm text-foreground">{a.name}</p><span className="text-[10px] text-muted-foreground capitalize">{a.type === "wallet" ? "Carteira" : a.type === "bank" ? "Banco" : "Cartão"} · {fmt(a.balance || 0)}</span></div>
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                  <button aria-label={`Editar ${a.name}`} onClick={() => openEditAccount(a)} className="icon-button-sm"><Edit2 className="h-3.5 w-3.5" /></button>
+                  <button aria-label={`Excluir ${a.name}`} onClick={() => setDeleteConfirm({ type: "acc", id: a.id })} className="icon-button-sm text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
               </div>
             ))
           }
@@ -255,7 +319,7 @@ const Financeiro = () => {
 
       {activeTab === "Categorias" && (
         <div className="space-y-3">
-          <button onClick={() => { setCatForm({ name: "", type: "expense", budget_limit: "" }); setShowCatDialog(true); }} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+          <button onClick={openCreateCategory} className="action-secondary">
             <Plus className="w-4 h-4" /> Nova Categoria
           </button>
           {categories.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">Nenhuma categoria criada</p> :
@@ -265,7 +329,10 @@ const Financeiro = () => {
                   <p className="text-sm text-foreground">{c.name}</p>
                   <span className="text-[10px] text-muted-foreground">{c.type === "income" ? "Receita" : "Despesa"}{c.budget_limit ? ` · Limite: ${fmt(c.budget_limit)}` : ""}</span>
                 </div>
-                <button onClick={() => setDeleteConfirm({ type: "cat", id: c.id })} className="p-1.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                  <button aria-label={`Editar ${c.name}`} onClick={() => openEditCategory(c)} className="icon-button-sm"><Edit2 className="h-3.5 w-3.5" /></button>
+                  <button aria-label={`Excluir ${c.name}`} onClick={() => setDeleteConfirm({ type: "cat", id: c.id })} className="icon-button-sm text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
               </div>
             ))
           }
@@ -301,7 +368,7 @@ const Financeiro = () => {
                   <div className="h-2 bg-secondary rounded-full overflow-hidden">
                     <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
                   </div>
-                  {g.target_date && <p className="text-[10px] text-muted-foreground mt-2">Meta: {new Date(g.target_date).toLocaleDateString("pt-BR")}</p>}
+                  {g.target_date && <p className="text-[10px] text-muted-foreground mt-2">Meta: {formatDate(g.target_date)}</p>}
                 </div>
               );
             })
@@ -338,14 +405,14 @@ const Financeiro = () => {
               <option value="">Sem conta</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <button onClick={handleSaveTx} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"><Save className="w-4 h-4 inline mr-2" />{editTx ? "Salvar" : "Criar"}</button>
+            <button onClick={() => void handleSaveTx()} className="action-primary w-full justify-center"><Save className="w-4 h-4" />{editTx ? "Salvar" : "Criar"}</button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showAccDialog} onOpenChange={setShowAccDialog}>
         <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">Nova Conta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-foreground">{editAccount ? "Editar" : "Nova"} conta</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <input type="text" placeholder="Nome" value={accForm.name} onChange={(e) => setAccForm({ ...accForm, name: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -355,15 +422,16 @@ const Financeiro = () => {
               <option value="bank">Banco</option>
               <option value="card">Cartão</option>
             </select>
-            <button onClick={async () => { if (!accForm.name.trim()) return toast.error("Nome obrigatório"); await createAcc(accForm); setShowAccDialog(false); }}
-              className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Criar</button>
+            <input type="number" step="0.01" placeholder="Saldo inicial" value={accForm.balance} onChange={(e) => setAccForm({ ...accForm, balance: e.target.value })}
+              className="field" />
+            <button onClick={() => void handleSaveAccount()} className="action-primary w-full justify-center">{editAccount ? "Salvar" : "Criar"}</button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showCatDialog} onOpenChange={setShowCatDialog}>
         <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">Nova Categoria</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-foreground">{editCategory ? "Editar" : "Nova"} categoria</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <input type="text" placeholder="Nome" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -374,8 +442,7 @@ const Financeiro = () => {
             </select>
             <input type="number" placeholder="Limite orçamento (opcional)" value={catForm.budget_limit} onChange={(e) => setCatForm({ ...catForm, budget_limit: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            <button onClick={async () => { if (!catForm.name.trim()) return toast.error("Nome obrigatório"); await createCat({ name: catForm.name, type: catForm.type, budget_limit: catForm.budget_limit ? Number(catForm.budget_limit) : null }); setShowCatDialog(false); }}
-              className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Criar</button>
+            <button onClick={() => void handleSaveCategory()} className="action-primary w-full justify-center">{editCategory ? "Salvar" : "Criar"}</button>
           </div>
         </DialogContent>
       </Dialog>
@@ -393,7 +460,7 @@ const Financeiro = () => {
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             <input type="date" placeholder="Data alvo (opcional)" value={goalForm.target_date} onChange={(e) => setGoalForm({ ...goalForm, target_date: e.target.value })}
               className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none" />
-            <button onClick={handleSaveGoal} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"><Save className="w-4 h-4 inline mr-2" />{editGoal ? "Salvar" : "Criar"}</button>
+            <button onClick={() => void handleSaveGoal()} className="action-primary w-full justify-center"><Save className="w-4 h-4" />{editGoal ? "Salvar" : "Criar"}</button>
           </div>
         </DialogContent>
       </Dialog>
@@ -402,9 +469,9 @@ const Financeiro = () => {
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Confirmar exclusão</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir?</p>
-          <div className="flex gap-2 justify-end mt-4">
-            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 rounded-md bg-secondary text-sm text-foreground">Cancelar</button>
-            <button onClick={handleDelete} className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium">Excluir</button>
+          <div className="dialog-actions">
+            <button onClick={() => setDeleteConfirm(null)} className="action-secondary">Cancelar</button>
+            <button onClick={() => void handleDelete()} className="action-danger">Excluir</button>
           </div>
         </DialogContent>
       </Dialog>
