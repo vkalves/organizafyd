@@ -26,7 +26,7 @@ function StatCard({ title, value, subtitle, icon: Icon }: {
   icon: React.ElementType;
 }) {
   return (
-    <div className="bg-card border border-border rounded-lg p-5 hover:bg-card-hover transition-colors group">
+    <div className="group rounded-lg border border-border bg-card p-4 transition-colors hover:bg-card-hover sm:p-5">
       <div className="flex items-start justify-between mb-3">
         <div className="p-2 rounded-md bg-secondary">
           <Icon className="w-4 h-4 text-foreground" />
@@ -80,7 +80,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="mx-auto min-w-0 max-w-6xl space-y-6 sm:space-y-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-secondary rounded w-48" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -94,23 +94,23 @@ const Dashboard = () => {
   const d = data!;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="mx-auto min-w-0 max-w-6xl space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Visão geral da sua produtividade</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {quickActions.map((action) => (
           <Link key={action.label} to={action.path}
-            className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary hover:bg-accent text-sm text-foreground transition-colors">
+            className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent sm:min-h-0">
             <Plus className="w-3.5 h-3.5" />
             <span>{action.label}</span>
           </Link>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard 
           title="Tarefas Hoje" 
           value={String(d.todayTasks)} 
@@ -126,7 +126,7 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Tarefas Pendentes</h2>
             <Link to="/tarefas" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Ver todas →</Link>
@@ -152,7 +152,7 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Últimas Notas</h2>
             <Link to="/notas" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Ver todas →</Link>

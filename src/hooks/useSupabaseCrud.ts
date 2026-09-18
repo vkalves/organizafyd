@@ -11,7 +11,11 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data: rows, error } = await (supabase.from(table) as any)
       .select("*")
@@ -41,7 +45,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
     return row as T;
   };
 
-  const update = async (id: string, updates: Partial<T>) => {
+  const update = async (id: string, updates: Partial<T>, options?: { silent?: boolean }) => {
     const { data: row, error } = await (supabase.from(table) as any)
       .update(updates)
       .eq("id", id)
@@ -51,7 +55,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
       toast.error(`Erro ao atualizar: ${error.message}`);
       return null;
     }
-    toast.success("Atualizado!");
+    if (!options?.silent) toast.success("Atualizado!");
     setData((prev) => prev.map((r: any) => (r.id === id ? (row as T) : r)));
     return row as T;
   };
