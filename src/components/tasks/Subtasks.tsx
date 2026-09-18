@@ -51,14 +51,14 @@ export function Subtasks({ items, onChange, collapsible = false, disabled = fals
   };
 
   return (
-    <section className="space-y-2" aria-label="Subtarefas" aria-busy={saving}>
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+    <section className="min-w-0 space-y-2" aria-label="Subtarefas" aria-busy={saving}>
+      <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
         {collapsible ? (
           <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="flex items-center gap-1 py-1">
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />} Subtarefas
           </button>
         ) : <span>Subtarefas</span>}
-        <span aria-live="polite">{done}/{items.length} concluídas</span>
+        <span className="shrink-0" aria-live="polite">{done}/{items.length} concluídas</span>
       </div>
       {expanded && (
         <>
@@ -67,7 +67,7 @@ export function Subtasks({ items, onChange, collapsible = false, disabled = fals
           </div>}
           <ul className="space-y-1">
             {items.map(item => (
-              <li key={item.id} className="flex items-center gap-2">
+              <li key={item.id} className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                 <input type="checkbox" aria-label={`Concluir subtarefa: ${item.text}`} checked={item.done} disabled={locked}
                   onChange={() => void commit(items.map(current => current.id === item.id ? { ...current, done: !current.done } : current))}
                   className="shrink-0 accent-primary" />
@@ -76,24 +76,24 @@ export function Subtasks({ items, onChange, collapsible = false, disabled = fals
                     <input autoFocus aria-label="Editar subtarefa" value={editTitle} disabled={locked} onChange={e => setEditTitle(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); saveEdit(); } if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); } }}
                       className="min-w-0 flex-1 rounded-md border border-border bg-secondary px-2 py-1 text-sm" />
-                    <button type="button" aria-label="Salvar subtarefa" disabled={locked || !editTitle.trim()} onClick={saveEdit} className="p-2 hover:bg-accent rounded disabled:opacity-50"><Save className="h-4 w-4" /></button>
-                    <button type="button" aria-label="Cancelar edição" disabled={locked} onClick={() => setEditingId(null)} className="p-2 hover:bg-accent rounded"><X className="h-4 w-4" /></button>
+                    <button type="button" aria-label="Salvar subtarefa" disabled={locked || !editTitle.trim()} onClick={saveEdit} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md hover:bg-accent disabled:opacity-50"><Save className="h-4 w-4" /></button>
+                    <button type="button" aria-label="Cancelar edição" disabled={locked} onClick={() => setEditingId(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md hover:bg-accent"><X className="h-4 w-4" /></button>
                   </>
                 ) : (
                   <>
                     <span className={cn("min-w-0 flex-1 break-words text-sm text-foreground", item.done && "line-through text-muted-foreground")}>{item.text}</span>
-                    <button type="button" aria-label={`Editar subtarefa: ${item.text}`} disabled={locked} onClick={() => { setEditingId(item.id); setEditTitle(item.text); }} className="p-2 hover:bg-accent rounded text-muted-foreground"><Edit2 className="h-4 w-4" /></button>
-                    <button type="button" aria-label={`Excluir subtarefa: ${item.text}`} disabled={locked} onClick={() => void commit(items.filter(current => current.id !== item.id))} className="p-2 hover:bg-accent rounded text-destructive"><Trash2 className="h-4 w-4" /></button>
+                    <button type="button" aria-label={`Editar subtarefa: ${item.text}`} disabled={locked} onClick={() => { setEditingId(item.id); setEditTitle(item.text); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent sm:h-8 sm:w-8"><Edit2 className="h-4 w-4" /></button>
+                    <button type="button" aria-label={`Excluir subtarefa: ${item.text}`} disabled={locked} onClick={() => void commit(items.filter(current => current.id !== item.id))} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive hover:bg-accent sm:h-8 sm:w-8"><Trash2 className="h-4 w-4" /></button>
                   </>
                 )}
               </li>
             ))}
           </ul>
-          <div className="flex gap-2">
+          <div className="flex min-w-0 gap-2">
             <input aria-label="Nova subtarefa" placeholder="Adicionar subtarefa..." value={title} disabled={locked} onChange={e => setTitle(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
               className="min-w-0 flex-1 h-9 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            <button type="button" aria-label="Adicionar subtarefa" disabled={locked || !title.trim()} onClick={add} className="px-3 h-9 rounded-md bg-secondary hover:bg-accent disabled:opacity-50"><Plus className="w-4 h-4" /></button>
+            <button type="button" aria-label="Adicionar subtarefa" disabled={locked || !title.trim()} onClick={add} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary hover:bg-accent disabled:opacity-50 sm:h-9 sm:w-auto sm:px-3"><Plus className="h-4 w-4" /></button>
           </div>
         </>
       )}

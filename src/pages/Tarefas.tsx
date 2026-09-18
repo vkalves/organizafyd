@@ -103,36 +103,38 @@ const Tarefas = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Tarefas</h1>
           <p className="text-sm text-muted-foreground mt-1">Organize seu dia e suas metas</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="w-4 h-4" /> Nova Tarefa
+        <button type="button" onClick={openCreate} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:min-h-0 sm:w-auto">
+          <Plus className="h-4 w-4" /> Nova Tarefa
         </button>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {views.map((view) => (
           <button key={view} onClick={() => setActiveView(view)} className={cn(
-            "px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
+            "min-h-10 shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors sm:min-h-0",
             activeView === view ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           )}>{view}</button>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 p-3 rounded-md border border-border/50 border-dashed">
-        <Plus className="w-4 h-4 text-muted-foreground" />
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-md border border-dashed border-border/50 p-3 sm:flex sm:flex-wrap">
+        <Plus className="h-4 w-4 text-muted-foreground" />
         <input type="text" placeholder="Adicionar tarefa rápida..." value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none" />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-          <input type="checkbox" checked={quickNoDeadline} onChange={e => setQuickNoDeadline(e.target.checked)} className="accent-primary" />
-          Sem prazo
-        </label>
-        {quickTitle && <button onClick={handleQuickAdd} className="text-xs text-primary hover:underline">Adicionar</button>}
+          className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none" />
+        <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 sm:contents">
+          <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
+            <input type="checkbox" checked={quickNoDeadline} onChange={e => setQuickNoDeadline(e.target.checked)} className="h-4 w-4 accent-primary" />
+            Sem prazo
+          </label>
+          {quickTitle && <button type="button" onClick={handleQuickAdd} className="min-h-10 shrink-0 rounded-md px-2 text-xs font-medium text-primary hover:bg-secondary">Adicionar</button>}
+        </div>
       </div>
 
       {loading ? (
@@ -149,17 +151,19 @@ const Tarefas = () => {
             const clItems = (t.checklist as Subtask[]) || [];
             const clProgress = checklistProgress(t);
             return (
-              <div key={t.id} className="rounded-lg bg-card border border-border hover:bg-card-hover transition-colors group">
-                <div className="flex items-center gap-3 p-3">
-                  <button onClick={() => toggleStatus(t)} className={cn(
-                    "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
-                    t.status === "done" ? "bg-primary border-primary" : "border-muted-foreground hover:border-foreground"
-                  )}>
-                    {t.status === "done" && <CheckSquare className="w-3 h-3 text-primary-foreground" />}
+              <div key={t.id} className="group rounded-lg border border-border bg-card transition-colors hover:bg-card-hover">
+                <div className="flex min-w-0 items-start gap-1.5 p-2 sm:items-center sm:gap-2 sm:p-3">
+                  <button type="button" aria-label={t.status === "done" ? `Reabrir tarefa: ${t.title}` : `Concluir tarefa: ${t.title}`} onClick={() => toggleStatus(t)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
+                    <span className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded border-2 transition-colors",
+                      t.status === "done" ? "border-primary bg-primary" : "border-muted-foreground hover:border-foreground",
+                    )}>
+                      {t.status === "done" && <CheckSquare className="h-3 w-3 text-primary-foreground" />}
+                    </span>
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm text-foreground truncate", t.status === "done" && "line-through text-muted-foreground")}>{t.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <p className={cn("line-clamp-2 break-words text-sm text-foreground sm:truncate", t.status === "done" && "text-muted-foreground line-through")}>{t.title}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                       {t.priority && <span className={cn("text-[10px]", priorities.find(p => p.value === t.priority)?.color)}>{priorities.find(p => p.value === t.priority)?.label}</span>}
                       {t.due_date && <span className="text-[10px] text-muted-foreground">{t.due_date}</span>}
                       {isOverdue(t) && <AlertTriangle className="w-3 h-3 text-destructive" />}
@@ -167,12 +171,12 @@ const Tarefas = () => {
                       {clProgress && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><ListChecks className="w-3 h-3" />{clProgress}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button aria-label={`Editar tarefa: ${t.title}`} onClick={() => openEdit(t)} className="p-1.5 rounded hover:bg-accent"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                    <button aria-label={`Excluir tarefa: ${t.title}`} onClick={() => setDeleteConfirm(t.id)} className="p-1.5 rounded hover:bg-accent"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                  <div className="flex shrink-0 gap-0.5">
+                    <button type="button" aria-label={`Editar tarefa: ${t.title}`} onClick={() => openEdit(t)} className="flex h-10 w-10 items-center justify-center rounded-md hover:bg-accent sm:h-8 sm:w-8"><Edit2 className="h-4 w-4 text-muted-foreground" /></button>
+                    <button type="button" aria-label={`Excluir tarefa: ${t.title}`} onClick={() => setDeleteConfirm(t.id)} className="flex h-10 w-10 items-center justify-center rounded-md hover:bg-accent sm:h-8 sm:w-8"><Trash2 className="h-4 w-4 text-destructive" /></button>
                   </div>
                 </div>
-                <div className="px-3 pb-3 pl-11">
+                <div className="px-3 pb-3 sm:pl-14">
                   <Subtasks items={clItems} collapsible onChange={async items => !!(await update(t.id, { checklist: items }))} />
                 </div>
               </div>
@@ -183,7 +187,7 @@ const Tarefas = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogContent className="border-border bg-card">
           <DialogHeader><DialogTitle className="text-foreground">{editTask ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -196,7 +200,7 @@ const Tarefas = () => {
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full h-20 px-3 py-2 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Prioridade</label>
                 <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}
@@ -222,7 +226,7 @@ const Tarefas = () => {
 
             <Subtasks key={editTask?.id || "new"} items={checklist} disabled={saving} onChange={items => { setChecklist(items); return true; }} />
 
-            <button disabled={saving} onClick={handleSave} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            <button disabled={saving} onClick={handleSave} className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
               <Save className="w-4 h-4 inline mr-2" />{saving ? "Salvando..." : editTask ? "Salvar" : "Criar"}
             </button>
           </div>
@@ -234,9 +238,9 @@ const Tarefas = () => {
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Confirmar exclusão</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta tarefa?</p>
-          <div className="flex gap-2 justify-end mt-4">
-            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">Cancelar</button>
-            <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors">Excluir</button>
+          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button onClick={() => setDeleteConfirm(null)} className="min-h-11 rounded-md bg-secondary px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent">Cancelar</button>
+            <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)} className="min-h-11 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90">Excluir</button>
           </div>
         </DialogContent>
       </Dialog>

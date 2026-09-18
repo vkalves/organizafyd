@@ -1,4 +1,4 @@
-import { Settings, User, Globe, Download, Upload, LogOut, Save } from "lucide-react";
+import { User, Globe, Download, LogOut, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -54,21 +54,21 @@ const Config = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto min-w-0 max-w-2xl space-y-5 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Gerencie seu perfil e preferências</p>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><User className="w-4 h-4" /> Perfil</h2>
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
             <User className="w-6 h-6 text-muted-foreground" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-sm text-foreground font-medium">{profile?.display_name || "Usuário"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="break-all text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
         <div>
@@ -76,12 +76,12 @@ const Config = () => {
           <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
             className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
-        <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+        <button onClick={handleSave} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto">
           <Save className="w-4 h-4" /> Salvar Perfil
         </button>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Globe className="w-4 h-4" /> Preferências</h2>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">Fuso horário</label>
@@ -102,14 +102,14 @@ const Config = () => {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Download className="w-4 h-4" /> Backup & Exportação</h2>
-        <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-sm text-foreground hover:bg-accent transition-colors">
+        <button onClick={handleExport} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent sm:w-auto">
           <Download className="w-4 h-4" /> Exportar JSON
         </button>
       </div>
 
-      <button onClick={signOut} className="flex items-center gap-2 px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors">
+      <button onClick={signOut} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 sm:w-auto">
         <LogOut className="w-4 h-4" /> Sair da Conta
       </button>
     </div>

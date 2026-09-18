@@ -60,13 +60,44 @@
 }
 
 @layer base {
+  html {
+    min-height: 100%;
+    background: hsl(var(--background));
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    margin: 0;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  input,
+  select,
+  textarea {
+    min-width: 0;
   }
 
   /* Scrollbar styling */
@@ -92,6 +123,96 @@
   }
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* App chrome and iOS/Android safe areas */
+.app-header {
+  height: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.app-body {
+  padding-top: calc(3.5rem + env(safe-area-inset-top));
+}
+
+.app-desktop-sidebar {
+  top: calc(3.5rem + env(safe-area-inset-top));
+}
+
+.app-mobile-drawer {
+  top: calc(3.5rem + env(safe-area-inset-top));
+}
+
+.app-main {
+  min-height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+.mobile-bottom-nav {
+  height: calc(4rem + env(safe-area-inset-bottom));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: max(0.5rem, env(safe-area-inset-left));
+}
+
+.safe-bottom-padding {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-dialog-content {
+  top: calc(env(safe-area-inset-top) + 0.5rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1rem);
+  transform: translateX(-50%);
+}
+
+@media (max-width: 1023px) {
+  .app-body-focus {
+    padding-top: 0;
+  }
+
+  .app-main-focus {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .app-page-frame-focus {
+    height: 100%;
+    overflow: hidden;
+    padding: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    padding-bottom: 0;
+  }
+
+  .safe-dialog-content {
+    top: 50%;
+    max-height: 90vh;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* 16px prevents Safari from zooming the whole page when a field receives focus. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 
