@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
+const Instagram = lazy(() => import("./pages/Instagram"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
@@ -42,6 +43,10 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
+              <Route path="/instagram" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/instagram/hoje" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/instagram/tarefas" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/instagram/conta/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
