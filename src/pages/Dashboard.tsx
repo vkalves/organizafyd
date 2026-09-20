@@ -1,4 +1,3 @@
-import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import { 
   CheckSquare, StickyNote,
   Plus, ArrowUpRight, Clock
@@ -110,8 +109,6 @@ const Dashboard = () => {
           </Link>
         ))}
       </div>
-
-      <Shortcuts key={user?.id} />
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard 

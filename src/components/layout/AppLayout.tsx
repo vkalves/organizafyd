@@ -1,3 +1,4 @@
+import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import { 
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, User, Menu, ChevronLeft, LogOut, Instagram
@@ -24,7 +25,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFocusMode, setMobileFocusMode] = useState(false);
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -67,7 +68,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="flex min-w-0 items-center gap-2">
-          <img src={logoImg} alt="Organizafy" className="h-7 max-w-[8.5rem] object-contain object-left sm:max-w-none" />
+          <img src={logoImg} alt="Organizafy" className="h-7 max-w-[3.5rem] min-[400px]:max-w-[5rem] object-contain object-left sm:max-w-none" />
         </div>
 
         <div className="hidden sm:flex flex-1 max-w-md mx-auto">
@@ -78,6 +79,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="min-w-0 flex-1 sm:hidden" />
+
+        <Shortcuts key={user?.id} />
 
         <button type="button" onClick={signOut} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent" title="Sair" aria-label="Sair da conta">
           <LogOut className="h-4 w-4 text-muted-foreground" />

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Github, Globe, MessageCircle, Pencil, Plus, Trash2, Youtube } from "lucide-react";
+import { ArrowUpRight, Github, Globe, Pencil, Plus, Trash2, Youtube } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -28,14 +28,20 @@ function safeUrl(value: string): string | null {
 
 function SiteIcon({ url }: { url: string }) {
   const host = new URL(safeUrl(url) || "https://example.com").hostname.replace(/^www\./, "");
-  const Icon = host === "github.com" ? Github : host === "youtube.com" || host === "youtu.be" ? Youtube : host === "chatgpt.com" || host === "chat.openai.com" ? MessageCircle : Globe;
-  return <Icon className="h-6 w-6" aria-hidden="true" />;
+  if (host === "chatgpt.com" || host === "chat.openai.com") return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {[0, 60, 120, 180, 240, 300].map(angle => <path key={angle} transform={`rotate(${angle} 12 12)`} d="M12 8.2 16.5 5.6C19.6 3.8 23 7.6 21.2 10.7L18.4 15.5M12 8.2v5.1l4.4 2.5" />)}
+    </svg>
+  );
+  const Icon = host === "github.com" ? Github : host === "youtube.com" || host === "youtu.be" ? Youtube : Globe;
+  return <Icon className="h-5 w-5" aria-hidden="true" />;
 }
 
 export function Shortcuts() {
   const { user } = useAuth();
   const cache = useQueryClient();
   const key = ["shortcuts", user?.id];
+  const [managing, setManaging] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -84,13 +90,25 @@ export function Shortcuts() {
     finally { setBusy(false); }
   }
 
-  return <section aria-labelledby="shortcuts-heading" className="rounded-lg border border-border bg-card p-4 sm:p-5">
+  return <>
+    <nav aria-label="Atalhos para sites" className="flex min-w-0 max-w-[8rem] items-center sm:max-w-[14rem] lg:max-w-[20rem]">
+      <div className="flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {data.map(item => {
+          const href = safeUrl(item.url);
+          return href ? <a key={item.id} href={href} target="_blank" rel="noopener noreferrer" title={`${item.title} · Abrir em nova aba`} aria-label={`${item.title} (abre em nova aba)`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-10 sm:w-10"><SiteIcon url={item.url} /></a> : null;
+        })}
+      </div>
+      <button type="button" onClick={() => setManaging(true)} title="Gerenciar atalhos" aria-label="Gerenciar atalhos" className="flex h-9 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Plus className="h-4 w-4" /></button>
+    </nav>
+    <Dialog open={managing} onOpenChange={setManaging}>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader><DialogTitle>Meus atalhos</DialogTitle><DialogDescription>Organize os ícones da barra superior. Cada site abre em uma nova aba.</DialogDescription></DialogHeader>
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 id="shortcuts-heading" className="font-semibold">Meus atalhos</h2><p className="text-xs text-muted-foreground mt-1">Seus sites favoritos, sempre em uma nova aba.</p></div>
+
       <Button size="sm" variant="secondary" onClick={() => edit()} disabled={busy}><Plus className="mr-2 h-4 w-4" />Adicionar atalho</Button>
     </div>
     {isLoading ? <p className="mt-4 text-sm text-muted-foreground">Carregando atalhos...</p> : isError ? <div className="mt-4 text-sm">Não foi possível carregar os atalhos. <Button variant="link" onClick={() => void refetch()}>Tentar novamente</Button></div> : <>
-      {data.length > 0 && <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {data.length > 0 && <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {data.map(item => {
           const href = safeUrl(item.url);
           return <div key={item.id} className="min-w-0 rounded-lg border border-border bg-background transition-colors hover:bg-accent/40">
@@ -108,6 +126,8 @@ export function Shortcuts() {
         {suggestions.filter(s => !data.some(d => safeUrl(d.url) === safeUrl(s.url))).map(s => <Button key={s.title} variant="outline" size="sm" disabled={busy} onClick={() => edit(s)}><Plus className="mr-1 h-3 w-3" />{s.title}</Button>)}
       </div>
     </>}
+      </DialogContent>
+    </Dialog>
     <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}>
       <DialogContent className="max-w-md"><DialogHeader><DialogTitle>{editing ? "Editar atalho" : "Adicionar atalho"}</DialogTitle><DialogDescription>Escolha um nome e o endereço do site. O ícone é definido pelo endereço.</DialogDescription></DialogHeader>
         <form onSubmit={save} className="space-y-4">
@@ -117,5 +137,5 @@ export function Shortcuts() {
         </form>
       </DialogContent>
     </Dialog>
-  </section>;
+  </>;
 }
