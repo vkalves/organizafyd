@@ -1,6 +1,6 @@
 import { 
   LayoutDashboard, CheckSquare, StickyNote, Settings,
-  Search, User, Menu, ChevronLeft, LogOut
+  Search, User, Menu, ChevronLeft, LogOut, Instagram
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
   { title: "Tarefas", path: "/tarefas", icon: CheckSquare },
   { title: "Notas", path: "/notas", icon: StickyNote },
+  { title: "Instagram", path: "/instagram", icon: Instagram },
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 
