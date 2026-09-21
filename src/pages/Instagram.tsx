@@ -40,12 +40,10 @@ import {
   priorities,
   taskStatuses,
   metricNames,
-  defaultLabels,
   safeUrl,
   localDay,
   displayDate,
   matchesSearch,
-  type Account,
   type Content,
   type Task,
   type Table,
@@ -100,8 +98,6 @@ export default function Instagram() {
   const { data, save, saving } = query;
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [project, setProject] = useState("");
-  const [label, setLabel] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -111,7 +107,6 @@ export default function Instagram() {
     id: string;
     name: string;
   } | null>(null);
-  const [manage, setManage] = useState(false);
   if (query.isLoading)
     return (
       <p role="status" className="p-8 text-muted-foreground">
@@ -132,13 +127,6 @@ export default function Instagram() {
       </div>
     );
   const account = data.accounts.find((a) => a.id === accountId);
-  const projectName = (a: Account) =>
-    data.projects.find((p) => p.id === a.project_id)?.name || "Sem projeto";
-  const accountLabels = (a: Account) =>
-    data.account_labels
-      .filter((l) => l.account_id === a.id)
-      .map((l) => data.labels.find((t) => t.id === l.label_id)?.name)
-      .filter(Boolean) as string[];
   const contents = data.contents.filter(
     (c) => !accountId || c.account_id === accountId,
   );
@@ -330,12 +318,7 @@ export default function Instagram() {
   );
   const today = localDay();
   const visibleAccounts = data.accounts.filter(
-    (a) =>
-      matchesSearch(a, projectName(a), accountLabels(a), search) &&
-      (!status || a.status === status) &&
-      (!project ||
-        (project === "none" ? !a.project_id : a.project_id === project)) &&
-      (!label || accountLabels(a).includes(label)),
+    (a) => matchesSearch(a, search) && (!status || a.status === status),
   );
   const todayTasks = tasks.filter(
     (t) => t.due_at && localDay(t.due_at) === today,
@@ -388,7 +371,7 @@ export default function Instagram() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {account
-              ? `${projectName(account)} · ${account.name}`
+              ? `@${account.username}`
               : mode === "today"
                 ? new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })
                 : "Organize suas contas, conteúdos e rotina."}
@@ -447,80 +430,7 @@ export default function Instagram() {
               <Link to={path}>{title}</Link>
             </Button>
           ))}
-          <Button variant="ghost" onClick={() => setManage(!manage)}>
-            Projetos e etiquetas
-          </Button>
         </nav>
-      )}
-      {!accountId && manage && (
-        <section className={panel}>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Button onClick={() => create("projects")}>Novo projeto</Button>
-            <Button variant="outline" onClick={() => create("labels")}>
-              Nova etiqueta
-            </Button>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <h2 className="mb-2 font-medium">Projetos</h2>
-              {!data.projects.length && (
-                <p className="text-sm text-muted-foreground">
-                  Crie seu primeiro projeto.
-                </p>
-              )}
-              {data.projects.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex min-w-0 items-center gap-2 border-b py-2"
-                >
-                  <Avatar url={p.image_url} name={p.name} />
-                  <span className="min-w-0 flex-1 break-words text-sm">
-                    {p.name}
-                  </span>
-                  {actions("projects", p, p.name)}
-                </div>
-              ))}
-            </div>
-            <div>
-              <h2 className="mb-2 font-medium">Etiquetas</h2>
-              <p className="text-xs text-muted-foreground">
-                Crie etiquetas e associe-as na aba Informações da conta.
-              </p>
-              {data.labels.map((l) => (
-                <div
-                  key={l.id}
-                  className="flex items-center gap-2 border-b py-1"
-                >
-                  <span className="min-w-0 flex-1 break-words text-sm">
-                    {l.name}
-                  </span>
-                  {actions("labels", l, l.name)}
-                </div>
-              ))}
-              <div className="mt-2 flex flex-wrap gap-2">
-                {defaultLabels
-                  .filter(
-                    (n) =>
-                      !data.labels.some(
-                        (l) => l.name.toLowerCase() === n.toLowerCase(),
-                      ),
-                  )
-                  .map((n) => (
-                    <Button
-                      key={n}
-                      variant="outline"
-                      disabled={saving}
-                      onClick={() =>
-                        mutate({ table: "labels", values: { name: n } })
-                      }
-                    >
-                      + {n}
-                    </Button>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </section>
       )}
       {!accountId && mode === "accounts" && (
         <>
@@ -538,7 +448,7 @@ export default function Instagram() {
               [
                 "Em criação",
                 data.accounts.filter((a) => a.status === "creating").length,
-              ],,
+              ],
             ].map(([title, value]) => (
               <div className={panel} key={title}>
                 <p className="text-2xl font-semibold">{value}</p>
@@ -546,11 +456,11 @@ export default function Instagram() {
               </div>
             ))}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Input
               className="h-11"
               aria-label="Buscar contas"
-              placeholder="Buscar conta, pessoa, observação…"
+              placeholder="Buscar conta, observação…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -567,36 +477,6 @@ export default function Instagram() {
                 </option>
               ))}
             </select>
-            <select
-              aria-label="Filtrar projeto"
-              className={selectClass}
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-            >
-              <option value="">Todos os projetos</option>
-              <option value="none">Sem projeto</option>
-              {data.projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Filtrar etiqueta"
-              className={selectClass}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-            >
-              <option value="">Todas as etiquetas</option>
-              {[
-                ...new Set([
-                  ...defaultLabels,
-                  ...data.labels.map((l) => l.name),
-                ]),
-              ].map((l) => (
-                <option key={l}>{l}</option>
-              ))}
-            </select>
           </div>
           {!visibleAccounts.length && (
             <Empty>
@@ -605,22 +485,8 @@ export default function Instagram() {
                 : "Adicione sua primeira conta para começar."}
             </Empty>
           )}
-          {[
-            ...data.projects.map((p) => ({ id: p.id, name: p.name })),
-            { id: null, name: "Sem projeto" },
-          ].map((p) => {
-            const group = visibleAccounts.filter((a) => a.project_id === p.id);
-            return (
-              group.length > 0 && (
-                <section key={p.id || "none"}>
-                  <h2 className="mb-3 break-words text-sm font-semibold">
-                    {p.name}{" "}
-                    <span className="text-muted-foreground">
-                      · {group.length}
-                    </span>
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {group.map((a) => (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {visibleAccounts.map((a) => (
                       <article key={a.id} className={panel}>
                         <div className="flex items-center gap-3">
                           <Avatar url={a.avatar_url} name={a.name} />
@@ -631,21 +497,10 @@ export default function Instagram() {
                             >
                               @{a.username}
                             </Link>
-                            <p className="break-words text-sm text-muted-foreground">
-                              {a.name}
-                            </p>
                           </div>
                         </div>
                         <div className="my-3 flex flex-wrap gap-1">
                           <Status status={a.status} />
-                          {a.category && (
-                            <Badge variant="secondary">{a.category}</Badge>
-                          )}
-                          {accountLabels(a).map((l) => (
-                            <Badge variant="secondary" key={l}>
-                              {l}
-                            </Badge>
-                          ))}
                         </div>
                         <p className="font-semibold">
                           {latestMetric(a.id)?.followers?.toLocaleString(
@@ -671,14 +526,6 @@ export default function Instagram() {
                             <dd className="break-words">
                               {nextTask(a.id)?.title ||
                                 "Nenhuma tarefa pendente"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">
-                              Responsável
-                            </dt>
-                            <dd className="break-words">
-                              {a.responsible || "Não definido"}
                             </dd>
                           </div>
                         </dl>
@@ -707,12 +554,8 @@ export default function Instagram() {
                           </Button>
                         </div>
                       </article>
-                    ))}
-                  </div>
-                </section>
-              )
-            );
-          })}
+            ))}
+          </div>
         </>
       )}
       {!accountId && (mode === "today" || mode === "tasks") && (
@@ -770,7 +613,7 @@ export default function Instagram() {
                 <section key={a.id} className="space-y-2">
                   <h2 className="break-words font-medium">
                     <Link to={`/instagram/conta/${a.id}`}>
-                      {projectName(a)} · @{a.username}
+                      @{a.username}
                     </Link>
                   </h2>
                   {ts.map(taskRow)}
@@ -1083,16 +926,10 @@ export default function Instagram() {
                 <dl className="grid gap-4 sm:grid-cols-2">
                   {[
                     ["Username", `@${account.username}`],
-                    ["Nome", account.name],
-                    ["Projeto", projectName(account)],
-                    ["Categoria", account.category],
-                    ["Nicho", account.niche],
                     ["E-mail", account.email],
                     ["Telefone", account.phone],
-                    ["Responsável", account.responsible],
                     ["Criada em", displayDate(account.account_created_on)],
                     ["Status", statuses[account.status]],
-                    ["Link", account.instagram_url],
                     ["Observações", account.notes],
                   ].map(([k, v]) => (
                     <div key={k} className="min-w-0">
@@ -1108,70 +945,8 @@ export default function Instagram() {
                   variant="outline"
                   onClick={() => openEdit("accounts", account)}
                 >
-                  Editar informações / mover projeto
+                  Editar informações
                 </Button>
-              </div>
-              <div className={panel}>
-                <h2 className="mb-3 font-medium">Etiquetas</h2>
-                <div className="flex flex-wrap gap-2">
-                  {data.labels.map((l) => {
-                    const attached = data.account_labels.find(
-                      (x) => x.account_id === account.id && x.label_id === l.id,
-                    );
-                    return (
-                      <Button
-                        key={l.id}
-                        variant={attached ? "secondary" : "outline"}
-                        aria-pressed={!!attached}
-                        disabled={saving}
-                        onClick={() =>
-                          mutate(
-                            attached
-                              ? {
-                                  table: "account_labels",
-                                  id: attached.id,
-                                  remove: true,
-                                }
-                              : {
-                                  table: "account_labels",
-                                  values: {
-                                    account_id: account.id,
-                                    label_id: l.id,
-                                  },
-                                },
-                          )
-                        }
-                      >
-                        {attached ? "✓ " : ""}
-                        {l.name}
-                      </Button>
-                    );
-                  })}
-                  <Button variant="ghost" onClick={() => create("labels")}>
-                    + Nova etiqueta
-                  </Button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {defaultLabels
-                    .filter(
-                      (n) =>
-                        !data.labels.some(
-                          (l) => l.name.toLowerCase() === n.toLowerCase(),
-                        ),
-                    )
-                    .map((n) => (
-                      <Button
-                        key={n}
-                        variant="outline"
-                        disabled={saving}
-                        onClick={() =>
-                          mutate({ table: "labels", values: { name: n } })
-                        }
-                      >
-                        Criar {n}
-                      </Button>
-                    ))}
-                </div>
               </div>
               <Button
                 variant="destructive"
@@ -1199,7 +974,6 @@ export default function Instagram() {
                       instagram_contents: "Conteúdo",
                       instagram_tasks: "Tarefa",
                       instagram_metrics: "Métricas",
-                      instagram_account_labels: "Etiqueta da conta",
                     }[table] || "Registro";
                   return (
                     <article key={h.id} className={panel}>
@@ -1259,9 +1033,7 @@ export default function Instagram() {
               Excluir {deletion?.name}?{" "}
               {deletion?.table === "accounts"
                 ? "Os conteúdos, tarefas, métricas e histórico desta conta também serão excluídos."
-                : deletion?.table === "projects"
-                  ? "As contas serão mantidas e ficarão sem projeto."
-                  : "Esta ação não pode ser desfeita."}
+                : "Esta ação não pode ser desfeita."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
