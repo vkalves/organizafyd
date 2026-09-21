@@ -14,6 +14,8 @@ import {
   User,
   Flame,
   Hourglass,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   LineChart,
@@ -34,6 +36,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useInstagramData } from "@/features/instagram/data";
 import {
   Editor,
@@ -207,6 +214,93 @@ function StatLine({
         </span>
         {action}
       </p>
+    </div>
+  );
+}
+function FilterBar({
+  search,
+  onSearch,
+  label,
+  filters,
+  onClear,
+  action,
+}: {
+  search: string;
+  onSearch: (value: string) => void;
+  label: string;
+  filters: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: string[][];
+  }[];
+  onClear: () => void;
+  action?: React.ReactNode;
+}) {
+  const active = filters.filter((item) => item.value).length;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative min-w-0 flex-1">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          className="h-9 border-0 bg-muted/40 pl-8 text-sm shadow-none"
+          aria-label={label}
+          placeholder="Buscar..."
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+        />
+      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="relative h-9 w-9 shrink-0"
+            aria-label="Filtros"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {active ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-medium">
+                {active}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-56 space-y-2 p-3">
+          {filters.map((item) => (
+            <select
+              key={item.label}
+              aria-label={item.label}
+              className={`${selectClass} !h-9`}
+              value={item.value}
+              onChange={(e) => item.onChange(e.target.value)}
+            >
+              <option value="">{item.label}</option>
+              {item.options.map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          ))}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            disabled={!search && !active}
+            onClick={onClear}
+          >
+            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        </PopoverContent>
+      </Popover>
+      {action}
     </div>
   );
 }
@@ -815,74 +909,43 @@ export default function Instagram() {
               dim
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="h-9 min-w-[8rem] flex-1 text-sm"
-              aria-label="Buscar contas"
-              placeholder="Buscar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select
-              aria-label="Status"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">Status</option>
-              {Object.entries(statuses).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Aparelho"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={device}
-              onChange={(e) => setDevice(e.target.value)}
-            >
-              <option value="">Aparelho</option>
-              {Object.entries(devices).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Modelo"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            >
-              <option value="">Modelo</option>
-              {Object.entries(models).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              aria-label="Limpar filtros"
-              disabled={!search && !status && !device && !model}
-              onClick={() => {
-                setSearch("");
-                setStatus("");
-                setDevice("");
-                setModel("");
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button className="h-9" onClick={() => create("accounts")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova conta
-            </Button>
-          </div>
+          <FilterBar
+            search={search}
+            onSearch={setSearch}
+            label="Buscar contas"
+            filters={[
+              {
+                label: "Status",
+                value: status,
+                onChange: setStatus,
+                options: Object.entries(statuses),
+              },
+              {
+                label: "Aparelho",
+                value: device,
+                onChange: setDevice,
+                options: Object.entries(devices),
+              },
+              {
+                label: "Modelo",
+                value: model,
+                onChange: setModel,
+                options: Object.entries(models),
+              },
+            ]}
+            onClear={() => {
+              setSearch("");
+              setStatus("");
+              setDevice("");
+              setModel("");
+            }}
+            action={
+              <Button className="h-9 shrink-0" onClick={() => create("accounts")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova conta
+              </Button>
+            }
+          />
           {!visibleAccounts.length && (
             <Empty>
               {data.accounts.length
@@ -991,93 +1054,57 @@ export default function Instagram() {
               label="contas pendentes"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="h-9 min-w-[8rem] flex-1 text-sm"
-              aria-label="Buscar conteúdos pendentes"
-              placeholder="Buscar..."
-              value={pendingSearch}
-              onChange={(e) => setPendingSearch(e.target.value)}
-            />
-            <select
-              aria-label="Conta"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={pendingAccount}
-              onChange={(e) => setPendingAccount(e.target.value)}
-            >
-              <option value="">Conta</option>
-              {data.accounts
-                .filter((a) =>
-                  data.contents.some(
-                    (c) =>
-                      c.account_id === a.id &&
-                      c.status !== "published" &&
-                      c.status !== "ready",
-                  ),
-                )
-                .sort((a, b) => a.username.localeCompare(b.username))
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    @{a.username}
-                  </option>
-                ))}
-            </select>
-            <select
-              aria-label="Aparelho"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={pendingDevice}
-              onChange={(e) => setPendingDevice(e.target.value)}
-            >
-              <option value="">Aparelho</option>
-              {Object.entries(devices).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Modelo"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={pendingModel}
-              onChange={(e) => setPendingModel(e.target.value)}
-            >
-              <option value="">Modelo</option>
-              {Object.entries(models).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              aria-label="Limpar filtros"
-              disabled={
-                !pendingSearch &&
-                !pendingModel &&
-                !pendingAccount &&
-                !pendingDevice
-              }
-              onClick={() => {
-                setPendingSearch("");
-                setPendingModel("");
-                setPendingAccount("");
-                setPendingDevice("");
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button
-              className="h-9"
-              disabled={!data.accounts.length}
-              onClick={() => create("contents", { status: "idea" }, true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Conteúdo
-            </Button>
-          </div>
+          <FilterBar
+            search={pendingSearch}
+            onSearch={setPendingSearch}
+            label="Buscar conteúdos pendentes"
+            filters={[
+              {
+                label: "Conta",
+                value: pendingAccount,
+                onChange: setPendingAccount,
+                options: data.accounts
+                  .filter((a) =>
+                    data.contents.some(
+                      (c) =>
+                        c.account_id === a.id &&
+                        c.status !== "published" &&
+                        c.status !== "ready",
+                    ),
+                  )
+                  .sort((a, b) => a.username.localeCompare(b.username))
+                  .map((a) => [a.id, `@${a.username}`]),
+              },
+              {
+                label: "Aparelho",
+                value: pendingDevice,
+                onChange: setPendingDevice,
+                options: Object.entries(devices),
+              },
+              {
+                label: "Modelo",
+                value: pendingModel,
+                onChange: setPendingModel,
+                options: Object.entries(models),
+              },
+            ]}
+            onClear={() => {
+              setPendingSearch("");
+              setPendingModel("");
+              setPendingAccount("");
+              setPendingDevice("");
+            }}
+            action={
+              <Button
+                className="h-9 shrink-0"
+                disabled={!data.accounts.length}
+                onClick={() => create("contents", { status: "idea" }, true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Conteúdo
+              </Button>
+            }
+          />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {pendingAccounts.map((a) => {
               const pool = data.contents.filter(
@@ -1163,75 +1190,40 @@ export default function Instagram() {
               label="contas prontas"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="h-9 min-w-[8rem] flex-1 text-sm"
-              aria-label="Buscar conteúdos prontos"
-              placeholder="Buscar..."
-              value={readySearch}
-              onChange={(e) => setReadySearch(e.target.value)}
-            />
-            <select
-              aria-label="Conta"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={readyAccount}
-              onChange={(e) => setReadyAccount(e.target.value)}
-            >
-              <option value="">Conta</option>
-              {data.accounts
-                .filter((a) => fullyReadyAccountIds.has(a.id))
-                .sort((a, b) => a.username.localeCompare(b.username))
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    @{a.username}
-                  </option>
-                ))}
-            </select>
-            <select
-              aria-label="Aparelho"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={readyDevice}
-              onChange={(e) => setReadyDevice(e.target.value)}
-            >
-              <option value="">Aparelho</option>
-              {Object.entries(devices).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Modelo"
-              className={`${selectClass} !h-9 sm:w-36`}
-              value={readyModel}
-              onChange={(e) => setReadyModel(e.target.value)}
-            >
-              <option value="">Modelo</option>
-              {Object.entries(models).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              aria-label="Limpar filtros"
-              disabled={
-                !readySearch && !readyModel && !readyAccount && !readyDevice
-              }
-              onClick={() => {
-                setReadySearch("");
-                setReadyModel("");
-                setReadyAccount("");
-                setReadyDevice("");
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
+          <FilterBar
+            search={readySearch}
+            onSearch={setReadySearch}
+            label="Buscar conteúdos prontos"
+            filters={[
+              {
+                label: "Conta",
+                value: readyAccount,
+                onChange: setReadyAccount,
+                options: data.accounts
+                  .filter((a) => fullyReadyAccountIds.has(a.id))
+                  .sort((a, b) => a.username.localeCompare(b.username))
+                  .map((a) => [a.id, `@${a.username}`]),
+              },
+              {
+                label: "Aparelho",
+                value: readyDevice,
+                onChange: setReadyDevice,
+                options: Object.entries(devices),
+              },
+              {
+                label: "Modelo",
+                value: readyModel,
+                onChange: setReadyModel,
+                options: Object.entries(models),
+              },
+            ]}
+            onClear={() => {
+              setReadySearch("");
+              setReadyModel("");
+              setReadyAccount("");
+              setReadyDevice("");
+            }}
+          />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {readyAccounts.map((a) => {
               const pool = data.contents.filter(
