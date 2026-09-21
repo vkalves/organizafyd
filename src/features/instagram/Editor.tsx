@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,12 +46,14 @@ export function Editor({
   data,
   onClose,
   onSave,
+  onDelete,
   saving,
 }: {
   request: EditRequest;
   data: InstagramData;
   onClose: () => void;
   onSave: (values: Record<string, unknown>) => Promise<void>;
+  onDelete?: () => void;
   saving: boolean;
 }) {
   const defaults: Record<string, unknown> = {
@@ -231,13 +233,28 @@ export function Editor({
             <p className="whitespace-pre-wrap break-words text-sm">
               {String(values.content || "Sem conteúdo")}
             </p>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Fechar
-              </Button>
-              <Button type="button" onClick={() => setViewing(false)}>
-                Editar
-              </Button>
+            <div className="flex items-center justify-between gap-2">
+              {onDelete ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Excluir ideia"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Fechar
+                </Button>
+                <Button type="button" onClick={() => setViewing(false)}>
+                  Editar
+                </Button>
+              </div>
             </div>
           </div>
         ) : (

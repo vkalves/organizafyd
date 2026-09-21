@@ -73,9 +73,13 @@ function Empty({ children }: { children: React.ReactNode }) {
 function Status({ status }: { status: string }) {
   return (
     <Badge variant="outline" className="gap-1.5">
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-success" : status === "warming" || status === "attention" ? "bg-warning" : status === "problem" ? "bg-destructive" : "bg-muted-foreground"}`}
-      />
+      {status === "warming" || status === "attention" ? (
+        <Flame className="h-3.5 w-3.5 shrink-0 text-warning" />
+      ) : (
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-success" : status === "problem" ? "bg-destructive" : "bg-muted-foreground"}`}
+        />
+      )}
       {statuses[status]}
     </Badge>
   );
@@ -192,7 +196,7 @@ function StatLine({
 }) {
   return (
     <div
-      className={`rounded-lg border border-border bg-card px-3.5 py-2.5 ${dim ? "opacity-45" : ""}`}
+      className={`rounded-md bg-muted/40 px-3 py-2 ${dim ? "opacity-45" : ""}`}
     >
       <p className="flex items-center gap-2 text-sm">
         {icon}
@@ -527,6 +531,17 @@ export default function Instagram() {
       data={data}
       saving={saving}
       onClose={() => setEdit(null)}
+      onDelete={
+        edit.table === "ideas" && edit.id
+          ? () => {
+              const name =
+                String(edit.values?.content || edit.values?.title || "ideia");
+              const id = edit.id;
+              setEdit(null);
+              remove("ideas", id, name);
+            }
+          : undefined
+      }
       onSave={async (values) => {
         if (edit.compact && edit.table === "contents" && !edit.id) {
           const qty = Math.max(1, Math.min(99, Number(values.quantity) || 1));
@@ -651,7 +666,7 @@ export default function Instagram() {
       {!accountId && (
         <nav
           aria-label="Instagram"
-          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+          className="flex flex-col overflow-hidden rounded-xl border border-border sm:flex-row"
         >
           {[
             {
@@ -683,10 +698,10 @@ export default function Instagram() {
                 key={item.path}
                 to={item.path}
                 aria-current={item.active ? "page" : undefined}
-                className={`flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 text-[15px] font-semibold ${
+                className={`flex min-h-[3.4rem] flex-1 items-center gap-3 border-border px-4 py-3 text-[15px] font-semibold sm:border-r sm:last:border-r-0 max-sm:border-b max-sm:last:border-b-0 ${
                   item.active
-                    ? "border-foreground/20 bg-secondary"
-                    : "border-border bg-card text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                    ? "bg-secondary text-foreground"
+                    : "bg-card text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -715,7 +730,7 @@ export default function Instagram() {
               label="ativas"
             />
             <StatLine
-              icon={<Flame className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              icon={<Flame className="h-4 w-4 shrink-0 text-warning" />}
               count={data.accounts.filter((a) => a.status === "warming").length}
               label="aquecendo"
             />
@@ -989,19 +1004,15 @@ export default function Instagram() {
               const total = counts.pending + counts.ready;
               return (
                 <article key={a.id} className={panel}>
-                  <div className="flex items-center gap-4">
-                    <ProgressRing
-                      className="h-16 w-16"
-                      value={total ? (counts.ready / total) * 100 : 0}
-                    />
+                  <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-lg font-semibold leading-tight">
+                      <p className="text-xl font-bold leading-tight">
                         <Handle
                           username={a.username}
                           verified={isVerified(a)}
                         />
                       </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-1.5 text-sm text-muted-foreground">
                         {a.category || "Sem modelo"}
                       </p>
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -1010,6 +1021,17 @@ export default function Instagram() {
                           {a.responsible || "Sem aparelho"}
                         </span>
                       </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <p className="text-sm tabular-nums">
+                        <span className="opacity-40">{counts.pending}</span>
+                        <span className="opacity-40">/</span>
+                        <span className="font-semibold">{counts.ready}</span>
+                      </p>
+                      <ProgressRing
+                        className="h-16 w-16"
+                        value={total ? (counts.ready / total) * 100 : 0}
+                      />
                     </div>
                   </div>
                   <div className="mt-4">
@@ -1117,7 +1139,7 @@ export default function Instagram() {
           {tab === "overview" && (
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className={panel}>
+                <div className={`${panel} opacity-50`}>
                   <p className="text-3xl font-semibold tabular-nums">
                     {overviewCounts.pending}
                   </p>
@@ -1125,7 +1147,7 @@ export default function Instagram() {
                     Pendentes
                   </p>
                 </div>
-                <div className={panel}>
+                <div className={`${panel} opacity-50`}>
                   {editingReady ? (
                     <form
                       className="flex items-center gap-2"
@@ -1249,37 +1271,19 @@ export default function Instagram() {
               {!ideas.length && (
                 <Empty>Nenhuma ideia nesta conta.</Empty>
               )}
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-3">
                 {[...ideas]
                   .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
                   .map((idea) => (
                     <article
                       key={idea.id}
-                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-3 text-left"
+                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-5 text-left"
                       onClick={() => openEdit("ideas", idea)}
                     >
-                      <div className="flex items-start gap-2">
-                        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug line-clamp-4">
-                          {idea.content || idea.title}
-                        </p>
-                        <Button
-                          className="h-8 w-8 shrink-0"
-                          size="icon"
-                          variant="ghost"
-                          aria-label="Excluir ideia"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            remove(
-                              "ideas",
-                              idea.id,
-                              idea.content || idea.title,
-                            );
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                      <p className="mt-2 text-[10px] text-muted-foreground">
+                      <p className="whitespace-pre-wrap break-words text-base leading-relaxed line-clamp-6">
+                        {idea.content || idea.title}
+                      </p>
+                      <p className="mt-3 text-xs text-muted-foreground">
                         {displayDate(idea.updated_at)}
                       </p>
                     </article>
@@ -1356,7 +1360,17 @@ export default function Instagram() {
                     >
                       <dt className="text-xs text-muted-foreground">{k}</dt>
                       <dd className="whitespace-pre-wrap break-words text-sm">
-                        {v || "Não informado"}
+                        {k === "Status" ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            {(account.status === "warming" ||
+                              account.status === "attention") && (
+                              <Flame className="h-3.5 w-3.5 text-warning" />
+                            )}
+                            {v || "Não informado"}
+                          </span>
+                        ) : (
+                          v || "Não informado"
+                        )}
                       </dd>
                     </div>
                   ))}
@@ -1421,37 +1435,19 @@ export default function Instagram() {
               {!ideas.length && (
                 <Empty>Nenhuma ideia nesta conta.</Empty>
               )}
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-3">
                 {[...ideas]
                   .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
                   .map((idea) => (
                     <article
                       key={idea.id}
-                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-3 text-left"
+                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-5 text-left"
                       onClick={() => openEdit("ideas", idea)}
                     >
-                      <div className="flex items-start gap-2">
-                        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug line-clamp-4">
-                          {idea.content || idea.title}
-                        </p>
-                        <Button
-                          className="h-8 w-8 shrink-0"
-                          size="icon"
-                          variant="ghost"
-                          aria-label="Excluir ideia"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            remove(
-                              "ideas",
-                              idea.id,
-                              idea.content || idea.title,
-                            );
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                      <p className="mt-2 text-[10px] text-muted-foreground">
+                      <p className="whitespace-pre-wrap break-words text-base leading-relaxed line-clamp-6">
+                        {idea.content || idea.title}
+                      </p>
+                      <p className="mt-3 text-xs text-muted-foreground">
                         {displayDate(idea.updated_at)}
                       </p>
                     </article>
@@ -1634,7 +1630,17 @@ export default function Instagram() {
                     <div key={k} className="min-w-0">
                       <dt className="text-xs text-muted-foreground">{k}</dt>
                       <dd className="whitespace-pre-wrap break-words text-sm">
-                        {v || "Não informado"}
+                        {k === "Status" ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            {(account.status === "warming" ||
+                              account.status === "attention") && (
+                              <Flame className="h-3.5 w-3.5 text-warning" />
+                            )}
+                            {v || "Não informado"}
+                          </span>
+                        ) : (
+                          v || "Não informado"
+                        )}
                       </dd>
                     </div>
                   ))}
