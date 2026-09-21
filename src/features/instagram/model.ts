@@ -86,10 +86,9 @@ export interface Rows {
 }
 export type Table = keyof Rows;
 export const statuses = {
+  creating: "Em criação",
+  warming: "Aquecendo",
   active: "Ativa",
-  attention: "Precisa de atenção",
-  problem: "Com problema",
-  paused: "Pausada",
 };
 export const stages = {
   idea: "Ideia",
