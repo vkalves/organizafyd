@@ -139,15 +139,16 @@ export function displayDate(value: string | null | undefined) {
     : "Sem data";
 }
 export function matchesSearch(a: Account, search: string) {
-  return [a.username, a.name, a.notes]
+  const q = search
+    .replace(/^@/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (!q) return true;
+  return [a.username, a.name, a.notes, a.responsible]
     .join(" ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .includes(
-      search
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase(),
-    );
+    .includes(q);
 }

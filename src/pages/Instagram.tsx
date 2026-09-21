@@ -40,6 +40,7 @@ import {
   priorities,
   taskStatuses,
   metricNames,
+  devices,
   safeUrl,
   localDay,
   displayDate,
@@ -98,6 +99,7 @@ export default function Instagram() {
   const { data, save, saving } = query;
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [device, setDevice] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -318,7 +320,10 @@ export default function Instagram() {
   );
   const today = localDay();
   const visibleAccounts = data.accounts.filter(
-    (a) => matchesSearch(a, search) && (!status || a.status === status),
+    (a) =>
+      matchesSearch(a, search) &&
+      (!status || a.status === status) &&
+      (!device || a.responsible === device),
   );
   const todayTasks = tasks.filter(
     (t) => t.due_at && localDay(t.due_at) === today,
@@ -456,22 +461,35 @@ export default function Instagram() {
               </div>
             ))}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <Input
               className="h-11"
               aria-label="Buscar contas"
-              placeholder="Buscar conta..."
+              placeholder="Buscar por @ ou aparelho..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <select
-              aria-label="Filtrar status"
+              aria-label="Status"
               className={selectClass}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option value="">Todos os status</option>
+              <option value="">Status</option>
               {Object.entries(statuses).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Aparelho"
+              className={selectClass}
+              value={device}
+              onChange={(e) => setDevice(e.target.value)}
+            >
+              <option value="">Aparelho</option>
+              {Object.entries(devices).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
@@ -512,6 +530,9 @@ export default function Instagram() {
                         </div>
                         <div className="my-3 flex flex-wrap gap-1">
                           <Status status={a.status} />
+                          {a.responsible && (
+                            <Badge variant="outline">{a.responsible}</Badge>
+                          )}
                         </div>
                         <p className="font-semibold">
                           {latestMetric(a.id)?.followers?.toLocaleString(
