@@ -66,7 +66,7 @@ function Status({ status }: { status: string }) {
   return (
     <Badge variant="outline" className="gap-1.5">
       <span
-        className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-success" : status === "attention" ? "bg-warning" : status === "problem" ? "bg-destructive" : "bg-muted-foreground"}`}
+        className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-success" : status === "warming" || status === "attention" ? "bg-warning" : status === "problem" ? "bg-destructive" : "bg-muted-foreground"}`}
       />
       {statuses[status]}
     </Badge>
