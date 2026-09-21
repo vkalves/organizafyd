@@ -40,7 +40,7 @@ type Field = {
   options?: Record<string, string>;
 };
 export const selectClass =
-  "h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm";
+  "h-10 w-full min-w-0 rounded-md border border-input/80 bg-background px-3 text-sm";
 export function Editor({
   request,
   data,
@@ -215,9 +215,9 @@ export function Editor({
         if (!open && !saving) onClose();
       }}
     >
-      <DialogContent className="safe-dialog-content w-[calc(100%_-_1rem)] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="safe-dialog-content w-[calc(100%_-_1rem)] max-w-lg gap-5 overflow-y-auto border-border/60">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-lg tracking-tight">
             {request.table === "ideas" && viewing
               ? "Ideia"
               : `${request.id ? "Editar" : "Adicionar"} ${request.compact ? "conteúdo pendente" : names[request.table]}`}
@@ -230,7 +230,7 @@ export function Editor({
         </DialogHeader>
         {request.table === "ideas" && viewing ? (
           <div className="space-y-4">
-            <p className="whitespace-pre-wrap break-words text-sm">
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
               {String(values.content || "Sem conteúdo")}
             </p>
             <div className="flex items-center justify-between gap-2">
@@ -367,7 +367,7 @@ export function Editor({
             }
           }}
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {fields[request.table].map((f) => {
               let value = String(values[f.key] ?? "");
               if (f.type === "datetime-local" && value.endsWith("Z"))
@@ -377,11 +377,11 @@ export function Editor({
                   key={f.key}
                   className={
                     f.type === "textarea" || f.key === "publication_url"
-                      ? "sm:col-span-2 min-w-0"
-                      : "min-w-0"
+                      ? "sm:col-span-2 min-w-0 space-y-1.5"
+                      : "min-w-0 space-y-1.5"
                   }
                 >
-                  <Label htmlFor={`ig-${f.key}`}>
+                  <Label htmlFor={`ig-${f.key}`} className="text-xs text-muted-foreground">
                     {f.label}
                     {f.required ? " *" : ""}
                   </Label>
@@ -407,16 +407,17 @@ export function Editor({
                   ) : f.type === "textarea" ? (
                     <Textarea
                       id={`ig-${f.key}`}
+                      className="min-h-24"
                       value={value}
                       onChange={(e) =>
                         setValues({ ...values, [f.key]: e.target.value })
                       }
                     />
                   ) : f.type === "stepper" ? (
-                    <div className="flex h-11">
+                    <div className="flex h-10">
                       <Input
                         id={`ig-${f.key}`}
-                        className="h-11 rounded-r-none"
+                        className="h-10 rounded-r-none"
                         inputMode="numeric"
                         required={f.required}
                         value={value}
@@ -428,7 +429,7 @@ export function Editor({
                           });
                         }}
                       />
-                      <div className="flex w-9 shrink-0 flex-col overflow-hidden rounded-r-md border border-l-0 border-input">
+                      <div className="flex w-8 shrink-0 flex-col overflow-hidden rounded-r-md border border-l-0 border-input/80">
                         <button
                           type="button"
                           className="flex flex-1 items-center justify-center hover:bg-accent"
@@ -444,7 +445,7 @@ export function Editor({
                         </button>
                         <button
                           type="button"
-                          className="flex flex-1 items-center justify-center border-t border-input hover:bg-accent"
+                          className="flex flex-1 items-center justify-center border-t border-input/80 hover:bg-accent"
                           aria-label="Diminuir quantidade"
                           onClick={() =>
                             setValues({
@@ -460,7 +461,7 @@ export function Editor({
                   ) : f.type === "digits" ? (
                     <Input
                       id={`ig-${f.key}`}
-                      className="h-11"
+                      className="h-10"
                       inputMode="numeric"
                       required={f.required}
                       value={value}
@@ -474,7 +475,7 @@ export function Editor({
                   ) : (
                     <Input
                       id={`ig-${f.key}`}
-                      className="h-11"
+                      className="h-10"
                       type={f.type || "text"}
                       required={f.required}
                       min={f.type === "number" ? 0 : undefined}
@@ -502,7 +503,7 @@ export function Editor({
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="outline"

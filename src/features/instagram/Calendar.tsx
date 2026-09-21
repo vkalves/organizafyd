@@ -10,8 +10,10 @@ import {
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { localDay, displayDate, type Content } from "./model";
+
 export function ContentCalendar({
   contents,
   onCreate,
@@ -47,79 +49,117 @@ export function ContentCalendar({
       ? dayOf(c) >= localDay(start) && dayOf(c) <= localDay(end)
       : dayOf(c) === selected,
   );
+  const today = localDay();
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          aria-label="Período anterior"
-          onClick={() =>
-            setDate(view === "week" ? addWeeks(date, -1) : addMonths(date, -1))
-          }
-        >
-          ←
-        </Button>
-        <h3 className="capitalize text-sm font-medium">
-          {format(date, "MMMM yyyy", { locale: ptBR })}
-        </h3>
-        <Button
-          variant="outline"
-          aria-label="Próximo período"
-          onClick={() =>
-            setDate(view === "week" ? addWeeks(date, 1) : addMonths(date, 1))
-          }
-        >
-          →
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setDate(new Date());
-            setSelected(localDay());
-          }}
-        >
-          Hoje
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {[
-          ["month", "Mês"],
-          ["week", "Semana"],
-          ["list", "Lista"],
-        ].map(([k, l]) => (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
           <Button
-            key={k}
-            variant={view === k ? "secondary" : "ghost"}
-            onClick={() => setView(k)}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Período anterior"
+            onClick={() =>
+              setDate(view === "week" ? addWeeks(date, -1) : addMonths(date, -1))
+            }
           >
-            {l}
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-        ))}
+          <h3 className="min-w-[9.5rem] text-center text-sm font-medium capitalize tracking-tight">
+            {format(date, "MMMM yyyy", { locale: ptBR })}
+          </h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Próximo período"
+            onClick={() =>
+              setDate(view === "week" ? addWeeks(date, 1) : addMonths(date, 1))
+            }
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-muted-foreground"
+            onClick={() => {
+              setDate(new Date());
+              setSelected(localDay());
+            }}
+          >
+            Hoje
+          </Button>
+        </div>
+        <div className="inline-flex rounded-md bg-muted/40 p-0.5">
+          {[
+            ["month", "Mês"],
+            ["week", "Semana"],
+            ["list", "Lista"],
+          ].map(([k, l]) => (
+            <Button
+              key={k}
+              variant="ghost"
+              size="sm"
+              className={`h-8 px-3 text-xs ${
+                view === k
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setView(k)}
+            >
+              {l}
+            </Button>
+          ))}
+        </div>
       </div>
       {view !== "list" && (
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-border/40">
           {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((x) => (
-            <div key={x} className="text-center text-xs text-muted-foreground">
+            <div
+              key={x}
+              className="bg-background py-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            >
               {x}
             </div>
           ))}
           {days.map((d) => {
             const key = localDay(d),
               count = dated.filter((c) => dayOf(c) === key).length;
+            const isSelected = selected === key;
+            const isToday = key === today;
+            const outside = d.getMonth() !== date.getMonth();
             return (
               <button
                 key={key}
                 aria-label={`${key}, ${count} conteúdos`}
-                aria-pressed={selected === key}
+                aria-pressed={isSelected}
                 onClick={() => setSelected(key)}
                 onDoubleClick={() => onCreate(key)}
-                className={`min-h-12 min-w-0 rounded-md border p-1 text-sm sm:min-h-20 ${selected === key ? "border-foreground bg-secondary" : "border-border"} ${d.getMonth() !== date.getMonth() ? "text-muted-foreground" : ""}`}
+                className={`flex min-h-12 min-w-0 flex-col items-start gap-1 bg-background p-1.5 text-left text-sm transition-colors sm:min-h-[4.5rem] sm:p-2 ${
+                  isSelected
+                    ? "bg-secondary"
+                    : "hover:bg-muted/40"
+                } ${outside ? "text-muted-foreground/50" : ""}`}
               >
-                <span>{d.getDate()}</span>
+                <span
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                    isToday && !isSelected
+                      ? "bg-foreground text-background"
+                      : isSelected
+                        ? "font-semibold"
+                        : ""
+                  }`}
+                >
+                  {d.getDate()}
+                </span>
                 {count > 0 && (
-                  <span className="block text-xs">
-                    {count}
-                    <span className="hidden sm:inline"> conteúdo(s)</span>
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/70" />
+                    <span className="tabular-nums">{count}</span>
+                    <span className="hidden sm:inline">
+                      {count === 1 ? "item" : "itens"}
+                    </span>
                   </span>
                 )}
               </button>
@@ -128,35 +168,37 @@ export function ContentCalendar({
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm">
+        <h3 className="text-sm text-muted-foreground">
           {view === "list" ? "Conteúdos do período" : displayDate(selected)}
         </h3>
-        <Button variant="outline" onClick={() => onCreate(selected)}>
+        <Button size="sm" variant="outline" onClick={() => onCreate(selected)}>
           Adicionar conteúdo
         </Button>
       </div>
       {shown.length === 0 && (
-        <p className="py-4 text-sm text-muted-foreground">
+        <p className="py-6 text-center text-sm text-muted-foreground">
           Nenhum conteúdo neste período.
         </p>
       )}
-      {shown.map((c) => (
-        <button
-          className="block w-full rounded-lg border bg-card p-3 text-left"
-          key={c.id}
-          onClick={() => onEdit(c)}
-        >
-          <p className="break-words text-sm font-medium">{c.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {c.format} ·{" "}
-            {displayDate(
-              c.status === "published" ? c.published_at : c.planned_at,
-            )}
-            {c.status === "published" ? " · Publicado" : ""}
-          </p>
-        </button>
-      ))}
-      <p className="text-xs text-muted-foreground">
+      <div className="divide-y divide-border/60">
+        {shown.map((c) => (
+          <button
+            className="block w-full py-3 text-left transition-colors hover:bg-muted/30"
+            key={c.id}
+            onClick={() => onEdit(c)}
+          >
+            <p className="break-words text-sm font-medium">{c.title}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {c.format} ·{" "}
+              {displayDate(
+                c.status === "published" ? c.published_at : c.planned_at,
+              )}
+              {c.status === "published" ? " · Publicado" : ""}
+            </p>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground/80">
         Selecione um dia e use Adicionar conteúdo. O planejamento não publica
         automaticamente no Instagram.
       </p>
