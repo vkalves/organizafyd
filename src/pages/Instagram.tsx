@@ -643,10 +643,10 @@ export default function Instagram() {
   );
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-5">
+      {accountId ? (
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          {accountId && (
-            <Button asChild variant="ghost" className="mb-2 -ml-3">
+          <Button asChild variant="ghost" className="mb-2 -ml-3">
               <Link
                 to={
                   group
@@ -668,23 +668,16 @@ export default function Instagram() {
                       : "Todas as contas"}
               </Link>
             </Button>
-          )}
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <InstagramIcon className="h-6 w-6 shrink-0" />
-            {accountId
-              ? account
-                ? (
+            {account
+              ? (
                     <Handle
                       username={account.username}
                       verified={isVerified(account)}
                     />
                   )
-                : "Conta não encontrada"
-              : mode === "pending"
-                ? "Conteúdos pendentes"
-                : mode === "ready"
-                  ? "Conteúdos prontos"
-                  : "Instagram"}
+                : "Conta não encontrada"}
           </h1>
           {account ? (
             <p className="mt-1 text-sm text-muted-foreground">
@@ -732,6 +725,7 @@ export default function Instagram() {
           )}
         </div>
       </header>
+      ) : null}
       {!accountId && (
         <>
           <nav aria-label="Instagram" className="flex flex-wrap items-center gap-2">
@@ -788,21 +782,6 @@ export default function Instagram() {
               );
             })}
           </nav>
-          {mode !== "ready" && (
-          <div className="border-t border-border pt-4">
-            <Button
-              onClick={() =>
-                mode === "pending"
-                    ? create("contents", { status: "idea" }, true)
-                    : create("accounts")
-              }
-              disabled={mode === "pending" && !data.accounts.length}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {mode === "pending" ? "Novo Conteúdo" : "Nova conta"}
-            </Button>
-          </div>
-          )}
         </>
       )}
       {!accountId && mode === "accounts" && (
@@ -836,17 +815,17 @@ export default function Instagram() {
               dim
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              className="h-11 min-w-[12rem] flex-1"
+              className="h-9 min-w-[8rem] flex-1 text-sm"
               aria-label="Buscar contas"
-              placeholder="Buscar por @, aparelho ou modelo..."
+              placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <select
               aria-label="Status"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -859,7 +838,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Aparelho"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={device}
               onChange={(e) => setDevice(e.target.value)}
             >
@@ -872,7 +851,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Modelo"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
@@ -887,7 +866,7 @@ export default function Instagram() {
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11"
+              className="h-9 w-9"
               aria-label="Limpar filtros"
               disabled={!search && !status && !device && !model}
               onClick={() => {
@@ -898,6 +877,10 @@ export default function Instagram() {
               }}
             >
               <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button className="h-9" onClick={() => create("accounts")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova conta
             </Button>
           </div>
           {!visibleAccounts.length && (
@@ -1008,17 +991,17 @@ export default function Instagram() {
               label="contas pendentes"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              className="h-11 min-w-[12rem] flex-1"
+              className="h-9 min-w-[8rem] flex-1 text-sm"
               aria-label="Buscar conteúdos pendentes"
-              placeholder="buscar @, modelo ou aparelho..."
+              placeholder="Buscar..."
               value={pendingSearch}
               onChange={(e) => setPendingSearch(e.target.value)}
             />
             <select
               aria-label="Conta"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={pendingAccount}
               onChange={(e) => setPendingAccount(e.target.value)}
             >
@@ -1041,7 +1024,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Aparelho"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={pendingDevice}
               onChange={(e) => setPendingDevice(e.target.value)}
             >
@@ -1054,7 +1037,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Modelo"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={pendingModel}
               onChange={(e) => setPendingModel(e.target.value)}
             >
@@ -1069,7 +1052,7 @@ export default function Instagram() {
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11"
+              className="h-9 w-9"
               aria-label="Limpar filtros"
               disabled={
                 !pendingSearch &&
@@ -1085,6 +1068,14 @@ export default function Instagram() {
               }}
             >
               <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              className="h-9"
+              disabled={!data.accounts.length}
+              onClick={() => create("contents", { status: "idea" }, true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Conteúdo
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1172,17 +1163,17 @@ export default function Instagram() {
               label="contas prontas"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              className="h-11 min-w-[12rem] flex-1"
+              className="h-9 min-w-[8rem] flex-1 text-sm"
               aria-label="Buscar conteúdos prontos"
-              placeholder="buscar @, modelo ou aparelho..."
+              placeholder="Buscar..."
               value={readySearch}
               onChange={(e) => setReadySearch(e.target.value)}
             />
             <select
               aria-label="Conta"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={readyAccount}
               onChange={(e) => setReadyAccount(e.target.value)}
             >
@@ -1198,7 +1189,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Aparelho"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={readyDevice}
               onChange={(e) => setReadyDevice(e.target.value)}
             >
@@ -1211,7 +1202,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Modelo"
-              className={`${selectClass} sm:w-44`}
+              className={`${selectClass} !h-9 sm:w-36`}
               value={readyModel}
               onChange={(e) => setReadyModel(e.target.value)}
             >
@@ -1226,7 +1217,7 @@ export default function Instagram() {
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11"
+              className="h-9 w-9"
               aria-label="Limpar filtros"
               disabled={
                 !readySearch && !readyModel && !readyAccount && !readyDevice
