@@ -431,6 +431,17 @@ export default function Instagram() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {account && (
+            <Button
+              variant="destructive"
+              onClick={() =>
+                remove("accounts", account.id, `@${account.username}`)
+              }
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Apagar conta
+            </Button>
+          )}
           {!accountId && (
               <Button
                 onClick={() =>
