@@ -680,66 +680,17 @@ export default function Instagram() {
                   </p>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
-                  [
-                    "Seguidores",
-                    latestMetric(account.id)?.followers?.toLocaleString(
-                      "pt-BR",
-                    ) ?? "—",
-                  ],
-                  [
-                    "Conteúdos publicados",
-                    contents.filter((c) => c.status === "published").length,
-                  ],
-                  [
-                    "Reels publicados",
-                    contents.filter(
-                      (c) => c.status === "published" && c.format === "Reel",
-                    ).length,
-                  ],
-                  [
-                    "Stories planejados",
-                    contents.filter(
-                      (c) => c.status !== "published" && c.format === "Story",
-                    ).length,
-                  ],
-                  [
-                    "Tarefas pendentes",
-                    tasks.filter((t) => t.status !== "done").length,
-                  ],
-                  [
-                    "Publicações (métrica)",
-                    [...metrics].reverse().find((m) => m.posts !== null)
-                      ?.posts ?? "—",
-                  ],
-                ].map(([k, v]) => (
-                  <div key={k} className={panel}>
-                    <p className="text-xl font-semibold">{v}</p>
-                    <p className="text-xs text-muted-foreground">{k}</p>
+                  "Conteúdos publicados",
+                  "Conteúdos prontos",
+                  "Conteúdos pendentes",
+                ].map((title) => (
+                  <div key={title} className={panel}>
+                    <p className="text-xl font-semibold">—</p>
+                    <p className="text-xs text-muted-foreground">{title}</p>
                   </div>
                 ))}
-              </div>
-              <div className={panel}>
-                <p className="text-sm">
-                  Última publicação:{" "}
-                  {displayDate(latestPost(account.id)?.published_at)}
-                </p>
-                <p className="mt-2 text-sm">
-                  Próxima publicação:{" "}
-                  {displayDate(
-                    contents
-                      .filter(
-                        (c) =>
-                          c.status !== "published" &&
-                          c.planned_at &&
-                          new Date(c.planned_at) >= new Date(),
-                      )
-                      .sort((a, b) =>
-                        a.planned_at!.localeCompare(b.planned_at!),
-                      )[0]?.planned_at,
-                  )}
-                </p>
               </div>
             </>
           )}
