@@ -157,19 +157,6 @@ export default function Instagram() {
     .sort((a, b) => a.recorded_on.localeCompare(b.recorded_on));
   const countsFor = (id: string) =>
     contentCounts(data.contents.filter((c) => c.account_id === id));
-  const latestPost = (id: string) =>
-    data.contents
-      .filter(
-        (c) =>
-          c.account_id === id && c.status === "published" && c.published_at,
-      )
-      .sort((a, b) => b.published_at!.localeCompare(a.published_at!))[0];
-  const nextTask = (id: string) =>
-    data.tasks
-      .filter((t) => t.account_id === id && t.status !== "done")
-      .sort((a, b) =>
-        (a.due_at || "9999").localeCompare(b.due_at || "9999"),
-      )[0];
   const openEdit = (table: EditRequest["table"], row: object) =>
     setEdit({ table, id: (row as { id: string }).id, values: { ...row } });
   const create = (
@@ -571,29 +558,7 @@ export default function Instagram() {
                               {counts.pending}
                             </dd>
                           </div>
-                          <div>
-                            <dt className="text-muted-foreground">
-                              Última publicação
-                            </dt>
-                            <dd>
-                              {displayDate(latestPost(a.id)?.published_at)}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">
-                              Próxima tarefa
-                            </dt>
-                            <dd className="break-words">
-                              {nextTask(a.id)?.title ||
-                                "Nenhuma tarefa pendente"}
-                            </dd>
-                          </div>
                         </dl>
-                        {a.notes && (
-                          <p className="mt-3 line-clamp-2 break-words text-xs text-muted-foreground">
-                            {a.notes}
-                          </p>
-                        )}
                         <div className="mt-4">
                           <Button asChild className="w-full">
                             <Link to={`/instagram/conta/${a.id}`}>
