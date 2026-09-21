@@ -255,10 +255,13 @@ export default function Instagram() {
     name: string;
   } | null>(null);
   const [readyConfirm, setReadyConfirm] = useState(false);
+  const [groupConfirm, setGroupConfirm] = useState(false);
   const [editingReady, setEditingReady] = useState(false);
   const [readyDraft, setReadyDraft] = useState("");
   useEffect(() => {
-    if (mode === "pending" && tab !== "overview" && tab !== "ideas") {
+    if (mode === "pending") {
+      if (tab !== "overview" && tab !== "ideas") setTab("overview");
+    } else if (accountId && tab !== "overview" && tab !== "contents") {
       setTab("overview");
     }
   }, [mode, accountId, tab]);
@@ -304,11 +307,9 @@ export default function Instagram() {
   const overviewPct = overviewTotal
     ? (overviewCounts.ready / overviewTotal) * 100
     : 0;
-  const pendingGroups = [
-    ...new Set(
-      pendingPool.map((c) => c.publication_url || c.title).filter(Boolean),
-    ),
-  ];
+  const groupUrl = pendingPool
+    .map((c) => safeUrl(c.publication_url))
+    .find(Boolean) || "";
   const applyReadyCount = async (n: number) => {
     const pool = [...pendingPool].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
@@ -664,10 +665,7 @@ export default function Instagram() {
         </div>
       </header>
       {!accountId && (
-        <nav
-          aria-label="Instagram"
-          className="flex flex-col overflow-hidden rounded-xl border border-border sm:flex-row"
-        >
+        <nav aria-label="Instagram" className="flex items-stretch gap-2">
           {[
             {
               path: "/instagram",
@@ -697,15 +695,17 @@ export default function Instagram() {
               <Link
                 key={item.path}
                 to={item.path}
+                title={item.title}
+                aria-label={item.title}
                 aria-current={item.active ? "page" : undefined}
-                className={`flex min-h-[3.4rem] flex-1 items-center gap-3 border-border px-4 py-3 text-[15px] font-semibold sm:border-r sm:last:border-r-0 max-sm:border-b max-sm:last:border-b-0 ${
+                className={`flex min-h-[3.4rem] items-center gap-3 rounded-lg border border-border text-[15px] font-semibold transition-all ${
                   item.active
-                    ? "bg-secondary text-foreground"
-                    : "bg-card text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    ? "flex-1 bg-secondary px-4 text-foreground"
+                    : "w-14 shrink-0 justify-center bg-card px-0 text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {item.title}
+                {item.active ? item.title : null}
               </Link>
             );
           })}
@@ -1024,9 +1024,9 @@ export default function Instagram() {
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <p className="text-sm tabular-nums">
-                        <span className="opacity-40">{counts.pending}</span>
+                        <span className="font-semibold">{counts.pending}</span>
                         <span className="opacity-40">/</span>
-                        <span className="font-semibold">{counts.ready}</span>
+                        <span className="opacity-40">{counts.ready}</span>
                       </p>
                       <ProgressRing
                         className="h-16 w-16"
@@ -1121,9 +1121,9 @@ export default function Instagram() {
       )}
       {account && mode === "pending" && !group && (
         <>
-          <nav aria-label="Abas da conta" className="flex flex-wrap gap-1">
+          <nav aria-label="Abas da conta" className="flex flex-wrap items-center gap-1">
             {[
-              ["overview", "Visão geral"],
+              ["overview", "Conteúdos"],
               ["ideas", "Ideias"],
             ].map(([key, title]) => (
               <Button
@@ -1135,11 +1135,18 @@ export default function Instagram() {
                 {title}
               </Button>
             ))}
+            <Button
+              variant="ghost"
+              disabled={!groupUrl}
+              onClick={() => setGroupConfirm(true)}
+            >
+              Grupo de vídeos
+            </Button>
           </nav>
           {tab === "overview" && (
             <div className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className={`${panel} opacity-50`}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className={panel}>
                   <p className="text-3xl font-semibold tabular-nums">
                     {overviewCounts.pending}
                   </p>
@@ -1147,7 +1154,7 @@ export default function Instagram() {
                     Pendentes
                   </p>
                 </div>
-                <div className={`${panel} opacity-50`}>
+                <div className={panel}>
                   {editingReady ? (
                     <form
                       className="flex items-center gap-2"
@@ -1197,69 +1204,18 @@ export default function Instagram() {
                     </div>
                   )}
                 </div>
-                <div className={`${panel} flex items-center gap-4`}>
-                  <ProgressRing value={overviewPct} />
-                  <div>
-                    <p className="text-3xl font-semibold tabular-nums">
-                      {Math.round(overviewPct)}%
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Concluído
-                    </p>
-                  </div>
-                </div>
               </div>
-              {pendingGroups.length === 0 ? (
-                <div className={panel}>
-                  <p className="font-medium">Grupo de vídeos</p>
+              <div className={`${panel} flex items-center gap-4`}>
+                <ProgressRing value={overviewPct} />
+                <div>
+                  <p className="text-3xl font-semibold tabular-nums">
+                    {Math.round(overviewPct)}%
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Nenhum grupo ainda
+                    Concluído
                   </p>
                 </div>
-              ) : (
-                pendingGroups.map((g) => {
-                  const item = pendingPool.find(
-                    (c) => (c.publication_url || c.title) === g,
-                  );
-                  const groupLink = safeUrl(item?.publication_url || g);
-                  let label = g;
-                  try {
-                    if (groupLink) {
-                      const u = new URL(groupLink);
-                      label = `${u.hostname.replace(/^www\./, "")}${u.pathname === "/" ? "" : u.pathname}`;
-                    }
-                  } catch {
-                    /* keep g */
-                  }
-                  return (
-                    <div
-                      key={g}
-                      className={`${panel} flex items-center justify-between gap-4`}
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium">Grupo de vídeos</p>
-                        <p className="mt-1 truncate text-sm text-muted-foreground">
-                          {label}
-                        </p>
-                      </div>
-                      {groupLink ? (
-                        <Button asChild>
-                          <a
-                            href={groupLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Abrir
-                            <ChevronRight className="ml-1 h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : (
-                        <Button disabled>Sem link</Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+              </div>
             </div>
           )}
           {tab === "ideas" && (
@@ -1299,12 +1255,6 @@ export default function Instagram() {
             {[
               ["overview", "Visão geral"],
               ["contents", "Conteúdos"],
-              ["ideas", "Ideias"],
-              ["calendar", "Calendário"],
-              ["tasks", "Tarefas"],
-              ["metrics", "Métricas"],
-              ["info", "Informações"],
-              ["history", "Histórico"],
             ].map(([key, title]) => (
               <Button
                 key={key}
@@ -1397,45 +1347,34 @@ export default function Instagram() {
             </>
           )}
           {tab === "contents" && (
-            <>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => create("contents")}>
-                  Novo conteúdo
-                </Button>
-                <select
-                  aria-label="Filtrar etapa"
-                  value={stage}
-                  onChange={(e) => setStage(e.target.value)}
-                  className={`${selectClass} sm:w-auto`}
-                >
-                  <option value="">Todas as etapas</option>
-                  {Object.entries(stages).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-4">
+              <div className={panel}>
+                <p className="font-medium">Conteúdos pendentes</p>
+                <div className="mt-4 flex flex-col items-center">
+                  <ProgressRing
+                    value={
+                      overviewTotal
+                        ? (overviewCounts.ready / overviewTotal) * 100
+                        : 0
+                    }
+                  />
+                  <p className="mt-3 text-sm tabular-nums">
+                    <span className="font-semibold">
+                      {overviewCounts.pending}
+                    </span>
+                    <span className="opacity-40">/</span>
+                    <span className="opacity-40">{overviewCounts.ready}</span>
+                  </p>
+                </div>
               </div>
-              {contents.filter((c) => !stage || c.status === stage).length ===
-                0 && <Empty>Nenhum conteúdo nesta etapa.</Empty>}
-              <div className="grid gap-3 lg:grid-cols-2">
-                {contents
-                  .filter((c) => !stage || c.status === stage)
-                  .sort((a, b) => b.created_at.localeCompare(a.created_at))
-                  .map(contentRow)}
-              </div>
-            </>
-          )}
-          {tab === "ideas" && (
-            <>
-              <Button onClick={() => create("ideas")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova ideia
-              </Button>
-              {!ideas.length && (
-                <Empty>Nenhuma ideia nesta conta.</Empty>
-              )}
               <div className="space-y-3">
+                <Button onClick={() => create("ideas")}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova ideia
+                </Button>
+                {!ideas.length && (
+                  <Empty>Nenhuma ideia nesta conta.</Empty>
+                )}
                 {[...ideas]
                   .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
                   .map((idea) => (
@@ -1453,7 +1392,7 @@ export default function Instagram() {
                     </article>
                   ))}
               </div>
-            </>
+            </div>
           )}
           {tab === "calendar" && (
             <div className={panel}>
@@ -1726,6 +1665,34 @@ export default function Instagram() {
         </>
       )}
       {form}
+      <Dialog
+        open={groupConfirm}
+        onOpenChange={(open) => {
+          if (!open) setGroupConfirm(false);
+        }}
+      >
+        <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Abrir grupo de vídeos</DialogTitle>
+            <DialogDescription>
+              Continuar para o grupo de vídeos desta conta?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setGroupConfirm(false)}>
+              Não
+            </Button>
+            <Button
+              onClick={() => {
+                if (groupUrl) window.open(groupUrl, "_blank", "noopener,noreferrer");
+                setGroupConfirm(false);
+              }}
+            >
+              Continuar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={readyConfirm}
         onOpenChange={(open) => {
