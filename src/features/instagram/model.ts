@@ -104,15 +104,6 @@ export const taskStatuses = {
   done: "Concluída",
 };
 export const priorities = { low: "Baixa", medium: "Média", high: "Alta" };
-export const defaultLabels = [
-  "Principal",
-  "Backup",
-  "Aquecimento",
-  "Nova",
-  "Teste",
-  "Reels",
-  "Secundária",
-];
 export function localDay(value: Date | string = new Date()) {
   const d = new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -144,13 +135,8 @@ export function displayDate(value: string | null | undefined) {
       )
     : "Sem data";
 }
-export function matchesSearch(
-  a: Account,
-  project: string,
-  labels: string[],
-  search: string,
-) {
-  return [a.username, a.name, a.notes, project, ...labels]
+export function matchesSearch(a: Account, search: string) {
+  return [a.username, a.name, a.notes]
     .join(" ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

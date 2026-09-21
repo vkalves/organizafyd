@@ -24,16 +24,14 @@ describe("Instagram data boundaries", () => {
     expect(localDay(d)).toBe("2026-09-20");
     expect(localInput(d.toISOString())).toBe("2026-09-20T23:45");
   });
-  it("searches account, project, label and notes without accent sensitivity", () => {
+  it("searches account and notes without accent sensitivity", () => {
     const account = {
       username: "bianca.main",
       name: "Bianca",
       notes: "Revisar descrição",
     } as Account;
-    for (const search of ["BIANCA", "descricao", "aquecimento", "projeto"])
-      expect(matchesSearch(account, "Projeto X", ["Aquecimento"], search)).toBe(
-        true,
-      );
-    expect(matchesSearch(account, "Projeto X", [], "outra")).toBe(false);
+    for (const search of ["BIANCA", "descricao", "main"])
+      expect(matchesSearch(account, search)).toBe(true);
+    expect(matchesSearch(account, "outra")).toBe(false);
   });
 });
