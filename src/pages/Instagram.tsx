@@ -271,7 +271,9 @@ export default function Instagram() {
     ? (overviewCounts.ready / overviewTotal) * 100
     : 0;
   const pendingGroups = [
-    ...new Set(pendingPool.map((c) => c.title).filter(Boolean)),
+    ...new Set(
+      pendingPool.map((c) => c.publication_url || c.title).filter(Boolean),
+    ),
   ];
   const applyReadyCount = async (n: number) => {
     const pool = [...pendingPool].sort((a, b) =>
@@ -1108,10 +1110,19 @@ export default function Instagram() {
                 </div>
               ) : (
                 pendingGroups.map((g) => {
-                  const groupLink = safeUrl(
-                    pendingPool.find((c) => c.title === g && c.publication_url)
-                      ?.publication_url,
+                  const item = pendingPool.find(
+                    (c) => (c.publication_url || c.title) === g,
                   );
+                  const groupLink = safeUrl(item?.publication_url || g);
+                  let label = g;
+                  try {
+                    if (groupLink) {
+                      const u = new URL(groupLink);
+                      label = `${u.hostname.replace(/^www\./, "")}${u.pathname === "/" ? "" : u.pathname}`;
+                    }
+                  } catch {
+                    /* keep g */
+                  }
                   return (
                     <div
                       key={g}
@@ -1119,8 +1130,8 @@ export default function Instagram() {
                     >
                       <div className="min-w-0">
                         <p className="font-medium">Grupo de vídeos</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Grupo {g}
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                          {label}
                         </p>
                       </div>
                       {groupLink ? (

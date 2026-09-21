@@ -120,12 +120,6 @@ export function Editor({
             required: true,
           },
           {
-            key: "title",
-            label: "Grupo dos Conteúdos",
-            type: "digits",
-            required: true,
-          },
-          {
             key: "publication_url",
             label: "Grupo de Vídeos",
             required: true,
@@ -286,24 +280,26 @@ export function Editor({
             }
             if (request.table === "contents" && request.compact) {
               const qty = Math.max(1, Math.floor(Number(values.quantity) || 0));
-              const group = String(values.title || "").replace(/\D/g, "");
               if (!qty) {
                 setError("Preencha a quantidade de conteúdos.");
                 return;
               }
-              if (!group) {
-                setError("Preencha o grupo dos conteúdos.");
-                return;
-              }
               let link = String(values.publication_url || "").trim();
               if (link && !/^https?:\/\//i.test(link)) link = `https://${link}`;
-              if (!safeUrl(link)) {
+              const href = safeUrl(link);
+              if (!href) {
                 setError("Informe um link válido no grupo de vídeos.");
                 return;
               }
+              let host = "Grupo de vídeos";
+              try {
+                host = new URL(href).hostname.replace(/^www\./, "");
+              } catch {
+                /* keep fallback */
+              }
               clean.quantity = qty;
-              clean.title = group;
-              clean.publication_url = safeUrl(link);
+              clean.title = host;
+              clean.publication_url = href;
               clean.format = "Reel";
               clean.status = "idea";
             }
@@ -362,7 +358,9 @@ export function Editor({
                 <div
                   key={f.key}
                   className={
-                    f.type === "textarea" ? "sm:col-span-2 min-w-0" : "min-w-0"
+                    f.type === "textarea" || f.key === "publication_url"
+                      ? "sm:col-span-2 min-w-0"
+                      : "min-w-0"
                   }
                 >
                   <Label htmlFor={`ig-${f.key}`}>
