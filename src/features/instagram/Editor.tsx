@@ -54,9 +54,6 @@ export function Editor({
   onSave: (values: Record<string, unknown>) => Promise<void>;
   saving: boolean;
 }) {
-  const accountOptions = Object.fromEntries(
-    data.accounts.map((a) => [a.id, `@${a.username}`]),
-  );
   const defaults: Record<string, unknown> = {
     status:
       request.table === "accounts"
@@ -74,6 +71,16 @@ export function Editor({
   const [error, setError] = useState("");
   const [viewing, setViewing] = useState(
     request.table === "ideas" && Boolean(request.id),
+  );
+  const accountOptions = Object.fromEntries(
+    data.accounts
+      .filter(
+        (a) =>
+          !request.compact ||
+          !values.device ||
+          a.responsible === values.device,
+      )
+      .map((a) => [a.id, `@${a.username}`]),
   );
   const formatOptions = Object.fromEntries(
     ["Feed", "Reel", "Story", "Carrossel"].map((x) => [x, x]),
@@ -111,6 +118,12 @@ export function Editor({
             key: "account_id",
             label: "Conta",
             options: accountOptions,
+            required: true,
+          },
+          {
+            key: "device",
+            label: "Aparelho",
+            options: devices,
             required: true,
           },
           {
@@ -302,6 +315,7 @@ export function Editor({
               clean.publication_url = href;
               clean.format = "Reel";
               clean.status = "idea";
+              delete clean.device;
             }
             if (request.table === "ideas") {
               clean.account_id = values.account_id;
@@ -373,9 +387,27 @@ export function Editor({
                       className={selectClass}
                       required={f.required}
                       value={value}
-                      onChange={(e) =>
-                        setValues({ ...values, [f.key]: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const next = {
+                          ...values,
+                          [f.key]: e.target.value,
+                        };
+                        if (f.key === "device" && next.account_id) {
+                          const acc = data.accounts.find(
+                            (a) => a.id === next.account_id,
+                          );
+                          if (acc && acc.responsible !== e.target.value) {
+                            next.account_id = "";
+                          }
+                        }
+                        if (f.key === "account_id") {
+                          const acc = data.accounts.find(
+                            (a) => a.id === e.target.value,
+                          );
+                          if (acc?.responsible) next.device = acc.responsible;
+                        }
+                        setValues(next);
+                      }}
                     >
                       <option value="">
                         {f.required ? "Selecionar" : "Opcional"}

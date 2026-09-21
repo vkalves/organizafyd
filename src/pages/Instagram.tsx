@@ -211,6 +211,7 @@ export default function Instagram() {
   const [pendingSearch, setPendingSearch] = useState("");
   const [pendingModel, setPendingModel] = useState("");
   const [pendingAccount, setPendingAccount] = useState("");
+  const [pendingDevice, setPendingDevice] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -476,13 +477,14 @@ export default function Instagram() {
     if (!hasPending) return false;
     if (pendingAccount && a.id !== pendingAccount) return false;
     if (pendingModel && a.category !== pendingModel) return false;
+    if (pendingDevice && a.responsible !== pendingDevice) return false;
     if (!pendingSearch.trim()) return true;
     const q = pendingSearch
       .replace(/^@/, "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
-    return [a.username, a.category]
+    return [a.username, a.category, a.responsible]
       .join(" ")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -842,7 +844,7 @@ export default function Instagram() {
             <Input
               className="h-11 min-w-[12rem] flex-1"
               aria-label="Buscar conteúdos pendentes"
-              placeholder="buscar @ ou modelo..."
+              placeholder="buscar @, modelo ou aparelho..."
               value={pendingSearch}
               onChange={(e) => setPendingSearch(e.target.value)}
             />
@@ -870,6 +872,19 @@ export default function Instagram() {
                 ))}
             </select>
             <select
+              aria-label="Aparelho"
+              className={`${selectClass} sm:w-44`}
+              value={pendingDevice}
+              onChange={(e) => setPendingDevice(e.target.value)}
+            >
+              <option value="">Aparelho</option>
+              {Object.entries(devices).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
               aria-label="Modelo"
               className={`${selectClass} sm:w-44`}
               value={pendingModel}
@@ -888,17 +903,23 @@ export default function Instagram() {
               size="icon"
               className="h-11 w-11"
               aria-label="Limpar filtros"
-              disabled={!pendingSearch && !pendingModel && !pendingAccount}
+              disabled={
+                !pendingSearch &&
+                !pendingModel &&
+                !pendingAccount &&
+                !pendingDevice
+              }
               onClick={() => {
                 setPendingSearch("");
                 setPendingModel("");
                 setPendingAccount("");
+                setPendingDevice("");
               }}
             >
               <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {pendingAccounts.map((a) => {
               const pool = data.contents.filter(
                 (c) =>
@@ -911,11 +932,11 @@ export default function Instagram() {
                 <article key={a.id} className={panel}>
                   <div className="flex items-center gap-4">
                     <ProgressRing
-                      className="h-[4.5rem] w-[4.5rem]"
+                      className="h-16 w-16"
                       value={total ? (counts.ready / total) * 100 : 0}
                     />
                     <div className="min-w-0">
-                      <p className="text-xl font-semibold leading-tight">
+                      <p className="text-lg font-semibold leading-tight">
                         <Handle
                           username={a.username}
                           verified={isVerified(a)}
@@ -924,9 +945,15 @@ export default function Instagram() {
                       <p className="mt-1 text-sm text-muted-foreground">
                         {a.category || "Sem modelo"}
                       </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <PhoneIcon />
+                        <span className="min-w-0 break-words">
+                          {a.responsible || "Sem aparelho"}
+                        </span>
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-5">
+                  <div className="mt-4">
                     <Button asChild className="w-full">
                       <Link to={`/instagram/pendentes/${a.id}`}>
                         Gerenciar conteúdo

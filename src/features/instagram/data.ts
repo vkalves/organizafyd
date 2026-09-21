@@ -104,6 +104,7 @@ export function useInstagramData() {
       delete clean.created_at;
       delete clean.updated_at;
       delete clean.quantity;
+      delete clean.device;
       const target = db.from(`instagram_${table}` as `instagram_${Table}`);
       const result = remove
         ? await target
