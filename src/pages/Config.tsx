@@ -1,9 +1,18 @@
-import { User, Globe, Download, LogOut, Save } from "lucide-react";
+import { User, Globe, Download, LogOut, Save, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { wipeInstagram } from "@/features/instagram/data";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface Profile {
   id: string;
@@ -16,11 +25,14 @@ interface Profile {
 
 const Config = () => {
   const { user, signOut } = useAuth();
+  const cache = useQueryClient();
   const { data: profiles, update } = useSupabaseCrud<Profile>("profiles");
   const profile = profiles[0];
   const [displayName, setDisplayName] = useState("");
   const [timezone, setTimezone] = useState("America/Sao_Paulo");
   const [weekStart, setWeekStart] = useState("monday");
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -109,9 +121,72 @@ const Config = () => {
         </button>
       </div>
 
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-5">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Trash2 className="w-4 h-4" /> Instagram
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Apaga contas, conteúdos pendentes, prontos, ideias e o restante do
+          Instagram. Não dá para desfazer.
+        </p>
+        <button
+          type="button"
+          onClick={() => setWipeOpen(true)}
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 sm:w-auto"
+        >
+          <Trash2 className="w-4 h-4" /> Zerar Instagram
+        </button>
+      </div>
+
       <button onClick={signOut} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 sm:w-auto">
         <LogOut className="w-4 h-4" /> Sair da Conta
       </button>
+      <Dialog open={wipeOpen} onOpenChange={(open) => !wiping && setWipeOpen(open)}>
+        <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Zerar Instagram</DialogTitle>
+            <DialogDescription>
+              Apagar todas as contas, conteúdos, ideias e histórico do Instagram?
+              Essa ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={wiping}
+              onClick={() => setWipeOpen(false)}
+              className="flex min-h-11 items-center rounded-md border border-border px-4 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={wiping || !user}
+              onClick={async () => {
+                if (!user) return;
+                setWiping(true);
+                try {
+                  await wipeInstagram(user.id);
+                  await cache.invalidateQueries({ queryKey: ["instagram"] });
+                  toast.success("Instagram zerado");
+                  setWipeOpen(false);
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Não foi possível zerar o Instagram.",
+                  );
+                } finally {
+                  setWiping(false);
+                }
+              }}
+              className="flex min-h-11 items-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground"
+            >
+              {wiping ? "Apagando…" : "Apagar tudo"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

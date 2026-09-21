@@ -143,3 +143,17 @@ export function useInstagramData() {
 export type InstagramData = NonNullable<
   ReturnType<typeof useInstagramData>["data"]
 >;
+export async function wipeInstagram(userId: string) {
+  const tables = [
+    "instagram_accounts",
+    "instagram_labels",
+    "instagram_projects",
+  ] as const;
+  for (const table of tables) {
+    const { error } = await db
+      .from(table)
+      .delete()
+      .eq("user_id" as never, userId);
+    if (error) throw error;
+  }
+}
