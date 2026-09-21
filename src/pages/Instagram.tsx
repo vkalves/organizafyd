@@ -238,13 +238,13 @@ function FilterBar({
   const active = filters.filter((item) => item.value).length;
   return (
     <div className="flex items-center gap-2">
-      <div className="relative min-w-0 flex-1">
+      <div className="relative w-44 shrink-0 sm:w-52">
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
         <Input
-          className="h-9 border-0 bg-muted/40 pl-8 text-sm shadow-none"
+          className="h-8 border-0 bg-muted/40 pl-8 text-sm shadow-none"
           aria-label={label}
           placeholder="Buscar..."
           value={search}
@@ -257,7 +257,7 @@ function FilterBar({
             type="button"
             variant="outline"
             size="icon"
-            className="relative h-9 w-9 shrink-0"
+            className="relative h-8 w-8 shrink-0"
             aria-label="Filtros"
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -880,19 +880,12 @@ export default function Instagram() {
               setModel("");
             }}
             action={
-              <Button className="h-9 shrink-0" onClick={() => create("accounts")}>
+              <Button className="h-8 shrink-0" onClick={() => create("accounts")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova conta
               </Button>
             }
           />
-          {!visibleAccounts.length && (
-            <Empty>
-              {data.accounts.length
-                ? "Nenhuma conta corresponde aos filtros."
-                : "Adicione sua primeira conta para começar."}
-            </Empty>
-          )}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {visibleAccounts.map((a) => {
               const counts = countsFor(a.id);
@@ -1036,7 +1029,7 @@ export default function Instagram() {
             }}
             action={
               <Button
-                className="h-9 shrink-0"
+                className="h-8 shrink-0"
                 disabled={!data.accounts.length}
                 onClick={() => create("contents", { status: "idea" }, true)}
               >
