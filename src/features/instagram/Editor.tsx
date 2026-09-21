@@ -73,14 +73,7 @@ export function Editor({
     request.table === "ideas" && Boolean(request.id),
   );
   const accountOptions = Object.fromEntries(
-    data.accounts
-      .filter(
-        (a) =>
-          !request.compact ||
-          !values.device ||
-          a.responsible === values.device,
-      )
-      .map((a) => [a.id, `@${a.username}`]),
+    data.accounts.map((a) => [a.id, `@${a.username}`]),
   );
   const formatOptions = Object.fromEntries(
     ["Feed", "Reel", "Story", "Carrossel"].map((x) => [x, x]),
@@ -118,12 +111,6 @@ export function Editor({
             key: "account_id",
             label: "Conta",
             options: accountOptions,
-            required: true,
-          },
-          {
-            key: "device",
-            label: "Aparelho",
-            options: devices,
             required: true,
           },
           {
@@ -387,27 +374,9 @@ export function Editor({
                       className={selectClass}
                       required={f.required}
                       value={value}
-                      onChange={(e) => {
-                        const next = {
-                          ...values,
-                          [f.key]: e.target.value,
-                        };
-                        if (f.key === "device" && next.account_id) {
-                          const acc = data.accounts.find(
-                            (a) => a.id === next.account_id,
-                          );
-                          if (acc && acc.responsible !== e.target.value) {
-                            next.account_id = "";
-                          }
-                        }
-                        if (f.key === "account_id") {
-                          const acc = data.accounts.find(
-                            (a) => a.id === e.target.value,
-                          );
-                          if (acc?.responsible) next.device = acc.responsible;
-                        }
-                        setValues(next);
-                      }}
+                      onChange={(e) =>
+                        setValues({ ...values, [f.key]: e.target.value })
+                      }
                     >
                       <option value="">
                         {f.required ? "Selecionar" : "Opcional"}

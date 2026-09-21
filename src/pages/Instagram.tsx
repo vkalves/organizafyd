@@ -9,6 +9,11 @@ import {
   RotateCcw,
   CheckCircle2,
   ChevronRight,
+  Globe,
+  Clock,
+  User,
+  Flame,
+  Hourglass,
 } from "lucide-react";
 import {
   LineChart,
@@ -170,8 +175,32 @@ function PhoneIcon() {
     >
       <rect x="7" y="2.5" width="10" height="19" rx="2.2" />
       <path d="M11 5.5h2" strokeLinecap="round" />
-      <circle cx="12" cy="18.2" r="0.7" fill="currentColor" stroke="none" />
+      <path d="M12 18.4h.01" strokeLinecap="round" />
     </svg>
+  );
+}
+function StatLine({
+  icon,
+  count,
+  label,
+  dim,
+}: {
+  icon?: React.ReactNode;
+  count: number;
+  label: string;
+  dim?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-border bg-card px-3.5 py-2.5 ${dim ? "opacity-45" : ""}`}
+    >
+      <p className="flex items-center gap-2 text-sm">
+        {icon}
+        <span>
+          <span className="font-semibold tabular-nums">{count}</span> {label}
+        </span>
+      </p>
+    </div>
   );
 }
 function Avatar({ url, name }: { url: string | null; name: string }) {
@@ -555,7 +584,7 @@ export default function Instagram() {
               : mode === "pending"
                 ? "Conteúdos pendentes"
                 : mode === "tasks"
-                  ? "Tarefas do Instagram"
+                  ? "Conteúdos prontos"
                   : "Instagram"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -620,54 +649,83 @@ export default function Instagram() {
         </div>
       </header>
       {!accountId && (
-        <nav aria-label="Instagram" className="flex flex-wrap gap-2">
+        <nav
+          aria-label="Instagram"
+          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+        >
           {[
-            ["/instagram", "Contas"],
-            ["/instagram/pendentes", "Conteúdos pendentes"],
-            ["/instagram/tarefas", "Todas as tarefas"],
-          ].map(([path, title]) => (
-            <Button
-              asChild
-              variant={
-                path === "/instagram/pendentes"
-                  ? location.pathname.startsWith("/instagram/pendentes") ||
-                    location.pathname.endsWith("/hoje")
-                    ? "secondary"
-                    : "ghost"
-                  : location.pathname === path
-                    ? "secondary"
-                    : "ghost"
-              }
-              key={path}
-            >
-              <Link to={path}>{title}</Link>
-            </Button>
-          ))}
+            {
+              path: "/instagram",
+              title: "Contas",
+              icon: Globe,
+              active:
+                location.pathname === "/instagram" ||
+                location.pathname.startsWith("/instagram/conta"),
+            },
+            {
+              path: "/instagram/pendentes",
+              title: "Conteúdos pendentes",
+              icon: Clock,
+              active:
+                location.pathname.startsWith("/instagram/pendentes") ||
+                location.pathname.endsWith("/hoje"),
+            },
+            {
+              path: "/instagram/tarefas",
+              title: "Conteúdos prontos",
+              icon: CheckCircle2,
+              active: location.pathname.endsWith("/tarefas"),
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                aria-current={item.active ? "page" : undefined}
+                className={`flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 text-[15px] font-semibold ${
+                  item.active
+                    ? "border-foreground/20 bg-secondary"
+                    : "border-border bg-card text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                {item.title}
+              </Link>
+            );
+          })}
         </nav>
       )}
       {!accountId && mode === "accounts" && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["Contas", data.accounts.length],
-              [
-                "Ativas",
-                data.accounts.filter((a) => a.status === "active").length,
-              ],
-                            [
-                "Aquecendo",
-                data.accounts.filter((a) => a.status === "warming").length,
-              ],
-              [
-                "Em criação",
-                data.accounts.filter((a) => a.status === "creating").length,
-              ],
-            ].map(([title, value]) => (
-              <div className={panel} key={title}>
-                <p className="text-2xl font-semibold">{value}</p>
-                <p className="text-xs text-muted-foreground">{title}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <StatLine
+              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              count={data.accounts.length}
+              label="contas"
+            />
+            <StatLine
+              icon={
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full bg-success"
+                  aria-hidden="true"
+                />
+              }
+              count={data.accounts.filter((a) => a.status === "active").length}
+              label="ativas"
+            />
+            <StatLine
+              icon={<Flame className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              count={data.accounts.filter((a) => a.status === "warming").length}
+              label="aquecendo"
+            />
+            <StatLine
+              count={
+                data.accounts.filter((a) => a.status === "creating").length
+              }
+              label="em criação"
+              dim
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <Input
@@ -815,30 +873,31 @@ export default function Instagram() {
       )}
       {!accountId && mode === "pending" && (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              [
-                "Conteúdos pendentes totais",
+          <div className="grid grid-cols-2 gap-2">
+            <StatLine
+              icon={
+                <Hourglass className="h-4 w-4 shrink-0 text-muted-foreground" />
+              }
+              count={
                 data.contents.filter(
                   (c) => c.status !== "published" && c.status !== "ready",
-                ).length,
-              ],
-              [
-                "Contas com conteúdos pendentes",
+                ).length
+              }
+              label="conteúdos pendentes totais"
+            />
+            <StatLine
+              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              count={
                 new Set(
                   data.contents
                     .filter(
                       (c) => c.status !== "published" && c.status !== "ready",
                     )
                     .map((c) => c.account_id),
-                ).size,
-              ],
-            ].map(([title, value]) => (
-              <div className={panel} key={title}>
-                <p className="text-2xl font-semibold">{value}</p>
-                <p className="text-xs text-muted-foreground">{title}</p>
-              </div>
-            ))}
+                ).size
+              }
+              label="contas pendentes"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <Input
