@@ -680,20 +680,45 @@ export default function Instagram() {
           {tab === "overview" && (
             <>
               <div className={panel}>
-                <div className="flex items-center gap-3">
-                  <Avatar url={account.avatar_url} name={account.name} />
-                  <div>
-                    <Status status={account.status} />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {account.category || "Sem categoria"}
+                <div className="mb-4 flex items-center gap-3">
+                  <Avatar url={account.avatar_url} name={account.username} />
+                  <div className="min-w-0">
+                    <p className="break-all font-semibold">
+                      @{account.username}
                     </p>
+                    <div className="mt-1">
+                      <Status status={account.status} />
+                    </div>
                   </div>
                 </div>
-                {account.notes && (
-                  <p className="mt-4 whitespace-pre-wrap break-words text-sm">
-                    {account.notes}
-                  </p>
-                )}
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    ["@username", `@${account.username}`],
+                    ["Status", statuses[account.status]],
+                    ["E-mail associado", account.email],
+                    ["Número associado", account.phone],
+                    ["Aparelho", account.responsible],
+                    [
+                      "Data de criação da conta",
+                      account.account_created_on
+                        ? displayDate(account.account_created_on)
+                        : "",
+                    ],
+                    ["Observações", account.notes],
+                  ].map(([k, v]) => (
+                    <div
+                      key={k}
+                      className={
+                        k === "Observações" ? "min-w-0 sm:col-span-2" : "min-w-0"
+                      }
+                    >
+                      <dt className="text-xs text-muted-foreground">{k}</dt>
+                      <dd className="whitespace-pre-wrap break-words text-sm">
+                        {v || "Não informado"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
