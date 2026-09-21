@@ -383,7 +383,20 @@ export default function Instagram() {
       saving={saving}
       onClose={() => setEdit(null)}
       onSave={async (values) => {
-        await save({ table: edit.table, id: edit.id, values });
+        if (edit.compact && edit.table === "contents" && !edit.id) {
+          const qty = Math.max(1, Math.min(99, Number(values.quantity) || 1));
+          const rest = { ...values };
+          delete rest.quantity;
+          for (let i = 0; i < qty; i += 1) {
+            await save({
+              table: "contents",
+              values: rest,
+              quiet: i < qty - 1,
+            });
+          }
+        } else {
+          await save({ table: edit.table, id: edit.id, values });
+        }
         setEdit(null);
       }}
     />

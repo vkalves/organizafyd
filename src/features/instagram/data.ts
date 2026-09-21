@@ -89,11 +89,13 @@ export function useInstagramData() {
       id,
       values,
       remove,
+      quiet,
     }: {
       table: Exclude<Table, "history">;
       id?: string;
       values?: Record<string, unknown>;
       remove?: boolean;
+      quiet?: boolean;
     }) => {
       if (!user) throw new Error("Sessão encerrada. Entre novamente.");
       const clean = { ...values };
@@ -101,6 +103,7 @@ export function useInstagramData() {
       delete clean.user_id;
       delete clean.created_at;
       delete clean.updated_at;
+      delete clean.quantity;
       const target = db.from(`instagram_${table}` as `instagram_${Table}`);
       const result = remove
         ? await target
@@ -123,9 +126,9 @@ export function useInstagramData() {
       if (result.error) throw result.error;
       return result.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, vars) => {
       await cache.invalidateQueries({ queryKey: ["instagram", user?.id] });
-      toast.success("Salvo com sucesso");
+      if (!vars.quiet) toast.success("Salvo com sucesso");
     },
     onError: (e: { message?: string; code?: string }) =>
       toast.error(

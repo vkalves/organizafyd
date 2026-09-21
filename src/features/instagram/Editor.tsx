@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,7 @@ export function Editor({
     format: "Reel",
     priority: "medium",
     recorded_on: localDay(),
+    quantity: 1,
     ...request.values,
   };
   const [values, setValues] = useState(defaults);
@@ -111,19 +113,18 @@ export function Editor({
             options: accountOptions,
             required: true,
           },
-          { key: "title", label: "Título", required: true },
           {
-            key: "format",
-            label: "Formato",
-            options: formatOptions,
+            key: "quantity",
+            label: "Quantidade de conteúdos",
+            type: "stepper",
             required: true,
           },
           {
-            key: "planned_at",
-            label: "Data e horário",
-            type: "datetime-local",
+            key: "title",
+            label: "Grupo dos Conteúdos",
+            type: "digits",
+            required: true,
           },
-          { key: "notes", label: "Observações", type: "textarea" },
         ]
       : [
       {
@@ -279,7 +280,20 @@ export function Editor({
               clean.name = String(values.name ?? "").trim() || clean.username;
             }
             if (request.table === "contents" && request.compact) {
-              clean.status = values.status || "idea";
+              const qty = Math.max(1, Math.floor(Number(values.quantity) || 0));
+              const group = String(values.title || "").replace(/\D/g, "");
+              if (!qty) {
+                setError("Preencha a quantidade de conteúdos.");
+                return;
+              }
+              if (!group) {
+                setError("Preencha o grupo dos conteúdos.");
+                return;
+              }
+              clean.quantity = qty;
+              clean.title = group;
+              clean.format = "Reel";
+              clean.status = "idea";
             }
             if (request.table === "ideas") {
               clean.account_id = values.account_id;
@@ -368,6 +382,65 @@ export function Editor({
                       value={value}
                       onChange={(e) =>
                         setValues({ ...values, [f.key]: e.target.value })
+                      }
+                    />
+                  ) : f.type === "stepper" ? (
+                    <div className="flex h-11">
+                      <Input
+                        id={`ig-${f.key}`}
+                        className="h-11 rounded-r-none"
+                        inputMode="numeric"
+                        required={f.required}
+                        value={value}
+                        onChange={(e) => {
+                          const next = e.target.value.replace(/\D/g, "");
+                          setValues({
+                            ...values,
+                            [f.key]: next ? Math.max(1, Number(next)) : "",
+                          });
+                        }}
+                      />
+                      <div className="flex w-9 shrink-0 flex-col overflow-hidden rounded-r-md border border-l-0 border-input">
+                        <button
+                          type="button"
+                          className="flex flex-1 items-center justify-center hover:bg-accent"
+                          aria-label="Aumentar quantidade"
+                          onClick={() =>
+                            setValues({
+                              ...values,
+                              [f.key]: Math.max(1, Number(value) || 0) + 1,
+                            })
+                          }
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="flex flex-1 items-center justify-center border-t border-input hover:bg-accent"
+                          aria-label="Diminuir quantidade"
+                          onClick={() =>
+                            setValues({
+                              ...values,
+                              [f.key]: Math.max(1, (Number(value) || 1) - 1),
+                            })
+                          }
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : f.type === "digits" ? (
+                    <Input
+                      id={`ig-${f.key}`}
+                      className="h-11"
+                      inputMode="numeric"
+                      required={f.required}
+                      value={value}
+                      onChange={(e) =>
+                        setValues({
+                          ...values,
+                          [f.key]: e.target.value.replace(/\D/g, ""),
+                        })
                       }
                     />
                   ) : (
