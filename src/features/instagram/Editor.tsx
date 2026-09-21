@@ -70,6 +70,9 @@ export function Editor({
   };
   const [values, setValues] = useState(defaults);
   const [error, setError] = useState("");
+  const [viewing, setViewing] = useState(
+    request.table === "ideas" && Boolean(request.id),
+  );
   const formatOptions = Object.fromEntries(
     ["Feed", "Reel", "Story", "Carrossel"].map((x) => [x, x]),
   );
@@ -213,13 +216,31 @@ export function Editor({
       <DialogContent className="safe-dialog-content w-[calc(100%_-_1rem)] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {request.id ? "Editar" : "Adicionar"}{" "}
-            {request.compact ? "conteúdo pendente" : names[request.table]}
+            {request.table === "ideas" && viewing
+              ? "Ideia"
+              : `${request.id ? "Editar" : "Adicionar"} ${request.compact ? "conteúdo pendente" : names[request.table]}`}
           </DialogTitle>
-          <DialogDescription>
-            Preencha os dados. Campos com * são obrigatórios.
-          </DialogDescription>
+          {!(request.table === "ideas" && viewing) && (
+            <DialogDescription>
+              Preencha os dados. Campos com * são obrigatórios.
+            </DialogDescription>
+          )}
         </DialogHeader>
+        {request.table === "ideas" && viewing ? (
+          <div className="space-y-4">
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {String(values.content || "Sem conteúdo")}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Fechar
+              </Button>
+              <Button type="button" onClick={() => setViewing(false)}>
+                Editar
+              </Button>
+            </div>
+          </div>
+        ) : (
         <form
           className="space-y-4"
           onSubmit={async (e) => {
@@ -392,6 +413,7 @@ export function Editor({
             <Button disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
