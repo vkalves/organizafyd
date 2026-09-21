@@ -828,36 +828,37 @@ export default function Instagram() {
               {!ideas.length && (
                 <Empty>Nenhuma ideia nesta conta.</Empty>
               )}
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {[...ideas]
                   .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
                   .map((idea) => (
                     <article
                       key={idea.id}
-                      className={`${panel} cursor-pointer text-left`}
+                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-3 text-left"
                       onClick={() => openEdit("ideas", idea)}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="min-w-0 break-words text-sm font-medium">
-                          {idea.title}
-                        </h3>
+                      <div className="flex items-start gap-2">
+                        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug line-clamp-4">
+                          {idea.content || idea.title}
+                        </p>
                         <Button
-                          className={btn}
+                          className="h-8 w-8 shrink-0"
                           size="icon"
                           variant="ghost"
-                          aria-label={`Excluir ideia ${idea.title}`}
+                          aria-label="Excluir ideia"
                           onClick={(e) => {
                             e.stopPropagation();
-                            remove("ideas", idea.id, idea.title);
+                            remove(
+                              "ideas",
+                              idea.id,
+                              idea.content || idea.title,
+                            );
                           }}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                      <p className="mt-2 line-clamp-3 break-words text-xs text-muted-foreground">
-                        {idea.content || "Sem conteúdo"}
-                      </p>
-                      <p className="mt-3 text-[10px] text-muted-foreground">
+                      <p className="mt-2 text-[10px] text-muted-foreground">
                         {displayDate(idea.updated_at)}
                       </p>
                     </article>

@@ -174,8 +174,7 @@ export function Editor({
       { key: "notes", label: "Observações", type: "textarea" },
     ],
     ideas: [
-      { key: "title", label: "Ideia", required: true },
-      { key: "content", label: "Detalhes", type: "textarea" },
+      { key: "content", label: "Detalhes", type: "textarea", required: true },
     ],
     metrics: [
       {
@@ -263,6 +262,13 @@ export function Editor({
             }
             if (request.table === "ideas") {
               clean.account_id = values.account_id;
+              const text = String(clean.content || "").trim();
+              if (!text) {
+                setError("Preencha os detalhes.");
+                return;
+              }
+              clean.content = text;
+              clean.title = text.split("\n")[0].slice(0, 80);
               if (!clean.account_id) {
                 setError("Abra a conta para salvar a ideia.");
                 return;
