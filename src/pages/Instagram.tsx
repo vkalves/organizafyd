@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Instagram as InstagramIcon,
@@ -7,6 +7,8 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
+  CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
 import {
   LineChart,
@@ -111,6 +113,45 @@ function Handle({
     </span>
   );
 }
+function ProgressRing({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const r = 28;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg viewBox="0 0 72 72" className="h-20 w-20 shrink-0" aria-hidden="true">
+      <circle
+        cx="36"
+        cy="36"
+        r={r}
+        fill="none"
+        stroke="hsl(var(--border))"
+        strokeWidth="6"
+      />
+      <circle
+        cx="36"
+        cy="36"
+        r={r}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeWidth="6"
+        strokeDasharray={c}
+        strokeDashoffset={c - (pct / 100) * c}
+        strokeLinecap="round"
+        transform="rotate(-90 36 36)"
+      />
+      <text
+        x="36"
+        y="41"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize="12"
+        fontWeight="600"
+      >
+        {pct}%
+      </text>
+    </svg>
+  );
+}
 function PhoneIcon() {
   return (
     <svg
@@ -145,15 +186,16 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
   );
 }
 export default function Instagram() {
-  const { accountId } = useParams();
+  const { accountId, group } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const mode = location.pathname.endsWith("/hoje") ||
-    location.pathname.endsWith("/pendentes")
-    ? "pending"
-    : location.pathname.endsWith("/tarefas")
-      ? "tasks"
-      : "accounts";
+  const mode =
+    location.pathname.includes("/pendentes") ||
+    location.pathname.endsWith("/hoje")
+      ? "pending"
+      : location.pathname.endsWith("/tarefas")
+        ? "tasks"
+        : "accounts";
   const query = useInstagramData();
   const { data, save, saving } = query;
   const [search, setSearch] = useState("");
@@ -169,6 +211,14 @@ export default function Instagram() {
     id: string;
     name: string;
   } | null>(null);
+  const [readyConfirm, setReadyConfirm] = useState(false);
+  const [editingReady, setEditingReady] = useState(false);
+  const [readyDraft, setReadyDraft] = useState("");
+  useEffect(() => {
+    if (mode === "pending" && tab !== "overview" && tab !== "ideas") {
+      setTab("overview");
+    }
+  }, [mode, accountId, tab]);
   if (query.isLoading)
     return (
       <p role="status" className="p-8 text-muted-foreground">
@@ -203,6 +253,29 @@ export default function Instagram() {
     .sort((a, b) => a.recorded_on.localeCompare(b.recorded_on));
   const countsFor = (id: string) =>
     contentCounts(data.contents.filter((c) => c.account_id === id));
+  const pendingPool = contents.filter(
+    (c) => c.status === "idea" || c.status === "ready",
+  );
+  const overviewCounts = contentCounts(pendingPool);
+  const applyReadyCount = async (n: number) => {
+    const pool = [...pendingPool].sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    );
+    const target = Math.max(0, Math.min(Math.floor(n), pool.length));
+    const changes = pool.filter(
+      (item, i) => item.status !== (i < target ? "ready" : "idea"),
+    );
+    for (let i = 0; i < changes.length; i += 1) {
+      const item = changes[i];
+      const next = pool.indexOf(item) < target ? "ready" : "idea";
+      await save({
+        table: "contents",
+        id: item.id,
+        values: { ...item, status: next },
+        quiet: i < changes.length - 1,
+      });
+    }
+  };
   const openEdit = (table: EditRequest["table"], row: object) =>
     setEdit({ table, id: (row as { id: string }).id, values: { ...row } });
   const create = (
@@ -407,9 +480,21 @@ export default function Instagram() {
         <div className="min-w-0">
           {accountId && (
             <Button asChild variant="ghost" className="mb-2 -ml-3">
-              <Link to="/instagram">
+              <Link
+                to={
+                  group
+                    ? `/instagram/pendentes/${accountId}`
+                    : mode === "pending"
+                      ? "/instagram/pendentes"
+                      : "/instagram"
+                }
+              >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Todas as contas
+                {group
+                  ? `@${account?.username || "conta"}`
+                  : mode === "pending"
+                    ? "Conteúdos pendentes"
+                    : "Todas as contas"}
               </Link>
             </Button>
           )}
@@ -432,19 +517,31 @@ export default function Instagram() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {account ? (
-              <span className="inline-flex min-w-0 items-center gap-2">
-                <PhoneIcon />
+              mode === "pending" ? (
                 <span className="min-w-0 break-words">
-                  {account.responsible || "Sem aparelho"}
+                  {account.category || "Sem modelo"}
                 </span>
-              </span>
+              ) : (
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <PhoneIcon />
+                  <span className="min-w-0 break-words">
+                    {account.responsible || "Sem aparelho"}
+                  </span>
+                </span>
+              )
             ) : (
               "Organize suas contas, conteúdos e rotina."
             )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {account && (
+          {account && mode === "pending" && !group && (
+            <Button onClick={() => setReadyConfirm(true)}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Conteúdo pronto
+            </Button>
+          )}
+          {account && mode !== "pending" && (
             <Button
               variant="destructive"
               onClick={() =>
@@ -490,7 +587,7 @@ export default function Instagram() {
               asChild
               variant={
                 path === "/instagram/pendentes"
-                  ? location.pathname.endsWith("/pendentes") ||
+                  ? location.pathname.startsWith("/instagram/pendentes") ||
                     location.pathname.endsWith("/hoje")
                     ? "secondary"
                     : "ghost"
@@ -676,13 +773,43 @@ export default function Instagram() {
         <>
           <div className="grid grid-cols-2 gap-3">
             {[
-              ["Conteúdos pendentes totais", "—"],
-              ["Contas com conteúdos pendentes", "—"],
+              [
+                "Conteúdos pendentes totais",
+                data.contents.filter(
+                  (c) => c.status !== "published" && c.status !== "ready",
+                ).length,
+              ],
+              [
+                "Contas com conteúdos pendentes",
+                new Set(
+                  data.contents
+                    .filter(
+                      (c) => c.status !== "published" && c.status !== "ready",
+                    )
+                    .map((c) => c.account_id),
+                ).size,
+              ],
             ].map(([title, value]) => (
               <div className={panel} key={title}>
                 <p className="text-2xl font-semibold">{value}</p>
                 <p className="text-xs text-muted-foreground">{title}</p>
               </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {data.accounts.map((a) => (
+              <Link
+                key={a.id}
+                to={`/instagram/pendentes/${a.id}`}
+                className={panel}
+              >
+                <p className="font-semibold">
+                  <Handle username={a.username} verified={isVerified(a)} />
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {a.category || "Sem modelo"}
+                </p>
+              </Link>
             ))}
           </div>
         </>
@@ -736,7 +863,196 @@ export default function Instagram() {
           </Link>
         </Empty>
       )}
-      {account && (
+      {account && mode === "pending" && group && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium">Grupo {group}</h2>
+          {contents.filter((c) => c.title === group).length === 0 && (
+            <Empty>Nenhum conteúdo neste grupo.</Empty>
+          )}
+          <div className="grid gap-3 lg:grid-cols-2">
+            {contents
+              .filter((c) => c.title === group)
+              .sort((a, b) => a.created_at.localeCompare(b.created_at))
+              .map(contentRow)}
+          </div>
+        </div>
+      )}
+      {account && mode === "pending" && !group && (
+        <>
+          <nav aria-label="Abas da conta" className="flex flex-wrap gap-1">
+            {[
+              ["overview", "Visão geral"],
+              ["ideas", "Ideias"],
+            ].map(([key, title]) => (
+              <Button
+                key={key}
+                variant={tab === key ? "secondary" : "ghost"}
+                aria-pressed={tab === key}
+                onClick={() => setTab(key)}
+              >
+                {title}
+              </Button>
+            ))}
+          </nav>
+          {tab === "overview" && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+              <div className={`${panel} flex items-center justify-between gap-4`}>
+                <div className="min-w-0">
+                  <p className="text-3xl font-semibold">
+                    {overviewCounts.pending}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Conteúdos pendentes
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    {editingReady ? (
+                      <form
+                        className="flex items-center gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void applyReadyCount(Number(readyDraft) || 0).then(
+                            () => setEditingReady(false),
+                          );
+                        }}
+                      >
+                        <Input
+                          className="h-9 w-20"
+                          inputMode="numeric"
+                          aria-label="Conteúdos prontos"
+                          value={readyDraft}
+                          onChange={(e) =>
+                            setReadyDraft(e.target.value.replace(/\D/g, ""))
+                          }
+                          autoFocus
+                        />
+                        <Button type="submit" size="sm" disabled={saving}>
+                          Ok
+                        </Button>
+                      </form>
+                    ) : (
+                      <>
+                        <p className="text-sm">
+                          <span className="font-semibold">
+                            {overviewCounts.ready}
+                          </span>{" "}
+                          <span className="text-muted-foreground">
+                            conteúdos prontos
+                          </span>
+                        </p>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label="Editar conteúdos prontos"
+                          onClick={() => {
+                            setReadyDraft(String(overviewCounts.ready));
+                            setEditingReady(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <ProgressRing
+                  value={
+                    overviewCounts.pending + overviewCounts.ready
+                      ? (overviewCounts.ready /
+                          (overviewCounts.pending + overviewCounts.ready)) *
+                        100
+                      : 0
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                {[...new Set(pendingPool.map((c) => c.title).filter(Boolean))]
+                  .length === 0 && (
+                  <div className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}>
+                    <div>
+                      <p className="text-sm font-medium">Grupo de conteúdos</p>
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum grupo ainda
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {[...new Set(pendingPool.map((c) => c.title).filter(Boolean))].map(
+                  (g) => (
+                    <div
+                      key={g}
+                      className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium">Grupo {g}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Acessar conteúdos
+                        </p>
+                      </div>
+                      <Button asChild size="icon" variant="ghost">
+                        <Link
+                          to={`/instagram/pendentes/${account.id}/grupo/${encodeURIComponent(g)}`}
+                          aria-label={`Abrir grupo ${g}`}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </Link>
+                      </Button>
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
+          )}
+          {tab === "ideas" && (
+            <>
+              <Button onClick={() => create("ideas")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova ideia
+              </Button>
+              {!ideas.length && (
+                <Empty>Nenhuma ideia nesta conta.</Empty>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {[...ideas]
+                  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+                  .map((idea) => (
+                    <article
+                      key={idea.id}
+                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-3 text-left"
+                      onClick={() => openEdit("ideas", idea)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-snug line-clamp-4">
+                          {idea.content || idea.title}
+                        </p>
+                        <Button
+                          className="h-8 w-8 shrink-0"
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Excluir ideia"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove(
+                              "ideas",
+                              idea.id,
+                              idea.content || idea.title,
+                            );
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-[10px] text-muted-foreground">
+                        {displayDate(idea.updated_at)}
+                      </p>
+                    </article>
+                  ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+      {account && mode !== "pending" && (
         <>
           <nav aria-label="Abas da conta" className="flex flex-wrap gap-1">
             {[
@@ -1167,6 +1483,39 @@ export default function Instagram() {
         </>
       )}
       {form}
+      <Dialog
+        open={readyConfirm}
+        onOpenChange={(open) => {
+          if (!open && !saving) setReadyConfirm(false);
+        }}
+      >
+        <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Marcar conteúdo pronto</DialogTitle>
+            <DialogDescription>
+              Marcar os conteúdos pendentes desta conta como prontos?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => setReadyConfirm(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={saving}
+              onClick={async () => {
+                await applyReadyCount(pendingPool.length);
+                setReadyConfirm(false);
+              }}
+            >
+              {saving ? "Salvando…" : "Confirmar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!deletion}
         onOpenChange={(open) => {
