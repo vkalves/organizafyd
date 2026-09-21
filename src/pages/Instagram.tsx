@@ -267,11 +267,13 @@ export default function Instagram() {
   const [groupConfirm, setGroupConfirm] = useState(false);
   const [editingReady, setEditingReady] = useState(false);
   const [readyDraft, setReadyDraft] = useState("");
+  const [selectedPublish, setSelectedPublish] = useState<string[]>([]);
   useEffect(() => {
     if (mode === "pending") {
       if (tab !== "overview" && tab !== "ideas") setTab("overview");
     } else if (mode === "ready") {
       if (tab !== "overview") setTab("overview");
+      setSelectedPublish([]);
     } else if (accountId && tab !== "overview" && tab !== "contents") {
       setTab("overview");
     }
@@ -571,11 +573,21 @@ export default function Instagram() {
       .toLowerCase()
       .includes(q);
   });
+  const fullyReadyAccountIds = new Set(
+    data.accounts
+      .filter((a) => {
+        const items = data.contents.filter((c) => c.account_id === a.id);
+        return (
+          items.some((c) => c.status === "ready") &&
+          !items.some(
+            (c) => c.status !== "published" && c.status !== "ready",
+          )
+        );
+      })
+      .map((a) => a.id),
+  );
   const readyAccounts = data.accounts.filter((a) => {
-    const hasReady = data.contents.some(
-      (c) => c.account_id === a.id && c.status === "ready",
-    );
-    if (!hasReady) return false;
+    if (!fullyReadyAccountIds.has(a.id)) return false;
     if (readyAccount && a.id !== readyAccount) return false;
     if (readyModel && a.category !== readyModel) return false;
     if (readyDevice && a.responsible !== readyDevice) return false;
@@ -699,9 +711,12 @@ export default function Instagram() {
             </Button>
           )}
           {account && mode === "ready" && !group && (
-            <Button onClick={() => setPublishConfirm(true)}>
+            <Button
+              disabled={!selectedPublish.length}
+              onClick={() => setPublishConfirm(true)}
+            >
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Conteúdo publicado
+              Confirmar
             </Button>
           )}
           {account && mode === "accounts" && (
@@ -1142,18 +1157,18 @@ export default function Instagram() {
               icon={
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
               }
-              count={data.contents.filter((c) => c.status === "ready").length}
+              count={
+                data.contents.filter(
+                  (c) =>
+                    c.status === "ready" &&
+                    fullyReadyAccountIds.has(c.account_id),
+                ).length
+              }
               label="conteúdos prontos totais"
             />
             <StatLine
               icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
-              count={
-                new Set(
-                  data.contents
-                    .filter((c) => c.status === "ready")
-                    .map((c) => c.account_id),
-                ).size
-              }
+              count={fullyReadyAccountIds.size}
               label="contas prontas"
             />
           </div>
@@ -1173,11 +1188,7 @@ export default function Instagram() {
             >
               <option value="">Conta</option>
               {data.accounts
-                .filter((a) =>
-                  data.contents.some(
-                    (c) => c.account_id === a.id && c.status === "ready",
-                  ),
-                )
+                .filter((a) => fullyReadyAccountIds.has(a.id))
                 .sort((a, b) => a.username.localeCompare(b.username))
                 .map((a) => (
                   <option key={a.id} value={a.id}>
@@ -1286,9 +1297,9 @@ export default function Instagram() {
           </div>
           {readyAccounts.length === 0 && (
             <Empty>
-              {data.contents.some((c) => c.status === "ready")
+              {fullyReadyAccountIds.size
                 ? "Nenhuma conta corresponde aos filtros."
-                : "Nenhuma conta com conteúdo pronto. Marque como pronto em Conteúdos pendentes."}
+                : "Nenhuma conta com conteúdos 100% prontos. Termine os pendentes primeiro."}
             </Empty>
           )}
         </>
@@ -1457,74 +1468,51 @@ export default function Instagram() {
             </Button>
           </nav>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <StatLine
-                dim
-                icon={
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-                }
-                count={overviewCounts.ready}
-                label="prontos"
-              />
-              {editingReady ? (
-                <form
-                  className="flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-3.5"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void applyPublishedCount(Number(readyDraft) || 0).then(
-                      () => setEditingReady(false),
-                    );
-                  }}
-                >
-                  <Input
-                    className="h-10 w-24"
-                    inputMode="numeric"
-                    aria-label="Conteúdos publicados"
-                    value={readyDraft}
-                    onChange={(e) =>
-                      setReadyDraft(e.target.value.replace(/\D/g, ""))
-                    }
-                    autoFocus
-                  />
-                  <Button type="submit" size="sm" disabled={saving}>
-                    Ok
-                  </Button>
-                </form>
-              ) : (
-                <StatLine
-                  icon={
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  }
-                  count={overviewCounts.published}
-                  label="publicados"
-                  action={
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      aria-label="Editar conteúdos publicados"
-                      onClick={() => {
-                        setReadyDraft(String(overviewCounts.published));
-                        setEditingReady(true);
-                      }}
+            {readyPool.length === 0 ? (
+              <Empty>Nenhum vídeo nesta conta.</Empty>
+            ) : (
+              [...readyPool]
+                .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                .map((item, i) => {
+                  const posted = item.status === "published";
+                  const checked =
+                    posted || selectedPublish.includes(item.id);
+                  return (
+                    <label
+                      key={item.id}
+                      className={`${panel} flex cursor-pointer items-center gap-3 ${posted ? "opacity-70" : ""}`}
                     >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  }
-                />
-              )}
-            </div>
-            <div className={`${panel} flex items-center gap-4`}>
-              <ProgressRing value={overviewPct} />
-              <div>
-                <p className="text-3xl font-semibold tabular-nums">
-                  {Math.round(overviewPct)}%
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Publicados
-                </p>
-              </div>
-            </div>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 shrink-0"
+                        checked={checked}
+                        disabled={posted || saving}
+                        onChange={() =>
+                          setSelectedPublish((cur) =>
+                            cur.includes(item.id)
+                              ? cur.filter((id) => id !== item.id)
+                              : [...cur, item.id],
+                          )
+                        }
+                      />
+                      <span className="min-w-0 flex-1 font-medium">
+                        Video {i + 1}
+                      </span>
+                      {posted ? (
+                        <span className="text-xs text-muted-foreground">
+                          Publicado
+                        </span>
+                      ) : null}
+                    </label>
+                  );
+                })
+            )}
+            <Button
+              disabled={!selectedPublish.length || saving}
+              onClick={() => setPublishConfirm(true)}
+            >
+              Confirmar
+            </Button>
           </div>
         </>
       )}
@@ -1948,9 +1936,9 @@ export default function Instagram() {
       >
         <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
           <DialogHeader>
-            <DialogTitle>Marcar conteúdo publicado</DialogTitle>
+            <DialogTitle>Confirmar publicação</DialogTitle>
             <DialogDescription>
-              Marcar os conteúdos prontos desta conta como publicados?
+              {`Marcar ${selectedPublish.length} vídeo${selectedPublish.length === 1 ? "" : "s"} como publicado?`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
@@ -1962,9 +1950,25 @@ export default function Instagram() {
               Cancelar
             </Button>
             <Button
-              disabled={saving}
+              disabled={saving || !selectedPublish.length}
               onClick={async () => {
-                await applyPublishedCount(readyPool.length);
+                const ids = selectedPublish;
+                for (let i = 0; i < ids.length; i += 1) {
+                  const item = readyPool.find((c) => c.id === ids[i]);
+                  if (!item) continue;
+                  await save({
+                    table: "contents",
+                    id: item.id,
+                    values: {
+                      ...item,
+                      status: "published",
+                      published_at:
+                        item.published_at || new Date().toISOString(),
+                    },
+                    quiet: i < ids.length - 1,
+                  });
+                }
+                setSelectedPublish([]);
                 setPublishConfirm(false);
               }}
             >
