@@ -896,7 +896,7 @@ export default function Instagram() {
               <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
             {pendingAccounts.map((a) => {
               const pool = data.contents.filter(
                 (c) =>
@@ -906,29 +906,26 @@ export default function Instagram() {
               const counts = contentCounts(pool);
               const total = counts.pending + counts.ready;
               return (
-                <article
-                  key={a.id}
-                  className="min-w-0 rounded-lg border border-border bg-card p-6 sm:p-8"
-                >
-                  <div className="flex items-start justify-between gap-4">
+                <article key={a.id} className={panel}>
+                  <div className="flex items-center gap-4">
+                    <ProgressRing
+                      className="h-[4.5rem] w-[4.5rem]"
+                      value={total ? (counts.ready / total) * 100 : 0}
+                    />
                     <div className="min-w-0">
-                      <p className="text-2xl font-semibold leading-tight sm:text-3xl">
+                      <p className="text-xl font-semibold leading-tight">
                         <Handle
                           username={a.username}
                           verified={isVerified(a)}
                         />
                       </p>
-                      <p className="mt-2 text-base text-muted-foreground sm:text-lg">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {a.category || "Sem modelo"}
                       </p>
                     </div>
-                    <ProgressRing
-                      className="h-24 w-24"
-                      value={total ? (counts.ready / total) * 100 : 0}
-                    />
                   </div>
-                  <div className="mt-8">
-                    <Button asChild className="h-12 w-full text-base">
+                  <div className="mt-5">
+                    <Button asChild className="w-full">
                       <Link to={`/instagram/pendentes/${a.id}`}>
                         Gerenciar conteúdo
                       </Link>
