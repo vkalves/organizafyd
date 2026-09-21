@@ -87,7 +87,7 @@ describe("Instagram editor workflows", () => {
       expect(save).toHaveBeenCalledWith(
         expect.objectContaining({
           username: "bianca.test",
-          project_id: null,
+          name: "Bianca",
           email: null,
           status: "active",
         }),
