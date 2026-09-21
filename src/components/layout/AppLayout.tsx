@@ -1,7 +1,8 @@
 import { Shortcuts } from "@/components/shortcuts/Shortcuts";
-import { 
+import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
-  Search, User, Menu, ChevronLeft, LogOut, Instagram
+  Search, User, Menu, ChevronLeft, LogOut, Instagram,
+  Globe, Clock, CheckCircle2,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +19,107 @@ const navItems = [
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 
+const instagramSubs = [
+  { title: "Contas", path: "/instagram", icon: Globe },
+  { title: "Conteúdos pendentes", path: "/instagram/pendentes", icon: Clock },
+  { title: "Conteúdos prontos", path: "/instagram/prontos", icon: CheckCircle2 },
+];
+
 const mobileNavItems = navItems;
+
+function isInstagramPath(path: string) {
+  return path.startsWith("/instagram");
+}
+
+function isInstagramSubActive(path: string, subPath: string) {
+  if (subPath === "/instagram/pendentes") {
+    return path.startsWith("/instagram/pendentes") || path.endsWith("/hoje");
+  }
+  if (subPath === "/instagram/prontos") {
+    return path.includes("/prontos") || path.endsWith("/tarefas");
+  }
+  return (
+    isInstagramPath(path) &&
+    !path.startsWith("/instagram/pendentes") &&
+    !path.includes("/prontos") &&
+    !path.endsWith("/hoje") &&
+    !path.endsWith("/tarefas")
+  );
+}
+
+function SideNav({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  const location = useLocation();
+  const instagramOpen = isInstagramPath(location.pathname);
+  return (
+    <>
+      {navItems.map((item) => {
+        const isActive =
+          item.path === "/"
+            ? location.pathname === "/"
+            : item.path === "/instagram"
+              ? instagramOpen
+              : location.pathname.startsWith(item.path);
+        return (
+          <div key={item.path}>
+            <NavLink
+              to={item.path}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-200",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+              )}
+            >
+              <item.icon className="h-5 w-5 shrink-0" />
+              {!collapsed && <span>{item.title}</span>}
+            </NavLink>
+            {item.path === "/instagram" && instagramOpen ? (
+              <div
+                className={cn(
+                  "mt-1 space-y-0.5",
+                  collapsed ? "px-1" : "ml-3 border-l border-sidebar-border pl-2",
+                )}
+              >
+                {instagramSubs.map((sub) => {
+                  const subActive = isInstagramSubActive(
+                    location.pathname,
+                    sub.path,
+                  );
+                  return (
+                    <NavLink
+                      key={sub.path}
+                      to={sub.path}
+                      title={sub.title}
+                      onClick={onNavigate}
+                      className={cn(
+                        "flex min-h-10 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                        subActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                      )}
+                    >
+                      <sub.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && (
+                        <span className="leading-tight">{sub.title}</span>
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
@@ -96,18 +197,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           desktopSidebarOpen ? "w-56" : "w-16"
         )}>
           <nav className="flex-1 py-4 px-2 space-y-1">
-            {navItems.map((item) => {
-              const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
-              return (
-                <NavLink key={item.path} to={item.path} className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-200",
-                  isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}>
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  {desktopSidebarOpen && <span>{item.title}</span>}
-                </NavLink>
-              );
-            })}
+            <SideNav collapsed={!desktopSidebarOpen} />
           </nav>
         </aside>
 
@@ -116,18 +206,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
             <aside className="relative h-full w-[min(18rem,86vw)] border-r border-sidebar-border bg-sidebar animate-slide-in-left" onClick={(e) => e.stopPropagation()} aria-label="Menu principal">
               <nav className="py-4 px-2 space-y-1">
-                {navItems.map((item) => {
-                  const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
-                  return (
-                    <NavLink key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)} className={cn(
-                      "flex min-h-11 items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
-                      isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                    )}>
-                      <item.icon className="w-5 h-5 shrink-0" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  );
-                })}
+                <SideNav onNavigate={() => setMobileMenuOpen(false)} />
               </nav>
             </aside>
           </div>

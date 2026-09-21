@@ -9,8 +9,6 @@ import {
   RotateCcw,
   CheckCircle2,
   ChevronRight,
-  Globe,
-  Clock,
   User,
   Flame,
   Hourglass,
@@ -820,64 +818,6 @@ export default function Instagram() {
         </div>
       </header>
       ) : null}
-      {!accountId && (
-        <>
-          <nav aria-label="Instagram" className="flex flex-wrap items-center gap-2">
-            {[
-              {
-                path: "/instagram",
-                title: "Contas",
-                icon: Globe,
-                active:
-                  location.pathname === "/instagram" ||
-                  location.pathname.startsWith("/instagram/conta"),
-              },
-              {
-                path: "/instagram/pendentes",
-                title: "Conteúdos pendentes",
-                icon: Clock,
-                active:
-                  location.pathname.startsWith("/instagram/pendentes") ||
-                  location.pathname.endsWith("/hoje"),
-              },
-              {
-                path: "/instagram/prontos",
-                title: "Conteúdos prontos",
-                icon: CheckCircle2,
-                active:
-                  location.pathname.includes("/prontos") ||
-                  location.pathname.endsWith("/tarefas"),
-              },
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <span key={item.path} className="flex items-center gap-2">
-                  {i > 0 ? (
-                    <span
-                      className="h-6 w-px shrink-0 bg-border"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <Link
-                    to={item.path}
-                    title={item.title}
-                    aria-label={item.title}
-                    aria-current={item.active ? "page" : undefined}
-                    className={`flex h-11 items-center gap-2 rounded-lg border border-border px-3.5 text-sm font-semibold ${
-                      item.active
-                        ? "bg-secondary text-foreground"
-                        : "bg-card text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {item.active ? item.title : null}
-                  </Link>
-                </span>
-              );
-            })}
-          </nav>
-        </>
-      )}
       {!accountId && mode === "accounts" && (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
