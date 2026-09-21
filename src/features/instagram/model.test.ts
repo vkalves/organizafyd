@@ -4,7 +4,9 @@ import {
   localDay,
   localInput,
   matchesSearch,
+  contentCounts,
   type Account,
+  type Content,
 } from "./model";
 describe("Instagram data boundaries", () => {
   it("rejects executable and malformed media/profile URLs", () => {
@@ -35,5 +37,19 @@ describe("Instagram data boundaries", () => {
       expect(matchesSearch(account, search)).toBe(true);
     expect(matchesSearch(account, "outra")).toBe(false);
     expect(matchesSearch(account, "XR branco")).toBe(false);
+  });
+  it("splits contents into published, ready and pending buckets", () => {
+    const items = [
+      { status: "published" },
+      { status: "ready" },
+      { status: "ready" },
+      { status: "idea" },
+      { status: "producing" },
+    ] as Content[];
+    expect(contentCounts(items)).toEqual({
+      published: 1,
+      ready: 2,
+      pending: 2,
+    });
   });
 });

@@ -45,6 +45,7 @@ import {
   localDay,
   displayDate,
   matchesSearch,
+  contentCounts,
   type Content,
   type Task,
   type Table,
@@ -67,6 +68,22 @@ function Status({ status }: { status: string }) {
       />
       {statuses[status]}
     </Badge>
+  );
+}
+function PhoneIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
+      <rect x="7" y="2.5" width="10" height="19" rx="2.2" />
+      <path d="M11 5.5h2" strokeLinecap="round" />
+      <circle cx="12" cy="18.2" r="0.7" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 function Avatar({ url, name }: { url: string | null; name: string }) {
@@ -138,10 +155,8 @@ export default function Instagram() {
   const metrics = data.metrics
     .filter((m) => m.account_id === accountId)
     .sort((a, b) => a.recorded_on.localeCompare(b.recorded_on));
-  const latestMetric = (id: string) =>
-    data.metrics
-      .filter((m) => m.account_id === id && m.followers !== null)
-      .sort((a, b) => b.recorded_on.localeCompare(a.recorded_on))[0];
+  const countsFor = (id: string) =>
+    contentCounts(data.contents.filter((c) => c.account_id === id));
   const latestPost = (id: string) =>
     data.contents
       .filter(
@@ -504,7 +519,9 @@ export default function Instagram() {
             </Empty>
           )}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {visibleAccounts.map((a) => (
+            {visibleAccounts.map((a) => {
+              const counts = countsFor(a.id);
+              return (
                       <article key={a.id} className={panel}>
                         <div className="flex items-center gap-3">
                           <Avatar url={a.avatar_url} name={a.name} />
@@ -528,21 +545,32 @@ export default function Instagram() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                        <div className="my-3 flex flex-wrap gap-1">
+                        <div className="my-3 space-y-2">
                           <Status status={a.status} />
-                          {a.responsible && (
-                            <Badge variant="outline">{a.responsible}</Badge>
-                          )}
+                          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <PhoneIcon />
+                            <span className="min-w-0 break-words">
+                              {a.responsible || "Sem aparelho"}
+                            </span>
+                          </p>
                         </div>
-                        <p className="font-semibold">
-                          {latestMetric(a.id)?.followers?.toLocaleString(
-                            "pt-BR",
-                          ) ?? "—"}{" "}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            seguidores
-                          </span>
-                        </p>
-                        <dl className="mt-3 space-y-2 text-xs">
+                        <dl className="space-y-2 text-xs">
+                          <div>
+                            <dt className="text-muted-foreground">
+                              Conteúdos prontos
+                            </dt>
+                            <dd className="text-sm font-semibold">
+                              {counts.ready}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">
+                              Conteúdos pendentes
+                            </dt>
+                            <dd className="text-sm font-semibold">
+                              {counts.pending}
+                            </dd>
+                          </div>
                           <div>
                             <dt className="text-muted-foreground">
                               Última publicação
@@ -574,7 +602,8 @@ export default function Instagram() {
                           </Button>
                         </div>
                       </article>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -703,12 +732,12 @@ export default function Instagram() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
-                  "Conteúdos publicados",
-                  "Conteúdos prontos",
-                  "Conteúdos pendentes",
-                ].map((title) => (
+                  ["Conteúdos publicados", contentCounts(contents).published],
+                  ["Conteúdos prontos", contentCounts(contents).ready],
+                  ["Conteúdos pendentes", contentCounts(contents).pending],
+                ].map(([title, value]) => (
                   <div key={title} className={panel}>
-                    <p className="text-xl font-semibold">—</p>
+                    <p className="text-xl font-semibold">{value}</p>
                     <p className="text-xs text-muted-foreground">{title}</p>
                   </div>
                 ))}

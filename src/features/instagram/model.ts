@@ -107,6 +107,17 @@ export const priorities = { low: "Baixa", medium: "Média", high: "Alta" };
 export const devices = Object.fromEntries(
   ["Iphone 8 plus", "XR branco", "XR preto", "NOTE 8", "A13"].map((x) => [x, x]),
 );
+export function contentCounts(items: Content[]) {
+  let published = 0;
+  let ready = 0;
+  let pending = 0;
+  for (const item of items) {
+    if (item.status === "published") published += 1;
+    else if (item.status === "ready") ready += 1;
+    else pending += 1;
+  }
+  return { published, ready, pending };
+}
 export function localDay(value: Date | string = new Date()) {
   const d = new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
