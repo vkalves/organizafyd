@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Pencil,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   LineChart,
@@ -504,9 +505,9 @@ export default function Instagram() {
               </div>
             ))}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-wrap gap-2">
             <Input
-              className="h-11"
+              className="h-11 min-w-[12rem] flex-1"
               aria-label="Buscar contas"
               placeholder="Buscar por @, aparelho ou modelo..."
               value={search}
@@ -514,7 +515,7 @@ export default function Instagram() {
             />
             <select
               aria-label="Status"
-              className={selectClass}
+              className={`${selectClass} sm:w-44`}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -527,7 +528,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Aparelho"
-              className={selectClass}
+              className={`${selectClass} sm:w-44`}
               value={device}
               onChange={(e) => setDevice(e.target.value)}
             >
@@ -540,7 +541,7 @@ export default function Instagram() {
             </select>
             <select
               aria-label="Modelo"
-              className={selectClass}
+              className={`${selectClass} sm:w-44`}
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
@@ -551,6 +552,21 @@ export default function Instagram() {
                 </option>
               ))}
             </select>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
+              disabled={!search && !status && !device && !model}
+              onClick={() => {
+                setSearch("");
+                setStatus("");
+                setDevice("");
+                setModel("");
+              }}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Limpar
+            </Button>
           </div>
           {!visibleAccounts.length && (
             <Empty>
