@@ -1274,16 +1274,16 @@ export default function Instagram() {
                 {title}
               </Button>
             ))}
+            <button
+              type="button"
+              disabled={!groupUrl}
+              onClick={() => setGroupConfirm(true)}
+              className="ml-auto flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-medium text-foreground disabled:opacity-40"
+            >
+              <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Grupo de vídeos
+            </button>
           </nav>
-          <button
-            type="button"
-            disabled={!groupUrl}
-            onClick={() => setGroupConfirm(true)}
-            className="flex w-full items-center gap-3 rounded-lg bg-black px-4 py-3.5 text-left text-sm font-medium text-foreground disabled:opacity-40"
-          >
-            <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Grupo de vídeos
-          </button>
           {tab === "overview" && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -1411,16 +1411,16 @@ export default function Instagram() {
             <Button variant="secondary" aria-pressed>
               Conteúdos
             </Button>
+            <button
+              type="button"
+              disabled={!groupUrl}
+              onClick={() => setGroupConfirm(true)}
+              className="ml-auto flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-medium text-foreground disabled:opacity-40"
+            >
+              <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Grupo de vídeos
+            </button>
           </nav>
-          <button
-            type="button"
-            disabled={!groupUrl}
-            onClick={() => setGroupConfirm(true)}
-            className="flex w-full items-center gap-3 rounded-lg bg-black px-4 py-3.5 text-left text-sm font-medium text-foreground disabled:opacity-40"
-          >
-            <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Grupo de vídeos
-          </button>
           <div className="space-y-3">
             {readyPool.length === 0 ? (
               <Empty>Nenhum vídeo nesta conta.</Empty>
