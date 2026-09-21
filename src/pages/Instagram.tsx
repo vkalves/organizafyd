@@ -113,12 +113,18 @@ function Handle({
     </span>
   );
 }
-function ProgressRing({ value }: { value: number }) {
+function ProgressRing({
+  value,
+  className = "h-20 w-20",
+}: {
+  value: number;
+  className?: string;
+}) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   const r = 28;
   const c = 2 * Math.PI * r;
   return (
-    <svg viewBox="0 0 72 72" className="h-20 w-20 shrink-0" aria-hidden="true">
+    <svg viewBox="0 0 72 72" className={`shrink-0 ${className}`} aria-hidden="true">
       <circle
         cx="36"
         cy="36"
@@ -204,6 +210,7 @@ export default function Instagram() {
   const [model, setModel] = useState("");
   const [pendingSearch, setPendingSearch] = useState("");
   const [pendingModel, setPendingModel] = useState("");
+  const [pendingAccount, setPendingAccount] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -458,6 +465,7 @@ export default function Instagram() {
         c.status !== "ready",
     );
     if (!hasPending) return false;
+    if (pendingAccount && a.id !== pendingAccount) return false;
     if (pendingModel && a.category !== pendingModel) return false;
     if (!pendingSearch.trim()) return true;
     const q = pendingSearch
@@ -829,6 +837,29 @@ export default function Instagram() {
               onChange={(e) => setPendingSearch(e.target.value)}
             />
             <select
+              aria-label="Conta"
+              className={`${selectClass} sm:w-44`}
+              value={pendingAccount}
+              onChange={(e) => setPendingAccount(e.target.value)}
+            >
+              <option value="">Conta</option>
+              {data.accounts
+                .filter((a) =>
+                  data.contents.some(
+                    (c) =>
+                      c.account_id === a.id &&
+                      c.status !== "published" &&
+                      c.status !== "ready",
+                  ),
+                )
+                .sort((a, b) => a.username.localeCompare(b.username))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    @{a.username}
+                  </option>
+                ))}
+            </select>
+            <select
               aria-label="Modelo"
               className={`${selectClass} sm:w-44`}
               value={pendingModel}
@@ -845,17 +876,18 @@ export default function Instagram() {
               type="button"
               variant="outline"
               className="h-11"
-              disabled={!pendingSearch && !pendingModel}
+              disabled={!pendingSearch && !pendingModel && !pendingAccount}
               onClick={() => {
                 setPendingSearch("");
                 setPendingModel("");
+                setPendingAccount("");
               }}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Limpar
             </Button>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {pendingAccounts.map((a) => {
               const pool = data.contents.filter(
                 (c) =>
@@ -865,25 +897,29 @@ export default function Instagram() {
               const counts = contentCounts(pool);
               const total = counts.pending + counts.ready;
               return (
-                <article key={a.id} className={panel}>
-                  <div className="flex items-start justify-between gap-3">
+                <article
+                  key={a.id}
+                  className="min-w-0 rounded-lg border border-border bg-card p-6 sm:p-8"
+                >
+                  <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="font-semibold">
+                      <p className="text-2xl font-semibold leading-tight sm:text-3xl">
                         <Handle
                           username={a.username}
                           verified={isVerified(a)}
                         />
                       </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-2 text-base text-muted-foreground sm:text-lg">
                         {a.category || "Sem modelo"}
                       </p>
                     </div>
                     <ProgressRing
+                      className="h-24 w-24"
                       value={total ? (counts.ready / total) * 100 : 0}
                     />
                   </div>
-                  <div className="mt-4">
-                    <Button asChild className="w-full">
+                  <div className="mt-8">
+                    <Button asChild className="h-12 w-full text-base">
                       <Link to={`/instagram/pendentes/${a.id}`}>
                         Gerenciar conteúdo
                       </Link>
