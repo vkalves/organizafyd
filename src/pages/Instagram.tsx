@@ -545,20 +545,8 @@ export default function Instagram() {
                             {a.notes}
                           </p>
                         )}
-                        <div className="mt-4 flex gap-2">
-                          <Button asChild variant="outline" className="flex-1">
-                            <a
-                              href={
-                                safeUrl(a.instagram_url) ||
-                                `https://www.instagram.com/${a.username}/`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Abrir
-                            </a>
-                          </Button>
-                          <Button asChild className="flex-1">
+                        <div className="mt-4">
+                          <Button asChild className="w-full">
                             <Link to={`/instagram/conta/${a.id}`}>
                               Gerenciar
                             </Link>
