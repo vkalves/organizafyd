@@ -266,6 +266,13 @@ export default function Instagram() {
     (c) => c.status === "idea" || c.status === "ready",
   );
   const overviewCounts = contentCounts(pendingPool);
+  const overviewTotal = overviewCounts.pending + overviewCounts.ready;
+  const overviewPct = overviewTotal
+    ? (overviewCounts.ready / overviewTotal) * 100
+    : 0;
+  const pendingGroups = [
+    ...new Set(pendingPool.map((c) => c.title).filter(Boolean)),
+  ];
   const applyReadyCount = async (n: number) => {
     const pool = [...pendingPool].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
@@ -1023,132 +1030,120 @@ export default function Instagram() {
             ))}
           </nav>
           {tab === "overview" && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-              <div className={`${panel} flex items-center justify-between gap-4`}>
-                <div className="min-w-0">
-                  <p className="text-3xl font-semibold">
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className={panel}>
+                  <p className="text-3xl font-semibold tabular-nums">
                     {overviewCounts.pending}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Conteúdos pendentes
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Pendentes
                   </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    {editingReady ? (
-                      <form
-                        className="flex items-center gap-2"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void applyReadyCount(Number(readyDraft) || 0).then(
-                            () => setEditingReady(false),
-                          );
+                </div>
+                <div className={panel}>
+                  {editingReady ? (
+                    <form
+                      className="flex items-center gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void applyReadyCount(Number(readyDraft) || 0).then(
+                          () => setEditingReady(false),
+                        );
+                      }}
+                    >
+                      <Input
+                        className="h-11 w-24 text-lg"
+                        inputMode="numeric"
+                        aria-label="Conteúdos prontos"
+                        value={readyDraft}
+                        onChange={(e) =>
+                          setReadyDraft(e.target.value.replace(/\D/g, ""))
+                        }
+                        autoFocus
+                      />
+                      <Button type="submit" size="sm" disabled={saving}>
+                        Ok
+                      </Button>
+                    </form>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-3xl font-semibold tabular-nums">
+                          {overviewCounts.ready}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Prontos
+                        </p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9"
+                        aria-label="Editar conteúdos prontos"
+                        onClick={() => {
+                          setReadyDraft(String(overviewCounts.ready));
+                          setEditingReady(true);
                         }}
                       >
-                        <Input
-                          className="h-9 w-20"
-                          inputMode="numeric"
-                          aria-label="Conteúdos prontos"
-                          value={readyDraft}
-                          onChange={(e) =>
-                            setReadyDraft(e.target.value.replace(/\D/g, ""))
-                          }
-                          autoFocus
-                        />
-                        <Button type="submit" size="sm" disabled={saving}>
-                          Ok
-                        </Button>
-                      </form>
-                    ) : (
-                      <>
-                        <p className="text-sm">
-                          <span className="font-semibold">
-                            {overviewCounts.ready}
-                          </span>{" "}
-                          <span className="text-muted-foreground">
-                            conteúdos prontos
-                          </span>
-                        </p>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          aria-label="Editar conteúdos prontos"
-                          onClick={() => {
-                            setReadyDraft(String(overviewCounts.ready));
-                            setEditingReady(true);
-                          }}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className={`${panel} flex items-center gap-4`}>
+                  <ProgressRing value={overviewPct} />
+                  <div>
+                    <p className="text-3xl font-semibold tabular-nums">
+                      {Math.round(overviewPct)}%
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Concluído
+                    </p>
                   </div>
                 </div>
-                <ProgressRing
-                  value={
-                    overviewCounts.pending + overviewCounts.ready
-                      ? (overviewCounts.ready /
-                          (overviewCounts.pending + overviewCounts.ready)) *
-                        100
-                      : 0
-                  }
-                />
               </div>
-              <div className="space-y-2">
-                {[...new Set(pendingPool.map((c) => c.title).filter(Boolean))]
-                  .length === 0 && (
-                  <div className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}>
-                    <div>
-                      <p className="text-sm font-medium">Grupo de vídeos</p>
-                      <p className="text-xs text-muted-foreground">
-                        Nenhum grupo ainda
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {[...new Set(pendingPool.map((c) => c.title).filter(Boolean))].map(
-                  (g) => {
-                    const groupLink = safeUrl(
-                      pendingPool.find(
-                        (c) => c.title === g && c.publication_url,
-                      )?.publication_url,
-                    );
-                    return (
+              {pendingGroups.length === 0 ? (
+                <div className={panel}>
+                  <p className="font-medium">Grupo de vídeos</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Nenhum grupo ainda
+                  </p>
+                </div>
+              ) : (
+                pendingGroups.map((g) => {
+                  const groupLink = safeUrl(
+                    pendingPool.find((c) => c.title === g && c.publication_url)
+                      ?.publication_url,
+                  );
+                  return (
                     <div
                       key={g}
-                      className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}
+                      className={`${panel} flex items-center justify-between gap-4`}
                     >
-                      <div>
-                        <p className="text-sm font-medium">Grupo de vídeos</p>
-                        <p className="text-xs text-muted-foreground">
+                      <div className="min-w-0">
+                        <p className="font-medium">Grupo de vídeos</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
                           Grupo {g}
                         </p>
                       </div>
                       {groupLink ? (
-                        <Button asChild size="icon" variant="ghost">
+                        <Button asChild>
                           <a
                             href={groupLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            aria-label={`Abrir grupo de vídeos ${g}`}
                           >
-                            <ChevronRight className="h-5 w-5" />
+                            Abrir
+                            <ChevronRight className="ml-1 h-4 w-4" />
                           </a>
                         </Button>
                       ) : (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled
-                          aria-label="Sem link do grupo de vídeos"
-                        >
-                          <ChevronRight className="h-5 w-5" />
-                        </Button>
+                        <Button disabled>Sem link</Button>
                       )}
                     </div>
-                    );
-                  },
-                )}
-              </div>
+                  );
+                })
+              )}
             </div>
           )}
           {tab === "ideas" && (
