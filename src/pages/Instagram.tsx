@@ -144,8 +144,9 @@ export default function Instagram() {
   const { accountId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const mode = location.pathname.endsWith("/hoje")
-    ? "today"
+  const mode = location.pathname.endsWith("/hoje") ||
+    location.pathname.endsWith("/pendentes")
+    ? "pending"
     : location.pathname.endsWith("/tarefas")
       ? "tasks"
       : "accounts";
@@ -200,9 +201,11 @@ export default function Instagram() {
   const create = (
     table: EditRequest["table"],
     values: Record<string, unknown> = {},
+    compact = false,
   ) =>
     setEdit({
       table,
+      compact,
       values: { ...(accountId ? { account_id: accountId } : {}), ...values },
     });
   const remove = (table: Exclude<Table, "history">, id: string, name: string) =>
@@ -358,25 +361,12 @@ export default function Instagram() {
       </div>
     </div>
   );
-  const today = localDay();
   const visibleAccounts = data.accounts.filter(
     (a) =>
       matchesSearch(a, search) &&
       (!status || a.status === status) &&
       (!device || a.responsible === device) &&
       (!model || a.category === model),
-  );
-  const todayTasks = tasks.filter(
-    (t) => t.due_at && localDay(t.due_at) === today,
-  );
-  const overdue = tasks.filter(
-    (t) => t.due_at && localDay(t.due_at) < today && t.status !== "done",
-  );
-  const todayContents = contents.filter(
-    (c) =>
-      (c.status === "published" ? c.published_at : c.planned_at) &&
-      localDay((c.status === "published" ? c.published_at : c.planned_at)!) ===
-        today,
   );
   const form = edit && (
     <Editor
@@ -414,8 +404,8 @@ export default function Instagram() {
                     />
                   )
                 : "Conta não encontrada"
-              : mode === "today"
-                ? "Hoje"
+              : mode === "pending"
+                ? "Conteúdos pendentes"
                 : mode === "tasks"
                   ? "Tarefas do Instagram"
                   : "Instagram"}
@@ -428,8 +418,6 @@ export default function Instagram() {
                   {account.responsible || "Sem aparelho"}
                 </span>
               </span>
-            ) : mode === "today" ? (
-              new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })
             ) : (
               "Organize suas contas, conteúdos e rotina."
             )}
@@ -438,11 +426,24 @@ export default function Instagram() {
         <div className="flex flex-wrap gap-2">
           {!accountId && (
               <Button
-                onClick={() => create(mode === "tasks" ? "tasks" : "accounts")}
-                disabled={mode === "tasks" && !data.accounts.length}
+                onClick={() =>
+                  mode === "tasks"
+                    ? create("tasks")
+                    : mode === "pending"
+                      ? create("contents", { status: "idea" }, true)
+                      : create("accounts")
+                }
+                disabled={
+                  (mode === "tasks" || mode === "pending") &&
+                  !data.accounts.length
+                }
               >
                 <Plus className="mr-2 h-4 w-4" />
-                {mode === "tasks" ? "Nova tarefa" : "Nova conta"}
+                {mode === "tasks"
+                  ? "Nova tarefa"
+                  : mode === "pending"
+                    ? "Novo Conteúdo"
+                    : "Nova conta"}
               </Button>
           )}
         </div>
@@ -451,12 +452,21 @@ export default function Instagram() {
         <nav aria-label="Instagram" className="flex flex-wrap gap-2">
           {[
             ["/instagram", "Contas"],
-            ["/instagram/hoje", "Hoje"],
+            ["/instagram/pendentes", "Conteúdos pendentes"],
             ["/instagram/tarefas", "Todas as tarefas"],
           ].map(([path, title]) => (
             <Button
               asChild
-              variant={location.pathname === path ? "secondary" : "ghost"}
+              variant={
+                path === "/instagram/pendentes"
+                  ? location.pathname.endsWith("/pendentes") ||
+                    location.pathname.endsWith("/hoje")
+                    ? "secondary"
+                    : "ghost"
+                  : location.pathname === path
+                    ? "secondary"
+                    : "ghost"
+              }
               key={path}
             >
               <Link to={path}>{title}</Link>
@@ -616,67 +626,43 @@ export default function Instagram() {
           </div>
         </>
       )}
-      {!accountId && (mode === "today" || mode === "tasks") && (
+      {!accountId && mode === "pending" && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              ["Conteúdos pendentes totais", "—"],
+              ["Contas com conteúdos pendentes", "—"],
+            ].map(([title, value]) => (
+              <div className={panel} key={title}>
+                <p className="text-2xl font-semibold">{value}</p>
+                <p className="text-xs text-muted-foreground">{title}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {!accountId && mode === "tasks" && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-muted-foreground">
-              {mode === "today"
-                ? `${todayTasks.filter((t) => t.status !== "done").length} tarefas pendentes · ${todayContents.length} conteúdos hoje`
-                : `${tasks.filter((t) => t.status !== "done").length} tarefas pendentes`}
+              {`${tasks.filter((t) => t.status !== "done").length} tarefas pendentes`}
             </p>
             <Button
               variant="outline"
               disabled={!data.accounts.length}
-              onClick={() =>
-                create(
-                  "tasks",
-                  mode === "today" ? { due_at: `${today}T09:00` } : {},
-                )
-              }
+              onClick={() => create("tasks")}
             >
               Nova tarefa
             </Button>
           </div>
-          {mode === "today" && overdue.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-warning">
-                Atrasadas · {overdue.length}
-              </h2>
-              {overdue.map((t) => (
-                <div key={t.id}>
-                  <Link
-                    className="text-xs text-muted-foreground"
-                    to={`/instagram/conta/${t.account_id}`}
-                  >
-                    {(() => {
-                      const owner = data.accounts.find(
-                        (acc) => acc.id === t.account_id,
-                      );
-                      return owner ? (
-                        <Handle
-                          username={owner.username}
-                          verified={isVerified(owner)}
-                        />
-                      ) : null;
-                    })()}
-                  </Link>
-                  {taskRow(t)}
-                </div>
-              ))}
-            </div>
-          )}
           {data.accounts.map((a) => {
-            const ts = (mode === "today" ? todayTasks : tasks)
+            const ts = tasks
               .filter((t) => t.account_id === a.id)
               .sort((x, y) =>
                 (x.due_at || "9999").localeCompare(y.due_at || "9999"),
               );
-            const cs =
-              mode === "today"
-                ? todayContents.filter((c) => c.account_id === a.id)
-                : [];
             return (
-              (ts.length > 0 || cs.length > 0) && (
+              ts.length > 0 && (
                 <section key={a.id} className="space-y-2">
                   <h2 className="font-medium">
                     <Link to={`/instagram/conta/${a.id}`}>
@@ -687,19 +673,12 @@ export default function Instagram() {
                     </Link>
                   </h2>
                   {ts.map(taskRow)}
-                  {cs.map(contentRow)}
                 </section>
               )
             );
           })}
-          {(mode === "today"
-            ? todayTasks.length + todayContents.length
-            : tasks.length) === 0 && (
-            <Empty>
-              {mode === "today"
-                ? "Nenhum compromisso planejado para hoje."
-                : "Nenhuma tarefa cadastrada."}
-            </Empty>
+          {tasks.length === 0 && (
+            <Empty>Nenhuma tarefa cadastrada.</Empty>
           )}
         </>
       )}

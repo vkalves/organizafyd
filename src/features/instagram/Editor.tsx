@@ -29,6 +29,7 @@ export interface EditRequest {
   table: Exclude<Table, "history" | "account_labels" | "projects" | "labels">;
   id?: string;
   values?: Record<string, unknown>;
+  compact?: boolean;
 }
 type Field = {
   key: string;
@@ -69,6 +70,9 @@ export function Editor({
   };
   const [values, setValues] = useState(defaults);
   const [error, setError] = useState("");
+  const formatOptions = Object.fromEntries(
+    ["Feed", "Reel", "Story", "Carrossel"].map((x) => [x, x]),
+  );
   const fields: Record<EditRequest["table"], Field[]> = {
     accounts: [
       { key: "username", label: "@username", required: true },
@@ -96,7 +100,29 @@ export function Editor({
       },
       { key: "notes", label: "Observações", type: "textarea" },
     ],
-    contents: [
+    contents: request.compact
+      ? [
+          {
+            key: "account_id",
+            label: "Conta",
+            options: accountOptions,
+            required: true,
+          },
+          { key: "title", label: "Título", required: true },
+          {
+            key: "format",
+            label: "Formato",
+            options: formatOptions,
+            required: true,
+          },
+          {
+            key: "planned_at",
+            label: "Data e horário",
+            type: "datetime-local",
+          },
+          { key: "notes", label: "Observações", type: "textarea" },
+        ]
+      : [
       {
         key: "account_id",
         label: "Conta",
@@ -107,9 +133,7 @@ export function Editor({
       {
         key: "format",
         label: "Formato",
-        options: Object.fromEntries(
-          ["Feed", "Reel", "Story", "Carrossel"].map((x) => [x, x]),
-        ),
+        options: formatOptions,
         required: true,
       },
       { key: "status", label: "Etapa", options: stages, required: true },
@@ -185,7 +209,8 @@ export function Editor({
       <DialogContent className="safe-dialog-content w-[calc(100%_-_1rem)] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {request.id ? "Editar" : "Adicionar"} {names[request.table]}
+            {request.id ? "Editar" : "Adicionar"}{" "}
+            {request.compact ? "conteúdo pendente" : names[request.table]}
           </DialogTitle>
           <DialogDescription>
             Preencha os dados. Campos com * são obrigatórios.
@@ -227,6 +252,9 @@ export function Editor({
                 return;
               }
               clean.name = String(values.name ?? "").trim() || clean.username;
+            }
+            if (request.table === "contents" && request.compact) {
+              clean.status = values.status || "idea";
             }
             if (
               request.table === "contents" &&
