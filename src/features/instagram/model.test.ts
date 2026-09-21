@@ -32,11 +32,20 @@ describe("Instagram data boundaries", () => {
       name: "Bianca",
       notes: "Revisar descrição",
       responsible: "Iphone 8 plus",
+      category: "Bianca Rossi",
     } as Account;
-    for (const search of ["BIANCA", "descricao", "main", "@bianca", "iphone"])
+    for (const search of [
+      "BIANCA",
+      "descricao",
+      "main",
+      "@bianca",
+      "iphone",
+      "rossi",
+    ])
       expect(matchesSearch(account, search)).toBe(true);
     expect(matchesSearch(account, "outra")).toBe(false);
     expect(matchesSearch(account, "XR branco")).toBe(false);
+    expect(matchesSearch(account, "Sofia")).toBe(false);
   });
   it("splits contents into published, ready and pending buckets", () => {
     const items = [

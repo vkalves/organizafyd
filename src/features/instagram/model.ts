@@ -107,6 +107,9 @@ export const priorities = { low: "Baixa", medium: "Média", high: "Alta" };
 export const devices = Object.fromEntries(
   ["Iphone 8 plus", "XR branco", "XR preto", "NOTE 8", "A13"].map((x) => [x, x]),
 );
+export const models = Object.fromEntries(
+  ["Bianca Rossi", "Sofia Fen"].map((x) => [x, x]),
+);
 export const verifiedStatuses = {
   yes: "Sim",
   no: "Não",
@@ -168,7 +171,7 @@ export function matchesSearch(a: Account, search: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
   if (!q) return true;
-  return [a.username, a.name, a.notes, a.responsible]
+  return [a.username, a.name, a.notes, a.responsible, a.category]
     .join(" ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

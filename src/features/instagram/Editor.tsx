@@ -19,6 +19,7 @@ import {
   taskStatuses,
   metricNames,
   devices,
+  models,
   verifiedStatuses,
   localDay,
   type Table,
@@ -80,6 +81,7 @@ export function Editor({
       { key: "email", label: "E-mail associado", type: "email" },
       { key: "phone", label: "Número associado", type: "tel" },
       { key: "responsible", label: "Aparelho", options: devices },
+      { key: "category", label: "Modelo", options: models },
       {
         key: "account_created_on",
         label: "Data de criação da conta",

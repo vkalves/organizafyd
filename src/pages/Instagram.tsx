@@ -40,6 +40,7 @@ import {
   taskStatuses,
   metricNames,
   devices,
+  models,
   isVerified,
   verifiedLabel,
   safeUrl,
@@ -153,6 +154,7 @@ export default function Instagram() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [device, setDevice] = useState("");
+  const [model, setModel] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -361,7 +363,8 @@ export default function Instagram() {
     (a) =>
       matchesSearch(a, search) &&
       (!status || a.status === status) &&
-      (!device || a.responsible === device),
+      (!device || a.responsible === device) &&
+      (!model || a.category === model),
   );
   const todayTasks = tasks.filter(
     (t) => t.due_at && localDay(t.due_at) === today,
@@ -485,11 +488,11 @@ export default function Instagram() {
               </div>
             ))}
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <Input
               className="h-11"
               aria-label="Buscar contas"
-              placeholder="Buscar por @ ou aparelho..."
+              placeholder="Buscar por @, aparelho ou modelo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -514,6 +517,19 @@ export default function Instagram() {
             >
               <option value="">Aparelho</option>
               {Object.entries(devices).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Modelo"
+              className={selectClass}
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            >
+              <option value="">Modelo</option>
+              {Object.entries(models).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
@@ -564,6 +580,9 @@ export default function Instagram() {
                             <span className="min-w-0 break-words">
                               {a.responsible || "Sem aparelho"}
                             </span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {a.category || "Sem modelo"}
                           </p>
                         </div>
                         <dl className="space-y-2 text-xs">
@@ -741,6 +760,7 @@ export default function Instagram() {
                     ["E-mail associado", account.email],
                     ["Número associado", account.phone],
                     ["Aparelho", account.responsible],
+                    ["Modelo", account.category],
                     [
                       "Data de criação da conta",
                       account.account_created_on
@@ -980,6 +1000,7 @@ export default function Instagram() {
                     ["E-mail", account.email],
                     ["Número", account.phone],
                     ["Aparelho", account.responsible],
+                    ["Modelo", account.category],
                     ["Criada em", displayDate(account.account_created_on)],
                     ["Status", statuses[account.status]],
                     ["Observações", account.notes],
