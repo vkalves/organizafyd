@@ -23,7 +23,7 @@ import {
 } from "./model";
 import type { InstagramData } from "./data";
 export interface EditRequest {
-  table: Exclude<Table, "history" | "account_labels">;
+  table: Exclude<Table, "history" | "account_labels" | "projects" | "labels">;
   id?: string;
   values?: Record<string, unknown>;
 }
@@ -67,11 +67,6 @@ export function Editor({
   const [values, setValues] = useState(defaults);
   const [error, setError] = useState("");
   const fields: Record<EditRequest["table"], Field[]> = {
-    projects: [
-      { key: "name", label: "Nome do projeto", required: true },
-      { key: "image_url", label: "Imagem do projeto (URL)", type: "url" },
-    ],
-    labels: [{ key: "name", label: "Nome da etiqueta", required: true }],
     accounts: [
       { key: "username", label: "@username", required: true },
       { key: "status", label: "Status", options: statuses, required: true },
@@ -158,12 +153,10 @@ export function Editor({
     ],
   };
   const names = {
-    projects: "projeto",
     accounts: "conta",
     contents: "conteúdo",
     tasks: "tarefa",
     metrics: "métricas",
-    labels: "etiqueta",
   };
   return (
     <Dialog
@@ -216,7 +209,6 @@ export function Editor({
                 );
                 return;
               }
-              // name continua obrigatório no banco; usa o username quando o campo some do formulário
               clean.name = String(values.name ?? "").trim() || clean.username;
             }
             if (
@@ -278,7 +270,7 @@ export function Editor({
                       }
                     >
                       <option value="">
-                        {f.required ? "Selecionar" : "Sem projeto"}
+                        {f.required ? "Selecionar" : "Opcional"}
                       </option>
                       {Object.entries(f.options).map(([k, l]) => (
                         <option key={k} value={k}>

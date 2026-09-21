@@ -99,7 +99,7 @@ describe("Instagram editor workflows", () => {
     const close = vi.fn();
     render(
       <Editor
-        request={{ table: "projects", values: { name: "Bianca" } }}
+        request={{ table: "accounts", values: { username: "bianca" } }}
         data={data}
         onSave={save}
         onClose={close}
@@ -110,7 +110,7 @@ describe("Instagram editor workflows", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Seus dados continuam",
     );
-    expect(screen.getByLabelText(/Nome do projeto/)).toHaveValue("Bianca");
+    expect(screen.getByLabelText(/@username/)).toHaveValue("bianca");
     expect(close).not.toHaveBeenCalled();
   });
 });
