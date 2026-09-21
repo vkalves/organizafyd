@@ -104,6 +104,9 @@ export const taskStatuses = {
   done: "Concluída",
 };
 export const priorities = { low: "Baixa", medium: "Média", high: "Alta" };
+export const devices = Object.fromEntries(
+  ["Iphone 8 plus", "XR branco", "XR preto", "NOTE 8", "A13"].map((x) => [x, x]),
+);
 export function localDay(value: Date | string = new Date()) {
   const d = new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

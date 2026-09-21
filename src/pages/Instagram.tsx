@@ -877,7 +877,8 @@ export default function Instagram() {
                   {[
                     ["Username", `@${account.username}`],
                     ["E-mail", account.email],
-                    ["Telefone", account.phone],
+                    ["Número", account.phone],
+                    ["Aparelho", account.responsible],
                     ["Criada em", displayDate(account.account_created_on)],
                     ["Status", statuses[account.status]],
                     ["Observações", account.notes],

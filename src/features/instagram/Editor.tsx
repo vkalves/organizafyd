@@ -18,6 +18,7 @@ import {
   priorities,
   taskStatuses,
   metricNames,
+  devices,
   localDay,
   type Table,
 } from "./model";
@@ -71,7 +72,8 @@ export function Editor({
       { key: "username", label: "@username", required: true },
       { key: "status", label: "Status", options: statuses, required: true },
       { key: "email", label: "E-mail associado", type: "email" },
-      { key: "phone", label: "Telefone associado", type: "tel" },
+      { key: "phone", label: "Número associado", type: "tel" },
+      { key: "responsible", label: "Aparelho", options: devices },
       {
         key: "account_created_on",
         label: "Data de criação da conta",
