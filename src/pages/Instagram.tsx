@@ -14,6 +14,7 @@ import {
   Hourglass,
   Search,
   SlidersHorizontal,
+  Link2,
 } from "lucide-react";
 import {
   LineChart,
@@ -1273,14 +1274,16 @@ export default function Instagram() {
                 {title}
               </Button>
             ))}
-            <Button
-              variant="outline"
-              disabled={!groupUrl}
-              onClick={() => setGroupConfirm(true)}
-            >
-              Grupo de vídeos
-            </Button>
           </nav>
+          <button
+            type="button"
+            disabled={!groupUrl}
+            onClick={() => setGroupConfirm(true)}
+            className="flex w-full items-center gap-3 rounded-lg bg-black px-4 py-3.5 text-left text-sm font-medium text-foreground disabled:opacity-40"
+          >
+            <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Grupo de vídeos
+          </button>
           {tab === "overview" && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -1408,14 +1411,16 @@ export default function Instagram() {
             <Button variant="secondary" aria-pressed>
               Conteúdos
             </Button>
-            <Button
-              variant="outline"
-              disabled={!groupUrl}
-              onClick={() => setGroupConfirm(true)}
-            >
-              Grupo de vídeos
-            </Button>
           </nav>
+          <button
+            type="button"
+            disabled={!groupUrl}
+            onClick={() => setGroupConfirm(true)}
+            className="flex w-full items-center gap-3 rounded-lg bg-black px-4 py-3.5 text-left text-sm font-medium text-foreground disabled:opacity-40"
+          >
+            <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Grupo de vídeos
+          </button>
           <div className="space-y-3">
             {readyPool.length === 0 ? (
               <Empty>Nenhum vídeo nesta conta.</Empty>
