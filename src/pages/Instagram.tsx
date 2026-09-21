@@ -444,6 +444,27 @@ export default function Instagram() {
       });
     }
   };
+  const addReadyVideos = async (n: number) => {
+    if (!account || n <= 0) return;
+    const target = overviewCounts.ready + n;
+    await applyReadyCount(Math.min(target, pendingPool.length));
+    const extra = target - pendingPool.length;
+    if (extra <= 0) return;
+    const href = groupUrl || null;
+    for (let i = 0; i < extra; i += 1) {
+      await save({
+        table: "contents",
+        values: {
+          account_id: account.id,
+          title: "Pronto",
+          format: "Reel",
+          status: "ready",
+          publication_url: href,
+        },
+        quiet: i < extra - 1,
+      });
+    }
+  };
   const applyPublishedCount = async (n: number) => {
     const pool = [...readyPool].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
@@ -1273,7 +1294,7 @@ export default function Instagram() {
                 />
                 {editingReady ? (
                   <form
-                    className="flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-3.5"
+                    className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 px-4 py-3.5"
                     onSubmit={(e) => {
                       e.preventDefault();
                       void applyReadyCount(Number(readyDraft) || 0).then(
@@ -1282,7 +1303,7 @@ export default function Instagram() {
                     }}
                   >
                     <Input
-                      className="h-10 w-24"
+                      className="h-10 w-20"
                       inputMode="numeric"
                       aria-label="Conteúdos prontos"
                       value={readyDraft}
@@ -1294,6 +1315,24 @@ export default function Instagram() {
                     <Button type="submit" size="sm" disabled={saving}>
                       Ok
                     </Button>
+                    {[2, 5, 10].map((n) => (
+                      <Button
+                        key={n}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => {
+                          const next = overviewCounts.ready + n;
+                          setReadyDraft(String(next));
+                          void addReadyVideos(n).then(() =>
+                            setEditingReady(false),
+                          );
+                        }}
+                      >
+                        +{n}
+                      </Button>
+                    ))}
                   </form>
                 ) : (
                   <StatLine
