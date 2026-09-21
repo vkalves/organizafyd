@@ -424,6 +424,7 @@ export default function Instagram() {
     : 0;
   const groupUrl =
     contents.map((c) => safeUrl(c.publication_url)).find(Boolean) || "";
+  const accountReadyCounts = contentCounts(readyPool);
   const applyReadyCount = async (n: number) => {
     const pool = [...pendingPool].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
@@ -1511,29 +1512,60 @@ export default function Instagram() {
             </>
           )}
           {tab === "contents" && (
-            <div className={`${panel} max-w-md`}>
-              <p className="font-medium">Conteúdos pendentes</p>
-              <div className="mt-4 flex items-center gap-5">
-                <ProgressRing
-                  value={
-                    overviewTotal
-                      ? (overviewCounts.ready / overviewTotal) * 100
-                      : 0
-                  }
-                />
-                <div>
-                  <p className="text-lg tabular-nums">
-                    <span className="opacity-40">
-                      {overviewCounts.pending}
-                    </span>
-                    <span className="opacity-40">/</span>
-                    <span className="font-semibold">
-                      {overviewCounts.ready}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    pendentes / prontos
-                  </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className={panel}>
+                <p className="font-medium">Conteúdos pendentes</p>
+                <div className="mt-4 flex items-center gap-5">
+                  <ProgressRing
+                    value={
+                      overviewTotal
+                        ? (overviewCounts.ready / overviewTotal) * 100
+                        : 0
+                    }
+                  />
+                  <div>
+                    <p className="text-lg tabular-nums">
+                      <span className="opacity-40">
+                        {overviewCounts.pending}
+                      </span>
+                      <span className="opacity-40">/</span>
+                      <span className="font-semibold">
+                        {overviewCounts.ready}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      pendentes / prontos
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className={panel}>
+                <p className="font-medium">Conteúdos prontos</p>
+                <div className="mt-4 flex items-center gap-5">
+                  <ProgressRing
+                    value={
+                      accountReadyCounts.ready + accountReadyCounts.published
+                        ? (accountReadyCounts.published /
+                            (accountReadyCounts.ready +
+                              accountReadyCounts.published)) *
+                          100
+                        : 0
+                    }
+                  />
+                  <div>
+                    <p className="text-lg tabular-nums">
+                      <span className="opacity-40">
+                        {accountReadyCounts.ready}
+                      </span>
+                      <span className="opacity-40">/</span>
+                      <span className="font-semibold">
+                        {accountReadyCounts.published}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      prontos / publicados
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
