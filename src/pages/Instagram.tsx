@@ -188,11 +188,13 @@ function StatLine({
   count,
   label,
   dim,
+  action,
 }: {
   icon?: React.ReactNode;
   count: number;
   label: string;
   dim?: boolean;
+  action?: React.ReactNode;
 }) {
   return (
     <div
@@ -200,9 +202,10 @@ function StatLine({
     >
       <p className="flex items-center gap-2.5 text-base">
         {icon}
-        <span>
+        <span className="min-w-0 flex-1">
           <span className="font-semibold tabular-nums">{count}</span> {label}
         </span>
+        {action}
       </p>
     </div>
   );
@@ -232,8 +235,9 @@ export default function Instagram() {
     location.pathname.includes("/pendentes") ||
     location.pathname.endsWith("/hoje")
       ? "pending"
-      : location.pathname.endsWith("/tarefas")
-        ? "tasks"
+      : location.pathname.includes("/prontos") ||
+          location.pathname.endsWith("/tarefas")
+        ? "ready"
         : "accounts";
   const query = useInstagramData();
   const { data, save, saving } = query;
@@ -245,6 +249,10 @@ export default function Instagram() {
   const [pendingModel, setPendingModel] = useState("");
   const [pendingAccount, setPendingAccount] = useState("");
   const [pendingDevice, setPendingDevice] = useState("");
+  const [readySearch, setReadySearch] = useState("");
+  const [readyModel, setReadyModel] = useState("");
+  const [readyAccount, setReadyAccount] = useState("");
+  const [readyDevice, setReadyDevice] = useState("");
   const [tab, setTab] = useState("overview");
   const [stage, setStage] = useState("");
   const [metric, setMetric] = useState<MetricKey>("followers");
@@ -255,12 +263,15 @@ export default function Instagram() {
     name: string;
   } | null>(null);
   const [readyConfirm, setReadyConfirm] = useState(false);
+  const [publishConfirm, setPublishConfirm] = useState(false);
   const [groupConfirm, setGroupConfirm] = useState(false);
   const [editingReady, setEditingReady] = useState(false);
   const [readyDraft, setReadyDraft] = useState("");
   useEffect(() => {
     if (mode === "pending") {
       if (tab !== "overview" && tab !== "ideas") setTab("overview");
+    } else if (mode === "ready") {
+      if (tab !== "overview") setTab("overview");
     } else if (accountId && tab !== "overview" && tab !== "contents") {
       setTab("overview");
     }
@@ -302,14 +313,23 @@ export default function Instagram() {
   const pendingPool = contents.filter(
     (c) => c.status === "idea" || c.status === "ready",
   );
-  const overviewCounts = contentCounts(pendingPool);
-  const overviewTotal = overviewCounts.pending + overviewCounts.ready;
+  const readyPool = contents.filter(
+    (c) => c.status === "ready" || c.status === "published",
+  );
+  const overviewCounts = contentCounts(
+    mode === "ready" ? readyPool : pendingPool,
+  );
+  const overviewTotal =
+    mode === "ready"
+      ? overviewCounts.ready + overviewCounts.published
+      : overviewCounts.pending + overviewCounts.ready;
   const overviewPct = overviewTotal
-    ? (overviewCounts.ready / overviewTotal) * 100
+    ? ((mode === "ready" ? overviewCounts.published : overviewCounts.ready) /
+        overviewTotal) *
+      100
     : 0;
-  const groupUrl = pendingPool
-    .map((c) => safeUrl(c.publication_url))
-    .find(Boolean) || "";
+  const groupUrl =
+    contents.map((c) => safeUrl(c.publication_url)).find(Boolean) || "";
   const applyReadyCount = async (n: number) => {
     const pool = [...pendingPool].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
@@ -325,6 +345,32 @@ export default function Instagram() {
         table: "contents",
         id: item.id,
         values: { ...item, status: next },
+        quiet: i < changes.length - 1,
+      });
+    }
+  };
+  const applyPublishedCount = async (n: number) => {
+    const pool = [...readyPool].sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    );
+    const target = Math.max(0, Math.min(Math.floor(n), pool.length));
+    const changes = pool.filter(
+      (item, i) => item.status !== (i < target ? "published" : "ready"),
+    );
+    for (let i = 0; i < changes.length; i += 1) {
+      const item = changes[i];
+      const next = pool.indexOf(item) < target ? "published" : "ready";
+      await save({
+        table: "contents",
+        id: item.id,
+        values: {
+          ...item,
+          status: next,
+          published_at:
+            next === "published"
+              ? item.published_at || new Date().toISOString()
+              : item.published_at,
+        },
         quiet: i < changes.length - 1,
       });
     }
@@ -525,6 +571,27 @@ export default function Instagram() {
       .toLowerCase()
       .includes(q);
   });
+  const readyAccounts = data.accounts.filter((a) => {
+    const hasReady = data.contents.some(
+      (c) => c.account_id === a.id && c.status === "ready",
+    );
+    if (!hasReady) return false;
+    if (readyAccount && a.id !== readyAccount) return false;
+    if (readyModel && a.category !== readyModel) return false;
+    if (readyDevice && a.responsible !== readyDevice) return false;
+    if (!readySearch.trim()) return true;
+    const q = readySearch
+      .replace(/^@/, "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return [a.username, a.category, a.responsible]
+      .join(" ")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .includes(q);
+  });
   const form = edit && (
     <Editor
       key={`${edit.table}-${edit.id || "new"}`}
@@ -574,7 +641,9 @@ export default function Instagram() {
                     ? `/instagram/pendentes/${accountId}`
                     : mode === "pending"
                       ? "/instagram/pendentes"
-                      : "/instagram"
+                      : mode === "ready"
+                        ? "/instagram/prontos"
+                        : "/instagram"
                 }
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -582,7 +651,9 @@ export default function Instagram() {
                   ? `@${account?.username || "conta"}`
                   : mode === "pending"
                     ? "Conteúdos pendentes"
-                    : "Todas as contas"}
+                    : mode === "ready"
+                      ? "Conteúdos prontos"
+                      : "Todas as contas"}
               </Link>
             </Button>
           )}
@@ -599,13 +670,13 @@ export default function Instagram() {
                 : "Conta não encontrada"
               : mode === "pending"
                 ? "Conteúdos pendentes"
-                : mode === "tasks"
+                : mode === "ready"
                   ? "Conteúdos prontos"
                   : "Instagram"}
           </h1>
           {account ? (
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "pending" ? (
+              {mode === "pending" || mode === "ready" ? (
                 <span className="min-w-0 break-words">
                   {account.category || "Sem modelo"}
                 </span>
@@ -627,7 +698,13 @@ export default function Instagram() {
               Conteúdo pronto
             </Button>
           )}
-          {account && mode !== "pending" && (
+          {account && mode === "ready" && !group && (
+            <Button onClick={() => setPublishConfirm(true)}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Conteúdo publicado
+            </Button>
+          )}
+          {account && mode === "accounts" && (
             <Button
               variant="destructive"
               onClick={() =>
@@ -661,10 +738,12 @@ export default function Instagram() {
                   location.pathname.endsWith("/hoje"),
               },
               {
-                path: "/instagram/tarefas",
+                path: "/instagram/prontos",
                 title: "Conteúdos prontos",
                 icon: CheckCircle2,
-                active: location.pathname.endsWith("/tarefas"),
+                active:
+                  location.pathname.includes("/prontos") ||
+                  location.pathname.endsWith("/tarefas"),
               },
             ].map((item, i) => {
               const Icon = item.icon;
@@ -694,28 +773,21 @@ export default function Instagram() {
               );
             })}
           </nav>
+          {mode !== "ready" && (
           <div className="border-t border-border pt-4">
             <Button
               onClick={() =>
-                mode === "tasks"
-                  ? create("tasks")
-                  : mode === "pending"
+                mode === "pending"
                     ? create("contents", { status: "idea" }, true)
                     : create("accounts")
               }
-              disabled={
-                (mode === "tasks" || mode === "pending") &&
-                !data.accounts.length
-              }
+              disabled={mode === "pending" && !data.accounts.length}
             >
               <Plus className="mr-2 h-4 w-4" />
-              {mode === "tasks"
-                ? "Nova tarefa"
-                : mode === "pending"
-                  ? "Novo Conteúdo"
-                  : "Nova conta"}
+              {mode === "pending" ? "Novo Conteúdo" : "Nova conta"}
             </Button>
           </div>
+          )}
         </>
       )}
       {!accountId && mode === "accounts" && (
@@ -1031,9 +1103,9 @@ export default function Instagram() {
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <p className="text-sm tabular-nums">
-                        <span className="font-semibold">{counts.pending}</span>
+                        <span className="opacity-40">{counts.pending}</span>
                         <span className="opacity-40">/</span>
-                        <span className="opacity-40">{counts.ready}</span>
+                        <span className="font-semibold">{counts.ready}</span>
                       </p>
                       <ProgressRing
                         className="h-16 w-16"
@@ -1063,44 +1135,161 @@ export default function Instagram() {
           )}
         </>
       )}
-      {!accountId && mode === "tasks" && (
+      {!accountId && mode === "ready" && (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
-              {`${tasks.filter((t) => t.status !== "done").length} tarefas pendentes`}
-            </p>
-            <Button
-              variant="outline"
-              disabled={!data.accounts.length}
-              onClick={() => create("tasks")}
+          <div className="grid grid-cols-2 gap-2">
+            <StatLine
+              icon={
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+              }
+              count={data.contents.filter((c) => c.status === "ready").length}
+              label="conteúdos prontos totais"
+            />
+            <StatLine
+              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
+              count={
+                new Set(
+                  data.contents
+                    .filter((c) => c.status === "ready")
+                    .map((c) => c.account_id),
+                ).size
+              }
+              label="contas prontas"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              className="h-11 min-w-[12rem] flex-1"
+              aria-label="Buscar conteúdos prontos"
+              placeholder="buscar @, modelo ou aparelho..."
+              value={readySearch}
+              onChange={(e) => setReadySearch(e.target.value)}
+            />
+            <select
+              aria-label="Conta"
+              className={`${selectClass} sm:w-44`}
+              value={readyAccount}
+              onChange={(e) => setReadyAccount(e.target.value)}
             >
-              Nova tarefa
+              <option value="">Conta</option>
+              {data.accounts
+                .filter((a) =>
+                  data.contents.some(
+                    (c) => c.account_id === a.id && c.status === "ready",
+                  ),
+                )
+                .sort((a, b) => a.username.localeCompare(b.username))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    @{a.username}
+                  </option>
+                ))}
+            </select>
+            <select
+              aria-label="Aparelho"
+              className={`${selectClass} sm:w-44`}
+              value={readyDevice}
+              onChange={(e) => setReadyDevice(e.target.value)}
+            >
+              <option value="">Aparelho</option>
+              {Object.entries(devices).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Modelo"
+              className={`${selectClass} sm:w-44`}
+              value={readyModel}
+              onChange={(e) => setReadyModel(e.target.value)}
+            >
+              <option value="">Modelo</option>
+              {Object.entries(models).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11"
+              aria-label="Limpar filtros"
+              disabled={
+                !readySearch && !readyModel && !readyAccount && !readyDevice
+              }
+              onClick={() => {
+                setReadySearch("");
+                setReadyModel("");
+                setReadyAccount("");
+                setReadyDevice("");
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
-          {data.accounts.map((a) => {
-            const ts = tasks
-              .filter((t) => t.account_id === a.id)
-              .sort((x, y) =>
-                (x.due_at || "9999").localeCompare(y.due_at || "9999"),
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {readyAccounts.map((a) => {
+              const pool = data.contents.filter(
+                (c) =>
+                  c.account_id === a.id &&
+                  (c.status === "ready" || c.status === "published"),
               );
-            return (
-              ts.length > 0 && (
-                <section key={a.id} className="space-y-2">
-                  <h2 className="font-medium">
-                    <Link to={`/instagram/conta/${a.id}`}>
-                      <Handle
-                        username={a.username}
-                        verified={isVerified(a)}
+              const counts = contentCounts(pool);
+              const total = counts.ready + counts.published;
+              return (
+                <article key={a.id} className={panel}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-xl font-bold leading-tight">
+                        <Handle
+                          username={a.username}
+                          verified={isVerified(a)}
+                        />
+                      </p>
+                      <p className="mt-1.5 text-sm text-muted-foreground">
+                        {a.category || "Sem modelo"}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <PhoneIcon />
+                        <span className="min-w-0 break-words">
+                          {a.responsible || "Sem aparelho"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <p className="text-sm tabular-nums">
+                        <span className="opacity-40">{counts.ready}</span>
+                        <span className="opacity-40">/</span>
+                        <span className="font-semibold">
+                          {counts.published}
+                        </span>
+                      </p>
+                      <ProgressRing
+                        className="h-16 w-16"
+                        value={total ? (counts.published / total) * 100 : 0}
                       />
-                    </Link>
-                  </h2>
-                  {ts.map(taskRow)}
-                </section>
-              )
-            );
-          })}
-          {tasks.length === 0 && (
-            <Empty>Nenhuma tarefa cadastrada.</Empty>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button asChild className="w-full">
+                      <Link to={`/instagram/prontos/${a.id}`}>
+                        Gerenciar conteúdo
+                      </Link>
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {readyAccounts.length === 0 && (
+            <Empty>
+              {data.contents.some((c) => c.status === "ready")
+                ? "Nenhuma conta corresponde aos filtros."
+                : "Nenhuma conta com conteúdo pronto. Marque como pronto em Conteúdos pendentes."}
+            </Empty>
           )}
         </>
       )}
@@ -1143,7 +1332,7 @@ export default function Instagram() {
               </Button>
             ))}
             <Button
-              variant="ghost"
+              variant="outline"
               disabled={!groupUrl}
               onClick={() => setGroupConfirm(true)}
             >
@@ -1152,54 +1341,51 @@ export default function Instagram() {
           </nav>
           {tab === "overview" && (
             <div className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className={panel}>
-                  <p className="text-3xl font-semibold tabular-nums">
-                    {overviewCounts.pending}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Pendentes
-                  </p>
-                </div>
-                <div className={panel}>
-                  {editingReady ? (
-                    <form
-                      className="flex items-center gap-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void applyReadyCount(Number(readyDraft) || 0).then(
-                          () => setEditingReady(false),
-                        );
-                      }}
-                    >
-                      <Input
-                        className="h-11 w-24 text-lg"
-                        inputMode="numeric"
-                        aria-label="Conteúdos prontos"
-                        value={readyDraft}
-                        onChange={(e) =>
-                          setReadyDraft(e.target.value.replace(/\D/g, ""))
-                        }
-                        autoFocus
-                      />
-                      <Button type="submit" size="sm" disabled={saving}>
-                        Ok
-                      </Button>
-                    </form>
-                  ) : (
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-3xl font-semibold tabular-nums">
-                          {overviewCounts.ready}
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Prontos
-                        </p>
-                      </div>
+              <div className="grid grid-cols-2 gap-2">
+                <StatLine
+                  dim
+                  icon={
+                    <Hourglass className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  }
+                  count={overviewCounts.pending}
+                  label="pendentes"
+                />
+                {editingReady ? (
+                  <form
+                    className="flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-3.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void applyReadyCount(Number(readyDraft) || 0).then(
+                        () => setEditingReady(false),
+                      );
+                    }}
+                  >
+                    <Input
+                      className="h-10 w-24"
+                      inputMode="numeric"
+                      aria-label="Conteúdos prontos"
+                      value={readyDraft}
+                      onChange={(e) =>
+                        setReadyDraft(e.target.value.replace(/\D/g, ""))
+                      }
+                      autoFocus
+                    />
+                    <Button type="submit" size="sm" disabled={saving}>
+                      Ok
+                    </Button>
+                  </form>
+                ) : (
+                  <StatLine
+                    icon={
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    }
+                    count={overviewCounts.ready}
+                    label="prontos"
+                    action={
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-9 w-9"
+                        className="h-8 w-8"
                         aria-label="Editar conteúdos prontos"
                         onClick={() => {
                           setReadyDraft(String(overviewCounts.ready));
@@ -1208,9 +1394,9 @@ export default function Instagram() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                    </div>
-                  )}
-                </div>
+                    }
+                  />
+                )}
               </div>
               <div className={`${panel} flex items-center gap-4`}>
                 <ProgressRing value={overviewPct} />
@@ -1246,9 +1432,6 @@ export default function Instagram() {
                       <p className="whitespace-pre-wrap break-words text-base leading-relaxed line-clamp-6">
                         {idea.content || idea.title}
                       </p>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {displayDate(idea.updated_at)}
-                      </p>
                     </article>
                   ))}
               </div>
@@ -1256,7 +1439,96 @@ export default function Instagram() {
           )}
         </>
       )}
-      {account && mode !== "pending" && (
+      {account && mode === "ready" && (
+        <>
+          <nav
+            aria-label="Abas da conta"
+            className="flex flex-wrap items-center gap-1"
+          >
+            <Button variant="secondary" aria-pressed>
+              Conteúdos
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!groupUrl}
+              onClick={() => setGroupConfirm(true)}
+            >
+              Grupo de vídeos
+            </Button>
+          </nav>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <StatLine
+                dim
+                icon={
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+                }
+                count={overviewCounts.ready}
+                label="prontos"
+              />
+              {editingReady ? (
+                <form
+                  className="flex items-center gap-2 rounded-lg bg-muted/40 px-4 py-3.5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void applyPublishedCount(Number(readyDraft) || 0).then(
+                      () => setEditingReady(false),
+                    );
+                  }}
+                >
+                  <Input
+                    className="h-10 w-24"
+                    inputMode="numeric"
+                    aria-label="Conteúdos publicados"
+                    value={readyDraft}
+                    onChange={(e) =>
+                      setReadyDraft(e.target.value.replace(/\D/g, ""))
+                    }
+                    autoFocus
+                  />
+                  <Button type="submit" size="sm" disabled={saving}>
+                    Ok
+                  </Button>
+                </form>
+              ) : (
+                <StatLine
+                  icon={
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  }
+                  count={overviewCounts.published}
+                  label="publicados"
+                  action={
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      aria-label="Editar conteúdos publicados"
+                      onClick={() => {
+                        setReadyDraft(String(overviewCounts.published));
+                        setEditingReady(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+              )}
+            </div>
+            <div className={`${panel} flex items-center gap-4`}>
+              <ProgressRing value={overviewPct} />
+              <div>
+                <p className="text-3xl font-semibold tabular-nums">
+                  {Math.round(overviewPct)}%
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Publicados
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      {account && mode === "accounts" && (
         <>
           <nav aria-label="Abas da conta" className="flex flex-wrap gap-1">
             {[
@@ -1354,11 +1626,13 @@ export default function Instagram() {
                 />
                 <div>
                   <p className="text-lg tabular-nums">
-                    <span className="font-semibold">
+                    <span className="opacity-40">
                       {overviewCounts.pending}
                     </span>
                     <span className="opacity-40">/</span>
-                    <span className="opacity-40">{overviewCounts.ready}</span>
+                    <span className="font-semibold">
+                      {overviewCounts.ready}
+                    </span>
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     pendentes / prontos
@@ -1662,6 +1936,39 @@ export default function Instagram() {
               }}
             >
               Continuar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={publishConfirm}
+        onOpenChange={(open) => {
+          if (!open && !saving) setPublishConfirm(false);
+        }}
+      >
+        <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Marcar conteúdo publicado</DialogTitle>
+            <DialogDescription>
+              Marcar os conteúdos prontos desta conta como publicados?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => setPublishConfirm(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={saving}
+              onClick={async () => {
+                await applyPublishedCount(readyPool.length);
+                setPublishConfirm(false);
+              }}
+            >
+              {saving ? "Salvando…" : "Confirmar"}
             </Button>
           </div>
         </DialogContent>

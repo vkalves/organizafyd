@@ -48,6 +48,8 @@ const App = () => (
               <Route path="/instagram/pendentes" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/pendentes/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/pendentes/:accountId/grupo/:group" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/instagram/prontos" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/instagram/prontos/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/tarefas" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/conta/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
