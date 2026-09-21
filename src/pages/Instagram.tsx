@@ -532,14 +532,14 @@ export default function Instagram() {
                 data.accounts.filter((a) => a.status === "active").length,
               ],
               [
-                "Atenção / problema",
-                data.accounts.filter((a) =>
-                  ["attention", "problem"].includes(a.status),
-                ).length,
+                              [
+                              [
+                "Aquecendo",
+                data.accounts.filter((a) => a.status === "warming").length,
               ],
               [
-                "Pausadas",
-                data.accounts.filter((a) => a.status === "paused").length,
+                "Em criação",
+                data.accounts.filter((a) => a.status === "creating").length,
               ],
             ].map(([title, value]) => (
               <div className={panel} key={title}>
