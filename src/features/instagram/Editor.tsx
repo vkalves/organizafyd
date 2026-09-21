@@ -381,10 +381,28 @@ export function Editor({
                       : "min-w-0"
                   }
                 >
-                  <Label htmlFor={`ig-${f.key}`}>
-                    {f.label}
-                    {f.required ? " *" : ""}
-                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor={`ig-${f.key}`}>
+                      {f.label}
+                      {f.required ? " *" : ""}
+                    </Label>
+                    {f.key === "phone" ? (
+                      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5"
+                          checked={value === "S/N"}
+                          onChange={(e) =>
+                            setValues({
+                              ...values,
+                              phone: e.target.checked ? "S/N" : "",
+                            })
+                          }
+                        />
+                        S/N
+                      </label>
+                    ) : null}
+                  </div>
                   {f.options ? (
                     <select
                       id={`ig-${f.key}`}
@@ -476,7 +494,13 @@ export function Editor({
                       id={`ig-${f.key}`}
                       className="h-11"
                       type={f.type || "text"}
-                      required={f.required}
+                      required={
+                        f.required && !(f.key === "phone" && value === "S/N")
+                      }
+                      disabled={f.key === "phone" && value === "S/N"}
+                      placeholder={
+                        f.key === "phone" && value === "S/N" ? "S/N" : undefined
+                      }
                       min={f.type === "number" ? 0 : undefined}
                       max={
                         f.type === "number"
@@ -487,7 +511,7 @@ export function Editor({
                       maxLength={
                         f.type === "text" || !f.type ? 2000 : undefined
                       }
-                      value={value}
+                      value={f.key === "phone" && value === "S/N" ? "" : value}
                       onChange={(e) =>
                         setValues({ ...values, [f.key]: e.target.value })
                       }
