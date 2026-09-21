@@ -76,15 +76,18 @@ function VerifiedIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-4 w-4 shrink-0"
+      className="h-4 w-4 shrink-0 text-foreground"
       aria-label="Conta verificada"
     >
-      <circle cx="12" cy="12" r="11" fill="#1D9BF0" />
       <path
-        d="M7.2 12.3 10.4 15.4 16.8 8.8"
+        fill="currentColor"
+        d="M12 2.1 14.15 4.5l3.15-.55.9 3.05 3.05.9-.55 3.15L22.9 12l-2.2 2.15.55 3.15-3.05.9-.9 3.05-3.15-.55L12 21.9l-2.15 2.2-3.15-.55-.9-3.05-3.05-.9.55-3.15L1.1 12l2.2-2.15-.55-3.15 3.05-.9.9-3.05 3.15.55L12 2.1Z"
+      />
+      <path
+        d="M8.15 12.15 10.55 14.5 15.85 9.1"
         fill="none"
-        stroke="#fff"
-        strokeWidth="2.2"
+        stroke="hsl(var(--background))"
+        strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
