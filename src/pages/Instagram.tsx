@@ -856,20 +856,42 @@ export default function Instagram() {
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {pendingAccounts.map((a) => (
-              <Link
-                key={a.id}
-                to={`/instagram/pendentes/${a.id}`}
-                className={panel}
-              >
-                <p className="font-semibold">
-                  <Handle username={a.username} verified={isVerified(a)} />
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {a.category || "Sem modelo"}
-                </p>
-              </Link>
-            ))}
+            {pendingAccounts.map((a) => {
+              const pool = data.contents.filter(
+                (c) =>
+                  c.account_id === a.id &&
+                  (c.status === "idea" || c.status === "ready"),
+              );
+              const counts = contentCounts(pool);
+              const total = counts.pending + counts.ready;
+              return (
+                <article key={a.id} className={panel}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold">
+                        <Handle
+                          username={a.username}
+                          verified={isVerified(a)}
+                        />
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {a.category || "Sem modelo"}
+                      </p>
+                    </div>
+                    <ProgressRing
+                      value={total ? (counts.ready / total) * 100 : 0}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <Button asChild className="w-full">
+                      <Link to={`/instagram/pendentes/${a.id}`}>
+                        Gerenciar conteúdo
+                      </Link>
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
           {pendingAccounts.length === 0 && (
             <Empty>
