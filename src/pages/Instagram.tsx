@@ -196,9 +196,9 @@ function StatLine({
 }) {
   return (
     <div
-      className={`rounded-md bg-muted/40 px-3 py-2 ${dim ? "opacity-45" : ""}`}
+      className={`rounded-lg bg-muted/40 px-4 py-3.5 ${dim ? "opacity-45" : ""}`}
     >
-      <p className="flex items-center gap-2 text-sm">
+      <p className="flex items-center gap-2.5 text-base">
         {icon}
         <span>
           <span className="font-semibold tabular-nums">{count}</span> {label}
@@ -603,9 +603,9 @@ export default function Instagram() {
                   ? "Conteúdos prontos"
                   : "Instagram"}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {account ? (
-              mode === "pending" ? (
+          {account ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {mode === "pending" ? (
                 <span className="min-w-0 break-words">
                   {account.category || "Sem modelo"}
                 </span>
@@ -616,11 +616,9 @@ export default function Instagram() {
                     {account.responsible || "Sem aparelho"}
                   </span>
                 </span>
-              )
-            ) : (
-              "Organize suas contas, conteúdos e rotina."
-            )}
-          </p>
+              )}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {account && mode === "pending" && !group && (
@@ -640,82 +638,91 @@ export default function Instagram() {
               Apagar conta
             </Button>
           )}
-          {!accountId && (
-              <Button
-                onClick={() =>
-                  mode === "tasks"
-                    ? create("tasks")
-                    : mode === "pending"
-                      ? create("contents", { status: "idea" }, true)
-                      : create("accounts")
-                }
-                disabled={
-                  (mode === "tasks" || mode === "pending") &&
-                  !data.accounts.length
-                }
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {mode === "tasks"
-                  ? "Nova tarefa"
-                  : mode === "pending"
-                    ? "Novo Conteúdo"
-                    : "Nova conta"}
-              </Button>
-          )}
         </div>
       </header>
       {!accountId && (
-        <nav aria-label="Instagram" className="flex items-stretch gap-2">
-          {[
-            {
-              path: "/instagram",
-              title: "Contas",
-              icon: Globe,
-              active:
-                location.pathname === "/instagram" ||
-                location.pathname.startsWith("/instagram/conta"),
-            },
-            {
-              path: "/instagram/pendentes",
-              title: "Conteúdos pendentes",
-              icon: Clock,
-              active:
-                location.pathname.startsWith("/instagram/pendentes") ||
-                location.pathname.endsWith("/hoje"),
-            },
-            {
-              path: "/instagram/tarefas",
-              title: "Conteúdos prontos",
-              icon: CheckCircle2,
-              active: location.pathname.endsWith("/tarefas"),
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={item.title}
-                aria-label={item.title}
-                aria-current={item.active ? "page" : undefined}
-                className={`flex min-h-[3.4rem] items-center gap-3 rounded-lg border border-border text-[15px] font-semibold transition-all ${
-                  item.active
-                    ? "flex-1 bg-secondary px-4 text-foreground"
-                    : "w-14 shrink-0 justify-center bg-card px-0 text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {item.active ? item.title : null}
-              </Link>
-            );
-          })}
-        </nav>
+        <>
+          <nav aria-label="Instagram" className="flex flex-wrap items-center gap-2">
+            {[
+              {
+                path: "/instagram",
+                title: "Contas",
+                icon: Globe,
+                active:
+                  location.pathname === "/instagram" ||
+                  location.pathname.startsWith("/instagram/conta"),
+              },
+              {
+                path: "/instagram/pendentes",
+                title: "Conteúdos pendentes",
+                icon: Clock,
+                active:
+                  location.pathname.startsWith("/instagram/pendentes") ||
+                  location.pathname.endsWith("/hoje"),
+              },
+              {
+                path: "/instagram/tarefas",
+                title: "Conteúdos prontos",
+                icon: CheckCircle2,
+                active: location.pathname.endsWith("/tarefas"),
+              },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <span key={item.path} className="flex items-center gap-2">
+                  {i > 0 ? (
+                    <span
+                      className="h-6 w-px shrink-0 bg-border"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <Link
+                    to={item.path}
+                    title={item.title}
+                    aria-label={item.title}
+                    aria-current={item.active ? "page" : undefined}
+                    className={`flex h-11 items-center gap-2 rounded-lg border border-border px-3.5 text-sm font-semibold ${
+                      item.active
+                        ? "bg-secondary text-foreground"
+                        : "bg-card text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {item.active ? item.title : null}
+                  </Link>
+                </span>
+              );
+            })}
+          </nav>
+          <div className="border-t border-border pt-4">
+            <Button
+              onClick={() =>
+                mode === "tasks"
+                  ? create("tasks")
+                  : mode === "pending"
+                    ? create("contents", { status: "idea" }, true)
+                    : create("accounts")
+              }
+              disabled={
+                (mode === "tasks" || mode === "pending") &&
+                !data.accounts.length
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {mode === "tasks"
+                ? "Nova tarefa"
+                : mode === "pending"
+                  ? "Novo Conteúdo"
+                  : "Nova conta"}
+            </Button>
+          </div>
+        </>
       )}
       {!accountId && mode === "accounts" && (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <StatLine
-              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
               count={data.accounts.length}
               label="contas"
             />
@@ -730,7 +737,7 @@ export default function Instagram() {
               label="ativas"
             />
             <StatLine
-              icon={<Flame className="h-4 w-4 shrink-0 text-warning" />}
+              icon={<Flame className="h-5 w-5 shrink-0 text-warning" />}
               count={data.accounts.filter((a) => a.status === "warming").length}
               label="aquecendo"
             />
@@ -891,7 +898,7 @@ export default function Instagram() {
           <div className="grid grid-cols-2 gap-2">
             <StatLine
               icon={
-                <Hourglass className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Hourglass className="h-5 w-5 shrink-0 text-muted-foreground" />
               }
               count={
                 data.contents.filter(
@@ -901,7 +908,7 @@ export default function Instagram() {
               label="conteúdos pendentes totais"
             />
             <StatLine
-              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
               count={
                 new Set(
                   data.contents
@@ -1253,7 +1260,7 @@ export default function Instagram() {
         <>
           <nav aria-label="Abas da conta" className="flex flex-wrap gap-1">
             {[
-              ["overview", "Visão geral"],
+              ["overview", "Informações"],
               ["contents", "Conteúdos"],
             ].map(([key, title]) => (
               <Button
@@ -1332,65 +1339,31 @@ export default function Instagram() {
                   Editar conta
                 </Button>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {[
-                  ["Conteúdos publicados", contentCounts(contents).published],
-                  ["Conteúdos prontos", contentCounts(contents).ready],
-                  ["Conteúdos pendentes", contentCounts(contents).pending],
-                ].map(([title, value]) => (
-                  <div key={title} className={panel}>
-                    <p className="text-xl font-semibold">{value}</p>
-                    <p className="text-xs text-muted-foreground">{title}</p>
-                  </div>
-                ))}
-              </div>
             </>
           )}
           {tab === "contents" && (
-            <div className="space-y-4">
-              <div className={panel}>
-                <p className="font-medium">Conteúdos pendentes</p>
-                <div className="mt-4 flex flex-col items-center">
-                  <ProgressRing
-                    value={
-                      overviewTotal
-                        ? (overviewCounts.ready / overviewTotal) * 100
-                        : 0
-                    }
-                  />
-                  <p className="mt-3 text-sm tabular-nums">
+            <div className={`${panel} max-w-md`}>
+              <p className="font-medium">Conteúdos pendentes</p>
+              <div className="mt-4 flex items-center gap-5">
+                <ProgressRing
+                  value={
+                    overviewTotal
+                      ? (overviewCounts.ready / overviewTotal) * 100
+                      : 0
+                  }
+                />
+                <div>
+                  <p className="text-lg tabular-nums">
                     <span className="font-semibold">
                       {overviewCounts.pending}
                     </span>
                     <span className="opacity-40">/</span>
                     <span className="opacity-40">{overviewCounts.ready}</span>
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    pendentes / prontos
+                  </p>
                 </div>
-              </div>
-              <div className="space-y-3">
-                <Button onClick={() => create("ideas")}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova ideia
-                </Button>
-                {!ideas.length && (
-                  <Empty>Nenhuma ideia nesta conta.</Empty>
-                )}
-                {[...ideas]
-                  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-                  .map((idea) => (
-                    <article
-                      key={idea.id}
-                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-5 text-left"
-                      onClick={() => openEdit("ideas", idea)}
-                    >
-                      <p className="whitespace-pre-wrap break-words text-base leading-relaxed line-clamp-6">
-                        {idea.content || idea.title}
-                      </p>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {displayDate(idea.updated_at)}
-                      </p>
-                    </article>
-                  ))}
               </div>
             </div>
           )}
