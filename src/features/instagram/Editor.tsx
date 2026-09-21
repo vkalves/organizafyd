@@ -74,20 +74,9 @@ export function Editor({
     labels: [{ key: "name", label: "Nome da etiqueta", required: true }],
     accounts: [
       { key: "username", label: "@username", required: true },
-      { key: "name", label: "Pessoa / nome da conta", required: true },
-      {
-        key: "project_id",
-        label: "Projeto",
-        options: Object.fromEntries(data.projects.map((p) => [p.id, p.name])),
-      },
-      { key: "avatar_url", label: "Foto de perfil (URL)", type: "url" },
-      { key: "category", label: "Categoria" },
       { key: "status", label: "Status", options: statuses, required: true },
-      { key: "niche", label: "Nicho" },
-      { key: "instagram_url", label: "Link do Instagram", type: "url" },
       { key: "email", label: "E-mail associado", type: "email" },
       { key: "phone", label: "Telefone associado", type: "tel" },
-      { key: "responsible", label: "Responsável" },
       {
         key: "account_created_on",
         label: "Data de criação da conta",
@@ -227,6 +216,8 @@ export function Editor({
                 );
                 return;
               }
+              // name continua obrigatório no banco; usa o username quando o campo some do formulário
+              clean.name = String(values.name ?? "").trim() || clean.username;
             }
             if (
               request.table === "contents" &&
