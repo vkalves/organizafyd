@@ -223,6 +223,7 @@ function FilterBar({
   filters,
   onClear,
   action,
+  wide,
 }: {
   search: string;
   onSearch: (value: string) => void;
@@ -235,17 +236,20 @@ function FilterBar({
   }[];
   onClear: () => void;
   action?: React.ReactNode;
+  wide?: boolean;
 }) {
   const active = filters.filter((item) => item.value).length;
   return (
     <div className="flex items-center gap-2">
-      <div className="relative w-44 shrink-0 sm:w-52">
+      <div
+        className={`relative min-w-0 ${wide ? "flex-1" : "w-44 shrink-0 sm:w-52"}`}
+      >
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
         <Input
-          className="h-8 border-0 bg-muted/40 pl-8 text-sm shadow-none"
+          className={`${wide ? "h-9" : "h-8"} border-0 bg-muted/40 pl-8 text-sm shadow-none`}
           aria-label={label}
           placeholder="Buscar..."
           value={search}
@@ -843,29 +847,8 @@ export default function Instagram() {
       ) : null}
       {!accountId && mode === "accounts" && (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <StatLine
-              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
-              count={data.accounts.length}
-              label="contas"
-            />
-            <StatLine
-              icon={
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full bg-success"
-                  aria-hidden="true"
-                />
-              }
-              count={data.accounts.filter((a) => a.status === "active").length}
-              label="ativas"
-            />
-            <StatLine
-              icon={<Flame className="h-5 w-5 shrink-0 text-warning" />}
-              count={data.accounts.filter((a) => a.status === "warming").length}
-              label="aquecendo"
-            />
-          </div>
           <FilterBar
+            wide
             search={search}
             onSearch={setSearch}
             label="Buscar contas"
@@ -896,12 +879,34 @@ export default function Instagram() {
               setModel("");
             }}
             action={
-              <Button className="h-8 shrink-0" onClick={() => create("accounts")}>
+              <Button className="h-9 shrink-0" onClick={() => create("accounts")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova conta
               </Button>
             }
           />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <StatLine
+              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
+              count={data.accounts.length}
+              label="contas"
+            />
+            <StatLine
+              icon={
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full bg-success"
+                  aria-hidden="true"
+                />
+              }
+              count={data.accounts.filter((a) => a.status === "active").length}
+              label="ativas"
+            />
+            <StatLine
+              icon={<Flame className="h-5 w-5 shrink-0 text-warning" />}
+              count={data.accounts.filter((a) => a.status === "warming").length}
+              label="aquecendo"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {visibleAccounts.map((a) => {
               const counts = countsFor(a.id);
