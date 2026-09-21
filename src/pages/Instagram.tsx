@@ -76,18 +76,18 @@ function VerifiedIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-4 w-4 shrink-0 text-foreground"
+      className="h-[18px] w-[18px] shrink-0"
       aria-label="Conta verificada"
     >
       <path
-        fill="currentColor"
-        d="M12 2.1 14.15 4.5l3.15-.55.9 3.05 3.05.9-.55 3.15L22.9 12l-2.2 2.15.55 3.15-3.05.9-.9 3.05-3.15-.55L12 21.9l-2.15 2.2-3.15-.55-.9-3.05-3.05-.9.55-3.15L1.1 12l2.2-2.15-.55-3.15 3.05-.9.9-3.05 3.15.55L12 2.1Z"
+        fill="hsl(var(--info))"
+        d="M12 0.8 L14.11 4.13 L17.6 2.3 L17.76 6.24 L21.7 6.4 L19.87 9.89 L23.2 12 L19.87 14.11 L21.7 17.6 L17.76 17.76 L17.6 21.7 L14.11 19.87 L12 23.2 L9.89 19.87 L6.4 21.7 L6.24 17.76 L2.3 17.6 L4.13 14.11 L0.8 12 L4.13 9.89 L2.3 6.4 L6.24 6.24 L6.4 2.3 L9.89 4.13 Z"
       />
       <path
-        d="M8.15 12.15 10.55 14.5 15.85 9.1"
+        d="M7.7 12.35 10.55 15.4 16.55 8.55"
         fill="none"
-        stroke="hsl(var(--background))"
-        strokeWidth="2.1"
+        stroke="hsl(var(--info-foreground))"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
