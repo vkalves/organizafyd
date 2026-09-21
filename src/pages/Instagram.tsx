@@ -195,18 +195,22 @@ function StatLine({
   label,
   dim,
   action,
+  compact,
 }: {
   icon?: React.ReactNode;
   count: number;
   label: string;
   dim?: boolean;
   action?: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
     <div
-      className={`rounded-lg bg-muted/40 px-4 py-3.5 ${dim ? "opacity-45" : ""}`}
+      className={`rounded-lg bg-muted/40 ${compact ? "px-3 py-2" : "px-4 py-3.5"} ${dim ? "opacity-45" : ""}`}
     >
-      <p className="flex items-center gap-2.5 text-base">
+      <p
+        className={`flex items-center ${compact ? "gap-2 text-sm" : "gap-2.5 text-base"}`}
+      >
         {icon}
         <span className="min-w-0 flex-1">
           <span className="font-semibold tabular-nums">{count}</span> {label}
@@ -887,14 +891,16 @@ export default function Instagram() {
           />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <StatLine
-              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
+              compact
+              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
               count={data.accounts.length}
               label="contas"
             />
             <StatLine
+              compact
               icon={
                 <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full bg-success"
+                  className="h-2 w-2 shrink-0 rounded-full bg-success"
                   aria-hidden="true"
                 />
               }
@@ -902,7 +908,8 @@ export default function Instagram() {
               label="ativas"
             />
             <StatLine
-              icon={<Flame className="h-5 w-5 shrink-0 text-warning" />}
+              compact
+              icon={<Flame className="h-4 w-4 shrink-0 text-warning" />}
               count={data.accounts.filter((a) => a.status === "warming").length}
               label="aquecendo"
             />
