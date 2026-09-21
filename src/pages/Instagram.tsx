@@ -460,7 +460,7 @@ export default function Instagram() {
             <Input
               className="h-11"
               aria-label="Buscar contas"
-              placeholder="Buscar conta, observação…"
+              placeholder="Buscar conta..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -490,7 +490,7 @@ export default function Instagram() {
                       <article key={a.id} className={panel}>
                         <div className="flex items-center gap-3">
                           <Avatar url={a.avatar_url} name={a.name} />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <Link
                               to={`/instagram/conta/${a.id}`}
                               className="break-all font-semibold hover:underline"
@@ -498,6 +498,17 @@ export default function Instagram() {
                               @{a.username}
                             </Link>
                           </div>
+                          <Button
+                            className={btn}
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Apagar @${a.username}`}
+                            onClick={() =>
+                              remove("accounts", a.id, `@${a.username}`)
+                            }
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                         <div className="my-3 flex flex-wrap gap-1">
                           <Status status={a.status} />
