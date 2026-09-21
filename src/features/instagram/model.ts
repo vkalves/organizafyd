@@ -107,6 +107,18 @@ export const priorities = { low: "Baixa", medium: "Média", high: "Alta" };
 export const devices = Object.fromEntries(
   ["Iphone 8 plus", "XR branco", "XR preto", "NOTE 8", "A13"].map((x) => [x, x]),
 );
+export const verifiedStatuses = {
+  yes: "Sim",
+  no: "Não",
+  unavailable: "Não disponível",
+};
+export function isVerified(account: { niche?: string | null }) {
+  return account.niche === "yes";
+}
+export function verifiedLabel(value?: string | null) {
+  if (!value) return "";
+  return verifiedStatuses[value as keyof typeof verifiedStatuses] || "";
+}
 export function contentCounts(items: Content[]) {
   let published = 0;
   let ready = 0;

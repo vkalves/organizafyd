@@ -41,6 +41,8 @@ import {
   taskStatuses,
   metricNames,
   devices,
+  isVerified,
+  verifiedLabel,
   safeUrl,
   localDay,
   displayDate,
@@ -68,6 +70,41 @@ function Status({ status }: { status: string }) {
       />
       {statuses[status]}
     </Badge>
+  );
+}
+function VerifiedIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      aria-label="Conta verificada"
+    >
+      <circle cx="12" cy="12" r="11" fill="#1D9BF0" />
+      <path
+        d="M7.2 12.3 10.4 15.4 16.8 8.8"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function Handle({
+  username,
+  verified,
+  className = "",
+}: {
+  username: string;
+  verified?: boolean;
+  className?: string;
+}) {
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1 ${className}`}>
+      <span className="min-w-0 break-all">@{username}</span>
+      {verified ? <VerifiedIcon /> : null}
+    </span>
   );
 }
 function PhoneIcon() {
@@ -364,11 +401,16 @@ export default function Instagram() {
               </Link>
             </Button>
           )}
-          <h1 className="flex items-center gap-2 break-all text-2xl font-bold">
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
             <InstagramIcon className="h-6 w-6 shrink-0" />
             {accountId
               ? account
-                ? `@${account.username}`
+                ? (
+                    <Handle
+                      username={account.username}
+                      verified={isVerified(account)}
+                    />
+                  )
                 : "Conta não encontrada"
               : mode === "today"
                 ? "Hoje"
@@ -378,7 +420,12 @@ export default function Instagram() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {account
-              ? `@${account.username}`
+              ? (
+                  <Handle
+                    username={account.username}
+                    verified={isVerified(account)}
+                  />
+                )
               : mode === "today"
                 ? new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })
                 : "Organize suas contas, conteúdos e rotina."}
@@ -515,9 +562,12 @@ export default function Instagram() {
                           <div className="min-w-0 flex-1">
                             <Link
                               to={`/instagram/conta/${a.id}`}
-                              className="break-all font-semibold hover:underline"
+                              className="font-semibold hover:underline"
                             >
-                              @{a.username}
+                              <Handle
+                                username={a.username}
+                                verified={isVerified(a)}
+                              />
                             </Link>
                           </div>
                           <Button
@@ -604,8 +654,17 @@ export default function Instagram() {
                     className="text-xs text-muted-foreground"
                     to={`/instagram/conta/${t.account_id}`}
                   >
-                    @
-                    {data.accounts.find((a) => a.id === t.account_id)?.username}
+                    {(() => {
+                      const owner = data.accounts.find(
+                        (acc) => acc.id === t.account_id,
+                      );
+                      return owner ? (
+                        <Handle
+                          username={owner.username}
+                          verified={isVerified(owner)}
+                        />
+                      ) : null;
+                    })()}
                   </Link>
                   {taskRow(t)}
                 </div>
@@ -625,9 +684,12 @@ export default function Instagram() {
             return (
               (ts.length > 0 || cs.length > 0) && (
                 <section key={a.id} className="space-y-2">
-                  <h2 className="break-words font-medium">
+                  <h2 className="font-medium">
                     <Link to={`/instagram/conta/${a.id}`}>
-                      @{a.username}
+                      <Handle
+                        username={a.username}
+                        verified={isVerified(a)}
+                      />
                     </Link>
                   </h2>
                   {ts.map(taskRow)}
@@ -683,8 +745,11 @@ export default function Instagram() {
                 <div className="mb-4 flex items-center gap-3">
                   <Avatar url={account.avatar_url} name={account.username} />
                   <div className="min-w-0">
-                    <p className="break-all font-semibold">
-                      @{account.username}
+                    <p className="font-semibold">
+                      <Handle
+                        username={account.username}
+                        verified={isVerified(account)}
+                      />
                     </p>
                     <div className="mt-1">
                       <Status status={account.status} />
@@ -693,8 +758,11 @@ export default function Instagram() {
                 </div>
                 <dl className="grid gap-4 sm:grid-cols-2">
                   {[
-                    ["@username", `@${account.username}`],
                     ["Status", statuses[account.status]],
+                    [
+                      "Conta verificada?",
+                      verifiedLabel(account.niche),
+                    ],
                     ["E-mail associado", account.email],
                     ["Número associado", account.phone],
                     ["Aparelho", account.responsible],
@@ -914,8 +982,20 @@ export default function Instagram() {
               <div className={panel}>
                 <h2 className="mb-4 font-medium">Informações da conta</h2>
                 <dl className="grid gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">Username</dt>
+                    <dd className="text-sm">
+                      <Handle
+                        username={account.username}
+                        verified={isVerified(account)}
+                      />
+                    </dd>
+                  </div>
                   {[
-                    ["Username", `@${account.username}`],
+                    [
+                      "Conta verificada?",
+                      verifiedLabel(account.niche),
+                    ],
                     ["E-mail", account.email],
                     ["Número", account.phone],
                     ["Aparelho", account.responsible],

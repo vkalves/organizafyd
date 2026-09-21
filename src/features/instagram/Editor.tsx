@@ -19,6 +19,7 @@ import {
   taskStatuses,
   metricNames,
   devices,
+  verifiedStatuses,
   localDay,
   type Table,
 } from "./model";
@@ -71,6 +72,11 @@ export function Editor({
     accounts: [
       { key: "username", label: "@username", required: true },
       { key: "status", label: "Status", options: statuses, required: true },
+      {
+        key: "niche",
+        label: "Conta verificada?",
+        options: verifiedStatuses,
+      },
       { key: "email", label: "E-mail associado", type: "email" },
       { key: "phone", label: "Número associado", type: "tel" },
       { key: "responsible", label: "Aparelho", options: devices },
