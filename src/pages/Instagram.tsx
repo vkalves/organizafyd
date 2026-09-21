@@ -4,7 +4,6 @@ import {
   Instagram as InstagramIcon,
   Plus,
   ArrowLeft,
-  ExternalLink,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -419,45 +418,22 @@ export default function Instagram() {
                   : "Instagram"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {account
-              ? (
-                  <Handle
-                    username={account.username}
-                    verified={isVerified(account)}
-                  />
-                )
-              : mode === "today"
-                ? new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })
-                : "Organize suas contas, conteúdos e rotina."}
+            {account ? (
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <PhoneIcon />
+                <span className="min-w-0 break-words">
+                  {account.responsible || "Sem aparelho"}
+                </span>
+              </span>
+            ) : mode === "today" ? (
+              new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })
+            ) : (
+              "Organize suas contas, conteúdos e rotina."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {account ? (
-            <>
-              {safeUrl(
-                account.instagram_url ||
-                  `https://www.instagram.com/${account.username}/`,
-              ) && (
-                <Button asChild variant="outline">
-                  <a
-                    href={safeUrl(
-                      account.instagram_url ||
-                        `https://www.instagram.com/${account.username}/`,
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Abrir
-                  </a>
-                </Button>
-              )}
-              <Button onClick={() => openEdit("accounts", account)}>
-                Editar conta
-              </Button>
-            </>
-          ) : (
-            !accountId && (
+          {!accountId && (
               <Button
                 onClick={() => create(mode === "tasks" ? "tasks" : "accounts")}
                 disabled={mode === "tasks" && !data.accounts.length}
@@ -465,7 +441,6 @@ export default function Instagram() {
                 <Plus className="mr-2 h-4 w-4" />
                 {mode === "tasks" ? "Nova tarefa" : "Nova conta"}
               </Button>
-            )
           )}
         </div>
       </header>
@@ -787,6 +762,12 @@ export default function Instagram() {
                     </div>
                   ))}
                 </dl>
+                <Button
+                  className="mt-4"
+                  onClick={() => openEdit("accounts", account)}
+                >
+                  Editar conta
+                </Button>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
