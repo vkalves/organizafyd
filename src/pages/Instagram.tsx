@@ -448,6 +448,25 @@ export default function Instagram() {
       (!device || a.responsible === device) &&
       (!model || a.category === model),
   );
+  const pendingAccounts = data.accounts.filter((a) => {
+    const hasPending = data.contents.some(
+      (c) =>
+        c.account_id === a.id &&
+        c.status !== "published" &&
+        c.status !== "ready",
+    );
+    if (!hasPending) return false;
+    if (status && a.status !== status) return false;
+    if (device && a.responsible !== device) return false;
+    if (model && a.category !== model) return false;
+    if (!search.trim()) return true;
+    if (matchesSearch(a, search)) return true;
+    const q = search.replace(/^@/, "").toLowerCase();
+    return data.contents.some(
+      (c) =>
+        c.account_id === a.id && (c.title || "").toLowerCase().includes(q),
+    );
+  });
   const form = edit && (
     <Editor
       key={`${edit.table}-${edit.id || "new"}`}
@@ -796,17 +815,71 @@ export default function Instagram() {
               </div>
             ))}
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              className="h-11 min-w-[12rem] flex-1"
+              aria-label="Buscar conteúdos pendentes"
+              placeholder="Buscar por @, aparelho, modelo ou grupo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <select
+              aria-label="Status"
+              className={`${selectClass} sm:w-44`}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">Status</option>
+              {Object.entries(statuses).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Aparelho"
+              className={`${selectClass} sm:w-44`}
+              value={device}
+              onChange={(e) => setDevice(e.target.value)}
+            >
+              <option value="">Aparelho</option>
+              {Object.entries(devices).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Modelo"
+              className={`${selectClass} sm:w-44`}
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            >
+              <option value="">Modelo</option>
+              {Object.entries(models).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
+              disabled={!search && !status && !device && !model}
+              onClick={() => {
+                setSearch("");
+                setStatus("");
+                setDevice("");
+                setModel("");
+              }}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Limpar
+            </Button>
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {data.accounts
-              .filter((a) =>
-                data.contents.some(
-                  (c) =>
-                    c.account_id === a.id &&
-                    c.status !== "published" &&
-                    c.status !== "ready",
-                ),
-              )
-              .map((a) => (
+            {pendingAccounts.map((a) => (
               <Link
                 key={a.id}
                 to={`/instagram/pendentes/${a.id}`}
@@ -821,18 +894,13 @@ export default function Instagram() {
               </Link>
             ))}
           </div>
-          {data.accounts.every(
-            (a) =>
-              !data.contents.some(
-                (c) =>
-                  c.account_id === a.id &&
-                  c.status !== "published" &&
-                  c.status !== "ready",
-              ),
-          ) && (
+          {pendingAccounts.length === 0 && (
             <Empty>
-              Nenhuma conta com conteúdo pendente. Use Novo Conteúdo para
-              adicionar.
+              {data.contents.some(
+                (c) => c.status !== "published" && c.status !== "ready",
+              )
+                ? "Nenhuma conta corresponde aos filtros."
+                : "Nenhuma conta com conteúdo pendente. Use Novo Conteúdo para adicionar."}
             </Empty>
           )}
         </>
