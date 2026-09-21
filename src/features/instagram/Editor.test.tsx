@@ -68,13 +68,22 @@ describe("Instagram editor workflows", () => {
     );
     expect(save).not.toHaveBeenCalled();
   });
-  it("normalizes handles and leaves optional fields null", async () => {
+  it("normalizes handles and leaves notes optional", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
     render(
       <Editor
         request={{
           table: "accounts",
-          values: { username: "@Bianca.Test", name: "Bianca" },
+          values: {
+            username: "@Bianca.Test",
+            name: "Bianca",
+            niche: "yes",
+            email: "bianca@test.com",
+            phone: "11999999999",
+            responsible: "Iphone 8 plus",
+            category: "Bianca Rossi",
+            account_created_on: "2026-01-01",
+          },
         }}
         data={data}
         onSave={save}
@@ -88,8 +97,9 @@ describe("Instagram editor workflows", () => {
         expect.objectContaining({
           username: "bianca.test",
           name: "Bianca",
-          email: null,
+          email: "bianca@test.com",
           status: "active",
+          notes: null,
         }),
       ),
     );
@@ -99,7 +109,18 @@ describe("Instagram editor workflows", () => {
     const close = vi.fn();
     render(
       <Editor
-        request={{ table: "accounts", values: { username: "bianca" } }}
+        request={{
+          table: "accounts",
+          values: {
+            username: "bianca",
+            niche: "no",
+            email: "bianca@test.com",
+            phone: "11999999999",
+            responsible: "A13",
+            category: "Sofia Fen",
+            account_created_on: "2026-01-01",
+          },
+        }}
         data={data}
         onSave={save}
         onClose={close}
