@@ -74,6 +74,11 @@ export interface History extends Base {
   action: string;
   details: Record<string, string | null>;
 }
+export interface Idea extends Base {
+  account_id: string;
+  title: string;
+  content: string | null;
+}
 export interface Rows {
   projects: Project;
   accounts: Account;
@@ -83,6 +88,7 @@ export interface Rows {
   tasks: Task;
   metrics: Metric;
   history: History;
+  ideas: Idea;
 }
 export type Table = keyof Rows;
 export const statuses = {

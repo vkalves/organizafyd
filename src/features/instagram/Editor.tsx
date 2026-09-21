@@ -173,6 +173,10 @@ export function Editor({
       { key: "status", label: "Status", options: taskStatuses, required: true },
       { key: "notes", label: "Observações", type: "textarea" },
     ],
+    ideas: [
+      { key: "title", label: "Ideia", required: true },
+      { key: "content", label: "Detalhes", type: "textarea" },
+    ],
     metrics: [
       {
         key: "account_id",
@@ -198,6 +202,7 @@ export function Editor({
     contents: "conteúdo",
     tasks: "tarefa",
     metrics: "métricas",
+    ideas: "ideia",
   };
   return (
     <Dialog
@@ -255,6 +260,13 @@ export function Editor({
             }
             if (request.table === "contents" && request.compact) {
               clean.status = values.status || "idea";
+            }
+            if (request.table === "ideas") {
+              clean.account_id = values.account_id;
+              if (!clean.account_id) {
+                setError("Abra a conta para salvar a ideia.");
+                return;
+              }
             }
             if (
               request.table === "contents" &&

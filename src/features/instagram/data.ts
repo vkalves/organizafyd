@@ -63,6 +63,13 @@ export function useInstagramData() {
         read("metrics"),
         read("history"),
       ]);
+      let ideas: Rows["ideas"][] = [];
+      try {
+        ideas = await read("ideas");
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code !== "42P01" && code !== "PGRST205") throw error;
+      }
       return {
         projects,
         accounts,
@@ -72,6 +79,7 @@ export function useInstagramData() {
         tasks,
         metrics,
         history,
+        ideas,
       };
     },
   });

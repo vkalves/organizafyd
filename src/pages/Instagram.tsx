@@ -191,6 +191,9 @@ export default function Instagram() {
   const contents = data.contents.filter(
     (c) => !accountId || c.account_id === accountId,
   );
+  const ideas = (data.ideas || []).filter(
+    (i) => !accountId || i.account_id === accountId,
+  );
   const tasks = data.tasks.filter(
     (t) => !accountId || t.account_id === accountId,
   );
@@ -699,6 +702,7 @@ export default function Instagram() {
             {[
               ["overview", "Visão geral"],
               ["contents", "Conteúdos"],
+              ["ideas", "Ideias"],
               ["calendar", "Calendário"],
               ["tasks", "Tarefas"],
               ["metrics", "Métricas"],
@@ -812,6 +816,52 @@ export default function Instagram() {
                   .filter((c) => !stage || c.status === stage)
                   .sort((a, b) => b.created_at.localeCompare(a.created_at))
                   .map(contentRow)}
+              </div>
+            </>
+          )}
+          {tab === "ideas" && (
+            <>
+              <Button onClick={() => create("ideas")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova ideia
+              </Button>
+              {!ideas.length && (
+                <Empty>Nenhuma ideia nesta conta.</Empty>
+              )}
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {[...ideas]
+                  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+                  .map((idea) => (
+                    <article
+                      key={idea.id}
+                      className={`${panel} cursor-pointer text-left`}
+                      onClick={() => openEdit("ideas", idea)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="min-w-0 break-words text-sm font-medium">
+                          {idea.title}
+                        </h3>
+                        <Button
+                          className={btn}
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Excluir ideia ${idea.title}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove("ideas", idea.id, idea.title);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <p className="mt-2 line-clamp-3 break-words text-xs text-muted-foreground">
+                        {idea.content || "Sem conteúdo"}
+                      </p>
+                      <p className="mt-3 text-[10px] text-muted-foreground">
+                        {displayDate(idea.updated_at)}
+                      </p>
+                    </article>
+                  ))}
               </div>
             </>
           )}
@@ -1027,6 +1077,7 @@ export default function Instagram() {
                     {
                       instagram_accounts: "Conta",
                       instagram_contents: "Conteúdo",
+                      instagram_ideas: "Ideia",
                       instagram_tasks: "Tarefa",
                       instagram_metrics: "Métricas",
                     }[table] || "Registro";
@@ -1087,7 +1138,7 @@ export default function Instagram() {
             <DialogDescription className="break-words">
               Excluir {deletion?.name}?{" "}
               {deletion?.table === "accounts"
-                ? "Os conteúdos, tarefas, métricas e histórico desta conta também serão excluídos."
+                ? "Os conteúdos, ideias, tarefas, métricas e histórico desta conta também serão excluídos."
                 : "Esta ação não pode ser desfeita."}
             </DialogDescription>
           </DialogHeader>
