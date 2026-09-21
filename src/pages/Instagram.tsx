@@ -708,7 +708,9 @@ export default function Instagram() {
             <Button
               type="button"
               variant="outline"
-              className="h-11"
+              size="icon"
+              className="h-11 w-11"
+              aria-label="Limpar filtros"
               disabled={!search && !status && !device && !model}
               onClick={() => {
                 setSearch("");
@@ -717,8 +719,7 @@ export default function Instagram() {
                 setModel("");
               }}
             >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Limpar
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
           {!visibleAccounts.length && (
@@ -875,7 +876,9 @@ export default function Instagram() {
             <Button
               type="button"
               variant="outline"
-              className="h-11"
+              size="icon"
+              className="h-11 w-11"
+              aria-label="Limpar filtros"
               disabled={!pendingSearch && !pendingModel && !pendingAccount}
               onClick={() => {
                 setPendingSearch("");
@@ -883,8 +886,7 @@ export default function Instagram() {
                 setPendingAccount("");
               }}
             >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Limpar
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
