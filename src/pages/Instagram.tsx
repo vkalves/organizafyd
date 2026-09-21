@@ -989,33 +989,8 @@ export default function Instagram() {
       )}
       {!accountId && mode === "pending" && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <StatLine
-              icon={
-                <Hourglass className="h-5 w-5 shrink-0 text-muted-foreground" />
-              }
-              count={
-                data.contents.filter(
-                  (c) => c.status !== "published" && c.status !== "ready",
-                ).length
-              }
-              label="conteúdos pendentes totais"
-            />
-            <StatLine
-              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
-              count={
-                new Set(
-                  data.contents
-                    .filter(
-                      (c) => c.status !== "published" && c.status !== "ready",
-                    )
-                    .map((c) => c.account_id),
-                ).size
-              }
-              label="contas pendentes"
-            />
-          </div>
           <FilterBar
+            wide
             search={pendingSearch}
             onSearch={setPendingSearch}
             label="Buscar conteúdos pendentes"
@@ -1057,7 +1032,7 @@ export default function Instagram() {
             }}
             action={
               <Button
-                className="h-8 shrink-0"
+                className="h-9 shrink-0"
                 disabled={!data.accounts.length}
                 onClick={() => create("contents", { status: "idea" }, true)}
               >
@@ -1066,6 +1041,34 @@ export default function Instagram() {
               </Button>
             }
           />
+          <div className="grid grid-cols-2 gap-2">
+            <StatLine
+              compact
+              icon={
+                <Hourglass className="h-4 w-4 shrink-0 text-muted-foreground" />
+              }
+              count={
+                data.contents.filter(
+                  (c) => c.status !== "published" && c.status !== "ready",
+                ).length
+              }
+              label="conteúdos pendentes totais"
+            />
+            <StatLine
+              compact
+              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              count={
+                new Set(
+                  data.contents
+                    .filter(
+                      (c) => c.status !== "published" && c.status !== "ready",
+                    )
+                    .map((c) => c.account_id),
+                ).size
+              }
+              label="contas pendentes"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {pendingAccounts.map((a) => {
               const pool = data.contents.filter(
@@ -1131,27 +1134,8 @@ export default function Instagram() {
       )}
       {!accountId && mode === "ready" && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <StatLine
-              icon={
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-muted-foreground" />
-              }
-              count={
-                data.contents.filter(
-                  (c) =>
-                    c.status === "ready" &&
-                    fullyReadyAccountIds.has(c.account_id),
-                ).length
-              }
-              label="conteúdos prontos totais"
-            />
-            <StatLine
-              icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
-              count={fullyReadyAccountIds.size}
-              label="contas prontas"
-            />
-          </div>
           <FilterBar
+            wide
             search={readySearch}
             onSearch={setReadySearch}
             label="Buscar conteúdos prontos"
@@ -1185,6 +1169,28 @@ export default function Instagram() {
               setReadyDevice("");
             }}
           />
+          <div className="grid grid-cols-2 gap-2">
+            <StatLine
+              compact
+              icon={
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+              }
+              count={
+                data.contents.filter(
+                  (c) =>
+                    c.status === "ready" &&
+                    fullyReadyAccountIds.has(c.account_id),
+                ).length
+              }
+              label="conteúdos prontos totais"
+            />
+            <StatLine
+              compact
+              icon={<User className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              count={fullyReadyAccountIds.size}
+              label="contas prontas"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {readyAccounts.map((a) => {
               const pool = data.contents.filter(
