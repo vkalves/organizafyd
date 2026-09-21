@@ -820,7 +820,7 @@ export default function Instagram() {
       ) : null}
       {!accountId && mode === "accounts" && (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <StatLine
               icon={<User className="h-5 w-5 shrink-0 text-muted-foreground" />}
               count={data.accounts.length}
@@ -840,13 +840,6 @@ export default function Instagram() {
               icon={<Flame className="h-5 w-5 shrink-0 text-warning" />}
               count={data.accounts.filter((a) => a.status === "warming").length}
               label="aquecendo"
-            />
-            <StatLine
-              count={
-                data.accounts.filter((a) => a.status === "creating").length
-              }
-              label="em criação"
-              dim
             />
           </div>
           <FilterBar
