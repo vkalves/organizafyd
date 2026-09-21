@@ -797,7 +797,16 @@ export default function Instagram() {
             ))}
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {data.accounts.map((a) => (
+            {data.accounts
+              .filter((a) =>
+                data.contents.some(
+                  (c) =>
+                    c.account_id === a.id &&
+                    c.status !== "published" &&
+                    c.status !== "ready",
+                ),
+              )
+              .map((a) => (
               <Link
                 key={a.id}
                 to={`/instagram/pendentes/${a.id}`}
@@ -812,6 +821,20 @@ export default function Instagram() {
               </Link>
             ))}
           </div>
+          {data.accounts.every(
+            (a) =>
+              !data.contents.some(
+                (c) =>
+                  c.account_id === a.id &&
+                  c.status !== "published" &&
+                  c.status !== "ready",
+              ),
+          ) && (
+            <Empty>
+              Nenhuma conta com conteúdo pendente. Use Novo Conteúdo para
+              adicionar.
+            </Empty>
+          )}
         </>
       )}
       {!accountId && mode === "tasks" && (
