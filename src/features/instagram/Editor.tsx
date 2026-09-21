@@ -125,6 +125,11 @@ export function Editor({
             type: "digits",
             required: true,
           },
+          {
+            key: "publication_url",
+            label: "Grupo de Vídeos",
+            required: true,
+          },
         ]
       : [
       {
@@ -290,8 +295,15 @@ export function Editor({
                 setError("Preencha o grupo dos conteúdos.");
                 return;
               }
+              let link = String(values.publication_url || "").trim();
+              if (link && !/^https?:\/\//i.test(link)) link = `https://${link}`;
+              if (!safeUrl(link)) {
+                setError("Informe um link válido no grupo de vídeos.");
+                return;
+              }
               clean.quantity = qty;
               clean.title = group;
+              clean.publication_url = safeUrl(link);
               clean.format = "Reel";
               clean.status = "idea";
             }

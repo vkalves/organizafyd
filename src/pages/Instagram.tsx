@@ -993,7 +993,7 @@ export default function Instagram() {
                   .length === 0 && (
                   <div className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}>
                     <div>
-                      <p className="text-sm font-medium">Grupo de conteúdos</p>
+                      <p className="text-sm font-medium">Grupo de vídeos</p>
                       <p className="text-xs text-muted-foreground">
                         Nenhum grupo ainda
                       </p>
@@ -1001,27 +1001,47 @@ export default function Instagram() {
                   </div>
                 )}
                 {[...new Set(pendingPool.map((c) => c.title).filter(Boolean))].map(
-                  (g) => (
+                  (g) => {
+                    const groupLink = safeUrl(
+                      pendingPool.find(
+                        (c) => c.title === g && c.publication_url,
+                      )?.publication_url,
+                    );
+                    return (
                     <div
                       key={g}
                       className={`${panel} flex w-full items-center justify-between gap-3 sm:w-56`}
                     >
                       <div>
-                        <p className="text-sm font-medium">Grupo {g}</p>
+                        <p className="text-sm font-medium">Grupo de vídeos</p>
                         <p className="text-xs text-muted-foreground">
-                          Acessar conteúdos
+                          Grupo {g}
                         </p>
                       </div>
-                      <Button asChild size="icon" variant="ghost">
-                        <Link
-                          to={`/instagram/pendentes/${account.id}/grupo/${encodeURIComponent(g)}`}
-                          aria-label={`Abrir grupo ${g}`}
+                      {groupLink ? (
+                        <Button asChild size="icon" variant="ghost">
+                          <a
+                            href={groupLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Abrir grupo de vídeos ${g}`}
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled
+                          aria-label="Sem link do grupo de vídeos"
                         >
                           <ChevronRight className="h-5 w-5" />
-                        </Link>
-                      </Button>
+                        </Button>
+                      )}
                     </div>
-                  ),
+                    );
+                  },
                 )}
               </div>
             </div>
