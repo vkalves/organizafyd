@@ -11,6 +11,8 @@ const Instagram = lazy(() => import("./pages/Instagram"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
+const Midia = lazy(() => import("./pages/Midia"));
+const MidiaPublica = lazy(() => import("./pages/MidiaPublica"));
 const Config = lazy(() => import("./pages/Config"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -40,9 +42,11 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/p/:token" element={<MidiaPublica />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
+              <Route path="/midia" element={<ProtectedRoute><Midia /></ProtectedRoute>} />
               <Route path="/instagram" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/hoje" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/pendentes" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
