@@ -1,4 +1,4 @@
-import { ImagePlus, Trash2, Video, Image as ImageIcon } from "lucide-react";
+import { ImagePlus, Trash2, Video, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -106,9 +106,22 @@ export function MediaBoard({
                   />
                 )}
               </button>
-              <p className="truncate px-2 py-1.5 text-[11px] text-muted-foreground">
-                {item.name}
-              </p>
+              <div className="px-2 py-1.5">
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {item.name}
+                </p>
+                {!canEdit ? (
+                  <a
+                    href={item.public_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] text-foreground hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Abrir arquivo original
+                  </a>
+                ) : null}
+              </div>
               {canEdit ? (
                 <button
                   type="button"
@@ -145,6 +158,17 @@ export function MediaBoard({
               alt={openItem.name}
               className="max-h-[75vh] w-full rounded-md object-contain"
             />
+          ) : null}
+          {openItem && !canEdit ? (
+            <a
+              href={openItem.public_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-foreground hover:underline"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Abrir arquivo original
+            </a>
           ) : null}
         </DialogContent>
       </Dialog>
