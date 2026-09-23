@@ -5,9 +5,10 @@ import { MediaBoard, type MediaItem } from "@/components/media/MediaBoard";
 import logoImg from "@/assets/logo-organify.png";
 
 const BUCKET = "media";
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 
 function publicUrl(path: string) {
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
 const MidiaPublica = () => {
