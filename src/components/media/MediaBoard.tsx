@@ -118,7 +118,7 @@ export function MediaBoard({
                     className="mt-1 inline-flex items-center gap-1 text-[11px] text-foreground hover:underline"
                   >
                     <ExternalLink className="h-3 w-3" />
-                    Abrir arquivo original
+                    Abrir
                   </a>
                 ) : null}
               </div>
@@ -167,7 +167,7 @@ export function MediaBoard({
               className="inline-flex items-center gap-1 text-xs text-foreground hover:underline"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Abrir arquivo original
+              Abrir
             </a>
           ) : null}
         </DialogContent>

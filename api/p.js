@@ -1,13 +1,16 @@
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://csaplfphtvufxjhbpstl.supabase.co";
+const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "sb_publishable_0jOQSggJs6BwyZKy0hFCJw_uyjFC3p9";
+
 function escapeHtml(value) {
   return String(value)
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, """);
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function publicFileUrl(storagePath) {
-  const base = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const base = String(SUPABASE_URL).replace(/\/$/, "");
   return `${base}/storage/v1/object/public/media/${storagePath}`;
 }
 
@@ -17,7 +20,7 @@ function isVideo(mime) {
 
 function renderItem(item) {
   const url = publicFileUrl(item.storage_path);
-  const name = escapeHtml(item.name);
+  const name = escapeHtml(item.name || "arquivo");
   const safeUrl = escapeHtml(url);
   const media = isVideo(item.mime_type)
     ? `<video src="${safeUrl}" controls playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000"></video>`
@@ -26,47 +29,42 @@ function renderItem(item) {
     <article class="file">
       <div class="thumb">${media}</div>
       <p class="name">${name}</p>
-      <a class="open" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Abrir arquivo original</a>
+      <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>
     </article>`;
 }
 
 function renderCard(title, items) {
-  const body = items.length
-    ? `<div class="grid">${items.map(renderItem).join("")}</div>`
+  const list = Array.isArray(items) ? items : [];
+  const body = list.length
+    ? `<div class="grid">${list.map(renderItem).join("")}</div>`
     : `<p class="empty">Nenhum arquivo</p>`;
   return `<section class="card"><h2>${title}</h2>${body}</section>`;
 }
 
 module.exports = async function handler(req, res) {
-  const token = String(req.query.token || "").replace(/[^a-zA-Z0-9]/g, "");
-  const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/$/, "");
-  const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+  try {
+    const token = String(req.query.token || "").replace(/[^a-zA-Z0-9]/g, "");
+    if (!token) {
+      res.status(400).send("Link inválido ou indisponível.");
+      return;
+    }
 
-  if (!token || !supabaseUrl || !supabaseKey) {
-    res.status(400).send("Link inválido ou indisponível.");
-    return;
-  }
+    const response = await fetch(`${String(SUPABASE_URL).replace(/\/$/, "")}/rest/v1/rpc/get_public_media`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_public_media`, {
-    method: "POST",
-    headers: {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ p_token: token }),
-  });
+    const payload = await response.json().catch(() => []);
+    const rows = Array.isArray(payload) ? payload : [];
+    const referencias = rows.filter((row) => row && row.card === "referencias");
+    const originais = rows.filter((row) => row && row.card === "original");
 
-  if (!response.ok) {
-    res.status(404).send("Link inválido ou indisponível.");
-    return;
-  }
-
-  const rows = await response.json();
-  const referencias = rows.filter((row) => row.card === "referencias");
-  const originais = rows.filter((row) => row.card === "original");
-
-  const html = `<!doctype html>
+    const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
@@ -89,7 +87,7 @@ module.exports = async function handler(req, res) {
     .file { border:1px solid #292929; background:#1a1a1a; border-radius:8px; overflow:hidden; }
     .thumb { aspect-ratio:1; background:#1a1a1a; }
     .name { margin:0; padding:6px 8px 0; font-size:11px; color:#888; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .open { display:inline-flex; margin:6px 8px 8px; font-size:11px; color:#fff; }
+    a { display:inline-flex; margin:6px 8px 8px; font-size:11px; color:#fff; }
     .empty { color:#888; font-size:.875rem; text-align:center; padding:40px 0; }
   </style>
 </head>
@@ -106,7 +104,10 @@ module.exports = async function handler(req, res) {
 </body>
 </html>`;
 
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=60");
-  res.status(200).send(html);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.status(200).send(html);
+  } catch (error) {
+    res.status(500).send("Link inválido ou indisponível.");
+  }
 };
