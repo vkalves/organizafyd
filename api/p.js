@@ -3,10 +3,10 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SU
 
 function escapeHtml(value) {
   return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """);
 }
 
 function publicFileUrl(storagePath) {
@@ -25,12 +25,7 @@ function renderItem(item) {
   const media = isVideo(item.mime_type)
     ? `<video src="${safeUrl}" controls playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;background:#000"></video>`
     : `<img src="${safeUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover">`;
-  return `
-    <article class="file">
-      <div class="thumb">${media}</div>
-      <p class="name">${name}</p>
-      <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>
-    </article>`;
+  return `\n    <article class="file">\n      <div class="thumb">${media}</div>\n      <p class="name">${name}</p>\n      <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>\n    </article>`;
 }
 
 function renderCard(title, items) {
@@ -41,7 +36,7 @@ function renderCard(title, items) {
   return `<section class="card"><h2>${title}</h2>${body}</section>`;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const token = String(req.query.token || "").replace(/[^a-zA-Z0-9]/g, "");
     if (!token) {
@@ -110,4 +105,4 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     res.status(500).send("Link inválido ou indisponível.");
   }
-};
+}
