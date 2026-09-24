@@ -17,6 +17,8 @@ import {
   Copy,
   ExternalLink,
   Focus,
+  Maximize2,
+  Minimize2,
   Pencil,
   Plus,
   Redo2,
@@ -126,7 +128,10 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   const [history, setHistory] = useState<MindMapData[]>([]);
   const [future, setFuture] = useState<MindMapData[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fallbackFullscreen, setFallbackFullscreen] = useState(false);
   const skipFit = useRef(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const flow = useMemo(() => buildMindFlow(data.root), [data]);
 
@@ -292,6 +297,67 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
     void fitView({ padding: 0.2, duration: 300, maxZoom: 1.05 });
   };
 
+  const fullscreenActive = isFullscreen || fallbackFullscreen;
+
+  const toggleFullscreen = async () => {
+    const element = canvasRef.current;
+    if (!element) return;
+
+    if (document.fullscreenElement === element) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    if (fallbackFullscreen) {
+      setFallbackFullscreen(false);
+      return;
+    }
+
+    try {
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+      } else {
+        setFallbackFullscreen(true);
+      }
+    } catch {
+      setFallbackFullscreen(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = document.fullscreenElement === canvasRef.current;
+      setIsFullscreen(active);
+      requestAnimationFrame(() => {
+        void fitView({ padding: 0.2, duration: 220, maxZoom: 1.05 });
+      });
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [fitView]);
+
+  useEffect(() => {
+    if (!fallbackFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFallbackFullscreen(false);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    requestAnimationFrame(() => {
+      void fitView({ padding: 0.2, duration: 220, maxZoom: 1.05 });
+    });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [fallbackFullscreen, fitView]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -325,7 +391,16 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   }, [openEditor]);
 
   return (
-    <div className="-mx-4 -mb-4 flex h-[calc(100dvh-6.5rem)] min-h-[34rem] flex-col sm:-mx-6 sm:-mb-6 lg:-mx-8 lg:-mb-8 lg:h-[calc(100dvh-3.5rem)]">
+    <div
+      ref={canvasRef}
+      className={
+        fallbackFullscreen
+          ? "fixed inset-0 z-[100] flex h-[100dvh] w-screen flex-col bg-background"
+          : isFullscreen
+            ? "flex h-screen w-screen flex-col bg-background"
+            : "-mx-4 -mb-4 flex h-[calc(100dvh-6.5rem)] min-h-[34rem] flex-col sm:-mx-6 sm:-mb-6 lg:-mx-8 lg:-mb-8 lg:h-[calc(100dvh-3.5rem)]"
+      }
+    >
       <div className="shrink-0 border-b border-border bg-background/95 backdrop-blur-xl">
         <div className="flex min-h-14 items-center justify-between gap-2 px-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
@@ -383,6 +458,15 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
               className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:flex"
             >
               <Focus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title={fullscreenActive ? "Sair da tela cheia" : "Tela cheia"}
+              aria-label={fullscreenActive ? "Sair da tela cheia" : "Tela cheia"}
+              onClick={() => void toggleFullscreen()}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {fullscreenActive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
             <button
               type="button"
