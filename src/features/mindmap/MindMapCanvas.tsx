@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import {
   Background,
   Controls,
@@ -90,7 +90,7 @@ function ToolbarButton({
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -312,7 +312,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [deleteId, editOpen, redo, undo]);
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node<MindNodeData>) => {
+  const onNodeClick = useCallback((event: ReactMouseEvent, node: Node<MindNodeData>) => {
     const target = event.target as HTMLElement | null;
     setSelectedId(node.id);
     if (target?.closest("[data-mind-expand]")) {
@@ -320,7 +320,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
     }
   }, [toggleExpanded]);
 
-  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node<MindNodeData>) => {
+  const onNodeDoubleClick = useCallback((_: ReactMouseEvent, node: Node<MindNodeData>) => {
     openEditor(node.id);
   }, [openEditor]);
 
