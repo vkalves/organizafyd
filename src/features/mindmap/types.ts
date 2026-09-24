@@ -1,9 +1,23 @@
+import type { MindIconName } from "./BrandIcons";
+
+export type MindTopicColor =
+  | "neutral"
+  | "blue"
+  | "violet"
+  | "pink"
+  | "green"
+  | "orange"
+  | "red";
+
 export type MindTopic = {
   id: string;
   title: string;
   description: string;
   expanded: boolean;
   children: MindTopic[];
+  icon?: MindIconName | null;
+  color?: MindTopicColor;
+  url?: string;
 };
 
 export type MindMapData = {
@@ -17,6 +31,9 @@ export function createTopic(title = "Novo bloco", description = ""): MindTopic {
     description,
     expanded: true,
     children: [],
+    icon: null,
+    color: "neutral",
+    url: "",
   };
 }
 
@@ -28,7 +45,18 @@ export function createMindMapData(title: string, description = ""): MindMapData 
       description,
       expanded: true,
       children: [],
+      icon: null,
+      color: "neutral",
+      url: "",
     },
+  };
+}
+
+export function cloneTopicWithNewIds(topic: MindTopic): MindTopic {
+  return {
+    ...topic,
+    id: crypto.randomUUID(),
+    children: topic.children.map(cloneTopicWithNewIds),
   };
 }
 
