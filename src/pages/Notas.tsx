@@ -1,4 +1,4 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore } from "lucide-react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore, Maximize2, Minimize2 } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -48,6 +48,8 @@ const Notas = () => {
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "error">("saved");
+  const [focusMode, setFocusMode] = useState(false);
   const [closing, setClosing] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setTimeout>>();
   const autosavePromiseRef = useRef<Promise<Note | null> | null>(null);
@@ -73,6 +75,8 @@ const Notas = () => {
     setEditTitle(n.title);
     setEditContent(n.content || "");
     setEditFolderId(n.folder_id || "");
+    setSaveState("saved");
+    setFocusMode(false);
     setIsEditing(true);
   };
 
@@ -91,23 +95,54 @@ const Notas = () => {
     if (!editNote) return null;
     const version = ++saveVersionRef.current;
     setSaving(true);
+    setSaveState("saving");
     const request = update(editNote.id, payload, { silent: !notify });
     autosavePromiseRef.current = request;
+
     try {
-      return await request;
+      const saved = await request;
+      if (saveVersionRef.current === version) {
+        if (saved) {
+          setEditNote(saved);
+          setSaveState("saved");
+        } else {
+          setSaveState("error");
+        }
+      }
+      return saved;
     } finally {
       if (saveVersionRef.current === version) setSaving(false);
     }
   }, [editNote, update]);
 
+  const scheduleAutosave = useCallback((overrides?: {
+    title?: string;
+    content?: string;
+    folderId?: string;
+  }) => {
+    if (!editNote) return;
+
+    const title = overrides?.title ?? editTitle;
+    const content = overrides?.content ?? editContent;
+    const folderId = overrides?.folderId ?? editFolderId;
+
+    setSaveState("dirty");
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (!title.trim()) return;
+
+    autosaveRef.current = setTimeout(() => {
+      void saveNote({
+        title: title.trim(),
+        content,
+        folder_id: folderId || null,
+      });
+    }, 850);
+  }, [editContent, editFolderId, editNote, editTitle, saveNote]);
+
   const handleContentChange = useCallback((html: string) => {
     setEditContent(html);
-    if (!editNote) return;
-    if (autosaveRef.current) clearTimeout(autosaveRef.current);
-    autosaveRef.current = setTimeout(() => {
-      void saveNote({ content: html });
-    }, 1200);
-  }, [editNote, saveNote]);
+    scheduleAutosave({ content: html });
+  }, [scheduleAutosave]);
 
   const persistCurrentNote = useCallback(async (notify = false) => {
     if (!editNote) return null;
@@ -134,6 +169,7 @@ const Notas = () => {
     try {
       const saved = await persistCurrentNote(false);
       if (!saved) return;
+      setFocusMode(false);
       setIsEditing(false);
       setEditNote(null);
     } finally {
@@ -150,8 +186,47 @@ const Notas = () => {
     return () => setMobileFocusMode(false);
   }, [isEditing, setMobileFocusMode]);
 
+  useEffect(() => {
+    if (!focusMode) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [focusMode]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void persistCurrentNote(false);
+      }
+
+      if (event.key === "Escape" && focusMode) {
+        setFocusMode(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusMode, isEditing, persistCurrentNote]);
+
   const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
   const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
+
+  const toggleCurrentPin = async () => {
+    if (!editNote) return;
+    const saved = await update(editNote.id, { is_pinned: !editNote.is_pinned }, { silent: true });
+    if (saved) setEditNote(saved);
+  };
+
+  const toggleCurrentFavorite = async () => {
+    if (!editNote) return;
+    const saved = await update(editNote.id, { is_favorite: !editNote.is_favorite }, { silent: true });
+    if (saved) setEditNote(saved);
+  };
 
   const handleToggleArchive = async () => {
     if (!editNote) return;
