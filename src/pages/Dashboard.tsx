@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 interface QuickAction {
   label: string;
@@ -51,6 +51,43 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const greeting = useMemo(() => {
+    const hour = now.getHours();
+    if (hour < 5) return "Boa madrugada";
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
+  }, [now]);
+
+  const displayName = useMemo(() => {
+    const metadataName = user?.user_metadata?.display_name;
+    if (typeof metadataName === "string" && metadataName.trim()) {
+      return metadataName.trim().split(/\s+/)[0];
+    }
+
+    const emailName = user?.email?.split("@")[0]?.trim();
+    return emailName || "você";
+  }, [user]);
+
+  const formattedDate = useMemo(
+    () =>
+      now
+        .toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+        .replace(/ de /g, " DE ")
+        .toLocaleUpperCase("pt-BR"),
+    [now],
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -95,10 +132,17 @@ const Dashboard = () => {
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Visão geral da sua produtividade</p>
-      </div>
+      <section className="rounded-xl border border-border bg-card/40 px-4 py-5 sm:px-5 sm:py-6">
+        <div className="flex min-w-0 flex-col">
+          <h1 className="text-[1.35rem] font-semibold tracking-tight text-foreground sm:text-2xl">
+            {greeting},{" "}
+            <span className="text-info">{displayName}</span>
+          </h1>
+          <p className="mt-2 text-[9px] font-medium uppercase tracking-[0.28em] text-muted-foreground sm:text-[10px]">
+            {formattedDate}
+          </p>
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {quickActions.map((action) => (
