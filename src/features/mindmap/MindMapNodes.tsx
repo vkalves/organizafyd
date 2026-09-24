@@ -100,7 +100,7 @@ const MindRootNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) =>
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
           {data.hasChildren && (
-            <div className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[10px] text-muted-foreground">
+            <button type="button" data-mind-expand className="nodrag nopan inline-flex items-center gap-1 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
               {data.expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               {data.childCount} {data.childCount === 1 ? "ramo" : "ramos"}
             </div>
@@ -140,7 +140,7 @@ const MindBranchNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) 
           <div className="flex items-start justify-between gap-2">
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{data.title || "Sem título"}</h3>
             {data.hasChildren && (
-              <span className="mt-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full border border-border bg-secondary px-1 text-[9px] text-muted-foreground">
+              <button type="button" data-mind-expand className="nodrag nopan mt-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full border border-border bg-secondary px-1 text-[9px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                 {data.expanded ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
                 {data.childCount}
               </span>
