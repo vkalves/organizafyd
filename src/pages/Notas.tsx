@@ -1,4 +1,4 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore } from "lucide-react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore, Maximize2, Minimize2 } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -48,6 +48,8 @@ const Notas = () => {
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving" | "error">("saved");
+  const [focusMode, setFocusMode] = useState(false);
   const [closing, setClosing] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setTimeout>>();
   const autosavePromiseRef = useRef<Promise<Note | null> | null>(null);
@@ -73,6 +75,8 @@ const Notas = () => {
     setEditTitle(n.title);
     setEditContent(n.content || "");
     setEditFolderId(n.folder_id || "");
+    setSaveState("saved");
+    setFocusMode(false);
     setIsEditing(true);
   };
 
@@ -91,23 +95,54 @@ const Notas = () => {
     if (!editNote) return null;
     const version = ++saveVersionRef.current;
     setSaving(true);
+    setSaveState("saving");
     const request = update(editNote.id, payload, { silent: !notify });
     autosavePromiseRef.current = request;
+
     try {
-      return await request;
+      const saved = await request;
+      if (saveVersionRef.current === version) {
+        if (saved) {
+          setEditNote(saved);
+          setSaveState("saved");
+        } else {
+          setSaveState("error");
+        }
+      }
+      return saved;
     } finally {
       if (saveVersionRef.current === version) setSaving(false);
     }
   }, [editNote, update]);
 
+  const scheduleAutosave = useCallback((overrides?: {
+    title?: string;
+    content?: string;
+    folderId?: string;
+  }) => {
+    if (!editNote) return;
+
+    const title = overrides?.title ?? editTitle;
+    const content = overrides?.content ?? editContent;
+    const folderId = overrides?.folderId ?? editFolderId;
+
+    setSaveState("dirty");
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (!title.trim()) return;
+
+    autosaveRef.current = setTimeout(() => {
+      void saveNote({
+        title: title.trim(),
+        content,
+        folder_id: folderId || null,
+      });
+    }, 850);
+  }, [editContent, editFolderId, editNote, editTitle, saveNote]);
+
   const handleContentChange = useCallback((html: string) => {
     setEditContent(html);
-    if (!editNote) return;
-    if (autosaveRef.current) clearTimeout(autosaveRef.current);
-    autosaveRef.current = setTimeout(() => {
-      void saveNote({ content: html });
-    }, 1200);
-  }, [editNote, saveNote]);
+    scheduleAutosave({ content: html });
+  }, [scheduleAutosave]);
 
   const persistCurrentNote = useCallback(async (notify = false) => {
     if (!editNote) return null;
@@ -134,6 +169,7 @@ const Notas = () => {
     try {
       const saved = await persistCurrentNote(false);
       if (!saved) return;
+      setFocusMode(false);
       setIsEditing(false);
       setEditNote(null);
     } finally {
@@ -150,8 +186,47 @@ const Notas = () => {
     return () => setMobileFocusMode(false);
   }, [isEditing, setMobileFocusMode]);
 
+  useEffect(() => {
+    if (!focusMode) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [focusMode]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void persistCurrentNote(false);
+      }
+
+      if (event.key === "Escape" && focusMode) {
+        setFocusMode(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusMode, isEditing, persistCurrentNote]);
+
   const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
   const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
+
+  const toggleCurrentPin = async () => {
+    if (!editNote) return;
+    const saved = await update(editNote.id, { is_pinned: !editNote.is_pinned }, { silent: true });
+    if (saved) setEditNote(saved);
+  };
+
+  const toggleCurrentFavorite = async () => {
+    if (!editNote) return;
+    const saved = await update(editNote.id, { is_favorite: !editNote.is_favorite }, { silent: true });
+    if (saved) setEditNote(saved);
+  };
 
   const handleToggleArchive = async () => {
     if (!editNote) return;
@@ -173,6 +248,7 @@ const Notas = () => {
 
     if (!saved) return;
     toast.success(archived ? "Nota desarquivada" : "Nota arquivada");
+    setFocusMode(false);
     setIsEditing(false);
     setEditNote(null);
   };
@@ -188,12 +264,14 @@ const Notas = () => {
 
     setDeleteConfirm(null);
     if (editNote?.id === id) {
+      setFocusMode(false);
       setIsEditing(false);
       setEditNote(null);
     }
   };
 
   const openFolderDialog = () => {
+    setFocusMode(false);
     setNewFolderName("");
     setShowFolderDialog(true);
   };
@@ -205,7 +283,10 @@ const Notas = () => {
     try {
       const folder = await createFolder({ name: newFolderName.trim() });
       if (!folder) return;
-      if (isEditing) setEditFolderId(folder.id);
+      if (isEditing) {
+        setEditFolderId(folder.id);
+        scheduleAutosave({ folderId: folder.id });
+      }
       setNewFolderName("");
       setShowFolderDialog(false);
     } finally {
@@ -276,79 +357,198 @@ const Notas = () => {
   );
 
   if (isEditing && editNote) {
+    const saveLabel =
+      saveState === "saving"
+        ? "Salvando..."
+        : saveState === "dirty"
+          ? "Alterações..."
+          : saveState === "error"
+            ? "Erro ao salvar"
+            : "Salvo";
+
     return (
-      <div className="flex h-full min-h-0 flex-col bg-background lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:min-h-0 lg:max-w-4xl lg:gap-4">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2 lg:border-0 lg:px-0 lg:py-0">
+      <div
+        className={cn(
+          "flex min-h-0 flex-col bg-background",
+          focusMode
+            ? "fixed inset-0 z-[60] h-[100dvh] w-screen lg:px-[10vw] lg:py-4"
+            : "h-full lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4",
+        )}
+      >
+        <div className={cn(
+          "flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2",
+          !focusMode && "lg:border-0 lg:px-0 lg:py-0",
+        )}>
           <button
             type="button"
             disabled={closing}
             onClick={() => void closeEditor()}
-            className="flex h-11 shrink-0 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 lg:h-9 lg:px-0 lg:hover:bg-transparent"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
             aria-label="Voltar para a lista de notas"
           >
-            <ArrowLeft className="h-5 w-5 lg:h-4 lg:w-4" /> <span className="hidden min-[360px]:inline">Voltar</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden min-[390px]:inline">Voltar</span>
           </button>
-          <div className="flex min-w-0 items-center justify-end gap-1.5">
-            <span className={cn("hidden truncate text-[11px] text-muted-foreground sm:inline", saving && "animate-pulse")} aria-live="polite">
-              {saving ? "Salvando..." : "Salvo"}
+
+          <div className="flex min-w-0 items-center justify-end gap-1">
+            <span
+              className={cn(
+                "mr-1 hidden truncate text-[11px] sm:inline",
+                saveState === "error" ? "text-destructive" : "text-muted-foreground",
+                saveState === "saving" && "animate-pulse",
+              )}
+              aria-live="polite"
+            >
+              {saveLabel}
             </span>
+
+            <button
+              type="button"
+              onClick={() => void toggleCurrentPin()}
+              title={editNote.is_pinned ? "Desafixar nota" : "Fixar nota"}
+              aria-label={editNote.is_pinned ? "Desafixar nota" : "Fixar nota"}
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent",
+                editNote.is_pinned ? "bg-accent text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Pin className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void toggleCurrentFavorite()}
+              title={editNote.is_favorite ? "Remover dos favoritos" : "Favoritar nota"}
+              aria-label={editNote.is_favorite ? "Remover dos favoritos" : "Favoritar nota"}
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent",
+                editNote.is_favorite ? "bg-accent text-warning" : "text-muted-foreground",
+              )}
+            >
+              <Star className={cn("h-4 w-4", editNote.is_favorite && "fill-warning")} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFocusMode((active) => !active)}
+              title={focusMode ? "Sair do modo foco · Esc" : "Modo foco"}
+              aria-label={focusMode ? "Sair do modo foco" : "Ativar modo foco"}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+
             <button
               type="button"
               disabled={saving || closing}
               onClick={() => void handleToggleArchive()}
               title={editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar nota" : "Arquivar nota"}
-              className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-secondary px-3 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50 lg:h-9"
+              aria-label={editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar nota" : "Arquivar nota"}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
             >
-              {editNote.tags?.includes(ARCHIVED_TAG) ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-              <span className="hidden md:inline">{editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar" : "Arquivar"}</span>
+              {editNote.tags?.includes(ARCHIVED_TAG)
+                ? <ArchiveRestore className="h-4 w-4" />
+                : <Archive className="h-4 w-4" />}
             </button>
+
             <button
               type="button"
               disabled={saving || closing}
-              onClick={() => setDeleteConfirm(editNote.id)}
+              onClick={() => {
+                setFocusMode(false);
+                setDeleteConfirm(editNote.id);
+              }}
               title="Excluir nota"
               aria-label="Excluir nota"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 lg:h-9 lg:w-9"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
             </button>
+
             <button
               type="button"
               disabled={saving || closing || !editTitle.trim()}
               onClick={() => void handleSave()}
-              className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 lg:h-9"
+              title="Salvar · Ctrl+S"
+              className="ml-1 flex h-9 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              <Save className="h-4 w-4" /> <span className="hidden min-[360px]:inline">Salvar</span>
+              <Save className="h-4 w-4" />
+              <span className="hidden sm:inline">Salvar</span>
             </button>
           </div>
         </div>
 
-        <div className="safe-bottom-padding flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 sm:px-4 lg:p-0">
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full shrink-0 border-none bg-transparent text-xl font-bold text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-2xl"
-            placeholder="Título da nota"
-            aria-label="Título da nota"
-          />
+        <div className={cn(
+          "safe-bottom-padding flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 sm:px-4",
+          !focusMode && "lg:p-0",
+          focusMode && "lg:px-0 lg:pb-0",
+        )}>
+          <div className="shrink-0">
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEditTitle(value);
+                scheduleAutosave({ title: value });
+              }}
+              className="w-full border-none bg-transparent text-xl font-bold text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-2xl"
+              placeholder="Título da nota"
+              aria-label="Título da nota"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground/65">
+              {saveLabel} · Ctrl+S salva imediatamente
+            </p>
+          </div>
 
           <div className="scrollbar-none flex min-w-0 shrink-0 items-center gap-2 overflow-x-auto">
-            <select aria-label="Pasta da nota" value={editFolderId} onChange={(e) => setEditFolderId(e.target.value)}
-              className="h-10 min-w-0 flex-1 rounded-md border border-border bg-secondary px-3 text-sm text-foreground focus:outline-none sm:h-9 sm:flex-none">
+            <select
+              aria-label="Pasta da nota"
+              value={editFolderId}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEditFolderId(value);
+                scheduleAutosave({ folderId: value });
+              }}
+              className="h-9 min-w-0 flex-1 rounded-md border border-border bg-secondary px-3 text-sm text-foreground focus:outline-none sm:flex-none"
+            >
               <option value="">Sem pasta</option>
-              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>{folder.name}</option>
+              ))}
             </select>
-            <button type="button" onClick={openFolderDialog} className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-secondary px-3 text-sm text-foreground hover:bg-accent sm:h-9">
+
+            <button
+              type="button"
+              onClick={openFolderDialog}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-md bg-secondary px-3 text-sm text-foreground transition-colors hover:bg-accent"
+            >
               <Plus className="h-4 w-4" /> Nova pasta
             </button>
-            {editFolderId && <button type="button" aria-label="Excluir pasta selecionada" onClick={() => setFolderToDelete(folders.find(f => f.id === editFolderId) || null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive hover:bg-accent sm:h-9 sm:w-9">
-              <Trash2 className="h-4 w-4" />
-            </button>}
+
+            {editFolderId && (
+              <button
+                type="button"
+                aria-label="Excluir pasta selecionada"
+                title="Excluir pasta selecionada"
+                onClick={() => {
+                  setFocusMode(false);
+                  setFolderToDelete(folders.find((folder) => folder.id === editFolderId) || null);
+                }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-accent"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          <RichTextEditor content={editContent} onChange={handleContentChange} className="min-h-0 flex-1" />
+          <RichTextEditor
+            content={editContent}
+            onChange={handleContentChange}
+            className="min-h-0 flex-1"
+          />
         </div>
+
         {folderDialogs}
         {noteDeleteDialog}
       </div>
