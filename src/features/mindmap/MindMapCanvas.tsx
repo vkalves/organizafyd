@@ -722,12 +722,12 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
       </div>
 
       <Dialog open={layoutOpen} onOpenChange={setLayoutOpen}>
-        <DialogContent className="border-border bg-card sm:max-w-2xl">
+        <DialogContent className="max-h-[92dvh] overflow-y-auto border-border bg-card sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Tipo de mapa mental</DialogTitle>
+            <DialogTitle className="text-foreground">Escolha a estrutura do mapa</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
-            Ao trocar o tipo, os blocos são reorganizados automaticamente. Depois você ainda pode arrastar cada bloco livremente.
+            Veja a miniatura antes de trocar. Os blocos serão reorganizados automaticamente e continuarão podendo ser movidos depois.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {MIND_MAP_LAYOUTS.map((option) => {
@@ -739,18 +739,29 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
                   onClick={() => changeLayout(option.id)}
                   className={
                     active
-                      ? "rounded-xl border border-foreground/40 bg-accent p-4 text-left"
-                      : "rounded-xl border border-border bg-secondary/30 p-4 text-left transition-colors hover:bg-accent/60"
+                      ? "rounded-xl border-2 border-foreground bg-accent/70 p-3 text-left"
+                      : "rounded-xl border border-border bg-secondary/20 p-3 text-left transition-all hover:border-foreground/25 hover:bg-accent/40"
                   }
                 >
-                  <LayoutPreview layout={option.id} />
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-foreground">{option.label}</span>
-                    {active && (
-                      <span className="rounded-full bg-foreground px-2 py-0.5 text-[9px] font-medium text-background">Atual</span>
-                    )}
+                  <div className="rounded-lg border border-border/70 bg-background/55 px-2 py-1">
+                    <LayoutPreview layout={option.id} />
                   </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{option.description}</p>
+                  <div className="mt-3 flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                      <p className="mt-0.5 text-[10px] font-medium text-foreground/70">{option.useCase}</p>
+                    </div>
+                    <span
+                      className={
+                        active
+                          ? "rounded-full bg-foreground px-2 py-1 text-[9px] font-semibold text-background"
+                          : "rounded-full border border-border px-2 py-1 text-[9px] text-muted-foreground"
+                      }
+                    >
+                      {active ? "Atual" : "Usar"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{option.description}</p>
                 </button>
               );
             })}
