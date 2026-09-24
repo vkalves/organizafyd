@@ -1,11 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { MindTopic } from "./types";
+import type { MindIconName } from "./BrandIcons";
+import type { MindTopic, MindTopicColor } from "./types";
 
-export const ROOT_WIDTH = 280;
-export const BRANCH_WIDTH = 240;
-export const BRANCH_HEIGHT = 92;
-const LEVEL_GAP_X = 360;
-const SIBLING_GAP_Y = 28;
+export const ROOT_WIDTH = 300;
+export const BRANCH_WIDTH = 252;
+export const BRANCH_HEIGHT = 104;
+const LEVEL_GAP_X = 370;
+const SIBLING_GAP_Y = 34;
 
 export type MindNodeData = {
   title: string;
@@ -13,6 +14,10 @@ export type MindNodeData = {
   isRoot: boolean;
   expanded: boolean;
   hasChildren: boolean;
+  childCount: number;
+  icon?: MindIconName | null;
+  color?: MindTopicColor;
+  url?: string;
 };
 
 type Placed = {
@@ -88,7 +93,7 @@ function placeChildren(
       topic,
       depth,
       side: parent.side,
-      x: parent.x + dir * (LEVEL_GAP_X - 40),
+      x: parent.x + dir * (LEVEL_GAP_X - 44),
       y: cursor + (height - BRANCH_HEIGHT) / 2,
       height: BRANCH_HEIGHT,
     };
@@ -115,7 +120,7 @@ export function buildMindFlow(root: MindTopic): { nodes: Node<MindNodeData>[]; e
     side: "center",
     x: 0,
     y: 0,
-    height: 168,
+    height: 182,
   };
   placed.push(rootPlaced);
   placeChildren(rootPlaced, root.children, 1, placed, links);
@@ -130,6 +135,10 @@ export function buildMindFlow(root: MindTopic): { nodes: Node<MindNodeData>[]; e
       isRoot: item.side === "center",
       expanded: item.topic.expanded,
       hasChildren: item.topic.children.length > 0,
+      childCount: item.topic.children.length,
+      icon: item.topic.icon ?? null,
+      color: item.topic.color ?? "neutral",
+      url: item.topic.url ?? "",
     },
     draggable: false,
     sourcePosition: item.side === "left" ? ("left" as const) : ("right" as const),
