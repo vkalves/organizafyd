@@ -80,6 +80,7 @@ const Notas = () => {
     if (!newTitle.trim()) return toast.error("Título obrigatório");
     const note = await create({ title: newTitle.trim(), content: "", folder_id: activeFolder || null });
     if (note) {
+      setShowArchived(false);
       setShowTitleDialog(false);
       setNewTitle("");
       openEditor(note);
@@ -406,9 +407,13 @@ const Notas = () => {
         <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="p-4 rounded-full bg-secondary mb-4"><StickyNote className="w-8 h-8 text-muted-foreground" /></div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">Nenhuma nota</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">Crie notas para organizar suas ideias.</p>
+          <div className="p-4 rounded-full bg-secondary mb-4">
+            {showArchived ? <Archive className="w-8 h-8 text-muted-foreground" /> : <StickyNote className="w-8 h-8 text-muted-foreground" />}
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            {showArchived ? "As notas que você arquivar aparecerão aqui." : "Crie notas para organizar suas ideias."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
