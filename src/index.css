@@ -275,10 +275,57 @@
   accent-color: hsl(var(--primary));
 }
 
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  opacity: 0.62;
+  text-decoration: line-through;
+}
+
+.tiptap ul[data-type="taskList"] li + li {
+  margin-top: 0.3rem;
+}
+
+.tiptap {
+  line-height: 1.72;
+}
+
+.tiptap p {
+  margin: 0.45rem 0;
+}
+
 .tiptap a {
-  color: hsl(var(--info));
+  color: hsl(var(--foreground));
   text-decoration: underline;
+  text-decoration-color: hsl(var(--muted-foreground));
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.tiptap a:hover {
+  text-decoration-color: hsl(var(--foreground));
+}
+
+.tiptap hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.tiptap pre {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
+  padding: 0.85rem 1rem;
+}
+
+.tiptap pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.tiptap ::selection {
+  background: hsl(var(--foreground) / 0.18);
 }
 
 .tiptap code {
