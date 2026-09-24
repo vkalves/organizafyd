@@ -114,7 +114,8 @@ function SideNav({
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
+  const [desktopSidebarHovered, setDesktopSidebarHovered] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFocusMode, setMobileFocusMode] = useState(false);
   const location = useLocation();
@@ -134,6 +135,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [mobileMenuOpen]);
 
   const layoutContext = useMemo(() => ({ setMobileFocusMode }), []);
+  const desktopSidebarExpanded = desktopSidebarOpen || desktopSidebarHovered;
 
   return (
     <AppLayoutContext.Provider value={layoutContext}>
@@ -145,7 +147,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <button type="button" aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((open) => !open)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:hidden">
           <Menu className="h-5 w-5 text-foreground" />
         </button>
-        <button type="button" aria-label={desktopSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} onClick={() => setDesktopSidebarOpen((open) => !open)} className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:flex">
+        <button
+          type="button"
+          aria-label={desktopSidebarOpen ? "Desafixar menu lateral" : "Fixar menu lateral aberto"}
+          aria-pressed={desktopSidebarOpen}
+          onClick={() => setDesktopSidebarOpen((open) => !open)}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:flex"
+          title={desktopSidebarOpen ? "Desafixar menu lateral" : "Fixar menu lateral aberto"}
+        >
           {desktopSidebarOpen ? <ChevronLeft className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
         </button>
         <div className="flex min-w-0 items-center gap-2">
@@ -167,12 +176,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
       </header>
       <div className={cn("app-body flex min-h-[100dvh] min-w-0", mobileFocusMode && "app-body-focus")}>
-        <aside className={cn(
-          "app-desktop-sidebar fixed bottom-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 lg:flex",
-          desktopSidebarOpen ? "w-56" : "w-16"
-        )}>
+        <aside
+          onMouseEnter={() => setDesktopSidebarHovered(true)}
+          onMouseLeave={() => setDesktopSidebarHovered(false)}
+          className={cn(
+            "app-desktop-sidebar fixed bottom-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar shadow-xl transition-[width,box-shadow] duration-200 lg:flex",
+            desktopSidebarExpanded ? "w-56 shadow-black/25" : "w-16 shadow-transparent"
+          )}
+          aria-label="Menu lateral"
+        >
           <nav className="flex-1 py-4 px-2 space-y-1">
-            <SideNav collapsed={!desktopSidebarOpen} />
+            <SideNav collapsed={!desktopSidebarExpanded} />
           </nav>
         </aside>
         {mobileMenuOpen && (
