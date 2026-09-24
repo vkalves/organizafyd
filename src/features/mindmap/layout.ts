@@ -56,13 +56,15 @@ function placeChildren(
 
     items.forEach((topic) => {
       const height = subtreeHeight(topic);
+      const autoX = parent.x + dir * LEVEL_GAP_X;
+      const autoY = cursor + (height - BRANCH_HEIGHT) / 2;
       const node: Placed = {
         id: topic.id,
         topic,
         depth,
         side,
-        x: parent.x + dir * LEVEL_GAP_X,
-        y: cursor + (height - BRANCH_HEIGHT) / 2,
+        x: topic.position?.x ?? autoX,
+        y: topic.position?.y ?? autoY,
         height: BRANCH_HEIGHT,
       };
       placed.push(node);
@@ -88,13 +90,15 @@ function placeChildren(
   let cursor = parent.y + parent.height / 2 - total / 2;
   topics.forEach((topic) => {
     const height = subtreeHeight(topic);
+    const autoX = parent.x + dir * (LEVEL_GAP_X - 44);
+    const autoY = cursor + (height - BRANCH_HEIGHT) / 2;
     const node: Placed = {
       id: topic.id,
       topic,
       depth,
       side: parent.side,
-      x: parent.x + dir * (LEVEL_GAP_X - 44),
-      y: cursor + (height - BRANCH_HEIGHT) / 2,
+      x: topic.position?.x ?? autoX,
+      y: topic.position?.y ?? autoY,
       height: BRANCH_HEIGHT,
     };
     placed.push(node);
@@ -118,8 +122,8 @@ export function buildMindFlow(root: MindTopic): { nodes: Node<MindNodeData>[]; e
     topic: root,
     depth: 0,
     side: "center",
-    x: 0,
-    y: 0,
+    x: root.position?.x ?? 0,
+    y: root.position?.y ?? 0,
     height: 182,
   };
   placed.push(rootPlaced);
@@ -140,7 +144,7 @@ export function buildMindFlow(root: MindTopic): { nodes: Node<MindNodeData>[]; e
       color: item.topic.color ?? "neutral",
       url: item.topic.url ?? "",
     },
-    draggable: false,
+    draggable: true,
     sourcePosition: item.side === "left" ? ("left" as const) : ("right" as const),
     targetPosition: item.side === "left" ? ("right" as const) : ("left" as const),
   }));
