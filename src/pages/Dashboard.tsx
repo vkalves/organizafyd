@@ -50,6 +50,7 @@ interface DashboardData {
 const Dashboard = () => {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [profileName, setProfileName] = useState("");
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
 
@@ -67,6 +68,8 @@ const Dashboard = () => {
   }, [now]);
 
   const displayName = useMemo(() => {
+    if (profileName.trim()) return profileName.trim().split(/\s+/)[0];
+
     const metadataName = user?.user_metadata?.display_name;
     if (typeof metadataName === "string" && metadataName.trim()) {
       return metadataName.trim().split(/\s+/)[0];
@@ -74,7 +77,7 @@ const Dashboard = () => {
 
     const emailName = user?.email?.split("@")[0]?.trim();
     return emailName || "você";
-  }, [user]);
+  }, [profileName, user]);
 
   const formattedDate = useMemo(
     () =>
@@ -93,14 +96,17 @@ const Dashboard = () => {
     if (!user) return;
     const today = new Date().toISOString().split("T")[0];
     const load = async () => {
-      const [tasksRes, notesRes] = await Promise.all([
+      const [tasksRes, notesRes, profileRes] = await Promise.all([
         (supabase.from("tasks") as any).select("id, title, status, due_date, priority, is_fixed_daily").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
         (supabase.from("notes") as any).select("id, title, updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(5),
+        (supabase.from("profiles") as any).select("display_name").eq("user_id", user.id).maybeSingle(),
       ]);
 
       const tasks = tasksRes.data || [];
       const todayTasks = tasks.filter((t: any) => t.due_date === today && t.status !== "done");
       const todayDone = tasks.filter((t: any) => t.due_date === today && t.status === "done");
+
+      setProfileName(profileRes.data?.display_name || "");
 
       setData({
         todayTasks: todayTasks.length,
@@ -136,7 +142,12 @@ const Dashboard = () => {
         <div className="flex min-w-0 flex-col">
           <h1 className="text-[1.35rem] font-semibold tracking-tight text-foreground sm:text-2xl">
             {greeting},{" "}
-            <span className="text-foreground">{displayName}</span>
+            <span
+              className="text-foreground/70"
+              style={{ textShadow: "0 0 10px rgba(255,255,255,0.12)" }}
+            >
+              {displayName}
+            </span>
           </h1>
           <p className="mt-2 text-[9px] font-medium uppercase tracking-[0.28em] text-muted-foreground sm:text-[10px]">
             {formattedDate}
