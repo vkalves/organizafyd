@@ -7,6 +7,7 @@ import {
   ReactFlow,
   useReactFlow,
   ReactFlowProvider,
+  useNodesState,
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -19,9 +20,11 @@ import {
   Focus,
   Maximize2,
   Minimize2,
+  Move,
   Pencil,
   Plus,
   Redo2,
+  RotateCcw,
   Save,
   Trash2,
   Undo2,
@@ -133,6 +136,11 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const flow = useMemo(() => buildMindFlow(data.root), [data]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
+
+  useEffect(() => {
+    setNodes(flow.nodes);
+  }, [flow.nodes, setNodes]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -296,6 +304,47 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
     void fitView({ padding: 0.2, duration: 300, maxZoom: 1.05 });
   };
 
+  const persistLayoutChange = useCallback(async (next: MindMapData, successMessage?: string) => {
+    applyData(next, { fit: false });
+    try {
+      await onSave(next);
+      setDirty(false);
+      if (successMessage) toast.success(successMessage);
+    } catch {
+      toast.error("Não foi possível salvar a posição dos blocos");
+    }
+  }, [applyData, onSave]);
+
+  const onNodeDragStop = useCallback((_: unknown, node: Node<MindNodeData>) => {
+    const next = cloneData(data);
+    const topic = findTopic(next.root, node.id);
+    if (!topic) return;
+
+    topic.position = {
+      x: Math.round(node.position.x),
+      y: Math.round(node.position.y),
+    };
+
+    void persistLayoutChange(next);
+  }, [data, persistLayoutChange]);
+
+  const resetLayout = useCallback(() => {
+    const next: MindMapData = {
+      root: mapTree(data.root, (node) => ({ ...node, position: undefined })),
+    };
+
+    applyData(next);
+    void Promise.resolve(onSave(next))
+      .then(() => {
+        setDirty(false);
+        toast.success("Blocos reorganizados");
+        requestAnimationFrame(() => {
+          void fitView({ padding: 0.2, duration: 300, maxZoom: 1.05 });
+        });
+      })
+      .catch(() => toast.error("Não foi possível reorganizar o mapa"));
+  }, [applyData, data.root, fitView, onSave]);
+
   const toggleFullscreen = () => {
     setIsFullscreen((current) => !current);
   };
@@ -391,7 +440,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
                 </span>
               </div>
               <p className="hidden text-[10px] text-muted-foreground md:block">
-                Clique para selecionar · clique duplo para editar · Ctrl+Z para desfazer
+                Arraste os blocos para mover · clique duplo para editar · Ctrl+Z para desfazer
               </p>
             </div>
           </div>
@@ -422,6 +471,15 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
               className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:flex"
             >
               <Focus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Reorganizar blocos"
+              aria-label="Reorganizar blocos automaticamente"
+              onClick={resetLayout}
+              className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:flex"
+            >
+              <RotateCcw className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -481,12 +539,14 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
 
       <div className="relative min-h-0 flex-1">
         <ReactFlow
-          nodes={flow.nodes}
+          nodes={nodes}
           edges={flow.edges}
+          onNodesChange={onNodesChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
+          onNodeDragStop={onNodeDragStop}
           fitView
           fitViewOptions={{ padding: 0.2, maxZoom: 1.05 }}
           minZoom={0.18}
@@ -495,7 +555,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
           panOnScroll
           zoomOnScroll
           zoomOnDoubleClick={false}
-          nodesDraggable={false}
+          nodesDraggable
           nodesConnectable={false}
           elementsSelectable
           proOptions={{ hideAttribution: true }}
@@ -515,7 +575,10 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
             position="bottom-center"
             className="pointer-events-none mb-2 hidden rounded-full border border-border bg-card/80 px-3 py-1 text-[10px] text-muted-foreground backdrop-blur lg:block"
           >
-            {countTopics(data.root)} blocos · arraste o fundo para navegar
+            <span className="inline-flex items-center gap-1.5">
+              <Move className="h-3 w-3" />
+              {countTopics(data.root)} blocos · arraste um bloco para mover · arraste o fundo para navegar
+            </span>
           </Panel>
         </ReactFlow>
       </div>

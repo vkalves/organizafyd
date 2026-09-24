@@ -18,6 +18,7 @@ export type MindTopic = {
   icon?: MindIconName | null;
   color?: MindTopicColor;
   url?: string;
+  position?: { x: number; y: number };
 };
 
 export type MindMapData = {
@@ -34,6 +35,7 @@ export function createTopic(title = "Novo bloco", description = ""): MindTopic {
     icon: null,
     color: "neutral",
     url: "",
+    position: undefined,
   };
 }
 
@@ -48,6 +50,7 @@ export function createMindMapData(title: string, description = ""): MindMapData 
       icon: null,
       color: "neutral",
       url: "",
+      position: undefined,
     },
   };
 }
@@ -56,6 +59,7 @@ export function cloneTopicWithNewIds(topic: MindTopic): MindTopic {
   return {
     ...topic,
     id: crypto.randomUUID(),
+    position: undefined,
     children: topic.children.map(cloneTopicWithNewIds),
   };
 }
