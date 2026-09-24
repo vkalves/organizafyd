@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-type TableName = "tasks" | "notes" | "links" | "funnels" | "funnel_nodes" | "funnel_edges" | "transactions" | "financial_accounts" | "financial_categories" | "financial_goals" | "folders" | "profiles";
+type TableName = "tasks" | "notes" | "links" | "funnels" | "funnel_nodes" | "funnel_edges" | "transactions" | "financial_accounts" | "financial_categories" | "financial_goals" | "folders" | "profiles" | "mind_maps";
 
 export function useSupabaseCrud<T extends Record<string, any>>(table: TableName, orderBy = "created_at") {
   const { user } = useAuth();
