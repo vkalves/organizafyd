@@ -74,7 +74,7 @@ const MindRootNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) =>
   return (
     <div
       className={cn(
-        "mindmap-root relative w-[300px] overflow-hidden rounded-2xl border bg-card/95 px-5 py-5 text-center shadow-2xl backdrop-blur",
+        "mindmap-root relative w-[300px] cursor-grab overflow-hidden rounded-2xl border bg-card/95 px-5 py-5 text-center shadow-2xl backdrop-blur active:cursor-grabbing",
         selected ? color.selected : "border-border",
       )}
       style={{ boxShadow: "0 18px 64px hsla(0, 0%, 0%, 0.34), 0 0 52px hsla(0, 0%, 100%, 0.035)" }}
@@ -124,7 +124,7 @@ const MindBranchNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) 
   return (
     <div
       className={cn(
-        "relative w-[252px] overflow-hidden rounded-xl border bg-card/95 px-4 py-3.5 shadow-xl backdrop-blur-sm transition-all duration-150",
+        "relative w-[252px] cursor-grab overflow-hidden rounded-xl border bg-card/95 px-4 py-3.5 shadow-xl backdrop-blur-sm transition-all duration-150 active:cursor-grabbing",
         selected ? cn(color.selected, "translate-y-[-1px]") : "border-border hover:border-foreground/20",
       )}
     >
