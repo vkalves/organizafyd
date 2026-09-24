@@ -103,7 +103,7 @@ const MindRootNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) =>
             <button type="button" data-mind-expand className="nodrag nopan inline-flex items-center gap-1 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
               {data.expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               {data.childCount} {data.childCount === 1 ? "ramo" : "ramos"}
-            </div>
+            </button>
           )}
           {data.url && (
             <div className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[10px] text-muted-foreground">
