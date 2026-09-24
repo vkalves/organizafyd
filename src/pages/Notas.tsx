@@ -389,14 +389,14 @@ const Notas = () => {
           <Archive className="w-3.5 h-3.5" /> Arquivadas
         </button>
         {folders.map((f) => (
-          <div key={f.id} className="flex items-center shrink-0">
+          <div key={f.id} className="group/folder flex items-center shrink-0">
           <button onClick={() => { setShowArchived(false); setActiveFolder(f.id); }} className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
             activeFolder === f.id ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           )}>
             <FolderOpen className="w-3.5 h-3.5" /> {f.name}
           </button>
-          <button aria-label={`Excluir pasta: ${f.name}`} title="Excluir pasta" onClick={() => setFolderToDelete(f)} className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-accent">
+          <button aria-label={`Excluir pasta: ${f.name}`} title="Excluir pasta" onClick={() => setFolderToDelete(f)} className="pointer-events-none p-2 rounded-md text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-destructive group-hover/folder:pointer-events-auto group-hover/folder:opacity-100 group-focus-within/folder:pointer-events-auto group-focus-within/folder:opacity-100">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           </div>
