@@ -18,6 +18,7 @@ import {
   Copy,
   ExternalLink,
   Focus,
+  LayoutGrid,
   Maximize2,
   Minimize2,
   Move,
@@ -42,6 +43,7 @@ import {
   findTopic,
   mapTree,
   type MindMapData,
+  type MindMapLayout,
   type MindTopic,
   type MindTopicColor,
 } from "./types";
@@ -66,6 +68,70 @@ const COLOR_OPTIONS: { id: MindTopicColor; label: string; dot: string; selected:
   { id: "orange", label: "Laranja", dot: "bg-orange-400", selected: "border-orange-400/60 bg-orange-400/10" },
   { id: "red", label: "Vermelho", dot: "bg-red-400", selected: "border-red-400/60 bg-red-400/10" },
 ];
+
+export const MIND_MAP_LAYOUTS: { id: MindMapLayout; label: string; description: string }[] = [
+  {
+    id: "radial",
+    label: "Radial",
+    description: "Tema central com ramos distribuídos para os dois lados.",
+  },
+  {
+    id: "right",
+    label: "Esquerda → Direita",
+    description: "Todos os tópicos avançam para a direita, ideal para processos e planejamento.",
+  },
+  {
+    id: "vertical",
+    label: "Árvore vertical",
+    description: "Hierarquia de cima para baixo com bastante espaço entre os níveis.",
+  },
+  {
+    id: "org",
+    label: "Organograma",
+    description: "Estrutura vertical mais compacta para equipes, contas e responsabilidades.",
+  },
+];
+
+export function getMindMapLayoutLabel(layout?: MindMapLayout) {
+  return MIND_MAP_LAYOUTS.find((option) => option.id === (layout ?? "radial"))?.label ?? "Radial";
+}
+
+function LayoutPreview({ layout }: { layout: MindMapLayout }) {
+  if (layout === "right") {
+    return (
+      <div className="relative h-14 w-full">
+        <span className="absolute left-1 top-5 h-5 w-8 rounded border border-foreground/40 bg-secondary" />
+        <span className="absolute left-9 top-[29px] h-px w-8 bg-foreground/25" />
+        <span className="absolute right-4 top-1 h-4 w-8 rounded border border-border bg-secondary" />
+        <span className="absolute right-4 top-5 h-4 w-8 rounded border border-border bg-secondary" />
+        <span className="absolute right-4 top-9 h-4 w-8 rounded border border-border bg-secondary" />
+      </div>
+    );
+  }
+
+  if (layout === "vertical" || layout === "org") {
+    const compact = layout === "org";
+    return (
+      <div className="relative h-14 w-full">
+        <span className="absolute left-1/2 top-0 h-4 w-10 -translate-x-1/2 rounded border border-foreground/40 bg-secondary" />
+        <span className={compact ? "absolute left-1/2 top-4 h-3 w-px bg-foreground/25" : "absolute left-1/2 top-4 h-5 w-px bg-foreground/25"} />
+        <span className={compact ? "absolute left-4 top-8 h-4 w-8 rounded border border-border bg-secondary" : "absolute left-2 top-10 h-4 w-8 rounded border border-border bg-secondary"} />
+        <span className={compact ? "absolute left-1/2 top-8 h-4 w-8 -translate-x-1/2 rounded border border-border bg-secondary" : "absolute left-1/2 top-10 h-4 w-8 -translate-x-1/2 rounded border border-border bg-secondary"} />
+        <span className={compact ? "absolute right-4 top-8 h-4 w-8 rounded border border-border bg-secondary" : "absolute right-2 top-10 h-4 w-8 rounded border border-border bg-secondary"} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-14 w-full">
+      <span className="absolute left-1/2 top-4 h-6 w-10 -translate-x-1/2 rounded border border-foreground/40 bg-secondary" />
+      <span className="absolute left-1 top-1 h-4 w-8 rounded border border-border bg-secondary" />
+      <span className="absolute left-1 top-9 h-4 w-8 rounded border border-border bg-secondary" />
+      <span className="absolute right-1 top-1 h-4 w-8 rounded border border-border bg-secondary" />
+      <span className="absolute right-1 top-9 h-4 w-8 rounded border border-border bg-secondary" />
+    </div>
+  );
+}
 
 type TopicForm = {
   title: string;
@@ -120,6 +186,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   const { fitView } = useReactFlow();
   const [selectedId, setSelectedId] = useState(data.root.id);
   const [editOpen, setEditOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const [form, setForm] = useState<TopicForm>({
     title: "",
     description: "",
@@ -135,7 +202,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   const skipFit = useRef(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const flow = useMemo(() => buildMindFlow(data.root), [data]);
+  const flow = useMemo(() => buildMindFlow(data.root, data.layout ?? "radial"), [data]);
   const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
 
   useEffect(() => {
@@ -164,8 +231,8 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
   }, [data, onChange]);
 
   const updateRoot = useCallback((nextRoot: MindTopic, options?: { fit?: boolean }) => {
-    applyData({ root: nextRoot }, options);
-  }, [applyData]);
+    applyData({ ...data, root: nextRoot }, options);
+  }, [applyData, data]);
 
   const toggleExpanded = useCallback((id: string) => {
     const topic = findTopic(data.root, id);
@@ -330,6 +397,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
 
   const resetLayout = useCallback(() => {
     const next: MindMapData = {
+      ...data,
       root: mapTree(data.root, (node) => ({ ...node, position: undefined })),
     };
 
@@ -343,7 +411,33 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
         });
       })
       .catch(() => toast.error("Não foi possível reorganizar o mapa"));
-  }, [applyData, data.root, fitView, onSave]);
+  }, [applyData, data, fitView, onSave]);
+
+  const changeLayout = useCallback((layout: MindMapLayout) => {
+    if ((data.layout ?? "radial") === layout) {
+      setLayoutOpen(false);
+      return;
+    }
+
+    const next: MindMapData = {
+      ...data,
+      layout,
+      root: mapTree(data.root, (node) => ({ ...node, position: undefined })),
+    };
+
+    applyData(next);
+    setLayoutOpen(false);
+
+    void Promise.resolve(onSave(next))
+      .then(() => {
+        setDirty(false);
+        toast.success(`Tipo alterado para ${getMindMapLayoutLabel(layout)}`);
+        requestAnimationFrame(() => {
+          void fitView({ padding: 0.2, duration: 320, maxZoom: 1.05 });
+        });
+      })
+      .catch(() => toast.error("Não foi possível alterar o tipo do mapa"));
+  }, [applyData, data, fitView, onSave]);
 
   const toggleFullscreen = () => {
     setIsFullscreen((current) => !current);
@@ -474,6 +568,15 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
             </button>
             <button
               type="button"
+              title={`Tipo de mapa: ${getMindMapLayoutLabel(data.layout)}`}
+              aria-label="Alterar tipo do mapa"
+              onClick={() => setLayoutOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
               title="Reorganizar blocos"
               aria-label="Reorganizar blocos automaticamente"
               onClick={resetLayout}
@@ -582,6 +685,43 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
           </Panel>
         </ReactFlow>
       </div>
+
+      <Dialog open={layoutOpen} onOpenChange={setLayoutOpen}>
+        <DialogContent className="border-border bg-card sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Tipo de mapa mental</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Ao trocar o tipo, os blocos são reorganizados automaticamente. Depois você ainda pode arrastar cada bloco livremente.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {MIND_MAP_LAYOUTS.map((option) => {
+              const active = (data.layout ?? "radial") === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => changeLayout(option.id)}
+                  className={
+                    active
+                      ? "rounded-xl border border-foreground/40 bg-accent p-4 text-left"
+                      : "rounded-xl border border-border bg-secondary/30 p-4 text-left transition-colors hover:bg-accent/60"
+                  }
+                >
+                  <LayoutPreview layout={option.id} />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                    {active && (
+                      <span className="rounded-full bg-foreground px-2 py-0.5 text-[9px] font-medium text-background">Atual</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{option.description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-card sm:max-w-xl">
