@@ -2,7 +2,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, User, Menu, ChevronLeft, LogOut, Instagram,
-  Globe, Clock, CheckCircle2, Images,
+  Globe, Clock, CheckCircle2, Images, Network,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +15,7 @@ const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
   { title: "Tarefas", path: "/tarefas", icon: CheckSquare },
   { title: "Notas", path: "/notas", icon: StickyNote },
+  { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Mídia", path: "/midia", icon: Images },
   { title: "Instagram", path: "/instagram", icon: Instagram },
   { title: "Configurações", path: "/config", icon: Settings },
@@ -26,7 +27,7 @@ const instagramSubs = [
   { title: "Conteúdos prontos", path: "/instagram/prontos", icon: CheckCircle2 },
 ];
 
-const mobileNavItems = navItems;
+const mobileNavItems = navItems.filter((item) => item.path !== "/config");
 
 function isInstagramPath(path: string) {
   return path.startsWith("/instagram");
@@ -82,17 +83,9 @@ function SideNav({
               {!collapsed && <span>{item.title}</span>}
             </NavLink>
             {item.path === "/instagram" && instagramOpen ? (
-              <div
-                className={cn(
-                  "mt-1 space-y-0.5",
-                  collapsed ? "px-1" : "ml-3 border-l border-sidebar-border pl-2",
-                )}
-              >
+              <div className={cn("mt-1 space-y-0.5", collapsed ? "px-1" : "ml-3 border-l border-sidebar-border pl-2")}>
                 {instagramSubs.map((sub) => {
-                  const subActive = isInstagramSubActive(
-                    location.pathname,
-                    sub.path,
-                  );
+                  const subActive = isInstagramSubActive(location.pathname, sub.path);
                   return (
                     <NavLink
                       key={sub.path}
@@ -107,9 +100,7 @@ function SideNav({
                       )}
                     >
                       <sub.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && (
-                        <span className="leading-tight">{sub.title}</span>
-                      )}
+                      {!collapsed && <span className="leading-tight">{sub.title}</span>}
                     </NavLink>
                   );
                 })}
@@ -151,39 +142,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         "app-header fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b border-border bg-background/90 backdrop-blur-md sm:gap-3",
         mobileFocusMode && "max-lg:hidden",
       )}>
-        <button
-          type="button"
-          aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-          aria-expanded={mobileMenuOpen}
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:hidden"
-        >
+        <button type="button" aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((open) => !open)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:hidden">
           <Menu className="h-5 w-5 text-foreground" />
         </button>
-        <button
-          type="button"
-          aria-label={desktopSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"}
-          onClick={() => setDesktopSidebarOpen((open) => !open)}
-          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:flex"
-        >
+        <button type="button" aria-label={desktopSidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} onClick={() => setDesktopSidebarOpen((open) => !open)} className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent lg:flex">
           {desktopSidebarOpen ? <ChevronLeft className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
         </button>
-
         <div className="flex min-w-0 items-center gap-2">
           <img src={logoImg} alt="Organizafy" className="h-7 max-w-[3.5rem] min-[400px]:max-w-[5rem] object-contain object-left sm:max-w-none" />
         </div>
-
         <div className="hidden sm:flex flex-1 max-w-md mx-auto">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input type="text" placeholder="Buscar..." className="w-full h-9 pl-9 pr-4 rounded-md bg-secondary border-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
         </div>
-
         <div className="min-w-0 flex-1 sm:hidden" />
-
         <Shortcuts key={user?.id} />
-
         <button type="button" onClick={signOut} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent" title="Sair" aria-label="Sair da conta">
           <LogOut className="h-4 w-4 text-muted-foreground" />
         </button>
@@ -191,7 +166,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <User className="h-4 w-4 text-foreground" />
         </button>
       </header>
-
       <div className={cn("app-body flex min-h-[100dvh] min-w-0", mobileFocusMode && "app-body-focus")}>
         <aside className={cn(
           "app-desktop-sidebar fixed bottom-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 lg:flex",
@@ -201,7 +175,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <SideNav collapsed={!desktopSidebarOpen} />
           </nav>
         </aside>
-
         {mobileMenuOpen && (
           <div className="app-mobile-drawer fixed inset-x-0 bottom-0 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
@@ -212,19 +185,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </aside>
           </div>
         )}
-
         <main className={cn(
           "app-main min-w-0 flex-1 overflow-x-clip transition-[margin] duration-300",
           desktopSidebarOpen ? "lg:ml-56" : "lg:ml-16",
           mobileFocusMode && "app-main-focus",
         )}>
-          <div className={cn(
-            "app-page-frame min-w-0 animate-fade-in p-4 sm:p-6 lg:p-8",
-            mobileFocusMode && "app-page-frame-focus",
-          )}>{children}</div>
+          <div className={cn("app-page-frame min-w-0 animate-fade-in p-4 sm:p-6 lg:p-8", mobileFocusMode && "app-page-frame-focus")}>{children}</div>
         </main>
       </div>
-
       <nav className={cn(
         "mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 flex items-start justify-around border-t border-border bg-background/95 px-2 pt-1.5 backdrop-blur-md lg:hidden",
         mobileFocusMode && "hidden",
