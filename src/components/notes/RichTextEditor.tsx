@@ -127,7 +127,11 @@ export function RichTextEditor({ content, onChange, placeholder = "Escreva sua n
           <Redo className="h-4 w-4" />
         </EditorToolButton>
       </div>
-      <EditorContent editor={editor} className="min-h-0 flex-1 overflow-y-auto overscroll-contain" />
+      <EditorContent
+        editor={editor}
+        onWheel={(event) => event.stopPropagation()}
+        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain"
+      />
     </div>
   );
 }
