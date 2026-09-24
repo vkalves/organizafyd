@@ -143,7 +143,7 @@ const MindBranchNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) 
               <button type="button" data-mind-expand className="nodrag nopan mt-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-full border border-border bg-secondary px-1 text-[9px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                 {data.expanded ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
                 {data.childCount}
-              </span>
+              </button>
             )}
           </div>
           {data.description ? (
