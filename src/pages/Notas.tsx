@@ -1,4 +1,4 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft } from "lucide-react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -25,11 +25,14 @@ interface Folder {
   created_at: string;
 }
 
+const ARCHIVED_TAG = "__organizafy_archived__";
+
 const Notas = () => {
   const { setMobileFocusMode } = useAppLayout();
   const { data: notes, loading, create, update, remove, refetch: refetchNotes } = useSupabaseCrud<Note>("notes", "updated_at");
   const { data: folders, create: createFolder, remove: removeFolder } = useSupabaseCrud<Folder>("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -51,7 +54,9 @@ const Notas = () => {
   const saveVersionRef = useRef(0);
 
   const filtered = notes.filter((n) => {
-    if (activeFolder && n.folder_id !== activeFolder) return false;
+    const archived = n.tags?.includes(ARCHIVED_TAG) ?? false;
+    if (showArchived ? !archived : archived) return false;
+    if (!showArchived && activeFolder && n.folder_id !== activeFolder) return false;
     if (search) {
       const s = search.toLowerCase();
       return n.title.toLowerCase().includes(s) || (n.content || "").toLowerCase().includes(s);
@@ -75,6 +80,7 @@ const Notas = () => {
     if (!newTitle.trim()) return toast.error("Título obrigatório");
     const note = await create({ title: newTitle.trim(), content: "", folder_id: activeFolder || null });
     if (note) {
+      setShowArchived(false);
       setShowTitleDialog(false);
       setNewTitle("");
       openEditor(note);
@@ -147,6 +153,46 @@ const Notas = () => {
   const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
   const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
 
+  const handleToggleArchive = async () => {
+    if (!editNote) return;
+    if (!editTitle.trim()) return toast.error("O título da nota não pode ficar vazio");
+
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (autosavePromiseRef.current) await autosavePromiseRef.current;
+
+    const archived = editNote.tags?.includes(ARCHIVED_TAG) ?? false;
+    const tags = (editNote.tags || []).filter((tag) => tag !== ARCHIVED_TAG);
+    if (!archived) tags.push(ARCHIVED_TAG);
+
+    const saved = await saveNote({
+      title: editTitle.trim(),
+      content: editContent,
+      folder_id: editFolderId || null,
+      tags,
+    });
+
+    if (!saved) return;
+    toast.success(archived ? "Nota desarquivada" : "Nota arquivada");
+    setIsEditing(false);
+    setEditNote(null);
+  };
+
+  const handleDeleteNote = async () => {
+    if (!deleteConfirm) return;
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (autosavePromiseRef.current) await autosavePromiseRef.current;
+
+    const id = deleteConfirm;
+    const deleted = await remove(id);
+    if (!deleted) return;
+
+    setDeleteConfirm(null);
+    if (editNote?.id === id) {
+      setIsEditing(false);
+      setEditNote(null);
+    }
+  };
+
   const openFolderDialog = () => {
     setNewFolderName("");
     setShowFolderDialog(true);
@@ -186,6 +232,19 @@ const Notas = () => {
     }
   };
 
+  const noteDeleteDialog = (
+    <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+      <DialogContent className="bg-card border-border">
+        <DialogHeader><DialogTitle className="text-foreground">Confirmar exclusão</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota?</p>
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button onClick={() => setDeleteConfirm(null)} className="min-h-11 rounded-md bg-secondary px-4 py-2 text-sm text-foreground">Cancelar</button>
+          <button onClick={() => void handleDeleteNote()} className="min-h-11 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">Excluir nota</button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const folderDialogs = (
     <>
       <Dialog open={showFolderDialog} onOpenChange={open => { if (!folderBusy) setShowFolderDialog(open); }}>
@@ -218,7 +277,7 @@ const Notas = () => {
 
   if (isEditing && editNote) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-background lg:mx-auto lg:min-h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4">
+      <div className="flex h-full min-h-0 flex-col bg-background lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:min-h-0 lg:max-w-4xl lg:gap-4">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2 lg:border-0 lg:px-0 lg:py-0">
           <button
             type="button"
@@ -229,17 +288,37 @@ const Notas = () => {
           >
             <ArrowLeft className="h-5 w-5 lg:h-4 lg:w-4" /> <span className="hidden min-[360px]:inline">Voltar</span>
           </button>
-          <div className="flex min-w-0 items-center justify-end gap-2">
-            <span className={cn("truncate text-[11px] text-muted-foreground", saving && "animate-pulse")} aria-live="polite">
+          <div className="flex min-w-0 items-center justify-end gap-1.5">
+            <span className={cn("hidden truncate text-[11px] text-muted-foreground sm:inline", saving && "animate-pulse")} aria-live="polite">
               {saving ? "Salvando..." : "Salvo"}
             </span>
+            <button
+              type="button"
+              disabled={saving || closing}
+              onClick={() => void handleToggleArchive()}
+              title={editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar nota" : "Arquivar nota"}
+              className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-secondary px-3 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50 lg:h-9"
+            >
+              {editNote.tags?.includes(ARCHIVED_TAG) ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+              <span className="hidden md:inline">{editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar" : "Arquivar"}</span>
+            </button>
+            <button
+              type="button"
+              disabled={saving || closing}
+              onClick={() => setDeleteConfirm(editNote.id)}
+              title="Excluir nota"
+              aria-label="Excluir nota"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 lg:h-9 lg:w-9"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
             <button
               type="button"
               disabled={saving || closing || !editTitle.trim()}
               onClick={() => void handleSave()}
               className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 lg:h-9"
             >
-              <Save className="h-4 w-4" /> Salvar
+              <Save className="h-4 w-4" /> <span className="hidden min-[360px]:inline">Salvar</span>
             </button>
           </div>
         </div>
@@ -268,9 +347,10 @@ const Notas = () => {
             </button>}
           </div>
 
-          <RichTextEditor content={editContent} onChange={handleContentChange} className="min-h-0 flex-1 lg:min-h-[32rem]" />
+          <RichTextEditor content={editContent} onChange={handleContentChange} className="min-h-0 flex-1" />
         </div>
         {folderDialogs}
+        {noteDeleteDialog}
       </div>
     );
   }
@@ -299,12 +379,18 @@ const Notas = () => {
       </div>
 
       <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        <button onClick={() => setActiveFolder(null)} className={cn("px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
-          !activeFolder ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+        <button onClick={() => { setShowArchived(false); setActiveFolder(null); }} className={cn("px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
+          !showArchived && !activeFolder ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
         )}>Todas</button>
+        <button onClick={() => { setShowArchived(true); setActiveFolder(null); }} className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
+          showArchived ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+        )}>
+          <Archive className="w-3.5 h-3.5" /> Arquivadas
+        </button>
         {folders.map((f) => (
           <div key={f.id} className="flex items-center shrink-0">
-          <button onClick={() => setActiveFolder(f.id)} className={cn(
+          <button onClick={() => { setShowArchived(false); setActiveFolder(f.id); }} className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
             activeFolder === f.id ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           )}>
@@ -321,9 +407,13 @@ const Notas = () => {
         <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="p-4 rounded-full bg-secondary mb-4"><StickyNote className="w-8 h-8 text-muted-foreground" /></div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">Nenhuma nota</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">Crie notas para organizar suas ideias.</p>
+          <div className="p-4 rounded-full bg-secondary mb-4">
+            {showArchived ? <Archive className="w-8 h-8 text-muted-foreground" /> : <StickyNote className="w-8 h-8 text-muted-foreground" />}
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            {showArchived ? "As notas que você arquivar aparecerão aqui." : "Crie notas para organizar suas ideias."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -355,7 +445,6 @@ const Notas = () => {
                 <div className="flex gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                   <button aria-label={n.is_pinned ? "Desafixar nota" : "Fixar nota"} onClick={(e) => togglePin(n, e)} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Pin className={cn("h-3.5 w-3.5", n.is_pinned ? "text-foreground" : "text-muted-foreground")} /></button>
                   <button aria-label={n.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={(e) => toggleFav(n, e)} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Star className={cn("h-3.5 w-3.5", n.is_favorite ? "fill-warning text-warning" : "text-muted-foreground")} /></button>
-                  <button aria-label={`Excluir nota: ${n.title}`} onClick={(e) => { e.stopPropagation(); setDeleteConfirm(n.id); }} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
                 </div>
               </div>
             </div>
@@ -378,16 +467,7 @@ const Notas = () => {
 
       {folderDialogs}
 
-      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">Confirmar exclusão</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota?</p>
-          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button onClick={() => setDeleteConfirm(null)} className="min-h-11 rounded-md bg-secondary px-4 py-2 text-sm text-foreground">Cancelar</button>
-            <button onClick={() => deleteConfirm && remove(deleteConfirm).then(() => setDeleteConfirm(null))} className="min-h-11 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">Excluir</button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {noteDeleteDialog}
     </div>
   );
 };
