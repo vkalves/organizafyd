@@ -69,26 +69,35 @@ const COLOR_OPTIONS: { id: MindTopicColor; label: string; dot: string; selected:
   { id: "red", label: "Vermelho", dot: "bg-red-400", selected: "border-red-400/60 bg-red-400/10" },
 ];
 
-export const MIND_MAP_LAYOUTS: { id: MindMapLayout; label: string; description: string }[] = [
+export const MIND_MAP_LAYOUTS: {
+  id: MindMapLayout;
+  label: string;
+  description: string;
+  useCase: string;
+}[] = [
   {
     id: "radial",
     label: "Radial",
-    description: "Tema central com ramos distribuídos para os dois lados.",
+    useCase: "Ideias e brainstorm",
+    description: "Um assunto no centro e ideias abertas para os dois lados.",
   },
   {
     id: "right",
-    label: "Esquerda → Direita",
-    description: "Todos os tópicos avançam para a direita, ideal para processos e planejamento.",
+    label: "Fluxo lateral",
+    useCase: "Processos e etapas",
+    description: "Começa à esquerda e segue em uma direção, como um passo a passo.",
   },
   {
     id: "vertical",
-    label: "Árvore vertical",
-    description: "Hierarquia de cima para baixo com bastante espaço entre os níveis.",
+    label: "Árvore",
+    useCase: "Categorias e estudos",
+    description: "O tema fica em cima e os assuntos descem por níveis.",
   },
   {
     id: "org",
     label: "Organograma",
-    description: "Estrutura vertical mais compacta para equipes, contas e responsabilidades.",
+    useCase: "Equipes e hierarquia",
+    description: "Hierarquia compacta para pessoas, contas, cargos ou responsabilidades.",
   },
 ];
 
@@ -96,40 +105,66 @@ export function getMindMapLayoutLabel(layout?: MindMapLayout) {
   return MIND_MAP_LAYOUTS.find((option) => option.id === (layout ?? "radial"))?.label ?? "Radial";
 }
 
-function LayoutPreview({ layout }: { layout: MindMapLayout }) {
+export function LayoutPreview({ layout }: { layout: MindMapLayout }) {
+  const branch = "hsl(var(--muted-foreground))";
+  const nodeFill = "hsl(var(--secondary))";
+  const rootFill = "hsl(var(--accent))";
+  const nodeStroke = "hsl(var(--border))";
+  const rootStroke = "hsl(var(--foreground))";
+
   if (layout === "right") {
     return (
-      <div className="relative h-14 w-full">
-        <span className="absolute left-1 top-5 h-5 w-8 rounded border border-foreground/40 bg-secondary" />
-        <span className="absolute left-9 top-[29px] h-px w-8 bg-foreground/25" />
-        <span className="absolute right-4 top-1 h-4 w-8 rounded border border-border bg-secondary" />
-        <span className="absolute right-4 top-5 h-4 w-8 rounded border border-border bg-secondary" />
-        <span className="absolute right-4 top-9 h-4 w-8 rounded border border-border bg-secondary" />
-      </div>
+      <svg viewBox="0 0 180 86" className="h-20 w-full" aria-hidden="true">
+        <path d="M45 43 C65 43 68 20 88 20 M45 43 H88 M45 43 C65 43 68 66 88 66" fill="none" stroke={branch} strokeWidth="2" opacity=".55" />
+        <path d="M116 20 H138 M116 43 H138 M116 66 H138" fill="none" stroke={branch} strokeWidth="2" opacity=".35" />
+        <rect x="12" y="31" width="34" height="24" rx="6" fill={rootFill} stroke={rootStroke} strokeWidth="1.5" />
+        <rect x="88" y="9" width="30" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="88" y="33" width="30" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="88" y="57" width="30" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="138" y="11" width="28" height="17" rx="4" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="138" y="35" width="28" height="17" rx="4" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="138" y="59" width="28" height="17" rx="4" fill={nodeFill} stroke={nodeStroke} />
+      </svg>
     );
   }
 
-  if (layout === "vertical" || layout === "org") {
-    const compact = layout === "org";
+  if (layout === "vertical") {
     return (
-      <div className="relative h-14 w-full">
-        <span className="absolute left-1/2 top-0 h-4 w-10 -translate-x-1/2 rounded border border-foreground/40 bg-secondary" />
-        <span className={compact ? "absolute left-1/2 top-4 h-3 w-px bg-foreground/25" : "absolute left-1/2 top-4 h-5 w-px bg-foreground/25"} />
-        <span className={compact ? "absolute left-4 top-8 h-4 w-8 rounded border border-border bg-secondary" : "absolute left-2 top-10 h-4 w-8 rounded border border-border bg-secondary"} />
-        <span className={compact ? "absolute left-1/2 top-8 h-4 w-8 -translate-x-1/2 rounded border border-border bg-secondary" : "absolute left-1/2 top-10 h-4 w-8 -translate-x-1/2 rounded border border-border bg-secondary"} />
-        <span className={compact ? "absolute right-4 top-8 h-4 w-8 rounded border border-border bg-secondary" : "absolute right-2 top-10 h-4 w-8 rounded border border-border bg-secondary"} />
-      </div>
+      <svg viewBox="0 0 180 86" className="h-20 w-full" aria-hidden="true">
+        <path d="M90 25 V39 M90 39 H43 V50 M90 39 H90 V50 M90 39 H137 V50" fill="none" stroke={branch} strokeWidth="2" opacity=".55" />
+        <path d="M43 68 V78 M90 68 V78 M137 68 V78" fill="none" stroke={branch} strokeWidth="2" opacity=".3" />
+        <rect x="69" y="4" width="42" height="22" rx="6" fill={rootFill} stroke={rootStroke} strokeWidth="1.5" />
+        <rect x="26" y="50" width="34" height="18" rx="5" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="73" y="50" width="34" height="18" rx="5" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="120" y="50" width="34" height="18" rx="5" fill={nodeFill} stroke={nodeStroke} />
+      </svg>
+    );
+  }
+
+  if (layout === "org") {
+    return (
+      <svg viewBox="0 0 180 86" className="h-20 w-full" aria-hidden="true">
+        <path d="M90 24 V35 M42 35 H138 M42 35 V44 M90 35 V44 M138 35 V44" fill="none" stroke={branch} strokeWidth="2" opacity=".55" />
+        <path d="M90 62 V69 M65 69 H115 M65 69 V76 M115 69 V76" fill="none" stroke={branch} strokeWidth="2" opacity=".3" />
+        <rect x="68" y="3" width="44" height="22" rx="5" fill={rootFill} stroke={rootStroke} strokeWidth="1.5" />
+        <rect x="25" y="44" width="34" height="18" rx="4" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="73" y="44" width="34" height="18" rx="4" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="121" y="44" width="34" height="18" rx="4" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="50" y="76" width="30" height="8" rx="3" fill={nodeFill} stroke={nodeStroke} />
+        <rect x="100" y="76" width="30" height="8" rx="3" fill={nodeFill} stroke={nodeStroke} />
+      </svg>
     );
   }
 
   return (
-    <div className="relative h-14 w-full">
-      <span className="absolute left-1/2 top-4 h-6 w-10 -translate-x-1/2 rounded border border-foreground/40 bg-secondary" />
-      <span className="absolute left-1 top-1 h-4 w-8 rounded border border-border bg-secondary" />
-      <span className="absolute left-1 top-9 h-4 w-8 rounded border border-border bg-secondary" />
-      <span className="absolute right-1 top-1 h-4 w-8 rounded border border-border bg-secondary" />
-      <span className="absolute right-1 top-9 h-4 w-8 rounded border border-border bg-secondary" />
-    </div>
+    <svg viewBox="0 0 180 86" className="h-20 w-full" aria-hidden="true">
+      <path d="M70 43 C56 43 54 18 38 18 M70 43 C56 43 54 68 38 68 M110 43 C124 43 126 18 142 18 M110 43 C124 43 126 68 142 68" fill="none" stroke={branch} strokeWidth="2" opacity=".55" />
+      <rect x="68" y="29" width="44" height="28" rx="7" fill={rootFill} stroke={rootStroke} strokeWidth="1.5" />
+      <rect x="12" y="8" width="32" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+      <rect x="12" y="58" width="32" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+      <rect x="136" y="8" width="32" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+      <rect x="136" y="58" width="32" height="20" rx="5" fill={nodeFill} stroke={nodeStroke} />
+    </svg>
   );
 }
 
