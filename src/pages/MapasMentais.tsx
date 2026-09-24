@@ -4,8 +4,17 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { BrandIcon } from "@/features/mindmap/BrandIcons";
-import { MindMapCanvas } from "@/features/mindmap/MindMapCanvas";
-import { countTopics, createMindMapData, type MindMapData } from "@/features/mindmap/types";
+import {
+  getMindMapLayoutLabel,
+  MIND_MAP_LAYOUTS,
+  MindMapCanvas,
+} from "@/features/mindmap/MindMapCanvas";
+import {
+  countTopics,
+  createMindMapData,
+  type MindMapData,
+  type MindMapLayout,
+} from "@/features/mindmap/types";
 
 interface MindMapRow {
   id: string;
@@ -19,7 +28,11 @@ interface MindMapRow {
 const MapasMentais = () => {
   const { data: maps, loading, create, update, remove } = useSupabaseCrud<MindMapRow>("mind_maps", "updated_at");
   const [showDialog, setShowDialog] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "" });
+  const [form, setForm] = useState<{ title: string; description: string; layout: MindMapLayout }>({
+    title: "",
+    description: "",
+    layout: "radial",
+  });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [openMap, setOpenMap] = useState<MindMapRow | null>(null);
   const [draft, setDraft] = useState<MindMapData | null>(null);
@@ -41,7 +54,7 @@ const MapasMentais = () => {
   );
 
   const openCreate = () => {
-    setForm({ title: "", description: "" });
+    setForm({ title: "", description: "", layout: "radial" });
     setShowDialog(true);
   };
 
@@ -50,7 +63,7 @@ const MapasMentais = () => {
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
-      data: createMindMapData(form.title.trim(), form.description.trim()),
+      data: createMindMapData(form.title.trim(), form.description.trim(), form.layout),
     };
     const created = await create(payload);
     if (!created) return;
@@ -192,9 +205,14 @@ const MapasMentais = () => {
                         <Network className="h-4 w-4" />
                       )}
                     </div>
-                    <span className="rounded-full border border-border bg-secondary/55 px-2 py-1 text-[9px] text-muted-foreground">
-                      {blocks} {blocks === 1 ? "bloco" : "blocos"}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="rounded-full border border-border bg-secondary/55 px-2 py-1 text-[9px] text-muted-foreground">
+                        {blocks} {blocks === 1 ? "bloco" : "blocos"}
+                      </span>
+                      <span className="rounded-full bg-secondary/40 px-2 py-0.5 text-[8px] text-muted-foreground">
+                        {getMindMapLayoutLabel(map.data?.layout)}
+                      </span>
+                    </div>
                   </div>
 
                   <h3 className="truncate text-sm font-semibold text-foreground">{map.title}</h3>
@@ -251,6 +269,36 @@ const MapasMentais = () => {
                 className="h-20 w-full resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30"
               />
             </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">Tipo de mapa</label>
+              <div className="grid grid-cols-2 gap-2">
+                {MIND_MAP_LAYOUTS.map((option) => {
+                  const active = form.layout === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, layout: option.id }))}
+                      className={
+                        active
+                          ? "rounded-lg border border-foreground/40 bg-accent p-3 text-left"
+                          : "rounded-lg border border-border bg-secondary/30 p-3 text-left transition-colors hover:bg-accent/60"
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">{option.label}</span>
+                        {active && <span className="h-2 w-2 rounded-full bg-foreground" />}
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[9px] leading-relaxed text-muted-foreground">
+                        {option.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={() => void handleCreate()}

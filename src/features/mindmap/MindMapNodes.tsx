@@ -83,6 +83,7 @@ const MindRootNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) =>
       <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <Handle type="source" position={Position.Left} id="left" className="!pointer-events-none !opacity-0" />
       <Handle type="source" position={Position.Right} id="right" className="!pointer-events-none !opacity-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!pointer-events-none !opacity-0" />
 
       <div className="flex flex-col items-center">
         <NodeIcon data={data} large />
@@ -131,8 +132,10 @@ const MindBranchNode = memo(({ data, selected }: NodeProps<Node<MindNodeData>>) 
       <div className={cn("absolute bottom-3 left-0 top-3 w-0.5 rounded-r-full", color.line)} />
       <Handle id="in-left" type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <Handle id="in-right" type="target" position={Position.Right} className="!pointer-events-none !opacity-0" />
+      <Handle id="in-top" type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <Handle id="left" type="source" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <Handle id="right" type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
+      <Handle id="bottom" type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
 
       <div className="flex items-start gap-3">
         <NodeIcon data={data} />

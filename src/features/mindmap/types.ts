@@ -9,6 +9,8 @@ export type MindTopicColor =
   | "orange"
   | "red";
 
+export type MindMapLayout = "radial" | "right" | "vertical" | "org";
+
 export type MindTopic = {
   id: string;
   title: string;
@@ -23,6 +25,7 @@ export type MindTopic = {
 
 export type MindMapData = {
   root: MindTopic;
+  layout?: MindMapLayout;
 };
 
 export function createTopic(title = "Novo bloco", description = ""): MindTopic {
@@ -39,8 +42,13 @@ export function createTopic(title = "Novo bloco", description = ""): MindTopic {
   };
 }
 
-export function createMindMapData(title: string, description = ""): MindMapData {
+export function createMindMapData(
+  title: string,
+  description = "",
+  layout: MindMapLayout = "radial",
+): MindMapData {
   return {
+    layout,
     root: {
       id: crypto.randomUUID(),
       title,
