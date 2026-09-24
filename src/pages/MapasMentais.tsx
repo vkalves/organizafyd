@@ -6,6 +6,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { BrandIcon } from "@/features/mindmap/BrandIcons";
 import {
   getMindMapLayoutLabel,
+  LayoutPreview,
   MIND_MAP_LAYOUTS,
   MindMapCanvas,
 } from "@/features/mindmap/MindMapCanvas";
@@ -243,7 +244,7 @@ const MapasMentais = () => {
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="border-border bg-card">
+        <DialogContent className="max-h-[92dvh] overflow-y-auto border-border bg-card sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Novo mapa mental</DialogTitle>
           </DialogHeader>
@@ -271,8 +272,14 @@ const MapasMentais = () => {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-medium text-muted-foreground">Tipo de mapa</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="mb-3">
+                <label className="block text-sm font-semibold text-foreground">Escolha a estrutura</label>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Veja o desenho e escolha a opção que mais combina com o que você quer organizar.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {MIND_MAP_LAYOUTS.map((option) => {
                   const active = form.layout === option.id;
                   return (
@@ -282,15 +289,32 @@ const MapasMentais = () => {
                       onClick={() => setForm((prev) => ({ ...prev, layout: option.id }))}
                       className={
                         active
-                          ? "rounded-lg border border-foreground/40 bg-accent p-3 text-left"
-                          : "rounded-lg border border-border bg-secondary/30 p-3 text-left transition-colors hover:bg-accent/60"
+                          ? "relative overflow-hidden rounded-xl border-2 border-foreground bg-accent/70 p-3 text-left shadow-sm"
+                          : "relative overflow-hidden rounded-xl border border-border bg-secondary/20 p-3 text-left transition-all hover:border-foreground/25 hover:bg-accent/40"
                       }
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground">{option.label}</span>
-                        {active && <span className="h-2 w-2 rounded-full bg-foreground" />}
+                      <div className="rounded-lg border border-border/70 bg-background/55 px-2 py-1">
+                        <LayoutPreview layout={option.id} />
                       </div>
-                      <p className="mt-1 line-clamp-2 text-[9px] leading-relaxed text-muted-foreground">
+
+                      <div className="mt-3 flex items-start justify-between gap-3">
+                        <div>
+                          <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                          <p className="mt-0.5 text-[10px] font-medium text-foreground/70">{option.useCase}</p>
+                        </div>
+
+                        <span
+                          className={
+                            active
+                              ? "rounded-full bg-foreground px-2 py-1 text-[9px] font-semibold text-background"
+                              : "rounded-full border border-border px-2 py-1 text-[9px] text-muted-foreground"
+                          }
+                        >
+                          {active ? "Selecionado" : "Escolher"}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
                         {option.description}
                       </p>
                     </button>
