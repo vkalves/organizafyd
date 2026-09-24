@@ -136,7 +136,7 @@ const Dashboard = () => {
         <div className="flex min-w-0 flex-col">
           <h1 className="text-[1.35rem] font-semibold tracking-tight text-foreground sm:text-2xl">
             {greeting},{" "}
-            <span className="text-info">{displayName}</span>
+            <span className="text-foreground">{displayName}</span>
           </h1>
           <p className="mt-2 text-[9px] font-medium uppercase tracking-[0.28em] text-muted-foreground sm:text-[10px]">
             {formattedDate}
