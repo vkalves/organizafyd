@@ -334,13 +334,16 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
     };
 
     applyData(next);
-    void onSave(next)
+    void Promise.resolve(onSave(next))
       .then(() => {
         setDirty(false);
         toast.success("Blocos reorganizados");
+        requestAnimationFrame(() => {
+          void fitView({ padding: 0.2, duration: 300, maxZoom: 1.05 });
+        });
       })
       .catch(() => toast.error("Não foi possível reorganizar o mapa"));
-  }, [applyData, data.root, onSave]);
+  }, [applyData, data.root, fitView, onSave]);
 
   const toggleFullscreen = () => {
     setIsFullscreen((current) => !current);
