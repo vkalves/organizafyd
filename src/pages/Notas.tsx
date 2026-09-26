@@ -490,7 +490,7 @@ const Notas = () => {
           !focusMode && "lg:p-0",
           focusMode && "lg:px-0 lg:pb-0",
         )}>
-          <div className="flex shrink-0 gap-1 rounded-lg border border-border bg-secondary p-1" role="group" aria-label="Modo da nota">
+          <div className="inline-flex w-fit shrink-0 items-center gap-1" role="group" aria-label="Modo da nota">
             <button
               type="button"
               aria-pressed={readOnly}
@@ -504,18 +504,18 @@ const Notas = () => {
                   setSwitchingMode(false);
                 }
               }}
-              className={cn("flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm disabled:opacity-50", readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
+              className={cn("flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-muted-foreground/50 disabled:opacity-50", readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
             >
-              <Eye className="h-4 w-4" /> {switchingMode ? "Salvando..." : "Visualizar"}
+              <Eye className="h-3.5 w-3.5" /> {switchingMode ? "Salvando..." : "Visualizar"}
             </button>
             <button
               type="button"
               aria-pressed={!readOnly}
               disabled={switchingMode || closing}
               onClick={() => setReadOnly(false)}
-              className={cn("flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm disabled:opacity-50", !readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
+              className={cn("flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-muted-foreground/50 disabled:opacity-50", !readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
             >
-              <Pencil className="h-4 w-4" /> Editar
+              <Pencil className="h-3.5 w-3.5" /> Editar
             </button>
           </div>
           <div className="shrink-0">
