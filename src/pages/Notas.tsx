@@ -376,7 +376,7 @@ const Notas = () => {
         className={cn(
           "flex min-h-0 flex-col bg-background",
           focusMode
-            ? "fixed inset-0 z-[60] h-[100dvh] w-screen p-2 sm:p-5 lg:p-8"
+            ? "fixed inset-0 z-[60] h-[100dvh] w-screen overflow-hidden bg-background"
             : "h-full lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4",
         )}
       >
@@ -487,8 +487,38 @@ const Notas = () => {
 
         <div className={cn(
           "flex min-h-0 flex-1 flex-col",
-          focusMode ? "relative mx-auto w-full max-w-5xl p-0" : "safe-bottom-padding gap-3 px-3 pt-3 sm:px-4 lg:p-0",
+          focusMode ? "w-full p-0" : "safe-bottom-padding gap-3 px-3 pt-3 sm:px-4 lg:p-0",
         )}>
+          {focusMode && (
+            <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/95 px-3 sm:px-5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {editTitle.trim() || "Sem título"}
+                </p>
+                <p
+                  className={cn(
+                    "mt-0.5 text-[10px]",
+                    saveState === "error" ? "text-destructive" : "text-muted-foreground",
+                    saveState === "saving" && "animate-pulse",
+                  )}
+                  aria-live="polite"
+                >
+                  {readOnly ? "Somente leitura" : saveLabel}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFocusMode(false)}
+                title="Minimizar · Esc"
+                aria-label="Minimizar nota"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           <div className={cn("shrink-0 flex-col gap-3", focusMode ? "hidden" : "flex")}>
           <div className="inline-flex w-fit shrink-0 items-center gap-1" role="group" aria-label="Modo da nota">
             <button
@@ -584,19 +614,11 @@ const Notas = () => {
             readOnly={readOnly || switchingMode}
             content={editContent}
             onChange={handleContentChange}
-            className={cn("min-h-0 flex-1", focusMode && "shadow-xl [&_[role=toolbar]]:pr-12", focusMode && readOnly && "[&_.tiptap]:pt-14")}
+            className={cn(
+              "min-h-0 flex-1",
+              focusMode && "rounded-none border-0 shadow-none [&_.tiptap]:mx-auto [&_.tiptap]:w-full [&_.tiptap]:max-w-5xl [&_.tiptap]:px-5 sm:[&_.tiptap]:px-8",
+            )}
           />
-        {focusMode && (
-          <button
-            type="button"
-            onClick={() => setFocusMode(false)}
-            title="Minimizar · Esc"
-            aria-label="Minimizar nota"
-            className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <Minimize2 className="h-4 w-4" />
-          </button>
-        )}
         </div>
 
         {folderDialogs}
