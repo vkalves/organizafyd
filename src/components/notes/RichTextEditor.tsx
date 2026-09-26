@@ -88,7 +88,17 @@ export function RichTextEditor({
         underline: false,
       }),
       Underline,
-      LinkExt.configure({
+      LinkExt.extend({
+        renderHTML(props) {
+          // Keep the built-in URL validation and the full editable text.
+          const rendered = this.parent?.(props) as [string, Record<string, string>, number];
+          return [
+            rendered[0],
+            { ...rendered[1], title: rendered[1].href || "Link" },
+            ["span", { class: "note-link-label" }, 0],
+          ];
+        },
+      }).configure({
         openOnClick: true,
         autolink: true,
         linkOnPaste: true,
