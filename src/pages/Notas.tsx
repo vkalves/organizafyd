@@ -376,7 +376,7 @@ const Notas = () => {
         className={cn(
           "flex min-h-0 flex-col bg-background",
           focusMode
-            ? "fixed inset-0 z-[60] h-[100dvh] w-screen"
+            ? "fixed inset-0 z-[60] h-[100dvh] w-screen p-2 sm:p-5 lg:p-8"
             : "h-full lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4",
         )}
       >
@@ -487,7 +487,7 @@ const Notas = () => {
 
         <div className={cn(
           "flex min-h-0 flex-1 flex-col",
-          focusMode ? "p-0" : "safe-bottom-padding gap-3 px-3 pt-3 sm:px-4 lg:p-0",
+          focusMode ? "relative mx-auto w-full max-w-5xl p-0" : "safe-bottom-padding gap-3 px-3 pt-3 sm:px-4 lg:p-0",
         )}>
           <div className={cn("shrink-0 flex-col gap-3", focusMode ? "hidden" : "flex")}>
           <div className="inline-flex w-fit shrink-0 items-center gap-1" role="group" aria-label="Modo da nota">
@@ -584,21 +584,21 @@ const Notas = () => {
             readOnly={readOnly || switchingMode}
             content={editContent}
             onChange={handleContentChange}
-            className={cn("min-h-0 flex-1", focusMode && "rounded-none border-0")}
+            className={cn("min-h-0 flex-1", focusMode && "shadow-xl [&_[role=toolbar]]:pr-12", focusMode && readOnly && "[&_.tiptap]:pt-14")}
           />
-        </div>
-
         {focusMode && (
           <button
             type="button"
             onClick={() => setFocusMode(false)}
             title="Minimizar · Esc"
             aria-label="Minimizar nota"
-            className="fixed bottom-12 right-4 z-[61] flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <Minimize2 className="h-4 w-4" />
           </button>
         )}
+        </div>
+
         {folderDialogs}
         {noteDeleteDialog}
       </div>
