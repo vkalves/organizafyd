@@ -1,4 +1,4 @@
-import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore, Maximize2, Minimize2 } from "lucide-react";
+import { StickyNote, Plus, FolderOpen, Search, Trash2, Star, Pin, Save, ArrowLeft, Archive, ArchiveRestore, Maximize2, Minimize2, Eye, Pencil } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -36,6 +36,8 @@ const Notas = () => {
   const [search, setSearch] = useState("");
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [readOnly, setReadOnly] = useState(true);
+  const [switchingMode, setSwitchingMode] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editFolderId, setEditFolderId] = useState("");
@@ -70,7 +72,8 @@ const Notas = () => {
     return 0;
   });
 
-  const openEditor = (n: Note) => {
+  const openEditor = (n: Note, editable = false) => {
+    setReadOnly(!editable);
     setEditNote(n);
     setEditTitle(n.title);
     setEditContent(n.content || "");
@@ -87,7 +90,7 @@ const Notas = () => {
       setShowArchived(false);
       setShowTitleDialog(false);
       setNewTitle("");
-      openEditor(note);
+      openEditor(note, true);
     }
   };
 
@@ -167,8 +170,10 @@ const Notas = () => {
     if (closing) return;
     setClosing(true);
     try {
-      const saved = await persistCurrentNote(false);
-      if (!saved) return;
+      if (!readOnly || saveState !== "saved") {
+        const saved = await persistCurrentNote(false);
+        if (!saved) return;
+      }
       setFocusMode(false);
       setIsEditing(false);
       setEditNote(null);
@@ -201,7 +206,7 @@ const Notas = () => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void persistCurrentNote(false);
+        if (!readOnly) void persistCurrentNote(false);
       }
 
       if (event.key === "Escape" && focusMode) {
@@ -211,7 +216,7 @@ const Notas = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [focusMode, isEditing, persistCurrentNote]);
+  }, [focusMode, isEditing, persistCurrentNote, readOnly]);
 
   const togglePin = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_pinned: !n.is_pinned }); };
   const toggleFav = async (n: Note, e: React.MouseEvent) => { e.stopPropagation(); await update(n.id, { is_favorite: !n.is_favorite }); };
@@ -404,6 +409,7 @@ const Notas = () => {
 
             <button
               type="button"
+              disabled={readOnly}
               onClick={() => void toggleCurrentPin()}
               title={editNote.is_pinned ? "Desafixar nota" : "Fixar nota"}
               aria-label={editNote.is_pinned ? "Desafixar nota" : "Fixar nota"}
@@ -417,6 +423,7 @@ const Notas = () => {
 
             <button
               type="button"
+              disabled={readOnly}
               onClick={() => void toggleCurrentFavorite()}
               title={editNote.is_favorite ? "Remover dos favoritos" : "Favoritar nota"}
               aria-label={editNote.is_favorite ? "Remover dos favoritos" : "Favoritar nota"}
@@ -440,7 +447,7 @@ const Notas = () => {
 
             <button
               type="button"
-              disabled={saving || closing}
+              disabled={readOnly || saving || closing}
               onClick={() => void handleToggleArchive()}
               title={editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar nota" : "Arquivar nota"}
               aria-label={editNote.tags?.includes(ARCHIVED_TAG) ? "Desarquivar nota" : "Arquivar nota"}
@@ -453,7 +460,7 @@ const Notas = () => {
 
             <button
               type="button"
-              disabled={saving || closing}
+              disabled={readOnly || saving || closing}
               onClick={() => {
                 setFocusMode(false);
                 setDeleteConfirm(editNote.id);
@@ -467,7 +474,7 @@ const Notas = () => {
 
             <button
               type="button"
-              disabled={saving || closing || !editTitle.trim()}
+              disabled={readOnly || saving || closing || !editTitle.trim()}
               onClick={() => void handleSave()}
               title="Salvar · Ctrl+S"
               className="ml-1 flex h-9 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
@@ -483,8 +490,37 @@ const Notas = () => {
           !focusMode && "lg:p-0",
           focusMode && "lg:px-0 lg:pb-0",
         )}>
+          <div className="flex shrink-0 gap-1 rounded-lg border border-border bg-secondary p-1" role="group" aria-label="Modo da nota">
+            <button
+              type="button"
+              aria-pressed={readOnly}
+              disabled={switchingMode || closing}
+              onClick={async () => {
+                if (readOnly) return;
+                setSwitchingMode(true);
+                try {
+                  if (await persistCurrentNote(false)) setReadOnly(true);
+                } finally {
+                  setSwitchingMode(false);
+                }
+              }}
+              className={cn("flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm disabled:opacity-50", readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
+            >
+              <Eye className="h-4 w-4" /> {switchingMode ? "Salvando..." : "Visualizar"}
+            </button>
+            <button
+              type="button"
+              aria-pressed={!readOnly}
+              disabled={switchingMode || closing}
+              onClick={() => setReadOnly(false)}
+              className={cn("flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm disabled:opacity-50", !readOnly ? "bg-accent text-foreground" : "text-muted-foreground")}
+            >
+              <Pencil className="h-4 w-4" /> Editar
+            </button>
+          </div>
           <div className="shrink-0">
             <input
+              readOnly={readOnly || switchingMode}
               type="text"
               value={editTitle}
               onChange={(event) => {
@@ -497,11 +533,11 @@ const Notas = () => {
               aria-label="Título da nota"
             />
             <p className="mt-1 text-[10px] text-muted-foreground/65">
-              {saveLabel} · Ctrl+S salva imediatamente
+              {readOnly ? "Somente leitura · clique em Editar para alterar" : `${saveLabel} · Ctrl+S salva imediatamente`}
             </p>
           </div>
 
-          <div className="scrollbar-none flex min-w-0 shrink-0 items-center gap-2 overflow-x-auto">
+          {!readOnly && <div className="scrollbar-none flex min-w-0 shrink-0 items-center gap-2 overflow-x-auto">
             <select
               aria-label="Pasta da nota"
               value={editFolderId}
@@ -540,9 +576,10 @@ const Notas = () => {
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
-          </div>
+          </div>}
 
           <RichTextEditor
+            readOnly={readOnly || switchingMode}
             content={editContent}
             onChange={handleContentChange}
             className="min-h-0 flex-1"

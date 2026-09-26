@@ -331,7 +331,7 @@
 }
 
 /* Editable text must stay in the normal inline flow with a visible caret. */
-.tiptap:focus a.note-link-mention {
+.tiptap[contenteditable="true"]:focus a.note-link-mention {
   display: inline;
   max-width: none;
   vertical-align: baseline;
@@ -341,12 +341,12 @@
   cursor: text;
 }
 
-.tiptap:focus .note-link-label {
+.tiptap[contenteditable="true"]:focus .note-link-label {
   overflow: visible;
   white-space: normal;
 }
 
-.tiptap:focus a.note-link-mention::before {
+.tiptap[contenteditable="true"]:focus a.note-link-mention::before {
   margin-right: 5px;
 }
 

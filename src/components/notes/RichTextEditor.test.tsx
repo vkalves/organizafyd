@@ -78,6 +78,28 @@ describe("note link mentions", () => {
     expect(editor.getText()).not.toContain("Nova linha");
   });
 
+  it("switches between read-only and editing without changing the note", () => {
+    const content = '<p>Nota <a href="https://example.com">site</a></p>';
+    const onChange = vi.fn();
+    const result = render(<RichTextEditor content={content} onChange={onChange} readOnly />);
+    const dom = result.container.querySelector(".tiptap") as HTMLElement & { editor: Editor };
+    expect(dom).toHaveAttribute("contenteditable", "false");
+    expect(result.queryByRole("toolbar")).toBeNull();
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const event = new MouseEvent("click", { button: 0 });
+    Object.defineProperty(event, "target", { value: dom.querySelector("a span") });
+    dom.editor.view.someProp("handleClick", handler => handler(dom.editor.view, 7, event));
+    expect(open).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
+    result.rerender(<RichTextEditor content={content} onChange={onChange} readOnly={false} />);
+    expect(dom).toHaveAttribute("contenteditable", "true");
+    expect(result.getByRole("toolbar")).toBeInTheDocument();
+    result.rerender(<RichTextEditor content={content} onChange={onChange} readOnly />);
+    expect(dom).toHaveAttribute("contenteditable", "false");
+    expect(dom).toHaveTextContent("Nota site");
+    expect(onChange).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
   it("recognizes www addresses but leaves code and unsafe URLs alone", () => {
     const { dom, editor } = setup();
     act(() => { editor.view.pasteText("www.example.com"); });

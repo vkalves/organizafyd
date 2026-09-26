@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 interface RichTextEditorProps {
   content: string;
+  readOnly?: boolean;
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
@@ -78,11 +79,13 @@ export function RichTextEditor({
   onChange,
   placeholder = "Escreva sua nota...",
   className,
+  readOnly = false,
 }: RichTextEditorProps) {
   const [plainText, setPlainText] = useState("");
 
   const editor = useEditor({
     shouldRerenderOnTransaction: true,
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -121,11 +124,11 @@ export function RichTextEditor({
     onCreate: ({ editor }) => setPlainText(editor.getText()),
     onUpdate: ({ editor }) => {
       setPlainText(editor.getText());
-      onChange(editor.getHTML());
+      if (editor.isEditable) onChange(editor.getHTML());
     },
     editorProps: {
       handleClick: (_view, _pos, event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.button !== 0) return false;
+        if ((!readOnly && !(event.ctrlKey || event.metaKey)) || event.button !== 0) return false;
         const target = event.target;
         const link = target instanceof Element ? target.closest("a.note-link-mention") : null;
         const href = link?.getAttribute("href");
@@ -140,6 +143,10 @@ export function RichTextEditor({
       },
     },
   });
+
+  useEffect(() => {
+    editor?.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
@@ -195,7 +202,7 @@ export function RichTextEditor({
         className,
       )}
     >
-      <div
+      {!readOnly && <div
         className="scrollbar-none flex shrink-0 flex-nowrap items-center gap-0.5 overflow-x-auto overscroll-x-contain border-b border-border bg-secondary/85 p-1.5"
         role="toolbar"
         aria-label="Ferramentas de formatação"
@@ -348,7 +355,7 @@ export function RichTextEditor({
         >
           <Redo className="h-4 w-4" />
         </EditorToolButton>
-      </div>
+      </div>}
 
       <EditorContent
         editor={editor}
@@ -358,7 +365,7 @@ export function RichTextEditor({
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-secondary/70 px-3 py-2 text-[10px] text-muted-foreground sm:px-4">
         <span>{stats.words} {stats.words === 1 ? "palavra" : "palavras"} · {stats.characters} caracteres</span>
-        <span className="hidden sm:inline">Ctrl+S para salvar</span>
+        <span className="hidden sm:inline">{readOnly ? "Somente leitura" : "Ctrl+S para salvar"}</span>
       </div>
     </div>
   );
