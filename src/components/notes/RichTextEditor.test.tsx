@@ -37,7 +37,7 @@ describe("note link mentions", () => {
     expect(editor.getText()).toBe("https://example.com/path?q=1&next=2");
   });
 
-  it("styles existing named links and opens them in another tab", () => {
+  it("allows ordinary clicks to edit and modifier clicks to open links", () => {
     const { dom, editor } = setup('<p><a href="https://example.com">Meu site</a></p>');
     const link = dom.querySelector("a.note-link-mention")!;
     expect(link).toHaveTextContent("Meu site");
@@ -47,8 +47,35 @@ describe("note link mentions", () => {
     const event = new MouseEvent("click", { button: 0 });
     Object.defineProperty(event, "target", { value: link });
     editor.view.someProp("handleClick", handler => handler(editor.view, 2, event));
-    expect(open).toHaveBeenCalledWith("https://example.com/", "_blank");
+    expect(open).not.toHaveBeenCalled();
+    const modifierClick = new MouseEvent("click", { button: 0, ctrlKey: true });
+    Object.defineProperty(modifierClick, "target", { value: link.querySelector("span") });
+    editor.view.someProp("handleClick", handler => handler(editor.view, 2, modifierClick));
+    expect(open).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
     open.mockRestore();
+  });
+
+  it("keeps text after a pasted link outside the link and supports editing and undo", () => {
+    const { editor, dom } = setup();
+    act(() => { editor.view.pasteText("https://example.com"); });
+    act(() => { editor.view.dispatch(editor.state.tr.insertText(" texto depois")); });
+    expect(dom.querySelector("a")).toHaveTextContent(/^https:\/\/example\.com$/);
+    expect(editor.getText()).toBe("https://example.com texto depois");
+    act(() => {
+      editor.commands.setTextSelection(1);
+      editor.view.dispatch(editor.state.tr.insertText("Antes "));
+    });
+    expect(editor.getText()).toBe("Antes https://example.com texto depois");
+    expect(dom.querySelector("a")).not.toHaveTextContent("Antes");
+    act(() => {
+      editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+      editor.commands.splitBlock();
+      editor.view.dispatch(editor.state.tr.insertText("Nova linha"));
+    });
+    expect(dom.querySelectorAll("p")).toHaveLength(2);
+    expect(dom.querySelectorAll("p")[1]).toHaveTextContent("Nova linha");
+    act(() => { editor.commands.undo(); });
+    expect(editor.getText()).not.toContain("Nova linha");
   });
 
   it("recognizes www addresses but leaves code and unsafe URLs alone", () => {

@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Code,
   Eraser,
+  ExternalLink,
   Heading1,
   Heading2,
   Heading3,
@@ -81,6 +82,7 @@ export function RichTextEditor({
   const [plainText, setPlainText] = useState("");
 
   const editor = useEditor({
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -89,17 +91,18 @@ export function RichTextEditor({
       }),
       Underline,
       LinkExt.extend({
+        inclusive: false,
         renderHTML(props) {
           // Keep the built-in URL validation and the full editable text.
           const rendered = this.parent?.(props) as [string, Record<string, string>, number];
           return [
             rendered[0],
-            { ...rendered[1], title: rendered[1].href || "Link" },
+            { ...rendered[1], title: rendered[1].href ? `${rendered[1].href} · Ctrl/Cmd + clique para abrir` : "Link" },
             ["span", { class: "note-link-label" }, 0],
           ];
         },
       }).configure({
-        openOnClick: true,
+        openOnClick: false,
         autolink: true,
         linkOnPaste: true,
         defaultProtocol: "https",
@@ -121,6 +124,16 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
     editorProps: {
+      handleClick: (_view, _pos, event) => {
+        if (!(event.ctrlKey || event.metaKey) || event.button !== 0) return false;
+        const target = event.target;
+        const link = target instanceof Element ? target.closest("a.note-link-mention") : null;
+        const href = link?.getAttribute("href");
+        if (!href || !/^(https?:|mailto:|tel:)/i.test(href)) return false;
+        event.preventDefault();
+        window.open(href, "_blank", "noopener,noreferrer");
+        return true;
+      },
       attributes: {
         class:
           "prose prose-invert prose-sm min-h-full max-w-none [overflow-wrap:anywhere] px-4 py-5 text-foreground focus:outline-none sm:px-6 sm:py-6",
@@ -299,6 +312,18 @@ export function RichTextEditor({
           title={editor.isActive("link") ? "Editar/remover link" : "Adicionar link"}
         >
           <Link2 className="h-4 w-4" />
+        </EditorToolButton>
+        <EditorToolButton
+          disabled={!editor.isActive("link")}
+          onClick={() => {
+            const href = editor.getAttributes("link").href;
+            if (typeof href === "string" && /^(https?:|mailto:|tel:)/i.test(href)) {
+              window.open(href, "_blank", "noopener,noreferrer");
+            }
+          }}
+          title="Abrir link selecionado em outra aba"
+        >
+          <ExternalLink className="h-4 w-4" />
         </EditorToolButton>
         <EditorToolButton
           onClick={clearFormatting}

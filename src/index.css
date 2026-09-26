@@ -330,6 +330,26 @@
   white-space: nowrap;
 }
 
+/* Editable text must stay in the normal inline flow with a visible caret. */
+.tiptap:focus a.note-link-mention {
+  display: inline;
+  max-width: none;
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  cursor: text;
+}
+
+.tiptap:focus .note-link-label {
+  overflow: visible;
+  white-space: normal;
+}
+
+.tiptap:focus a.note-link-mention::before {
+  margin-right: 5px;
+}
+
 .tiptap a.note-link-mention::before {
   content: "";
   display: inline-block;
