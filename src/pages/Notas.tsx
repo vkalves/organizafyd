@@ -376,13 +376,13 @@ const Notas = () => {
         className={cn(
           "flex min-h-0 flex-col bg-background",
           focusMode
-            ? "fixed inset-0 z-[60] h-[100dvh] w-screen lg:px-[10vw] lg:py-4"
+            ? "fixed inset-0 z-[60] h-[100dvh] w-screen"
             : "h-full lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4",
         )}
       >
         <div className={cn(
           "flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2",
-          !focusMode && "lg:border-0 lg:px-0 lg:py-0",
+          focusMode ? "hidden" : "lg:border-0 lg:px-0 lg:py-0",
         )}>
           <button
             type="button"
@@ -486,10 +486,10 @@ const Notas = () => {
         </div>
 
         <div className={cn(
-          "safe-bottom-padding flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 sm:px-4",
-          !focusMode && "lg:p-0",
-          focusMode && "lg:px-0 lg:pb-0",
+          "flex min-h-0 flex-1 flex-col",
+          focusMode ? "p-0" : "safe-bottom-padding gap-3 px-3 pt-3 sm:px-4 lg:p-0",
         )}>
+          <div className={cn("shrink-0 flex-col gap-3", focusMode ? "hidden" : "flex")}>
           <div className="inline-flex w-fit shrink-0 items-center gap-1" role="group" aria-label="Modo da nota">
             <button
               type="button"
@@ -578,14 +578,27 @@ const Notas = () => {
             )}
           </div>}
 
+          </div>
+
           <RichTextEditor
             readOnly={readOnly || switchingMode}
             content={editContent}
             onChange={handleContentChange}
-            className="min-h-0 flex-1"
+            className={cn("min-h-0 flex-1", focusMode && "rounded-none border-0")}
           />
         </div>
 
+        {focusMode && (
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            title="Minimizar · Esc"
+            aria-label="Minimizar nota"
+            className="fixed bottom-12 right-4 z-[61] flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </button>
+        )}
         {folderDialogs}
         {noteDeleteDialog}
       </div>
