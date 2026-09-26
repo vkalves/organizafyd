@@ -84,14 +84,28 @@ export function RichTextEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        link: false,
+        underline: false,
       }),
       Underline,
-      LinkExt.configure({
-        openOnClick: false,
+      LinkExt.extend({
+        renderHTML(props) {
+          // Keep the built-in URL validation and the full editable text.
+          const rendered = this.parent?.(props) as [string, Record<string, string>, number];
+          return [
+            rendered[0],
+            { ...rendered[1], title: rendered[1].href || "Link" },
+            ["span", { class: "note-link-label" }, 0],
+          ];
+        },
+      }).configure({
+        openOnClick: true,
         autolink: true,
         linkOnPaste: true,
         defaultProtocol: "https",
         HTMLAttributes: {
+          class: "note-link-mention",
+          title: "Abrir link em outra aba",
           rel: "noopener noreferrer",
           target: "_blank",
         },
