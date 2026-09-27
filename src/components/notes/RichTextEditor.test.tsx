@@ -100,8 +100,21 @@ describe("note link mentions", () => {
 
     expect(checkbox.checked).toBe(true);
     expect(onChecklistChange).toHaveBeenCalled();
-    expect(onChecklistChange.mock.lastCall?.[0]).toContain('data-checked="true"');
+    const saved = onChecklistChange.mock.lastCall?.[0] as string;
+    expect(saved).toContain('data-checked="true"');
     expect(onChange).not.toHaveBeenCalled();
+
+    result.rerender(
+      <RichTextEditor
+        readOnly
+        content={saved}
+        onChange={onChange}
+        onChecklistChange={onChecklistChange}
+      />,
+    );
+
+    const reopenedCheckbox = result.container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(reopenedCheckbox.checked).toBe(true);
   });
 
   it("switches between read-only and editing without changing the note", () => {
