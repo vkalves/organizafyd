@@ -5,6 +5,7 @@ import LinkExt from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { DOMSerializer } from "@tiptap/pm/model";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bold,
@@ -130,16 +131,9 @@ export function RichTextEditor({
     ],
     content: content || "",
     onCreate: ({ editor }) => setPlainText(editor.getText()),
-    onUpdate: ({ editor, transaction }) => {
+    onUpdate: ({ editor }) => {
       setPlainText(editor.getText());
-      const html = editor.getHTML();
-
-      if (transaction.getMeta("noteChecklistToggle")) {
-        onChecklistChange?.(html);
-        return;
-      }
-
-      onChange(html);
+      onChange(editor.getHTML());
     },
     editorProps: {
       handleDOMEvents: {
@@ -155,41 +149,46 @@ export function RichTextEditor({
           const taskItem = checkbox.closest('li[data-type="taskItem"]');
           if (!taskItem) return false;
 
-          let taskItemPos: number | null = null;
+          // Keep the visual state in sync immediately in inspection mode.
+          taskItem.setAttribute("data-checked", String(checkbox.checked));
 
-          // Resolve the exact ProseMirror node from the clicked checkbox.
-          // Using DOM offsets here is brittle because the TaskItem node view
-          // inserts a non-editable <label> before its content DOM.
-          view.state.doc.descendants((node, pos) => {
-            if (taskItemPos !== null) return false;
-            if (node.type.name !== "taskItem") return true;
+          // Build clean HTML from the ProseMirror document, then copy the
+          // live checkbox states into it. In read-only mode Tiptap intentionally
+          // does not write checkbox clicks back to the document, so waiting for
+          // editor.getHTML() would lose the selection.
+          const container = document.createElement("div");
+          const fragment = DOMSerializer.fromSchema(view.state.schema)
+            .serializeFragment(view.state.doc.content);
+          container.appendChild(fragment);
 
-            const nodeDOM = view.nodeDOM(pos);
-            if (nodeDOM === taskItem) {
-              taskItemPos = pos;
-              return false;
+          const liveItems = Array.from(
+            view.dom.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
+          );
+          const savedItems = Array.from(
+            container.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
+          );
+
+          liveItems.forEach((liveItem, index) => {
+            const savedItem = savedItems[index];
+            if (!savedItem) return;
+
+            const liveCheckbox = liveItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
+            const savedCheckbox = savedItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
+            if (!liveCheckbox) return;
+
+            savedItem.setAttribute("data-checked", String(liveCheckbox.checked));
+
+            if (savedCheckbox) {
+              if (liveCheckbox.checked) {
+                savedCheckbox.setAttribute("checked", "checked");
+              } else {
+                savedCheckbox.removeAttribute("checked");
+              }
             }
-
-            return true;
           });
 
-          if (taskItemPos === null) return false;
-
-          const taskItemNode = view.state.doc.nodeAt(taskItemPos);
-          if (taskItemNode?.type.name !== "taskItem") return false;
-
-          const transaction = view.state.tr
-            .setNodeMarkup(taskItemPos, undefined, {
-              ...taskItemNode.attrs,
-              checked: checkbox.checked,
-            })
-            .setMeta("noteChecklistToggle", true);
-
-          view.dispatch(transaction);
-
-          // We handled the checkbox state ourselves. Prevent any additional
-          // editor-level change handling from trying to reinterpret the click.
-          return true;
+          onChecklistChange?.(container.innerHTML);
+          return false;
         },
       },
       handleClick: (_view, _pos, event) => {
