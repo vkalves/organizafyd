@@ -33,6 +33,7 @@ interface RichTextEditorProps {
   content: string;
   readOnly?: boolean;
   onChange: (html: string) => void;
+  onChecklistChange?: (html: string) => void;
   placeholder?: string;
   className?: string;
 }
@@ -77,6 +78,7 @@ function ToolDivider() {
 export function RichTextEditor({
   content,
   onChange,
+  onChecklistChange,
   placeholder = "Escreva sua nota...",
   className,
   readOnly = false,
@@ -128,9 +130,16 @@ export function RichTextEditor({
     ],
     content: content || "",
     onCreate: ({ editor }) => setPlainText(editor.getText()),
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       setPlainText(editor.getText());
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+
+      if (transaction.getMeta("noteChecklistToggle")) {
+        onChecklistChange?.(html);
+        return;
+      }
+
+      onChange(html);
     },
     editorProps: {
       handleDOMEvents: {
@@ -146,25 +155,41 @@ export function RichTextEditor({
           const taskItem = checkbox.closest('li[data-type="taskItem"]');
           if (!taskItem) return false;
 
-          const contentElement = Array.from(taskItem.children).find(
-            (child) => child.tagName === "DIV",
-          );
-          if (!contentElement) return false;
+          let taskItemPos: number | null = null;
 
-          // A task item's contentDOM starts exactly one document position
-          // after the taskItem node itself.
-          const taskItemPos = view.posAtDOM(contentElement, 0) - 1;
+          // Resolve the exact ProseMirror node from the clicked checkbox.
+          // Using DOM offsets here is brittle because the TaskItem node view
+          // inserts a non-editable <label> before its content DOM.
+          view.state.doc.descendants((node, pos) => {
+            if (taskItemPos !== null) return false;
+            if (node.type.name !== "taskItem") return true;
+
+            const nodeDOM = view.nodeDOM(pos);
+            if (nodeDOM === taskItem) {
+              taskItemPos = pos;
+              return false;
+            }
+
+            return true;
+          });
+
+          if (taskItemPos === null) return false;
+
           const taskItemNode = view.state.doc.nodeAt(taskItemPos);
           if (taskItemNode?.type.name !== "taskItem") return false;
 
-          view.dispatch(
-            view.state.tr.setNodeMarkup(taskItemPos, undefined, {
+          const transaction = view.state.tr
+            .setNodeMarkup(taskItemPos, undefined, {
               ...taskItemNode.attrs,
               checked: checkbox.checked,
-            }),
-          );
+            })
+            .setMeta("noteChecklistToggle", true);
 
-          return false;
+          view.dispatch(transaction);
+
+          // We handled the checkbox state ourselves. Prevent any additional
+          // editor-level change handling from trying to reinterpret the click.
+          return true;
         },
       },
       handleClick: (_view, _pos, event) => {
