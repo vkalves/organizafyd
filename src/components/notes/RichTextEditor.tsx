@@ -118,15 +118,55 @@ export function RichTextEditor({
       }),
       Placeholder.configure({ placeholder }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItem.configure({
+        nested: true,
+        // Keep checklist items actionable while the note is in "Visualizar".
+        // The DOM change handler below mirrors the checkbox state into the
+        // ProseMirror document so the normal autosave flow can persist it.
+        onReadOnlyChecked: () => true,
+      }),
     ],
     content: content || "",
     onCreate: ({ editor }) => setPlainText(editor.getText()),
     onUpdate: ({ editor }) => {
       setPlainText(editor.getText());
-      if (editor.isEditable) onChange(editor.getHTML());
+      onChange(editor.getHTML());
     },
     editorProps: {
+      handleDOMEvents: {
+        change: (view, event) => {
+          // Tiptap intentionally keeps task checkboxes immutable in read-only
+          // mode unless onReadOnlyChecked is provided. In Visualizar mode we
+          // still want checklist actions to work without making text editable.
+          if (view.editable) return false;
+
+          const checkbox = event.target;
+          if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") return false;
+
+          const taskItem = checkbox.closest('li[data-type="taskItem"]');
+          if (!taskItem) return false;
+
+          const contentElement = Array.from(taskItem.children).find(
+            (child) => child.tagName === "DIV",
+          );
+          if (!contentElement) return false;
+
+          // A task item's contentDOM starts exactly one document position
+          // after the taskItem node itself.
+          const taskItemPos = view.posAtDOM(contentElement, 0) - 1;
+          const taskItemNode = view.state.doc.nodeAt(taskItemPos);
+          if (taskItemNode?.type.name !== "taskItem") return false;
+
+          view.dispatch(
+            view.state.tr.setNodeMarkup(taskItemPos, undefined, {
+              ...taskItemNode.attrs,
+              checked: checkbox.checked,
+            }),
+          );
+
+          return false;
+        },
+      },
       handleClick: (_view, _pos, event) => {
         if ((!readOnly && !(event.ctrlKey || event.metaKey)) || event.button !== 0) return false;
         const target = event.target;
