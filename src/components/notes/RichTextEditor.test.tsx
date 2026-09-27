@@ -78,6 +78,29 @@ describe("note link mentions", () => {
     expect(editor.getText()).not.toContain("Nova linha");
   });
 
+  it("allows checklist items to be toggled while the note is read-only", () => {
+    const onChange = vi.fn();
+    const result = render(
+      <RichTextEditor
+        readOnly
+        content={'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Item</p></li></ul>'}
+        onChange={onChange}
+      />,
+    );
+    const checkbox = result.container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    expect(checkbox).toBeTruthy();
+    expect(checkbox.checked).toBe(false);
+
+    act(() => {
+      checkbox.click();
+    });
+
+    expect(checkbox.checked).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+    expect(onChange.mock.lastCall?.[0]).toContain('data-checked="true"');
+  });
+
   it("switches between read-only and editing without changing the note", () => {
     const content = '<p>Nota <a href="https://example.com">site</a></p>';
     const onChange = vi.fn();
