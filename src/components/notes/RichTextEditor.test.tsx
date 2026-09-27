@@ -80,11 +80,13 @@ describe("note link mentions", () => {
 
   it("allows checklist items to be toggled while the note is read-only", () => {
     const onChange = vi.fn();
+    const onChecklistChange = vi.fn();
     const result = render(
       <RichTextEditor
         readOnly
         content={'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Item</p></li></ul>'}
         onChange={onChange}
+        onChecklistChange={onChecklistChange}
       />,
     );
     const checkbox = result.container.querySelector('input[type="checkbox"]') as HTMLInputElement;
@@ -97,8 +99,9 @@ describe("note link mentions", () => {
     });
 
     expect(checkbox.checked).toBe(true);
-    expect(onChange).toHaveBeenCalled();
-    expect(onChange.mock.lastCall?.[0]).toContain('data-checked="true"');
+    expect(onChecklistChange).toHaveBeenCalled();
+    expect(onChecklistChange.mock.lastCall?.[0]).toContain('data-checked="true"');
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("switches between read-only and editing without changing the note", () => {
