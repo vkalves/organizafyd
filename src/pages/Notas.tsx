@@ -55,6 +55,8 @@ const Notas = () => {
   const [closing, setClosing] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setTimeout>>();
   const autosavePromiseRef = useRef<Promise<Note | null> | null>(null);
+  const checklistSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const editContentRef = useRef("");
   const saveVersionRef = useRef(0);
 
   const filtered = notes.filter((n) => {
@@ -77,6 +79,7 @@ const Notas = () => {
     setEditNote(n);
     setEditTitle(n.title);
     setEditContent(n.content || "");
+    editContentRef.current = n.content || "";
     setEditFolderId(n.folder_id || "");
     setSaveState("saved");
     setFocusMode(false);
@@ -126,7 +129,7 @@ const Notas = () => {
     if (!editNote) return;
 
     const title = overrides?.title ?? editTitle;
-    const content = overrides?.content ?? editContent;
+    const content = overrides?.content ?? editContentRef.current;
     const folderId = overrides?.folderId ?? editFolderId;
 
     setSaveState("dirty");
@@ -143,9 +146,37 @@ const Notas = () => {
   }, [editContent, editFolderId, editNote, editTitle, saveNote]);
 
   const handleContentChange = useCallback((html: string) => {
+    editContentRef.current = html;
     setEditContent(html);
     scheduleAutosave({ content: html });
   }, [scheduleAutosave]);
+
+  const handleChecklistChange = useCallback((html: string) => {
+    editContentRef.current = html;
+    setEditContent(html);
+    setSaveState("dirty");
+
+    if (autosaveRef.current) {
+      clearTimeout(autosaveRef.current);
+      autosaveRef.current = undefined;
+    }
+
+    const persistChecklist = async () => {
+      if (!editNote || !editTitle.trim()) return;
+
+      await saveNote({
+        title: editTitle.trim(),
+        content: html,
+        folder_id: editFolderId || null,
+      });
+    };
+
+    // Serialize rapid checkbox clicks so an older request can never arrive
+    // after a newer one and overwrite the latest checklist state.
+    checklistSaveQueueRef.current = checklistSaveQueueRef.current
+      .then(persistChecklist, persistChecklist)
+      .then(() => undefined, () => undefined);
+  }, [editFolderId, editNote, editTitle, saveNote]);
 
   const persistCurrentNote = useCallback(async (notify = false) => {
     if (!editNote) return null;
@@ -153,14 +184,20 @@ const Notas = () => {
       toast.error("O título da nota não pode ficar vazio");
       return null;
     }
-    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    if (autosaveRef.current) {
+      clearTimeout(autosaveRef.current);
+      autosaveRef.current = undefined;
+    }
+
+    await checklistSaveQueueRef.current;
     if (autosavePromiseRef.current) await autosavePromiseRef.current;
+
     return saveNote({
       title: editTitle.trim(),
-      content: editContent,
+      content: editContentRef.current,
       folder_id: editFolderId || null,
     }, notify);
-  }, [editContent, editFolderId, editNote, editTitle, saveNote]);
+  }, [editFolderId, editNote, editTitle, saveNote]);
 
   const handleSave = async () => {
     await persistCurrentNote(true);
@@ -246,7 +283,7 @@ const Notas = () => {
 
     const saved = await saveNote({
       title: editTitle.trim(),
-      content: editContent,
+      content: editContentRef.current,
       folder_id: editFolderId || null,
       tags,
     });
@@ -614,6 +651,7 @@ const Notas = () => {
             readOnly={readOnly || switchingMode}
             content={editContent}
             onChange={handleContentChange}
+            onChecklistChange={handleChecklistChange}
             className={cn(
               "min-h-0 flex-1",
               focusMode && "rounded-none border-0 shadow-none [&_.tiptap]:mx-auto [&_.tiptap]:w-full [&_.tiptap]:max-w-5xl [&_.tiptap]:px-5 sm:[&_.tiptap]:px-8",
