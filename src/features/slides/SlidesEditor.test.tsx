@@ -7,6 +7,8 @@ beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { callback: ResizeObserverCallback; constructor(callback: ResizeObserverCallback) { this.callback = callback; } observe(target: Element) { queueMicrotask(() => this.callback([{ target, contentRect: target.getBoundingClientRect() } as ResizeObserverEntry], this as unknown as ResizeObserver)); } unobserve() {} disconnect() {} });
   Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 1000 });
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 700 });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1000 });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 700 });
   vi.stubGlobal('DOMMatrixReadOnly', class { m22 = 1; });
 });
 beforeEach(() => localStorage.clear());
@@ -163,6 +165,26 @@ describe('SlidesEditor interaction and persistence', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
     await waitFor(() => expect(onSave.mock.lastCall[1].nodes).toHaveLength(2));
     expect(onSave.mock.lastCall[1].nodes[0].style).toEqual(fitted.style);
+  });
+
+  it('arranges the full panel from the edit menu and restores positions with undo', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    const original = row();
+    original.data.nodes = [
+      { id: 'a', type: 'slide', position: { x: -100, y: 40 }, style: { width: 200, height: 100 }, data: { kind: 'text', text: 'A', color: '#fff', background: 'transparent', fontSize: 24 } },
+      { id: 'b', type: 'slide', position: { x: 500, y: 200 }, style: { width: 100, height: 200 }, data: { kind: 'text', text: 'B', color: '#fff', background: 'transparent', fontSize: 24 } },
+    ];
+    render(<SlidesEditor row={original} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Mais opções' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Centralizar na vertical' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [a, b] = onSave.mock.lastCall[1].nodes;
+    expect(a.position.x + 100).toBe(b.position.x + 50);
+    expect(b.position.y - a.position.y).toBe(148);
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes.map(n => n.position)).toEqual(original.data.nodes.map(n => n.position)));
   });
 
 });

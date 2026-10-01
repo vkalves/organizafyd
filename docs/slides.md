@@ -10,7 +10,10 @@ vídeo fica sobre o conteúdo para não alterar sua proporção na apresentaçã
 
 A barra compacta mantém seleção, mão, lápis, desfazer/refazer e apresentação.
 O botão + reúne texto, imagem, vídeo e link; ⋯ reúne zoom, enquadramento, borracha
-e ajuda. A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
+e ajuda. Na edição, esse menu também oferece Centralizar na vertical/horizontal:
+alinha todos os elementos em coluna/linha, mantém os tamanhos e a ordem de adição,
+adiciona espaçamento uniforme e enquadra o conjunto na tela. A ação pode ser desfeita.
+A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
 Apresentar, somente o painel e a barra inferior direita ficam visíveis. Duplo
 clique aproxima um conteúdo; Esc sai. Um clique no fundo esconde os controles e
 outro clique mostra novamente, sem alternar ao arrastar ou usar um objeto.
