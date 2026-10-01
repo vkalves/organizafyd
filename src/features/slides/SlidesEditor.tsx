@@ -30,6 +30,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const [viewport, setViewport] = useState(initial.data.viewport);
   const [tool, setTool] = useState<Tool>('select');
   const [presenting, setPresenting] = useState(false);
+  const [controlsHidden, setControlsHidden] = useState(false);
   useLayoutEffect(() => {
     const parent = presenting ? document.body : placeholder.current;
     parent?.appendChild(portalHost);
@@ -112,9 +113,9 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable=true],[role=dialog]'))) return;
-      if (e.key === 'Escape') { setPresenting(false); setEditing(null); setTool('select'); return; }
+      if (e.key === 'Escape') { setPresenting(false); setControlsHidden(false); setEditing(null); setTool('select'); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void flushRef.current(); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (!presenting) { if (e.shiftKey) redo(); else undo(); } return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (!presenting && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); remove(); }
       if (e.code === 'Space' && tool !== 'pencil') e.preventDefault();
     };
@@ -143,7 +144,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   };
   const duplicate = () => change(ns => [...ns.map(n => ({ ...n, selected: false })), ...ns.filter(n => n.selected).map(n => ({ ...n, id: crypto.randomUUID(), selected: true, position: { x: n.position.x + 35, y: n.position.y + 35 } }))]);
   const focus = (n: SlideNodeType) => { if (tool !== 'eraser') void flow.fitView({ nodes: [{ id: n.id }], padding: .16, duration, maxZoom: 2.5 }); };
-  const setPresentation = () => { setPresenting(v => !v); setEditing(null); setTool('hand'); setNodes(ns => ns.map(n => ({ ...n, selected: false }))); };
+  const setPresentation = () => { setControlsHidden(false); setPresenting(v => !v); setEditing(null); setTool('hand'); setNodes(ns => ns.map(n => ({ ...n, selected: false }))); };
   const point = (e: { clientX: number; clientY: number }) => flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
   const inkRef = useRef<{ x: number; y: number }[]>([]);
 
@@ -166,7 +167,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         panOnDrag={tool === 'hand' || presenting ? true : [1, 2]}
         selectionOnDrag={!presenting && tool === 'select'} panActivationKeyCode="Space"
         zoomOnScroll zoomOnPinch zoomOnDoubleClick={false} deleteKeyCode={null}
-        onPaneClick={() => setEditing(null)}
+        onPaneClick={() => { setEditing(null); setControlsHidden(hidden => !hidden); }}
         onNodeClick={(_, n) => { if (tool === 'eraser') change(ns => ns.filter(item => item.id !== n.id)); }}
         onNodeDoubleClick={(_, n) => { if (presenting || n.data.kind !== 'text') focus(n); }}
         className="bg-background" aria-label="Painel livre de slides">
@@ -179,7 +180,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         <g transform={`translate(${flow.getViewport().x},${flow.getViewport().y}) scale(${flow.getViewport().zoom})`}><polyline points={ink.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={color} strokeWidth={penWidth} strokeLinecap="round" strokeLinejoin="round" /></g>
       </svg>}
         {!nodes.length && !presenting && <Panel position="top-center"><div className="pointer-events-none mt-16 text-center text-muted-foreground"><p className="text-xl font-semibold text-foreground">Uma tela. Todas as suas ideias.</p><p className="mt-2 text-sm">Adicione textos, imagens e vídeos pelos botões abaixo.</p><p className="mt-1 text-xs">Arraste arquivos para cá ou comece com um texto.</p></div></Panel>}
-        {!presenting && selected && <Panel position="top-left"><div className="slides-properties">
+        {!controlsHidden && !presenting && selected && <Panel position="top-left"><div className="slides-properties">
           {selected.data.kind === 'text' && <>
             <IconButton label="Editar texto" onClick={() => { checkpoint(); setEditing(selected.id); }}><Type /></IconButton>
             <label>Tamanho <input aria-label="Tamanho do texto" type="number" min={12} max={160} value={selected.data.fontSize} onChange={e => patch({ fontSize: Math.max(12, Math.min(160, +e.target.value || 12)) })} /></label>
@@ -192,9 +193,9 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
           <IconButton label="Trazer para frente" onClick={() => change(ns => ns.map(n => n.selected ? { ...n, zIndex: Math.max(0, ...ns.map(i => i.zIndex || 0)) + 1 } : n))}><Layers /></IconButton>
           <IconButton label="Duplicar seleção" onClick={duplicate}><Copy /></IconButton><IconButton label="Remover seleção" onClick={remove}><Trash2 /></IconButton>
         </div></Panel>}
-        {tool === 'pencil' && <Panel position="top-right"><div className="slides-properties"><input type="color" aria-label="Cor do lápis" value={color} onChange={e => setColor(e.target.value)} /><label>Traço <input type="number" aria-label="Espessura do lápis" min={1} max={24} value={penWidth} onChange={e => setPenWidth(Math.max(1, Math.min(24, +e.target.value || 1)))} /></label></div></Panel>}
-        {!presenting && <Panel position="bottom-left"><p className="slides-help">Roda do mouse: zoom · Espaço + arrastar: mover<br />Duplo clique: editar texto ou aproximar mídia</p></Panel>}
-        <Panel position="bottom-right"><div className="slides-tools">
+        {!controlsHidden && tool === 'pencil' && <Panel position="top-right"><div className="slides-properties"><input type="color" aria-label="Cor do lápis" value={color} onChange={e => setColor(e.target.value)} /><label>Traço <input type="number" aria-label="Espessura do lápis" min={1} max={24} value={penWidth} onChange={e => setPenWidth(Math.max(1, Math.min(24, +e.target.value || 1)))} /></label></div></Panel>}
+        {!controlsHidden && !presenting && <Panel position="bottom-left"><p className="slides-help">Roda do mouse: zoom · Espaço + arrastar: mover<br />Clique no fundo: esconder ou mostrar controles</p></Panel>}
+        {!controlsHidden && <Panel position="bottom-right"><div className="slides-tools">
           {!presenting && <>
             <IconButton label="Selecionar e mover objetos" active={tool === 'select'} onClick={() => setTool('select')}><MousePointer2 /></IconButton>
             <IconButton label="Adicionar texto" onClick={addText}><Type /></IconButton>
@@ -204,24 +205,22 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
           </>}
           <IconButton label="Mover painel" active={tool === 'hand'} onClick={() => setTool('hand')}><Hand /></IconButton>
           <IconButton label="Lápis" active={tool === 'pencil'} onClick={() => setTool(t => t === 'pencil' ? 'hand' : 'pencil')}><Pencil /></IconButton>
-          {!presenting && <>
-            <IconButton label="Borracha: remover objeto" active={tool === 'eraser'} onClick={() => setTool('eraser')}><Eraser /></IconButton>
-            <IconButton label="Desfazer" disabled={!history.current.length} onClick={undo}><Undo2 /></IconButton>
-            <IconButton label="Refazer" disabled={!future.current.length} onClick={redo}><Redo2 /></IconButton>
-          </>}
+          {!presenting && <IconButton label="Borracha: remover objeto" active={tool === 'eraser'} onClick={() => setTool('eraser')}><Eraser /></IconButton>}
+          <IconButton label="Desfazer" disabled={!history.current.length} onClick={undo}><Undo2 /></IconButton>
+          <IconButton label="Refazer" disabled={!future.current.length} onClick={redo}><Redo2 /></IconButton>
           <IconButton label="Diminuir zoom" onClick={() => void flow.zoomOut({ duration })}><Minus /></IconButton>
           <IconButton label="Aumentar zoom" onClick={() => void flow.zoomIn({ duration })}><Plus /></IconButton>
           <IconButton label="Ver todo o painel" onClick={() => void flow.fitView({ padding: .18, duration })}><Scan /></IconButton>
           {!presenting && <IconButton label="Como usar" onClick={() => setHelp(true)}><HelpCircle /></IconButton>}
           <IconButton label={presenting ? 'Sair da apresentação' : 'Apresentar em tela inteira'} onClick={setPresentation}>{presenting ? <Minimize2 /> : <Maximize2 />}</IconButton>
-        </div></Panel>
+        </div></Panel>}
       </ReactFlow>
 
     </div>
     <input hidden multiple ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <input hidden multiple ref={videoInput} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <Dialog open={!!linkKind} onOpenChange={open => { if (!open) setLinkKind(null); }}><DialogContent><DialogHeader><DialogTitle>Adicionar mídia por link</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Use o endereço direto de uma imagem ou vídeo. Links de páginas do YouTube e Instagram não são arquivos de vídeo.</p><select className="rounded border border-border bg-secondary p-2" aria-label="Tipo de mídia" value={linkKind || 'image'} onChange={e => setLinkKind(e.target.value as 'image' | 'video')}><option value="image">Imagem</option><option value="video">Vídeo</option></select><input aria-label="Endereço da mídia" placeholder="https://…" className="rounded border border-border bg-secondary p-2" value={link} onChange={e => setLink(e.target.value)} /><button className="rounded bg-primary p-2 text-primary-foreground" onClick={() => { const url = safeMediaUrl(link); if (!url) return toast.error('Informe um endereço http ou https válido.'); addMedia(linkKind!, url, 'Mídia por link'); setLinkKind(null); }}>Adicionar</button></DialogContent></Dialog>
-    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Adicione textos, imagens e vídeos. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
+    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Adicione textos, imagens e vídeos. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
   </div>;
   void historyVersion;
   return <SlideContext.Provider value={{ presenting, editing, edit: setEditing, checkpoint, patch: (id, text) => setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, text } } : n)) }}><div ref={placeholder} />{createPortal(content, portalHost)}</SlideContext.Provider>;

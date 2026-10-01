@@ -103,4 +103,38 @@ describe('SlidesEditor interaction and persistence', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
     await waitFor(() => expect(onSave.mock.lastCall[1].nodes).toHaveLength(1));
   });
+  it('undoes and redoes changes during presentation', async () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.blur(await screen.findByLabelText('Texto do slide'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(screen.queryByText('Escreva sua ideia')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
+    expect(await screen.findByText('Escreva sua ideia')).toBeVisible();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(screen.queryByText('Escreva sua ideia')).toBeNull();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(await screen.findByText('Escreva sua ideia')).toBeVisible();
+  });
+  it('toggles the controls on background clicks in both modes and restores them on Escape', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Mover painel' }));
+    const pane = document.querySelector('.react-flow__pane')!;
+    fireEvent.click(pane);
+    expect(screen.queryByRole('button', { name: 'Mover painel' })).toBeNull();
+    fireEvent.click(pane);
+    expect(screen.getByRole('button', { name: 'Mover painel' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Mover painel' }));
+    expect(screen.getByRole('button', { name: 'Lápis' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    fireEvent.click(pane);
+    expect(screen.queryByRole('button', { name: 'Sair da apresentação' })).toBeNull();
+    fireEvent.click(pane);
+    expect(screen.getByRole('button', { name: 'Sair da apresentação' })).toBeVisible();
+    fireEvent.click(pane);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Mover painel' })).toBeVisible();
+  });
+
 });

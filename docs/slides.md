@@ -6,7 +6,9 @@ redimensionamento, lápis, remoção, duplicação, camadas e desfazer/refazer.
 
 A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
 Apresentar, somente o painel e a barra inferior direita ficam visíveis. Duplo
-clique aproxima um conteúdo; Esc sai. Não há ordem, setas ou reprodução automática.
+clique aproxima um conteúdo; Esc sai. Um clique no fundo esconde os controles e
+outro clique mostra novamente, sem alternar ao arrastar ou usar um objeto.
+Desfazer/refazer e seus atalhos também funcionam durante a apresentação. Não há ordem, setas ou reprodução automática.
 
 ## Persistência
 
