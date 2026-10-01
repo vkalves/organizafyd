@@ -167,12 +167,12 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(onSave.mock.lastCall[1].nodes[0].style).toEqual(fitted.style);
   });
 
-  it('arranges the full panel from the edit menu and restores positions with undo', async () => {
+  it('centers the full panel without changing relative positions and supports undo', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     const original = row();
     original.data.nodes = [
       { id: 'a', type: 'slide', position: { x: -100, y: 40 }, style: { width: 200, height: 100 }, data: { kind: 'text', text: 'A', color: '#fff', background: 'transparent', fontSize: 24 } },
-      { id: 'b', type: 'slide', position: { x: 500, y: 200 }, style: { width: 100, height: 200 }, data: { kind: 'text', text: 'B', color: '#fff', background: 'transparent', fontSize: 24 } },
+      { id: 'b', type: 'slide', position: { x: 500, y: 500 }, style: { width: 100, height: 200 }, data: { kind: 'text', text: 'B', color: '#fff', background: 'transparent', fontSize: 24 } },
     ];
     render(<SlidesEditor row={original} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
     fireEvent.keyDown(screen.getByRole('button', { name: 'Mais opções' }), { key: 'Enter' });
@@ -180,8 +180,11 @@ describe('SlidesEditor interaction and persistence', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [a, b] = onSave.mock.lastCall[1].nodes;
-    expect(a.position.x + 100).toBe(b.position.x + 50);
-    expect(b.position.y - a.position.y).toBe(148);
+    expect(a.position.x).toBe(-100);
+    expect(b.position.x).toBe(500);
+    expect(b.position.y - a.position.y).toBe(460);
+    expect(a.position.y).not.toBe(original.data.nodes[0].position.y);
+    expect(onSave.mock.lastCall[1].viewport).toEqual(original.data.viewport);
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
     await waitFor(() => expect(onSave.mock.lastCall[1].nodes.map(n => n.position)).toEqual(original.data.nodes.map(n => n.position)));

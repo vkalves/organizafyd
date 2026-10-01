@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { SlideNode } from './SlideNode';
 import { SlideContext } from './context';
 import { cleanNodes, drawingNode, safeMediaUrl, fitMediaNode, type SlideData, type SlideItem, type SlideNode as SlideNodeType, type SlideRow } from './types';
-import { arrangeSlideNodes } from './layout';
+import { centerSlideNodes } from './layout';
 import './slides.css';
 
 const nodeTypes = { slide: SlideNode };
@@ -83,13 +83,12 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   };
   const checkpoint = () => { history.current = [...history.current.slice(-39), cleanNodes(nodesRef.current)]; future.current = []; setHistoryVersion(v => v + 1); };
   const change = (fn: (n: SlideNodeType[]) => SlideNodeType[]) => { checkpoint(); setNodes(n => fn(n)); };
-  const arrange = (direction: 'horizontal' | 'vertical') => {
-    const result = arrangeSlideNodes(nodesRef.current, direction);
+  const centerCollection = (direction: 'horizontal' | 'vertical') => {
+    const result = centerSlideNodes(nodesRef.current, direction, center());
     if (!result.bounds) return;
     checkpoint();
     setEditing(null);
     setNodes(result.nodes);
-    void flow.fitBounds(result.bounds, { padding: .18, duration });
   };
   const undo = () => { const prev = history.current.pop(); if (!prev) return; future.current.push(cleanNodes(nodesRef.current)); setNodes(prev); setEditing(null); setHistoryVersion(v => v + 1); };
   const redo = () => { const next = future.current.pop(); if (!next) return; history.current.push(cleanNodes(nodesRef.current)); setNodes(next); setEditing(null); setHistoryVersion(v => v + 1); };
@@ -244,8 +243,8 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
               <DropdownMenuItem onSelect={() => void flow.zoomOut({ duration })}><Minus />Diminuir zoom</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void flow.fitView({ padding: .18, duration })}><Scan />Ver todo o painel</DropdownMenuItem>
               {!presenting && <><DropdownMenuSeparator />
-                <DropdownMenuItem disabled={!nodes.length} onSelect={() => arrange('vertical')}><ArrowUpDown />Centralizar na vertical</DropdownMenuItem>
-                <DropdownMenuItem disabled={!nodes.length} onSelect={() => arrange('horizontal')}><ArrowLeftRight />Centralizar na horizontal</DropdownMenuItem>
+                <DropdownMenuItem disabled={!nodes.length} onSelect={() => centerCollection('vertical')}><ArrowUpDown />Centralizar na vertical</DropdownMenuItem>
+                <DropdownMenuItem disabled={!nodes.length} onSelect={() => centerCollection('horizontal')}><ArrowLeftRight />Centralizar na horizontal</DropdownMenuItem>
                 <DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setTool('eraser')}><Eraser />Borracha: remover objeto</DropdownMenuItem><DropdownMenuItem onSelect={() => setHelp(true)}><HelpCircle />Como usar</DropdownMenuItem></>}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -257,7 +256,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     <input hidden multiple ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <input hidden multiple ref={videoInput} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <Dialog open={!!linkKind} onOpenChange={open => { if (!open) setLinkKind(null); }}><DialogContent><DialogHeader><DialogTitle>Adicionar mídia por link</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Use o endereço direto de uma imagem ou vídeo. Links de páginas do YouTube e Instagram não são arquivos de vídeo.</p><select className="rounded border border-border bg-secondary p-2" aria-label="Tipo de mídia" value={linkKind || 'image'} onChange={e => setLinkKind(e.target.value as 'image' | 'video')}><option value="image">Imagem</option><option value="video">Vídeo</option></select><input aria-label="Endereço da mídia" placeholder="https://…" className="rounded border border-border bg-secondary p-2" value={link} onChange={e => setLink(e.target.value)} /><button className="rounded bg-primary p-2 text-primary-foreground" onClick={() => { const url = safeMediaUrl(link); if (!url) return toast.error('Informe um endereço http ou https válido.'); addMedia(linkKind!, url, 'Mídia por link'); setLinkKind(null); }}>Adicionar</button></DialogContent></Dialog>
-    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Use + para adicionar textos, imagens e vídeos. O menu ⋯ reúne zoom, borracha e ajuda. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>No menu ⋯, use Centralizar na vertical ou na horizontal para organizar todos os elementos. Desfazer restaura as posições anteriores.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
+    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Use + para adicionar textos, imagens e vídeos. O menu ⋯ reúne zoom, borracha e ajuda. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>No menu ⋯, use Centralizar na vertical ou na horizontal para mover o conjunto ao centro da tela, mantendo as distâncias e o zoom. Desfazer restaura as posições anteriores.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
   </div>;
   void historyVersion;
   return <SlideContext.Provider value={{ mediaSize, presenting, editing, edit: setEditing, checkpoint, patch: (id, text) => setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, text } } : n)) }}><div ref={placeholder} />{createPortal(content, portalHost)}</SlideContext.Provider>;
