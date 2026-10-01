@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { GripVertical, RefreshCw } from 'lucide-react';
 
-type Props = { src?: string; name?: string; presenting: boolean };
+type Props = { src?: string; name?: string; presenting: boolean; onDimensions?: (width: number, height: number) => void };
 function videoErrorMessage(code?: number) {
   if (code === 2) return 'Não foi possível baixar o vídeo. Confira sua conexão e tente novamente.';
   if (code === 3 || code === 4) return 'O navegador não conseguiu reproduzir este arquivo. Use MP4 com vídeo H.264 e áudio AAC.';
   return 'Não foi possível carregar o vídeo. Tente novamente ou adicione outro arquivo.';
 }
 
-export function VideoSlide({ src, name, presenting }: Props) {
+export function VideoSlide({ src, name, presenting, onDimensions }: Props) {
   const player = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'slow'>('loading');
   const [error, setError] = useState('');
@@ -23,7 +23,9 @@ export function VideoSlide({ src, name, presenting }: Props) {
     {!presenting && <div className="slide-video-handle" title="Arraste esta barra com a ferramenta de seleção para mover o vídeo" data-testid="video-drag-handle"><GripVertical aria-hidden="true" /><span>Arraste para mover</span></div>}
     <div className="slide-video-frame">
       <video ref={player} className="nodrag nopan nowheel" src={src} controls playsInline preload="auto" aria-label={name || 'Vídeo do slide'}
+        onLoadedMetadata={e => onDimensions?.(e.currentTarget.videoWidth, e.currentTarget.videoHeight)}
         onLoadedData={e => {
+          onDimensions?.(e.currentTarget.videoWidth, e.currentTarget.videoHeight);
           if (e.currentTarget.videoWidth > 0) setState('ready');
           else { setError('Este arquivo não contém uma imagem de vídeo que o navegador consiga reproduzir. Use MP4 com vídeo H.264 e áudio AAC.'); setState('error'); }
         }}

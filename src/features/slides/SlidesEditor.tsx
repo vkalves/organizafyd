@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SlideNode } from './SlideNode';
 import { SlideContext } from './context';
-import { cleanNodes, drawingNode, safeMediaUrl, type SlideData, type SlideItem, type SlideNode as SlideNodeType, type SlideRow } from './types';
+import { cleanNodes, drawingNode, safeMediaUrl, fitMediaNode, type SlideData, type SlideItem, type SlideNode as SlideNodeType, type SlideRow } from './types';
 import './slides.css';
 
 const nodeTypes = { slide: SlideNode };
@@ -64,6 +64,21 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
   const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360;
 
+  const mediaSize = (id: string, src: string | undefined, width: number, height: number) => {
+    const fit = (items: SlideNodeType[]) => {
+      let changed = false;
+      const next = items.map(node => {
+        const fitted = node.id === id && node.data.src === src ? fitMediaNode(node, width, height) : node;
+        if (fitted !== node) changed = true;
+        return fitted;
+      });
+      return changed ? next : items;
+    };
+    setNodes(fit);
+    // Loading dimensions is not an editing action. Keep undo/redo frames consistent.
+    history.current = history.current.map(fit);
+    future.current = future.current.map(fit);
+  };
   const checkpoint = () => { history.current = [...history.current.slice(-39), cleanNodes(nodesRef.current)]; future.current = []; setHistoryVersion(v => v + 1); };
   const change = (fn: (n: SlideNodeType[]) => SlideNodeType[]) => { checkpoint(); setNodes(n => fn(n)); };
   const undo = () => { const prev = history.current.pop(); if (!prev) return; future.current.push(cleanNodes(nodesRef.current)); setNodes(prev); setEditing(null); setHistoryVersion(v => v + 1); };
@@ -223,7 +238,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Adicione textos, imagens e vídeos. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
   </div>;
   void historyVersion;
-  return <SlideContext.Provider value={{ presenting, editing, edit: setEditing, checkpoint, patch: (id, text) => setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, text } } : n)) }}><div ref={placeholder} />{createPortal(content, portalHost)}</SlideContext.Provider>;
+  return <SlideContext.Provider value={{ mediaSize, presenting, editing, edit: setEditing, checkpoint, patch: (id, text) => setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, text } } : n)) }}><div ref={placeholder} />{createPortal(content, portalHost)}</SlideContext.Provider>;
 }
 // Keep one portal host stable so entering presentation never remounts the canvas or interrupts videos.
 

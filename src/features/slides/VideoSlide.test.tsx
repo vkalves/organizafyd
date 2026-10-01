@@ -15,6 +15,15 @@ describe('video loading and drag area', () => {
     fireEvent.loadedData(player);
     expect(screen.queryByRole('status')).toBeNull();
   });
+  it('reports the video dimensions as soon as metadata is available', () => {
+    const onDimensions = vi.fn();
+    render(<VideoSlide src="https://example.com/portrait.mp4" presenting={false} onDimensions={onDimensions} />);
+    const player = screen.getByLabelText('Vídeo do slide');
+    Object.defineProperty(player, 'videoWidth', { value: 1080 });
+    Object.defineProperty(player, 'videoHeight', { value: 1920 });
+    fireEvent.loadedMetadata(player);
+    expect(onDimensions).toHaveBeenCalledWith(1080, 1920);
+  });
   it('explains unsupported codecs and provides a reload button', () => {
     const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     render(<VideoSlide src="https://example.com/video.mp4" presenting={false} />);

@@ -137,4 +137,28 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(screen.getByRole('button', { name: 'Mover painel' })).toBeVisible();
   });
 
+  it('fits an existing portrait image and saves the dimensions across undo/redo', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    const original = row();
+    original.data.nodes = [{ id: 'portrait', type: 'slide', position: { x: 0, y: 0 }, style: { width: 480, height: 300 }, data: { kind: 'image', src: 'https://example.com/portrait.jpg', name: 'Retrato', color: '#fff', background: 'transparent', fontSize: 24 } }];
+    render(<SlidesEditor row={original} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
+    // Create a history entry before the original image has finished loading.
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.blur(await screen.findByLabelText('Texto do slide'));
+    const image = screen.getByAltText('Retrato');
+    Object.defineProperty(image, 'naturalWidth', { value: 1080 });
+    Object.defineProperty(image, 'naturalHeight', { value: 1920 });
+    fireEvent.load(image);
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const fitted = onSave.mock.lastCall[1].nodes[0];
+    expect(fitted.width / fitted.height).toBeCloseTo(1080 / 1920);
+    expect(fitted.data.naturalHeight).toBe(1920);
+    fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes).toHaveLength(2));
+    expect(onSave.mock.lastCall[1].nodes[0].style).toEqual(fitted.style);
+  });
+
 });

@@ -5,6 +5,8 @@ export type SlideItem = {
   text?: string;
   src?: string;
   storagePath?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
   name?: string;
   color: string;
   background: string;
@@ -37,4 +39,23 @@ export function drawingNode(points: { x: number; y: number }[], color: string, s
   const h = Math.max(1, Math.max(...points.map(p => p.y)) - minY + pad);
   const path = points.map((p, i) => `${i ? 'L' : 'M'}${p.x - minX},${p.y - minY}`).join(' ') + (points.length === 1 ? ' l0.01,0' : '');
   return { id: crypto.randomUUID(), type: 'slide', position: { x: minX, y: minY }, style: { width: w, height: h }, data: { kind: 'drawing', color, background: 'transparent', fontSize: 24, path, strokeWidth, viewWidth: w, viewHeight: h } };
+}
+
+// Fit the frame to the actual media, without changing the file or enlarging its pixels.
+// Run once per file so reopening it does not undo the user's manual resizing.
+export function fitMediaNode(node: SlideNode, width: number, height: number): SlideNode {
+  if (!['image', 'video'].includes(node.data.kind) || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return node;
+  if (node.data.naturalWidth === width && node.data.naturalHeight === height) return node;
+  const boxWidth = Number(node.style?.width) || node.width || 480;
+  const boxHeight = Number(node.style?.height) || node.height || 300;
+  const scale = Math.min(1, boxWidth / width, boxHeight / height);
+  const nextWidth = width * scale;
+  const nextHeight = height * scale;
+  return {
+    ...node,
+    position: { x: node.position.x + (boxWidth - nextWidth) / 2, y: node.position.y + (boxHeight - nextHeight) / 2 },
+    width: nextWidth, height: nextHeight,
+    style: { ...node.style, width: nextWidth, height: nextHeight },
+    data: { ...node.data, naturalWidth: width, naturalHeight: height },
+  };
 }
