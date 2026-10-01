@@ -147,6 +147,7 @@ const Dashboard = () => {
           .order("updated_at", { ascending: false }),
         (supabase.from("mind_maps") as any)
           .select("id")
+          .or("data->>kind.is.null,data->>kind.neq.slides")
           .eq("user_id", user.id),
         (supabase.from("profiles") as any)
           .select("display_name, timezone")

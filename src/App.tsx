@@ -11,6 +11,7 @@ const Instagram = lazy(() => import("./pages/Instagram"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
+const Slides = lazy(() => import("./pages/Slides"));
 const MapasMentais = lazy(() => import("./pages/MapasMentais"));
 const Midia = lazy(() => import("./pages/Midia"));
 const MidiaPublica = lazy(() => import("./pages/MidiaPublica"));
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
+              <Route path="/slides" element={<ProtectedRoute><Slides /></ProtectedRoute>} />
               <Route path="/mapas" element={<ProtectedRoute><MapasMentais /></ProtectedRoute>} />
               <Route path="/midia" element={<ProtectedRoute><Midia /></ProtectedRoute>} />
               <Route path="/instagram" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />

@@ -17,6 +17,8 @@ import {
   type MindMapLayout,
 } from "@/features/mindmap/types";
 
+import { isSlideData } from "@/features/slides/types";
+
 interface MindMapRow {
   id: string;
   title: string;
@@ -27,7 +29,8 @@ interface MindMapRow {
 }
 
 const MapasMentais = () => {
-  const { data: maps, loading, create, update, remove } = useSupabaseCrud<MindMapRow>("mind_maps", "updated_at");
+  const { data: allMaps, loading, create, update, remove } = useSupabaseCrud<MindMapRow>("mind_maps", "updated_at");
+  const maps = useMemo(() => allMaps.filter(map => !isSlideData(map.data)), [allMaps]);
   const [showDialog, setShowDialog] = useState(false);
   const [form, setForm] = useState<{ title: string; description: string; layout: MindMapLayout }>({
     title: "",
