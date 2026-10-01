@@ -138,7 +138,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         if (!/^(image\/(jpeg|png|webp|gif|avif)|video\/(mp4|webm|ogg|quicktime))$/.test(file.type)) { toast.error(`Formato não aceito: ${file.name}`); continue; }
         if (file.size > 50 * 1024 * 1024) { toast.error(`${file.name}: o limite é 50 MB por arquivo.`); continue; }
         try { const media = await callbacks.current.onUpload(file); if (mounted.current) addMedia(file.type.startsWith('image/') ? 'image' : 'video', media.src, file.name, media.storagePath); }
-        catch { toast.error(`Não foi possível enviar ${file.name}. Tente novamente.`); }
+        catch (error) { const detail = error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String(error.message) : "Tente novamente."); toast.error(`Não foi possível enviar ${file.name}: ${detail}`); }
       }
     } finally { if (mounted.current) setUploading(false); }
   };

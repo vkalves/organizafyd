@@ -8,7 +8,11 @@ A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
 Apresentar, somente o painel e a barra inferior direita ficam visíveis. Duplo
 clique aproxima um conteúdo; Esc sai. Um clique no fundo esconde os controles e
 outro clique mostra novamente, sem alternar ao arrastar ou usar um objeto.
-Desfazer/refazer e seus atalhos também funcionam durante a apresentação. Não há ordem, setas ou reprodução automática.
+Desfazer/refazer e seus atalhos também funcionam durante a apresentação.
+Vídeos possuem uma barra “Arraste para mover” fora dos controles do player.
+O player pré-carrega a imagem e informa falhas de rede ou de formato, com opção
+de tentar novamente. Não converte arquivos; H.264/AAC em MP4 é indicado na
+mensagem de incompatibilidade. Não há ordem, setas ou reprodução automática.
 
 ## Persistência
 
