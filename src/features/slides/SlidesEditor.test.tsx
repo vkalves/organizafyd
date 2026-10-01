@@ -22,7 +22,8 @@ function setup(onSave = vi.fn().mockResolvedValue(true)) {
 describe('SlidesEditor interaction and persistence', () => {
   it('adds editable text, saves its content, and restores after reopening', async () => {
     const { onSave, unmount } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
     const text = await screen.findByRole('textbox', { name: 'Texto do slide' });
     fireEvent.change(text, { target: { value: 'Minha ideia' } });
     fireEvent.blur(text);
@@ -84,7 +85,7 @@ describe('SlidesEditor interaction and persistence', () => {
     const canvas = screen.getByTestId('slides-editor');
     fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
     expect(canvas).toHaveClass('is-presenting');
-    expect(screen.queryByRole('button', { name: 'Adicionar texto' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adicionar conteúdo' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Mover painel' })).toBeVisible();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.getByTestId('slides-editor')).toBe(canvas);
@@ -92,7 +93,8 @@ describe('SlidesEditor interaction and persistence', () => {
   });
   it('undoes and redoes inserting a text block', async () => {
     const { onSave } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
     fireEvent.blur(await screen.findByLabelText('Texto do slide'));
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
@@ -105,7 +107,8 @@ describe('SlidesEditor interaction and persistence', () => {
   });
   it('undoes and redoes changes during presentation', async () => {
     setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
     fireEvent.blur(await screen.findByLabelText('Texto do slide'));
     fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
@@ -143,7 +146,8 @@ describe('SlidesEditor interaction and persistence', () => {
     original.data.nodes = [{ id: 'portrait', type: 'slide', position: { x: 0, y: 0 }, style: { width: 480, height: 300 }, data: { kind: 'image', src: 'https://example.com/portrait.jpg', name: 'Retrato', color: '#fff', background: 'transparent', fontSize: 24 } }];
     render(<SlidesEditor row={original} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
     // Create a history entry before the original image has finished loading.
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar texto' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
     fireEvent.blur(await screen.findByLabelText('Texto do slide'));
     const image = screen.getByAltText('Retrato');
     Object.defineProperty(image, 'naturalWidth', { value: 1080 });

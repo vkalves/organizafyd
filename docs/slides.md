@@ -8,7 +8,9 @@ do arquivo, inclusive mídias já salvas. O arquivo original não é reduzido ne
 cortado. O tamanho escolhido pelo usuário é preservado ao reabrir. A alça do
 vídeo fica sobre o conteúdo para não alterar sua proporção na apresentação.
 
-A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
+A barra compacta mantém seleção, mão, lápis, desfazer/refazer e apresentação.
+O botão + reúne texto, imagem, vídeo e link; ⋯ reúne zoom, enquadramento, borracha
+e ajuda. A roda do mouse aproxima/afasta; a mão ou Espaço + arraste move o painel. Em
 Apresentar, somente o painel e a barra inferior direita ficam visíveis. Duplo
 clique aproxima um conteúdo; Esc sai. Um clique no fundo esconde os controles e
 outro clique mostra novamente, sem alternar ao arrastar ou usar um objeto.

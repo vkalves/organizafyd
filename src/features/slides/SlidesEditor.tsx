@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { ReactFlow, ReactFlowProvider, Background, Panel, applyNodeChanges, useReactFlow, type Viewport } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, MousePointer2, Hand, Type, ImagePlus, Video, Pencil, Eraser, Trash2, Copy, Undo2, Redo2, Maximize2, Minimize2, Plus, Minus, Scan, Save, Link2, Bold, Layers, HelpCircle } from 'lucide-react';
+import { ArrowLeft, MousePointer2, Hand, Type, ImagePlus, Video, Pencil, Eraser, Trash2, Copy, Undo2, Redo2, Maximize2, Minimize2, Plus, Minus, Scan, Save, Link2, Bold, Layers, HelpCircle, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { SlideNode } from './SlideNode';
 import { SlideContext } from './context';
 import { cleanNodes, drawingNode, safeMediaUrl, fitMediaNode, type SlideData, type SlideItem, type SlideNode as SlideNodeType, type SlideRow } from './types';
@@ -194,7 +195,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         onPointerCancel={() => { inkRef.current = []; setInk([]); }}>
         <g transform={`translate(${flow.getViewport().x},${flow.getViewport().y}) scale(${flow.getViewport().zoom})`}><polyline points={ink.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={color} strokeWidth={penWidth} strokeLinecap="round" strokeLinejoin="round" /></g>
       </svg>}
-        {!nodes.length && !presenting && <Panel position="top-center"><div className="pointer-events-none mt-16 text-center text-muted-foreground"><p className="text-xl font-semibold text-foreground">Uma tela. Todas as suas ideias.</p><p className="mt-2 text-sm">Adicione textos, imagens e vídeos pelos botões abaixo.</p><p className="mt-1 text-xs">Arraste arquivos para cá ou comece com um texto.</p></div></Panel>}
+        {!nodes.length && !presenting && <Panel position="top-center"><div className="pointer-events-none mt-16 text-center text-muted-foreground"><p className="text-xl font-semibold text-foreground">Uma tela. Todas as suas ideias.</p><p className="mt-2 text-sm">Use o botão + abaixo para adicionar textos, imagens e vídeos.</p><p className="mt-1 text-xs">Arraste arquivos para cá ou comece com um texto.</p></div></Panel>}
         {!controlsHidden && !presenting && selected && <Panel position="top-left"><div className="slides-properties">
           {selected.data.kind === 'text' && <>
             <IconButton label="Editar texto" onClick={() => { checkpoint(); setEditing(selected.id); }}><Type /></IconButton>
@@ -211,22 +212,31 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         {!controlsHidden && tool === 'pencil' && <Panel position="top-right"><div className="slides-properties"><input type="color" aria-label="Cor do lápis" value={color} onChange={e => setColor(e.target.value)} /><label>Traço <input type="number" aria-label="Espessura do lápis" min={1} max={24} value={penWidth} onChange={e => setPenWidth(Math.max(1, Math.min(24, +e.target.value || 1)))} /></label></div></Panel>}
         {!controlsHidden && !presenting && <Panel position="bottom-left"><p className="slides-help">Roda do mouse: zoom · Espaço + arrastar: mover<br />Clique no fundo: esconder ou mostrar controles</p></Panel>}
         {!controlsHidden && <Panel position="bottom-right"><div className="slides-tools">
-          {!presenting && <>
-            <IconButton label="Selecionar e mover objetos" active={tool === 'select'} onClick={() => setTool('select')}><MousePointer2 /></IconButton>
-            <IconButton label="Adicionar texto" onClick={addText}><Type /></IconButton>
-            <IconButton label="Adicionar imagens" disabled={uploading} onClick={() => imageInput.current?.click()}><ImagePlus /></IconButton>
-            <IconButton label="Adicionar vídeos" disabled={uploading} onClick={() => videoInput.current?.click()}><Video /></IconButton>
-            <IconButton label="Adicionar mídia por link" onClick={() => { setLink(''); setLinkKind('image'); }}><Link2 /></IconButton>
-          </>}
+          {!presenting && <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild><button type="button" className="slides-tool" title="Adicionar conteúdo" aria-label="Adicionar conteúdo"><Plus /></button></DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="end" sideOffset={10} className="slides-toolbar-dropdown z-[120]" onCloseAutoFocus={e => e.preventDefault()}>
+              <DropdownMenuItem onSelect={addText}><Type />Adicionar texto</DropdownMenuItem>
+              <DropdownMenuItem disabled={uploading} onSelect={() => imageInput.current?.click()}><ImagePlus />Adicionar imagens</DropdownMenuItem>
+              <DropdownMenuItem disabled={uploading} onSelect={() => videoInput.current?.click()}><Video />Adicionar vídeos</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { setLink(''); setLinkKind('image'); }}><Link2 />Adicionar mídia por link</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>}
+          {!presenting && <IconButton label="Selecionar e mover objetos" active={tool === 'select'} onClick={() => setTool('select')}><MousePointer2 /></IconButton>}
           <IconButton label="Mover painel" active={tool === 'hand'} onClick={() => setTool('hand')}><Hand /></IconButton>
           <IconButton label="Lápis" active={tool === 'pencil'} onClick={() => setTool(t => t === 'pencil' ? 'hand' : 'pencil')}><Pencil /></IconButton>
-          {!presenting && <IconButton label="Borracha: remover objeto" active={tool === 'eraser'} onClick={() => setTool('eraser')}><Eraser /></IconButton>}
+          <span className="slides-toolbar-divider" aria-hidden="true" />
           <IconButton label="Desfazer" disabled={!history.current.length} onClick={undo}><Undo2 /></IconButton>
           <IconButton label="Refazer" disabled={!future.current.length} onClick={redo}><Redo2 /></IconButton>
-          <IconButton label="Diminuir zoom" onClick={() => void flow.zoomOut({ duration })}><Minus /></IconButton>
-          <IconButton label="Aumentar zoom" onClick={() => void flow.zoomIn({ duration })}><Plus /></IconButton>
-          <IconButton label="Ver todo o painel" onClick={() => void flow.fitView({ padding: .18, duration })}><Scan /></IconButton>
-          {!presenting && <IconButton label="Como usar" onClick={() => setHelp(true)}><HelpCircle /></IconButton>}
+          <span className="slides-toolbar-divider" aria-hidden="true" />
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild><button type="button" className="slides-tool" title="Mais opções" aria-label="Mais opções"><MoreHorizontal /></button></DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="end" sideOffset={10} className="slides-toolbar-dropdown z-[120]" onCloseAutoFocus={e => e.preventDefault()}>
+              <DropdownMenuItem onSelect={() => void flow.zoomIn({ duration })}><Plus />Aumentar zoom</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void flow.zoomOut({ duration })}><Minus />Diminuir zoom</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void flow.fitView({ padding: .18, duration })}><Scan />Ver todo o painel</DropdownMenuItem>
+              {!presenting && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setTool('eraser')}><Eraser />Borracha: remover objeto</DropdownMenuItem><DropdownMenuItem onSelect={() => setHelp(true)}><HelpCircle />Como usar</DropdownMenuItem></>}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <IconButton label={presenting ? 'Sair da apresentação' : 'Apresentar em tela inteira'} onClick={setPresentation}>{presenting ? <Minimize2 /> : <Maximize2 />}</IconButton>
         </div></Panel>}
       </ReactFlow>
@@ -235,7 +245,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     <input hidden multiple ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <input hidden multiple ref={videoInput} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" onChange={e => { void upload(e.target.files); e.target.value = ''; }} />
     <Dialog open={!!linkKind} onOpenChange={open => { if (!open) setLinkKind(null); }}><DialogContent><DialogHeader><DialogTitle>Adicionar mídia por link</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Use o endereço direto de uma imagem ou vídeo. Links de páginas do YouTube e Instagram não são arquivos de vídeo.</p><select className="rounded border border-border bg-secondary p-2" aria-label="Tipo de mídia" value={linkKind || 'image'} onChange={e => setLinkKind(e.target.value as 'image' | 'video')}><option value="image">Imagem</option><option value="video">Vídeo</option></select><input aria-label="Endereço da mídia" placeholder="https://…" className="rounded border border-border bg-secondary p-2" value={link} onChange={e => setLink(e.target.value)} /><button className="rounded bg-primary p-2 text-primary-foreground" onClick={() => { const url = safeMediaUrl(link); if (!url) return toast.error('Informe um endereço http ou https válido.'); addMedia(linkKind!, url, 'Mídia por link'); setLinkKind(null); }}>Adicionar</button></DialogContent></Dialog>
-    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Adicione textos, imagens e vídeos. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
+    <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>Seu painel livre</DialogTitle></DialogHeader><ul className="list-disc space-y-2 pl-4 text-sm"><li>Use + para adicionar textos, imagens e vídeos. O menu ⋯ reúne zoom, borracha e ajuda. Arraste os objetos e ajuste o tamanho pelos cantos.</li><li>Use a mão para puxar o painel em qualquer direção. Também funciona segurando Espaço.</li><li>Use a roda do mouse ou o gesto de pinça para aproximar e afastar.</li><li>Dê dois cliques em um texto para editar. Na apresentação, dois cliques aproximam qualquer bloco.</li><li>Use o lápis para desenhar e a borracha para remover um objeto inteiro.</li><li>Clique no fundo para esconder os controles. Clique novamente para mostrá-los. Arrastar o painel não esconde os botões.</li><li>Desfazer e refazer também funcionam durante a apresentação.</li><li>Apresentar esconde os menus. Aperte Esc para sair.</li><li>Suas mudanças são salvas automaticamente. Ctrl+Z desfaz; Ctrl+Shift+Z refaz.</li></ul></DialogContent></Dialog>
   </div>;
   void historyVersion;
   return <SlideContext.Provider value={{ mediaSize, presenting, editing, edit: setEditing, checkpoint, patch: (id, text) => setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, text } } : n)) }}><div ref={placeholder} />{createPortal(content, portalHost)}</SlideContext.Provider>;
