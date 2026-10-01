@@ -2,7 +2,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, User, Menu, ChevronLeft, LogOut, Instagram,
-  Globe, Clock, CheckCircle2, Images, Network, Presentation,
+  Globe, Clock, CheckCircle2, Network, Presentation,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -17,7 +17,6 @@ const navItems = [
   { title: "Notas", path: "/notas", icon: StickyNote },
   { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Slides", path: "/slides", icon: Presentation },
-  { title: "Mídia", path: "/midia", icon: Images },
   { title: "Instagram", path: "/instagram", icon: Instagram },
   { title: "Configurações", path: "/config", icon: Settings },
 ];

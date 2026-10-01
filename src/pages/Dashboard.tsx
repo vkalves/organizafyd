@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   CheckSquare,
   Clock,
-  ImageIcon,
   Instagram,
   Network,
   StickyNote
@@ -57,7 +56,6 @@ const quickActions: QuickAction[] = [
   { label: "Tarefas", description: "Organize seu dia", icon: CheckSquare, path: "/tarefas" },
   { label: "Notas", description: "Ideias e textos", icon: StickyNote, path: "/notas" },
   { label: "Mapas", description: "Planeje visualmente", icon: Network, path: "/mapas" },
-  { label: "Mídia", description: "Arquivos e pastas", icon: ImageIcon, path: "/midia" },
   { label: "Instagram", description: "Conteúdo e contas", icon: Instagram, path: "/instagram" }
 ];
 

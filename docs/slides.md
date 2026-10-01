@@ -25,7 +25,8 @@ mensagem de incompatibilidade. Não há ordem, setas ou reprodução automática
   Mapas e a contagem do dashboard excluem documentos de slides.
 - Preserva a RLS de proprietário de `mind_maps`; não exige nova migração.
 - Usa o bucket `media` já existente, em `userId/slides/boardId/uuid-nome`.
-  Esse bucket continua público como na funcionalidade Mídia existente; não é
+  Esse bucket continua público e é mantido para os slides mesmo após a remoção
+  da seção Mídia. Não é
   gerado um link público de apresentação nem criado um registro em `media_items`.
 - Salva automaticamente após 900 ms sem alterações, serializando as gravações.
   Uma recuperação local de metadados por usuário/apresentação cobre falhas na
