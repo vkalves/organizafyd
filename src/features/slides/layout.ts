@@ -1,5 +1,17 @@
 import type { SlideNode } from './types';
 
+// Align individual centers while preserving each element's vertical position.
+export function alignSlideNodesCenter(nodes: SlideNode[], targetX: number): SlideNode[] {
+  return nodes.map(node => {
+    const width = Number(node.style?.width) || node.width || node.measured?.width || 420;
+    return {
+      ...node,
+      position: { ...node.position, x: targetX - width / 2 },
+      data: node.data.kind === 'text' ? { ...node.data, align: 'center' } : node.data,
+    };
+  });
+}
+
 // Translate the entire composition on one axis. Never redistribute its elements.
 export function centerSlideNodes(nodes: SlideNode[], direction: 'horizontal' | 'vertical', target: { x: number; y: number }) {
   if (!nodes.length) return { nodes, bounds: null };

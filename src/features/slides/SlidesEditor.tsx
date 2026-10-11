@@ -2,14 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { ReactFlow, ReactFlowProvider, Background, Panel, applyNodeChanges, useReactFlow, type Viewport } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, MousePointer2, Hand, Type, ImagePlus, Video, Pencil, Eraser, Trash2, Copy, Undo2, Redo2, Maximize2, Minimize2, Plus, Minus, Scan, Save, Link2, Bold, Layers, HelpCircle, MoreHorizontal, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, MousePointer2, Hand, Type, ImagePlus, Video, Pencil, Eraser, Trash2, Copy, Undo2, Redo2, Maximize2, Minimize2, Plus, Minus, Scan, Save, Link2, Bold, Layers, HelpCircle, MoreHorizontal, ArrowLeftRight, ArrowUpDown, AlignCenter } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { SlideNode } from './SlideNode';
 import { SlideContext } from './context';
 import { cleanNodes, drawingNode, safeMediaUrl, fitMediaNode, type SlideData, type SlideItem, type SlideNode as SlideNodeType, type SlideRow } from './types';
-import { centerSlideNodes } from './layout';
+import { alignSlideNodesCenter, centerSlideNodes } from './layout';
 import './slides.css';
 
 const nodeTypes = { slide: SlideNode };
@@ -89,6 +89,12 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     checkpoint();
     setEditing(null);
     setNodes(result.nodes);
+  };
+  const alignCollection = () => {
+    if (!nodesRef.current.length) return;
+    const targetX = center().x;
+    setEditing(null);
+    change(items => alignSlideNodesCenter(items, targetX));
   };
   const undo = () => { const prev = history.current.pop(); if (!prev) return; future.current.push(cleanNodes(nodesRef.current)); setNodes(prev); setEditing(null); setHistoryVersion(v => v + 1); };
   const redo = () => { const next = future.current.pop(); if (!next) return; history.current.push(cleanNodes(nodesRef.current)); setNodes(next); setEditing(null); setHistoryVersion(v => v + 1); };
@@ -232,6 +238,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
           {!presenting && <IconButton label="Selecionar e mover objetos" active={tool === 'select'} onClick={() => setTool('select')}><MousePointer2 /></IconButton>}
           <IconButton label="Mover painel" active={tool === 'hand'} onClick={() => setTool('hand')}><Hand /></IconButton>
           <IconButton label="Lápis" active={tool === 'pencil'} onClick={() => setTool(t => t === 'pencil' ? 'hand' : 'pencil')}><Pencil /></IconButton>
+          {!presenting && <IconButton label="Alinhar todos ao centro" disabled={!nodes.length} onClick={alignCollection}><AlignCenter /></IconButton>}
           <span className="slides-toolbar-divider" aria-hidden="true" />
           <IconButton label="Desfazer" disabled={!history.current.length} onClick={undo}><Undo2 /></IconButton>
           <IconButton label="Refazer" disabled={!future.current.length} onClick={redo}><Redo2 /></IconButton>

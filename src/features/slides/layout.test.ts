@@ -1,11 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { centerSlideNodes } from './layout';
+import { alignSlideNodesCenter, centerSlideNodes } from './layout';
 import type { SlideNode } from './types';
 const nodes: SlideNode[] = [
   { id: 'a', type: 'slide', position: { x: -90, y: 100 }, style: { width: 120, height: 200 }, data: { kind: 'image', color: '#fff', background: 'transparent', fontSize: 24 } },
   { id: 'b', type: 'slide', position: { x: 700, y: -200 }, style: { width: 400, height: 100 }, data: { kind: 'text', color: '#fff', background: 'transparent', fontSize: 24 } },
 ];
 const target = { x: 50, y: 500 };
+describe('aligning individual elements', () => {
+  it('aligns different widths to the same center, centers text and preserves heights and source data', () => {
+    const result = alignSlideNodesCenter(nodes, target.x);
+    expect(result[0].position.x + 60).toBe(target.x);
+    expect(result[1].position.x + 200).toBe(target.x);
+    expect(result.map(n => n.position.y)).toEqual(nodes.map(n => n.position.y));
+    expect(result[1].data.align).toBe('center');
+    expect(result[0].data).toBe(nodes[0].data);
+    expect(result[0].style).toBe(nodes[0].style);
+    expect(nodes[1].data.align).toBeUndefined();
+    expect(nodes[0].position.x).toBe(-90);
+  });
+  it('handles an empty panel and measured widths', () => {
+    expect(alignSlideNodesCenter([], target.x)).toEqual([]);
+    const measured = { ...nodes[0], style: undefined, measured: { width: 80 } };
+    expect(alignSlideNodesCenter([measured], target.x)[0].position.x).toBe(10);
+  });
+});
 describe('centering without redistribution', () => {
   it.each(['horizontal', 'vertical'] as const)('preserves every relative distance when centering %s', direction => {
     const result = centerSlideNodes(nodes, direction, target);

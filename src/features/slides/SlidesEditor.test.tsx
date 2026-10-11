@@ -167,6 +167,29 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(onSave.mock.lastCall[1].nodes[0].style).toEqual(fitted.style);
   });
 
+  it('aligns all elements with the toolbar button, saves and restores with undo', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    const original = row();
+    original.data.nodes = [
+      { id: 'a', type: 'slide', position: { x: -100, y: 40 }, style: { width: 200, height: 100 }, data: { kind: 'text', text: 'A', color: '#fff', background: 'transparent', fontSize: 24 } },
+      { id: 'b', type: 'slide', position: { x: 500, y: 500 }, style: { width: 100, height: 200 }, data: { kind: 'image', src: 'https://example.com/icon.png', color: '#fff', background: 'transparent', fontSize: 24 } },
+    ];
+    render(<SlidesEditor row={original} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Alinhar todos ao centro' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [a, b] = onSave.mock.lastCall[1].nodes;
+    expect(a.position.x + 100).toBe(b.position.x + 50);
+    expect(a.position.y).toBe(40);
+    expect(b.position.y).toBe(500);
+    expect(a.data.align).toBe('center');
+    expect(onSave.mock.lastCall[1].viewport).toEqual(original.data.viewport);
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes.map(n => n.position)).toEqual(original.data.nodes.map(n => n.position)));
+    expect(onSave.mock.lastCall[1].nodes[0].data.align).toBeUndefined();
+  });
+
   it('centers the full panel without changing relative positions and supports undo', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     const original = row();
