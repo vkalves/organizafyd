@@ -4,8 +4,10 @@
 .slides-stage{flex:1;min-height:0;position:relative;isolation:isolate}
 .slides-editor .react-flow__node-slide{border:0;padding:0;border-radius:16px;background:transparent}
 .slide-item{width:100%;height:100%;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px #0003}
-.slide-item.slide-drawing{border-radius:0;box-shadow:none;overflow:visible}
+.slide-item.slide-frameless{border-radius:0;box-shadow:none}
+.slide-item.slide-drawing{overflow:visible}
 .slide-item img,.slide-item video{width:100%;height:100%;object-fit:contain;display:block;border-radius:16px}
+.slide-item img{border-radius:0}
 .slide-text{width:100%;height:100%;padding:24px;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;line-height:1.3;background:transparent;resize:none;border:none;outline:none;display:block}
 .slides-tools{display:flex;align-items:center;gap:1px;border:1px solid hsl(var(--border)/.55);padding:4px;border-radius:11px;background:hsl(var(--background)/.78);backdrop-filter:blur(12px);box-shadow:0 3px 12px #0001;max-width:calc(100vw - 32px);flex-wrap:wrap}
 .slides-tool{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:hsl(var(--muted-foreground));flex-shrink:0}

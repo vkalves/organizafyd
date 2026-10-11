@@ -5,9 +5,10 @@ import { NodeResizer, type NodeProps } from '@xyflow/react';
 import type { SlideNode as SlideNodeType } from './types';
 export function SlideNode({ id, data, selected }: NodeProps<SlideNodeType>) {
   const ctx = useContext(SlideContext);
+  const frameless = data.kind === 'image' || data.kind === 'drawing' || !data.background || data.background === 'transparent';
   return <>
     <NodeResizer isVisible={selected && !ctx.presenting && ctx.editing !== id} minWidth={data.kind === 'text' ? 100 : 12} minHeight={data.kind === 'text' ? 60 : 12} keepAspectRatio={data.kind !== 'text'} onResizeStart={ctx.checkpoint} lineStyle={{ borderColor: '#a1a1aa' }} handleStyle={{ background: '#fafafa', borderColor: '#71717a', width: 8, height: 8 }} />
-    <div className={`slide-item ${data.kind === 'drawing' ? 'slide-drawing' : ''}`} style={{ background: data.background, color: data.color }} onDoubleClick={e => { if (data.kind === 'text' && !ctx.presenting) { e.stopPropagation(); ctx.checkpoint(); ctx.edit(id); } }}>
+    <div className={`slide-item ${frameless ? 'slide-frameless' : ''} ${data.kind === 'drawing' ? 'slide-drawing' : ''}`} style={{ background: data.background, color: data.color }} onDoubleClick={e => { if (data.kind === 'text' && !ctx.presenting) { e.stopPropagation(); ctx.checkpoint(); ctx.edit(id); } }}>
       {data.kind === 'text' && (ctx.editing === id && !ctx.presenting ?
         <textarea autoFocus aria-label="Texto do slide" className="nodrag nowheel slide-text" value={data.text || ''} style={{ fontSize: data.fontSize, fontWeight: data.bold ? 700 : 400, textAlign: data.align || 'left' }} onChange={e => ctx.patch(id, e.target.value)} onBlur={() => ctx.edit(null)} onKeyDown={e => { e.stopPropagation(); if (e.key === 'Escape') ctx.edit(null); }} /> :
         <div className="slide-text" style={{ fontSize: data.fontSize, fontWeight: data.bold ? 700 : 400, textAlign: data.align || 'left' }}>{data.text}</div>)}
