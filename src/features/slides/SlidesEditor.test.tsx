@@ -111,18 +111,24 @@ describe('SlidesEditor interaction and persistence', () => {
   it('keeps Editar slide visible with hidden controls and switches to fullscreen editing', async () => {
     const { onSave } = setup();
     const canvas = screen.getByTestId('slides-editor');
+    const editButton = screen.getByRole('button', { name: 'Editar slide' });
+    const toolbar = editButton.closest('.slides-tools');
+    expect(toolbar?.lastElementChild).toBe(editButton);
     fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
     const stage = document.querySelector('.slides-stage');
     fireEvent.click(document.querySelector('.react-flow__pane')!);
     expect(screen.queryByRole('button', { name: 'Mover painel' })).toBeNull();
-    const editButton = screen.getByRole('button', { name: 'Editar slide' });
+    expect(screen.getByRole('button', { name: 'Editar slide' })).toBe(editButton);
     expect(editButton).toBeVisible();
     fireEvent.click(editButton);
     expect(screen.getByTestId('slides-editor')).toBe(canvas);
     expect(canvas).toHaveClass('is-fullscreen');
     expect(canvas).not.toHaveClass('is-presenting');
     expect(screen.getByRole('button', { name: 'Editar slide' })).toBe(editButton);
-    expect(editButton.closest('.react-flow__panel')).toHaveClass('top', 'right');
+    expect(editButton.closest('.react-flow__panel')).toHaveClass('bottom', 'right');
+    expect(editButton.closest('.slides-tools')).toBe(toolbar);
+    expect(toolbar?.lastElementChild).toBe(editButton);
+    expect(screen.getAllByRole('button', { name: 'Editar slide' })).toHaveLength(1);
     expect(document.querySelector('.slides-stage')).toBe(stage);
     expect(document.querySelector('.slides-header')).toBeNull();
     expect(document.body.style.overflow).toBe('hidden');
