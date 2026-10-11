@@ -181,7 +181,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const inkRef = useRef<{ x: number; y: number }[]>([]);
 
   const content = <div className={`slides-editor ${fullscreen ? 'is-fullscreen' : ''} ${presenting ? 'is-presenting' : ''}`} data-testid="slides-editor">
-    {!presenting && <header className="slides-header">
+    {!fullscreen && <header className="slides-header">
       <IconButton label="Voltar aos slides" disabled={uploading} onClick={async () => { if (await flush()) onBack(); }}><ArrowLeft /></IconButton>
       <input aria-label="Título da apresentação" maxLength={140} value={title} onChange={e => setTitle(e.target.value)} className="min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none" />
       <span role="status" className="text-xs text-muted-foreground">{uploading ? 'Enviando arquivo…' : status}</span>
@@ -213,7 +213,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         <g transform={`translate(${flow.getViewport().x},${flow.getViewport().y}) scale(${flow.getViewport().zoom})`}><polyline points={ink.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={color} strokeWidth={penWidth} strokeLinecap="round" strokeLinejoin="round" /></g>
       </svg>}
         {!nodes.length && !presenting && <Panel position="top-center"><div className="pointer-events-none mt-16 text-center text-muted-foreground"><p className="text-xl font-semibold text-foreground">Uma tela. Todas as suas ideias.</p><p className="mt-2 text-sm">Use o botão + abaixo para adicionar textos, imagens e vídeos.</p><p className="mt-1 text-xs">Arraste arquivos para cá ou comece com um texto.</p></div></Panel>}
-        {presenting && <Panel position="top-right"><button type="button" className="flex items-center gap-2 rounded-lg border border-border bg-background/90 px-3 py-2 text-sm shadow-sm" onClick={() => { setEditingFullscreen(true); setPresenting(false); setControlsHidden(false); setTool('select'); }}><Pencil className="h-4 w-4" />Editar slide</button></Panel>}
+        {fullscreen && <Panel position="top-right"><button type="button" aria-pressed={!presenting} className="flex items-center gap-2 rounded-lg border border-border bg-background/90 px-3 py-2 text-sm shadow-sm" onClick={() => { setEditingFullscreen(true); setPresenting(false); setControlsHidden(false); setTool('select'); }}><Pencil className="h-4 w-4" />Editar slide</button></Panel>}
         {!controlsHidden && !presenting && selected && <Panel position="top-left"><div className="slides-properties">
           {selected.data.kind === 'text' && <>
             <IconButton label="Editar texto" onClick={() => { checkpoint(); setEditing(selected.id); }}><Type /></IconButton>
@@ -227,7 +227,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
           <IconButton label="Trazer para frente" onClick={() => change(ns => ns.map(n => n.selected ? { ...n, zIndex: Math.max(0, ...ns.map(i => i.zIndex || 0)) + 1 } : n))}><Layers /></IconButton>
           <IconButton label="Duplicar seleção" onClick={duplicate}><Copy /></IconButton><IconButton label="Remover seleção" onClick={remove}><Trash2 /></IconButton>
         </div></Panel>}
-        {!controlsHidden && tool === 'pencil' && <Panel position="top-right"><div className="slides-properties"><input type="color" aria-label="Cor do lápis" value={color} onChange={e => setColor(e.target.value)} /><label>Traço <input type="number" aria-label="Espessura do lápis" min={1} max={24} value={penWidth} onChange={e => setPenWidth(Math.max(1, Math.min(24, +e.target.value || 1)))} /></label></div></Panel>}
+        {!controlsHidden && tool === 'pencil' && <Panel position={fullscreen ? 'top-center' : 'top-right'}><div className="slides-properties"><input type="color" aria-label="Cor do lápis" value={color} onChange={e => setColor(e.target.value)} /><label>Traço <input type="number" aria-label="Espessura do lápis" min={1} max={24} value={penWidth} onChange={e => setPenWidth(Math.max(1, Math.min(24, +e.target.value || 1)))} /></label></div></Panel>}
         {!controlsHidden && !presenting && <Panel position="bottom-left"><p className="slides-help">Roda do mouse: zoom · Espaço + arrastar: mover<br />Clique no fundo: esconder ou mostrar controles</p></Panel>}
         {!controlsHidden && <Panel position="bottom-right"><div className="slides-tools">
           {!presenting && <DropdownMenu modal={false}>
@@ -260,6 +260,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
             </DropdownMenuContent>
           </DropdownMenu>
           <IconButton label={presenting ? 'Sair da apresentação' : 'Apresentar em tela inteira'} onClick={setPresentation}>{presenting ? <Minimize2 /> : <Maximize2 />}</IconButton>
+          {editingFullscreen && !presenting && <><IconButton label="Salvar agora" onClick={() => void flush()}><Save /></IconButton><IconButton label="Sair da edição em tela cheia" onClick={() => setEditingFullscreen(false)}><Minimize2 /></IconButton></>}
         </div></Panel>}
       </ReactFlow>
 

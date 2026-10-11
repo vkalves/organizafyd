@@ -112,6 +112,7 @@ describe('SlidesEditor interaction and persistence', () => {
     const { onSave } = setup();
     const canvas = screen.getByTestId('slides-editor');
     fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    const stage = document.querySelector('.slides-stage');
     fireEvent.click(document.querySelector('.react-flow__pane')!);
     expect(screen.queryByRole('button', { name: 'Mover painel' })).toBeNull();
     const editButton = screen.getByRole('button', { name: 'Editar slide' });
@@ -120,6 +121,14 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(screen.getByTestId('slides-editor')).toBe(canvas);
     expect(canvas).toHaveClass('is-fullscreen');
     expect(canvas).not.toHaveClass('is-presenting');
+    expect(screen.getByRole('button', { name: 'Editar slide' })).toBe(editButton);
+    expect(editButton.closest('.react-flow__panel')).toHaveClass('top', 'right');
+    expect(document.querySelector('.slides-stage')).toBe(stage);
+    expect(document.querySelector('.slides-header')).toBeNull();
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.click(document.querySelector('.react-flow__pane')!);
+    expect(editButton).toBeVisible();
+    fireEvent.click(editButton);
     expect(screen.getByRole('button', { name: 'Selecionar e mover objetos' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
