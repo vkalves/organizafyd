@@ -213,6 +213,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         <g transform={`translate(${flow.getViewport().x},${flow.getViewport().y}) scale(${flow.getViewport().zoom})`}><polyline points={ink.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={color} strokeWidth={penWidth} strokeLinecap="round" strokeLinejoin="round" /></g>
       </svg>}
         {!nodes.length && !presenting && <Panel position="top-center"><div className="pointer-events-none mt-16 text-center text-muted-foreground"><p className="text-xl font-semibold text-foreground">Uma tela. Todas as suas ideias.</p><p className="mt-2 text-sm">Use o botão + abaixo para adicionar textos, imagens e vídeos.</p><p className="mt-1 text-xs">Arraste arquivos para cá ou comece com um texto.</p></div></Panel>}
+        {presenting && <Panel position="top-right"><button type="button" className="flex items-center gap-2 rounded-lg border border-border bg-background/90 px-3 py-2 text-sm shadow-sm" onClick={() => { setEditingFullscreen(true); setPresenting(false); setControlsHidden(false); setTool('select'); }}><Pencil className="h-4 w-4" />Editar slide</button></Panel>}
         {!controlsHidden && !presenting && selected && <Panel position="top-left"><div className="slides-properties">
           {selected.data.kind === 'text' && <>
             <IconButton label="Editar texto" onClick={() => { checkpoint(); setEditing(selected.id); }}><Type /></IconButton>

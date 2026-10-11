@@ -108,6 +108,28 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(document.body.style.overflow).toBe(previousOverflow);
   });
 
+  it('keeps Editar slide visible with hidden controls and switches to fullscreen editing', async () => {
+    const { onSave } = setup();
+    const canvas = screen.getByTestId('slides-editor');
+    fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    fireEvent.click(document.querySelector('.react-flow__pane')!);
+    expect(screen.queryByRole('button', { name: 'Mover painel' })).toBeNull();
+    const editButton = screen.getByRole('button', { name: 'Editar slide' });
+    expect(editButton).toBeVisible();
+    fireEvent.click(editButton);
+    expect(screen.getByTestId('slides-editor')).toBe(canvas);
+    expect(canvas).toHaveClass('is-fullscreen');
+    expect(canvas).not.toHaveClass('is-presenting');
+    expect(screen.getByRole('button', { name: 'Selecionar e mover objetos' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
+    const text = await screen.findByLabelText('Texto do slide');
+    fireEvent.change(text, { target: { value: 'Edição após expandir' } });
+    fireEvent.blur(text);
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes[0].data.text).toBe('Edição após expandir'));
+  });
+
   it('hides editing controls in presentation and keeps the same canvas mounted', async () => {
     setup();
     const canvas = screen.getByTestId('slides-editor');
