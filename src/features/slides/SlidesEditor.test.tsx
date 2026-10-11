@@ -82,6 +82,32 @@ describe('SlidesEditor interaction and persistence', () => {
     render(<SlidesEditor row={row()} userId="another-user" onSave={vi.fn().mockResolvedValue(true)} onBack={vi.fn()} onUpload={vi.fn()} />);
     expect(screen.getByLabelText('Título da apresentação')).toHaveValue('Apresentação');
   });
+  it('edits in fullscreen without remounting and exits through the button or Escape', async () => {
+    const { onSave } = setup();
+    const canvas = screen.getByTestId('slides-editor');
+    const previousOverflow = document.body.style.overflow;
+    fireEvent.click(screen.getByRole('button', { name: 'Editar em tela cheia' }));
+    expect(canvas).toHaveClass('is-fullscreen');
+    expect(canvas).not.toHaveClass('is-presenting');
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
+    const text = await screen.findByLabelText('Texto do slide');
+    fireEvent.change(text, { target: { value: 'Editado em tela cheia' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sair da edição em tela cheia' }));
+    expect(screen.getByTestId('slides-editor')).toBe(canvas);
+    expect(screen.getByLabelText('Texto do slide')).toBe(text);
+    expect(canvas).not.toHaveClass('is-fullscreen');
+    expect(document.body.style.overflow).toBe(previousOverflow);
+    fireEvent.blur(text);
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes[0].data.text).toBe('Editado em tela cheia'));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar em tela cheia' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(canvas).not.toHaveClass('is-fullscreen');
+    expect(document.body.style.overflow).toBe(previousOverflow);
+  });
+
   it('hides editing controls in presentation and keeps the same canvas mounted', async () => {
     setup();
     const canvas = screen.getByTestId('slides-editor');

@@ -1,5 +1,5 @@
 .slides-editor{display:flex;flex-direction:column;height:calc(100dvh - 150px);min-height:430px;border:1px solid hsl(var(--border));border-radius:16px;overflow:hidden;background:hsl(var(--background))}
-.slides-editor.is-presenting{position:fixed;inset:0;z-index:110;height:100dvh;min-height:0;border:0;border-radius:0}
+.slides-editor.is-fullscreen{position:fixed;inset:0;z-index:110;height:100dvh;min-height:0;border:0;border-radius:0}
 .slides-header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid hsl(var(--border));background:hsl(var(--background));flex-wrap:wrap}
 .slides-stage{flex:1;min-height:0;position:relative;isolation:isolate}
 .slides-editor .react-flow__node-slide{border:0;padding:0;border-radius:16px;background:transparent}

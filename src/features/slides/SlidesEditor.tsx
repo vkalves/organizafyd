@@ -32,12 +32,14 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const [viewport, setViewport] = useState(initial.data.viewport);
   const [tool, setTool] = useState<Tool>('select');
   const [presenting, setPresenting] = useState(false);
+  const [editingFullscreen, setEditingFullscreen] = useState(false);
+  const fullscreen = presenting || editingFullscreen;
   const [controlsHidden, setControlsHidden] = useState(false);
   useLayoutEffect(() => {
-    const parent = presenting ? document.body : placeholder.current;
+    const parent = fullscreen ? document.body : placeholder.current;
     parent?.appendChild(portalHost);
     return () => { portalHost.remove(); };
-  }, [presenting, portalHost]);
+  }, [fullscreen, portalHost]);
   const [editing, setEditing] = useState<string | null>(null);
   const [color, setColor] = useState('#f4f4f5');
   const [penWidth, setPenWidth] = useState(3);
@@ -136,14 +138,14 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     return () => { mounted.current = false; window.removeEventListener('beforeunload', warn); void flushRef.current(); };
   }, []);
   useEffect(() => {
-    if (!presenting) return;
+    if (!fullscreen) return;
     const before = document.body.style.overflow; document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = before; };
-  }, [presenting]);
+  }, [fullscreen]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable=true],[role=dialog]'))) return;
-      if (e.key === 'Escape') { setPresenting(false); setControlsHidden(false); setEditing(null); setTool('select'); return; }
+      if (e.key === 'Escape') { setPresenting(false); setEditingFullscreen(false); setControlsHidden(false); setEditing(null); setTool('select'); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void flushRef.current(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (!presenting && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); remove(); }
@@ -178,12 +180,13 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const point = (e: { clientX: number; clientY: number }) => flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
   const inkRef = useRef<{ x: number; y: number }[]>([]);
 
-  const content = <div className={`slides-editor ${presenting ? 'is-presenting' : ''}`} data-testid="slides-editor">
+  const content = <div className={`slides-editor ${fullscreen ? 'is-fullscreen' : ''} ${presenting ? 'is-presenting' : ''}`} data-testid="slides-editor">
     {!presenting && <header className="slides-header">
       <IconButton label="Voltar aos slides" disabled={uploading} onClick={async () => { if (await flush()) onBack(); }}><ArrowLeft /></IconButton>
       <input aria-label="Título da apresentação" maxLength={140} value={title} onChange={e => setTitle(e.target.value)} className="min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none" />
       <span role="status" className="text-xs text-muted-foreground">{uploading ? 'Enviando arquivo…' : status}</span>
       <IconButton label="Salvar agora" onClick={() => void flush()}><Save /></IconButton>
+      <IconButton label={editingFullscreen ? 'Sair da edição em tela cheia' : 'Editar em tela cheia'} active={editingFullscreen} onClick={() => { setControlsHidden(false); setEditingFullscreen(value => !value); }}>{editingFullscreen ? <Minimize2 /> : <Maximize2 />}</IconButton>
       <button className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm" onClick={setPresentation}>Apresentar</button>
     </header>}
     <div ref={stage} className="slides-stage" onDragOver={e => { if (!presenting) e.preventDefault(); }} onDrop={e => { if (!presenting) { e.preventDefault(); void upload(e.dataTransfer.files); } }}>
