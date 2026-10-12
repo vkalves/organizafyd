@@ -101,6 +101,11 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const undo = () => { const prev = history.current.pop(); if (!prev) return; future.current.push(cleanNodes(nodesRef.current)); setNodes(prev); setEditing(null); setHistoryVersion(v => v + 1); };
   const redo = () => { const next = future.current.pop(); if (!next) return; history.current.push(cleanNodes(nodesRef.current)); setNodes(next); setEditing(null); setHistoryVersion(v => v + 1); };
   const patch = (data: Partial<SlideItem>) => change(ns => ns.map(n => n.selected ? { ...n, data: { ...n.data, ...data } } : n));
+  const setTextSize = (value: number, recordHistory = true) => {
+    const fontSize = Math.max(12, Math.min(160, Math.round(value)));
+    if (recordHistory) checkpoint();
+    setNodes(items => items.map(node => node.selected && node.data.kind === 'text' ? { ...node, data: { ...node.data, fontSize } } : node));
+  };
   const remove = () => { if (!selectedIds.length) return; change(ns => ns.filter(n => !n.selected)); setEditing(null); };
 
   async function flush(): Promise<boolean> {
@@ -215,7 +220,13 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         {!controlsHidden && !presenting && selected && <Panel position="top-left"><div className="slides-properties">
           {selected.data.kind === 'text' && <>
             <IconButton label="Editar texto" onClick={() => { checkpoint(); setEditing(selected.id); }}><Type /></IconButton>
-            <label>Tamanho <input aria-label="Tamanho do texto" type="number" min={12} max={160} value={selected.data.fontSize} onChange={e => patch({ fontSize: Math.max(12, Math.min(160, +e.target.value || 12)) })} /></label>
+            <div className="slide-font-size" role="group" aria-label="Ajustar tamanho do texto">
+              <span>Tamanho</span>
+              <IconButton label="Diminuir texto" disabled={selected.data.fontSize <= 12} onClick={() => setTextSize(selected.data.fontSize - 2)}><Minus /></IconButton>
+              <input className="slide-font-range" aria-label="Tamanho do texto" type="range" min={12} max={160} step={1} value={selected.data.fontSize} onPointerDown={checkpoint} onKeyDown={e => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) checkpoint(); }} onChange={e => setTextSize(+e.target.value, false)} />
+              <IconButton label="Aumentar texto" disabled={selected.data.fontSize >= 160} onClick={() => setTextSize(selected.data.fontSize + 2)}><Plus /></IconButton>
+              <span className="slide-font-value" aria-label="Tamanho atual do texto">{selected.data.fontSize} px</span>
+            </div>
             <IconButton label="Negrito" active={!!selected.data.bold} onClick={() => patch({ bold: !selected.data.bold })}><Bold /></IconButton>
             <select aria-label="Alinhamento do texto" value={selected.data.align || 'left'} onChange={e => patch({ align: e.target.value as SlideItem['align'] })}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select>
           </>}

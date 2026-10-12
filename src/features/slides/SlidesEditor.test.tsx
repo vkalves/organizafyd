@@ -22,6 +22,46 @@ function setup(onSave = vi.fn().mockResolvedValue(true)) {
 }
 
 describe('SlidesEditor interaction and persistence', () => {
+  it('adjusts text with plus, minus and a slider, with one undo for an entire drag', async () => {
+    const { onSave } = setup();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
+    fireEvent.blur(await screen.findByLabelText('Texto do slide'));
+    const slider = screen.getByRole('slider', { name: 'Tamanho do texto' });
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar texto' }));
+    expect(slider).toHaveValue('38');
+    fireEvent.click(screen.getByRole('button', { name: 'Diminuir texto' }));
+    expect(slider).toHaveValue('36');
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '80' } });
+    fireEvent.change(slider, { target: { value: '96' } });
+    fireEvent.pointerUp(slider);
+    expect(screen.getByLabelText('Tamanho atual do texto')).toHaveTextContent('96 px');
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    // Undo restores nodes without the transient selection flag.
+    fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes[0].data.fontSize).toBe(96));
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave.mock.lastCall[1].nodes[0].data.fontSize).toBe(36));
+  });
+
+  it('disables size buttons at the limits and supports keyboard adjustment', async () => {
+    setup();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Adicionar texto' }));
+    fireEvent.blur(await screen.findByLabelText('Texto do slide'));
+    const slider = screen.getByRole('slider', { name: 'Tamanho do texto' });
+    fireEvent.keyDown(slider, { key: 'End' });
+    fireEvent.change(slider, { target: { value: '160' } });
+    expect(screen.getByRole('button', { name: 'Aumentar texto' })).toBeDisabled();
+    fireEvent.keyDown(slider, { key: 'Home' });
+    fireEvent.change(slider, { target: { value: '12' } });
+    expect(screen.getByRole('button', { name: 'Diminuir texto' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Aumentar texto' })).toBeEnabled();
+  });
+
   it('adds editable text, saves its content, and restores after reopening', async () => {
     const { onSave, unmount } = setup();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });

@@ -19,6 +19,10 @@
 .slides-properties{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:min(640px,calc(100vw - 40px));border:1px solid hsl(var(--border));padding:8px;border-radius:12px;background:hsl(var(--background)/.95);font-size:12px}
 .slides-properties input[type=color]{width:28px;height:28px;background:transparent;border:0;cursor:pointer}
 .slides-properties input[type=number],.slides-properties select{border:1px solid hsl(var(--border));background:hsl(var(--secondary));border-radius:6px;padding:4px;width:68px}
+.slide-font-size{display:flex;align-items:center;gap:6px;max-width:100%}
+.slide-font-size .slides-tool{width:36px;height:36px;border:1px solid hsl(var(--border));background:hsl(var(--secondary))}
+.slide-font-range{width:110px;min-width:50px;height:36px;cursor:pointer;accent-color:hsl(var(--foreground));touch-action:none}
+.slide-font-value{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .slides-help{font-size:11px;color:hsl(var(--muted-foreground));pointer-events:none;max-width:280px}
 .slides-ink{position:absolute;inset:0;z-index:8;touch-action:none;cursor:crosshair}
 .slides-editor.is-presenting .react-flow__node.selected{outline:none}
