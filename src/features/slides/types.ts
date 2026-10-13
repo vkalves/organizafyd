@@ -21,7 +21,7 @@ export type SlideItem = {
   viewHeight?: number;
 };
 export type SlideNode = Node<SlideItem, 'slide'>;
-export type SlideData = { kind: 'slides'; version: 1; nodes: SlideNode[]; viewport: Viewport };
+export type SlideData = { kind: 'slides'; version: 1; background?: string; showGrid?: boolean; nodes: SlideNode[]; viewport: Viewport };
 export type SlideRow = { id: string; title: string; data: SlideData; updated_at: string };
 export const emptySlides = (): SlideData => ({ kind: 'slides', version: 1, nodes: [], viewport: { x: 80, y: 80, zoom: 1 } });
 export function isSlideData(data: unknown): data is SlideData {

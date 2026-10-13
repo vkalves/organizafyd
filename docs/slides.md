@@ -65,3 +65,12 @@ coordenadas do desenho e validação de URLs. `npm run build` compila a aplicaç
   mantém título e salvamento; os diálogos aparecem sobre o editor.
 - Os cartões mostram uma prévia da composição, sem reproduzir vídeos. A lista
   pode ser ordenada por edição recente, nome ou quantidade de elementos.
+
+## Importação de arquivos
+
+A página Slides possui uma área para arrastar ou escolher um JSON criado pelo
+ChatGPT. Cada importação cria uma apresentação nova e enquadra o conteúdo no
+editor. Há validação de formato, tamanho, tipos, cores e fontes de mídia, com
+mensagens de erro sem criar apresentações vazias. Fundo e grade são preservados
+no salvamento. Consulte `docs/slides-import.md` para criar arquivos compatíveis;
+o modelo está disponível na própria área de importação.

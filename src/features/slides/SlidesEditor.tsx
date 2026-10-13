@@ -16,11 +16,11 @@ import './slides.css';
 const nodeTypes = { slide: SlideNode };
 type Tool = 'select' | 'hand' | 'pencil' | 'eraser';
 type Snapshot = { title: string; data: SlideData };
-type Props = { row: SlideRow; userId: string; onBack: () => void; onSave: (title: string, data: SlideData) => Promise<boolean>; onUpload: (file: File) => Promise<{ src: string; storagePath: string }> };
+type Props = { fitOnOpen?: boolean; row: SlideRow; userId: string; onBack: () => void; onSave: (title: string, data: SlideData) => Promise<boolean>; onUpload: (file: File) => Promise<{ src: string; storagePath: string }> };
 function IconButton({ label, children, onClick, active, disabled }: { label: string; children: ReactNode; onClick: () => void; active?: boolean; disabled?: boolean }) {
   return <button type="button" className="slides-tool" title={label} aria-label={label} aria-pressed={active} disabled={disabled} onClick={onClick}>{children}</button>;
 }
-function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
+function Canvas({ fitOnOpen = false, row, userId, onBack, onSave, onUpload }: Props) {
   const placeholder = useRef<HTMLDivElement>(null);
   const [portalHost] = useState(() => document.createElement('div'));
   const cacheKey = `organizafyd:slides:${userId}:${row.id}`;
@@ -64,7 +64,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
   const mounted = useRef(true);
   const flow = useReactFlow<SlideNodeType>();
   const callbacks = useRef({ onSave, onUpload }); callbacks.current = { onSave, onUpload };
-  const snapshot: Snapshot = { title, data: { kind: 'slides', version: 1, nodes: cleanNodes(nodes), viewport } };
+  const snapshot: Snapshot = { title, data: { ...initial.data, kind: 'slides', version: 1, nodes: cleanNodes(nodes), viewport } };
   const serialized = JSON.stringify(snapshot);
   const latest = useRef(serialized); latest.current = serialized;
   const saved = useRef(JSON.stringify({ title: row.title, data: { ...row.data, nodes: cleanNodes(row.data.nodes) } }));
@@ -255,7 +255,7 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
     </aside>}
     <div ref={stage} className="slides-stage" onDragOver={e => { if (!presenting) e.preventDefault(); }} onDrop={e => { if (!presenting) { e.preventDefault(); void upload(e.dataTransfer.files); } }}>
       <ReactFlow<SlideNodeType> nodes={nodes} edges={[]} nodeTypes={nodeTypes}
-        defaultViewport={initial.data.viewport} minZoom={.05} maxZoom={5}
+        fitView={fitOnOpen} fitViewOptions={{ padding: .15, maxZoom: 1 }} defaultViewport={initial.data.viewport} minZoom={.05} maxZoom={5}
         onNodesChange={changes => setNodes(ns => applyNodeChanges(changes, ns))}
         onNodeDragStart={checkpoint} onSelectionDragStart={checkpoint}
         onMoveEnd={(_, v: Viewport) => setViewport(v)}
@@ -267,8 +267,8 @@ function Canvas({ row, userId, onBack, onSave, onUpload }: Props) {
         onPaneClick={() => { setEditing(null); setControlsHidden(hidden => !hidden); }}
         onNodeClick={(_, n) => { if (tool === 'eraser') change(ns => ns.filter(item => item.id !== n.id)); }}
         onNodeDoubleClick={(_, n) => { if (presenting || n.data.kind !== 'text') focus(n); }}
-        className="bg-background" aria-label="Painel livre de slides">
-        <Background color="hsl(0 0% 15%)" gap={26} size={1} />
+        style={{ backgroundColor: initial.data.background }} className="bg-background" aria-label="Painel livre de slides">
+        {initial.data.showGrid !== false && <Background color="hsl(0 0% 15%)" gap={26} size={1} />}
       {tool === 'pencil' && <svg className="slides-ink" width="100%" height="100%" aria-label="Área para desenhar"
         onPointerDown={e => { if (e.button !== 0 || !e.isPrimary) return; e.currentTarget.setPointerCapture(e.pointerId); inkRef.current = [point(e)]; setInk(inkRef.current); }}
         onPointerMove={e => { if (!e.currentTarget.hasPointerCapture(e.pointerId)) return; inkRef.current = [...inkRef.current, point(e)]; setInk(inkRef.current); }}

@@ -22,6 +22,17 @@ function setup(onSave = vi.fn().mockResolvedValue(true)) {
 }
 
 describe('SlidesEditor interaction and persistence', () => {
+  it('preserves imported background and grid preferences after editing and saving', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    render(<SlidesEditor row={{ ...row(), data: { ...emptySlides(), background: '#000000', showGrid: false } }} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
+    expect(document.querySelector('.react-flow__background')).toBeNull();
+    expect(screen.getByLabelText('Painel livre de slides')).toHaveStyle({ backgroundColor: '#000000' });
+    fireEvent.change(screen.getByLabelText('Título da apresentação'), { target: { value: 'Título editado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.lastCall[1]).toMatchObject({ background: '#000000', showGrid: false });
+  });
+
   it('adds a searchable logo in fullscreen, saves it and restores its identity after reopening', async () => {
     const { onSave, unmount } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Editar em tela cheia' }));

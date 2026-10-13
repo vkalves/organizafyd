@@ -1,0 +1,92 @@
+{
+  "title": "Modelo de slide Organizafyd",
+  "data": {
+    "kind": "slides",
+    "version": 1,
+    "background": "#000000",
+    "showGrid": false,
+    "nodes": [
+      {
+        "id": "title",
+        "type": "slide",
+        "position": {
+          "x": 80,
+          "y": 80
+        },
+        "style": {
+          "width": 750,
+          "height": 120
+        },
+        "data": {
+          "kind": "text",
+          "text": "Sua ideia começa aqui",
+          "color": "#ffffff",
+          "background": "transparent",
+          "fontSize": 52,
+          "bold": true
+        }
+      },
+      {
+        "id": "body",
+        "type": "slide",
+        "position": {
+          "x": 80,
+          "y": 240
+        },
+        "style": {
+          "width": 620,
+          "height": 180
+        },
+        "data": {
+          "kind": "text",
+          "text": "Troque este texto pelas suas informações.\nCada elemento pode ser movido e editado.",
+          "color": "#ffffff",
+          "background": "transparent",
+          "fontSize": 28
+        }
+      },
+      {
+        "id": "logo",
+        "type": "slide",
+        "position": {
+          "x": 850,
+          "y": 240
+        },
+        "style": {
+          "width": 120,
+          "height": 120
+        },
+        "data": {
+          "kind": "logo",
+          "icon": "telegram",
+          "name": "Telegram",
+          "color": "#ffffff",
+          "background": "transparent",
+          "fontSize": 24
+        }
+      },
+      {
+        "id": "arrow",
+        "type": "slide",
+        "position": {
+          "x": 690,
+          "y": 270
+        },
+        "style": {
+          "width": 140,
+          "height": 70
+        },
+        "data": {
+          "kind": "drawing",
+          "path": "M 5 35 Q 60 5 125 35 M 105 15 L 125 35 L 102 48",
+          "viewWidth": 140,
+          "viewHeight": 70,
+          "strokeWidth": 4,
+          "color": "#ffffff",
+          "background": "transparent",
+          "fontSize": 24
+        }
+      }
+    ]
+  }
+}
