@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignSlideNodesCenter, centerSlideNodes } from './layout';
+import { alignSlideNodesCenter, centerSlideNodes, arrangeSlideNodes } from './layout';
 import type { SlideNode } from './types';
 const nodes: SlideNode[] = [
   { id: 'a', type: 'slide', position: { x: -90, y: 100 }, style: { width: 120, height: 200 }, data: { kind: 'image', color: '#fff', background: 'transparent', fontSize: 24 } },
@@ -50,5 +50,29 @@ describe('centering without redistribution', () => {
     const result = centerSlideNodes([nodes[0]], 'horizontal', target);
     expect(result.nodes[0].position.x + 60).toBe(target.x);
     expect(result.nodes[0].position.y).toBe(nodes[0].position.y);
+  });
+});
+
+describe('arranging variable-size content', () => {
+  it('keeps unselected nodes untouched and leaves a gap between selected items', () => {
+    const items = [...nodes.map(n => ({ ...n, selected: true })), { ...nodes[0], id: 'untouched', selected: false }];
+    const result = arrangeSlideNodes(items, 'row');
+    expect(result[2]).toBe(items[2]);
+    expect(result[1].position.x - result[0].position.x).toBe(160);
+    expect(result[0].position.y).toBe(result[1].position.y);
+    expect(result[0].data).toBe(items[0].data);
+    expect(items[0].position.x).toBe(-90);
+  });
+  it('uses the tallest item in each grid row to avoid overlap', () => {
+    const items = [...nodes, { ...nodes[0], id: 'c' }, { ...nodes[1], id: 'd' }];
+    const result = arrangeSlideNodes(items, 'grid');
+    expect(result[2].position.y - result[0].position.y).toBe(240);
+    expect(result[1].position.x - result[0].position.x).toBe(160);
+    expect(result[3].position.x).toBe(result[1].position.x);
+  });
+  it('does not move a single selection or an empty board', () => {
+    expect(arrangeSlideNodes([], 'column')).toEqual([]);
+    const items = nodes.map((n, i) => ({ ...n, selected: i === 0 }));
+    expect(arrangeSlideNodes(items, 'column')).toBe(items);
   });
 });

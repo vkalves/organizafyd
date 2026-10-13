@@ -22,6 +22,24 @@ function setup(onSave = vi.fn().mockResolvedValue(true)) {
 }
 
 describe('SlidesEditor interaction and persistence', () => {
+  it('adds a searchable logo in fullscreen, saves it and restores its identity after reopening', async () => {
+    const { onSave, unmount } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar em tela cheia' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Logos' }));
+    fireEvent.change(screen.getByLabelText('Buscar logos'), { target: { value: 'telegram' } });
+    expect(screen.queryByRole('button', { name: 'Instagram' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Telegram' }));
+    expect(await screen.findByRole('img', { name: 'Telegram' })).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Cor do conteúdo'), { target: { value: '#0088cc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agora' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const data = onSave.mock.lastCall[1];
+    expect(data.nodes[0].data).toMatchObject({ kind: 'logo', icon: 'telegram', color: '#0088cc', background: 'transparent' });
+    unmount();
+    render(<SlidesEditor row={{ ...row(), data }} userId="tester" onSave={onSave} onBack={vi.fn()} onUpload={vi.fn()} />);
+    expect(await screen.findByRole('img', { name: 'Telegram' })).toBeVisible();
+  });
+
   it('adjusts text with plus, minus and a slider, with one undo for an entire drag', async () => {
     const { onSave } = setup();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Adicionar conteúdo' }), { key: 'Enter' });
@@ -170,7 +188,7 @@ describe('SlidesEditor interaction and persistence', () => {
     expect(toolbar?.lastElementChild).toBe(editButton);
     expect(screen.getAllByRole('button', { name: 'Editar slide' })).toHaveLength(1);
     expect(document.querySelector('.slides-stage')).toBe(stage);
-    expect(document.querySelector('.slides-header')).toBeNull();
+    expect(document.querySelector('.slides-header')).toBeVisible();
     expect(document.body.style.overflow).toBe('hidden');
     fireEvent.click(document.querySelector('.react-flow__pane')!);
     expect(editButton).toBeVisible();

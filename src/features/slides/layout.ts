@@ -30,3 +30,26 @@ export function centerSlideNodes(nodes: SlideNode[], direction: 'horizontal' | '
     bounds: { x: left + dx, y: top + dy, width: right - left, height: bottom - top },
   };
 }
+
+// Organize only the selection when present; otherwise organize the whole canvas.
+// Fixed gaps avoid overlap even when the original elements were stacked.
+export function arrangeSlideNodes(nodes: SlideNode[], mode: 'row' | 'column' | 'grid'): SlideNode[] {
+  const selection = nodes.filter(node => node.selected);
+  const items = selection.length ? selection : nodes;
+  if (items.length < 2) return nodes;
+  const columns = mode === 'column' ? 1 : mode === 'row' ? items.length : Math.ceil(Math.sqrt(items.length));
+  const widths = Array.from({ length: columns }, () => 0);
+  const heights: number[] = [];
+  items.forEach((node, i) => {
+    const col = i % columns, row = Math.floor(i / columns);
+    widths[col] = Math.max(widths[col], Number(node.style?.width) || node.width || node.measured?.width || 420);
+    heights[row] = Math.max(heights[row] || 0, Number(node.style?.height) || node.height || node.measured?.height || 260);
+  });
+  const left = Math.min(...items.map(n => n.position.x));
+  const top = Math.min(...items.map(n => n.position.y));
+  const positions = new Map(items.map((node, i) => [node.id, {
+    x: left + widths.slice(0, i % columns).reduce((sum, width) => sum + width + 40, 0),
+    y: top + heights.slice(0, Math.floor(i / columns)).reduce((sum, height) => sum + height + 40, 0),
+  }]));
+  return nodes.map(node => positions.has(node.id) ? { ...node, position: positions.get(node.id)! } : node);
+}

@@ -1,3 +1,4 @@
+import { BrandIcon } from '../mindmap/BrandIcons';
 import { useContext } from 'react';
 import { SlideContext } from './context';
 import { VideoSlide } from './VideoSlide';
@@ -12,6 +13,7 @@ export function SlideNode({ id, data, selected }: NodeProps<SlideNodeType>) {
       {data.kind === 'text' && (ctx.editing === id && !ctx.presenting ?
         <textarea autoFocus aria-label="Texto do slide" className="nodrag nowheel slide-text" value={data.text || ''} style={{ fontSize: data.fontSize, fontWeight: data.bold ? 700 : 400, textAlign: data.align || 'left' }} onChange={e => ctx.patch(id, e.target.value)} onBlur={() => ctx.edit(null)} onKeyDown={e => { e.stopPropagation(); if (e.key === 'Escape') ctx.edit(null); }} /> :
         <div className="slide-text" style={{ fontSize: data.fontSize, fontWeight: data.bold ? 700 : 400, textAlign: data.align || 'left' }}>{data.text}</div>)}
+      {data.kind === 'logo' && <div className="slide-logo" role="img" aria-label={data.name || 'Logo'}><BrandIcon name={data.icon} width="100%" height="100%" /></div>}
       {data.kind === 'image' && <img draggable={false} src={data.src} alt={data.name || 'Imagem do slide'} onLoad={e => ctx.mediaSize(id, data.src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} onError={e => { e.currentTarget.alt = 'Não foi possível carregar esta imagem'; }} />}
       {data.kind === 'video' && <VideoSlide src={data.src} name={data.name} presenting={ctx.presenting} onDimensions={(width, height) => ctx.mediaSize(id, data.src, width, height)} />}
       {data.kind === 'drawing' && <svg width="100%" height="100%" viewBox={`0 0 ${data.viewWidth} ${data.viewHeight}`} preserveAspectRatio="none"><path d={data.path} fill="none" stroke={data.color} strokeWidth={data.strokeWidth} strokeLinecap="round" strokeLinejoin="round" /></svg>}

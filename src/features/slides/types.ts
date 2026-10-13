@@ -1,7 +1,9 @@
+import type { MindIconName } from '../mindmap/BrandIcons';
 import type { Node, Viewport } from '@xyflow/react';
 
 export type SlideItem = {
-  kind: 'text' | 'image' | 'video' | 'drawing';
+  kind: 'text' | 'image' | 'video' | 'drawing' | 'logo';
+  icon?: MindIconName;
   text?: string;
   src?: string;
   storagePath?: string;

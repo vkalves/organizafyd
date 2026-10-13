@@ -48,3 +48,20 @@ mensagem de incompatibilidade. Não há ordem, setas ou reprodução automática
 `npx vitest run src/features/slides` verifica persistência, fila de salvamento,
 recuperação após falha, separação por usuário, upload, apresentação, histórico,
 coordenadas do desenho e validação de URLs. `npm run build` compila a aplicação.
+
+## Organização e logos
+
+- Barra superior com Texto, Imagem, Vídeo, Logos, Elementos e Organizar.
+- Logos reutilizam o catálogo dos mapas (Instagram, TikTok, Telegram, WhatsApp,
+  YouTube, ChatGPT, Google, GitHub e outros). São vetoriais, sem fundo e com cor
+  editável; não dependem de baixar imagens externas.
+- O painel Elementos permite buscar, selecionar e localizar objetos. Shift +
+  clique seleciona vários; duplo clique enquadra o objeto.
+- Organizar distribui a seleção, ou todos quando não há seleção, em linha,
+  coluna ou grade, com espaço entre objetos. Desfazer restaura a composição.
+- Ctrl+A seleciona todos; Ctrl+D duplica. Camadas permitem enviar para trás
+  e trazer para frente.
+- Propriedades ficam acima da tela, sem cobrir os objetos. A edição em tela cheia
+  mantém título e salvamento; os diálogos aparecem sobre o editor.
+- Os cartões mostram uma prévia da composição, sem reproduzir vídeos. A lista
+  pode ser ordenada por edição recente, nome ou quantidade de elementos.
