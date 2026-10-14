@@ -414,7 +414,7 @@ const Notas = () => {
           "flex min-h-0 flex-col bg-background",
           focusMode
             ? "fixed inset-0 z-[60] h-[100dvh] w-screen overflow-hidden bg-background"
-            : "h-full lg:mx-auto lg:h-[calc(100dvh-9rem)] lg:max-w-4xl lg:gap-4",
+            : "workspace-note-editor h-full lg:mx-auto lg:max-w-4xl lg:gap-4",
         )}
       >
         <div className={cn(
@@ -667,9 +667,10 @@ const Notas = () => {
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Notas</h1>
+          <p className="page-eyebrow mb-2">Biblioteca de ideias</p>
+          <h1 className="text-3xl font-medium tracking-tight text-foreground">Notas</h1>
           <p className="text-sm text-muted-foreground mt-1">Suas ideias e anotações</p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
@@ -685,7 +686,7 @@ const Notas = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input type="text" placeholder="Buscar nas notas..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 pl-9 pr-4 rounded-md bg-secondary border-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          className="w-full h-11 pl-9 pr-4 rounded-xl bg-secondary/60 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
       </div>
 
       <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
@@ -716,23 +717,23 @@ const Notas = () => {
       {loading ? (
         <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="p-4 rounded-full bg-secondary mb-4">
+        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl px-5 py-20 text-center">
+          <div className="p-4 rounded-2xl border border-border bg-secondary/60 mb-4">
             {showArchived ? <Archive className="w-8 h-8 text-muted-foreground" /> : <StickyNote className="w-8 h-8 text-muted-foreground" />}
           </div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</h2>
+          <h2 className="text-lg font-medium text-foreground mb-1">{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</h2>
           <p className="text-sm text-muted-foreground max-w-sm">
             {showArchived ? "As notas que você arquivar aparecerão aqui." : "Crie notas para organizar suas ideias."}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((n) => (
             <div
               key={n.id}
               role="button"
               tabIndex={0}
-              className="group cursor-pointer rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="operation-panel group cursor-pointer rounded-2xl p-5 text-left transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => openEditor(n)}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return;
@@ -750,7 +751,7 @@ const Notas = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground line-clamp-3">{n.content ? n.content.replace(/<[^>]*>/g, "").slice(0, 150) : "Sem conteúdo"}</p>
-              <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center justify-between mt-5 border-t border-border/70 pt-3">
                 <span className="text-[10px] text-muted-foreground">{new Date(n.updated_at).toLocaleDateString("pt-BR")}</span>
                 <div className="flex gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                   <button aria-label={n.is_pinned ? "Desafixar nota" : "Fixar nota"} onClick={(e) => togglePin(n, e)} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Pin className={cn("h-3.5 w-3.5", n.is_pinned ? "text-foreground" : "text-muted-foreground")} /></button>

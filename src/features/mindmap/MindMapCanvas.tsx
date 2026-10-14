@@ -540,7 +540,7 @@ function MindMapCanvasInner({ title, data, saving, onBack, onChange, onSave }: C
       className={
         isFullscreen
           ? "fixed inset-0 z-[100] flex h-[100dvh] w-screen flex-col bg-background"
-          : "-mx-4 -mb-4 flex h-[calc(100dvh-6.5rem)] min-h-[34rem] flex-col sm:-mx-6 sm:-mb-6 lg:-mx-8 lg:-mb-8 lg:h-[calc(100dvh-3.5rem)]"
+          : "workspace-map-editor flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border"
       }
     >
       <div className="shrink-0 border-b border-border bg-background/95 backdrop-blur-xl">

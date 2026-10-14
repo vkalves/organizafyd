@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import logoImg from "@/assets/logo-organify.png";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
+import AuthLayout from "@/components/layout/AuthLayout";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,32 +31,31 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="safe-bottom-padding flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-background px-4 py-8">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="flex flex-col items-center gap-4">
-          <img src={logoImg} alt="Organizafy" className="h-10 max-w-full object-contain" />
-          <p className="text-sm text-muted-foreground">Defina sua nova senha</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthLayout>
+        <p className="auth-card-eyebrow">UM NOVO COMEÇO</p>
+        <h2>Defina sua nova senha.</h2>
+        <p className="auth-card-description">Escolha uma senha para voltar ao seu espaço de organização.</p>
+        <form onSubmit={handleSubmit} className="auth-form">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Nova Senha</label>
-            <input
-              type="password"
+            <div className="auth-field-label"><label htmlFor="reset-password">Nova senha</label></div>
+            <div className="auth-input-wrap"><LockKeyhole size={15} /><input
+              id="reset-password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              placeholder="••••••••"
-            />
+              placeholder="Crie sua nova senha"
+              aria-describedby="reset-password-hint"
+            /><button type="button" className="auth-password-toggle" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+            <p id="reset-password-hint" className="auth-field-hint">Use pelo menos 6 caracteres.</p>
           </div>
-          <button type="submit" disabled={submitting} className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
-            {submitting ? "Atualizando..." : "Atualizar Senha"}
+          <button type="submit" disabled={submitting} className="auth-submit">
+            {submitting ? <Loader2 size={15} className="animate-spin" /> : null}{submitting ? "Atualizando..." : "Atualizar senha"}{!submitting && <ArrowRight size={15} />}
           </button>
         </form>
-      </div>
-    </div>
+    </AuthLayout>
   );
 };
 

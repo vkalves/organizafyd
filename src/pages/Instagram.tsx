@@ -67,11 +67,11 @@ import {
   type Table,
   type MetricKey,
 } from "@/features/instagram/model";
-const panel = "min-w-0 rounded-lg border border-border bg-card p-4 sm:p-5";
+const panel = "operation-panel min-w-0 rounded-2xl p-4 sm:p-5";
 const btn = "min-h-11";
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+    <div className="operation-panel rounded-2xl p-8 text-center text-sm text-muted-foreground">
       {children}
     </div>
   );
@@ -206,7 +206,7 @@ function StatLine({
 }) {
   return (
     <div
-      className={`rounded-lg bg-muted/40 ${compact ? "px-3 py-2" : "px-4 py-3.5"} ${dim ? "opacity-45" : ""}`}
+      className={`operation-panel rounded-xl ${compact ? "px-3 py-3" : "px-4 py-3.5"} ${dim ? "opacity-45" : ""}`}
     >
       <p
         className={`flex items-center ${compact ? "gap-2 text-sm" : "gap-2.5 text-base"}`}
@@ -388,7 +388,7 @@ export default function Instagram() {
   if (query.isError || !data)
     return (
       <div className={panel}>
-        <h1 className="text-xl font-semibold">
+        <h1 className="text-xl font-medium">
           Não foi possível carregar Instagram
         </h1>
         <p className="my-3 text-sm text-muted-foreground">
@@ -765,9 +765,20 @@ export default function Instagram() {
     />
   );
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-5">
+    <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
+      {!accountId && (
+        <header className="border-b border-border/70 pb-6">
+          <p className="page-eyebrow mb-2">Central social</p>
+          <h1 className="text-3xl font-medium tracking-tight">
+            {mode === "pending" ? "Conteúdos pendentes" : mode === "ready" ? "Conteúdos prontos" : "Instagram"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {mode === "pending" ? "Acompanhe o que está em produção." : mode === "ready" ? "Organize seus conteúdos para publicar." : "Suas contas e conteúdos em um só lugar."}
+          </p>
+        </header>
+      )}
       {accountId ? (
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-6">
         <div className="min-w-0">
           <Button asChild variant="ghost" className="mb-2 -ml-3">
               <Link
@@ -791,8 +802,9 @@ export default function Instagram() {
                       : "Todas as contas"}
               </Link>
             </Button>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <InstagramIcon className="h-6 w-6 shrink-0" />
+          <p className="page-eyebrow mb-2">Central social</p>
+          <h1 className="flex items-center gap-2 text-3xl font-medium tracking-tight">
+            <InstagramIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
             {account
               ? (
                     <Handle
@@ -1407,7 +1419,7 @@ export default function Instagram() {
                   .map((idea) => (
                     <article
                       key={idea.id}
-                      className="min-w-0 cursor-pointer rounded-lg border border-border bg-card p-5 text-left"
+                      className="operation-panel min-w-0 cursor-pointer rounded-2xl p-5 text-left"
                       onClick={() => openEdit("ideas", idea)}
                     >
                       <p className="whitespace-pre-wrap break-words text-base leading-relaxed line-clamp-6">

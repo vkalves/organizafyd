@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import logoImg from "@/assets/logo-organify.png";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
+import AuthLayout from "@/components/layout/AuthLayout";
 
 const Auth = () => {
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
@@ -11,12 +12,13 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Carregando...</div>
-      </div>
+      <AuthLayout>
+        <div className="auth-loading" role="status"><Loader2 size={18} className="animate-spin" /> Carregando seu espaço...</div>
+      </AuthLayout>
     );
   }
 
@@ -44,99 +46,94 @@ const Auth = () => {
   };
 
   return (
-    <div className="safe-bottom-padding flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-background px-4 py-8">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="flex flex-col items-center gap-4">
-          <img src={logoImg} alt="Organizafy" className="h-10 max-w-full object-contain" />
-        </div>
+    <AuthLayout>
+        <p className="auth-card-eyebrow">{mode === "forgot" ? "RECUPERE SEU ACESSO" : "SEU ESPAÇO DE ORGANIZAÇÃO"}</p>
+        <h2>{mode === "login" ? "Bem-vindo de volta." : mode === "signup" ? "Sua rotina começa aqui." : "Vamos recuperar sua conta."}</h2>
+        <p className="auth-card-description">{mode === "login" ? "Entre na sua conta e coloque o dia em ordem." : mode === "signup" ? "Crie sua conta e dê espaço para o que importa." : "Informe seu email para receber o link de recuperação."}</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="auth-form">
           {mode === "signup" && (
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Nome</label>
-              <input
+              <div className="auth-field-label"><label htmlFor="auth-name">Seu nome</label></div>
+              <div className="auth-input-wrap"><UserRound size={15} /><input
+                id="auth-name"
                 type="text"
                 autoComplete="name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="h-11 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="Seu nome"
-              />
+                placeholder="Como podemos chamar você?"
+              /></div>
             </div>
           )}
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Email</label>
-            <input
+            <div className="auth-field-label"><label htmlFor="auth-email">Email</label></div>
+            <div className="auth-input-wrap"><Mail size={15} /><input
+              id="auth-email"
               type="email"
               inputMode="email"
               autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="seu@email.com"
-            />
+            /></div>
           </div>
           {mode !== "forgot" && (
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Senha</label>
-              <input
-                type="password"
+              <div className="auth-field-label"><label htmlFor="auth-password">Senha</label>{mode === "login" && <button type="button" onClick={() => setMode("forgot")} className="auth-text-button">Esqueceu a senha?</button>}</div>
+              <div className="auth-input-wrap"><LockKeyhole size={15} /><input
+                id="auth-password"
+                type={showPassword ? "text" : "password"}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="••••••••"
+                placeholder={mode === "signup" ? "Crie uma senha" : "Sua senha"}
                 minLength={6}
-              />
+                aria-describedby={mode === "signup" ? "auth-password-hint" : undefined}
+              /><button type="button" className="auth-password-toggle" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+              {mode === "signup" && <p id="auth-password-hint" className="auth-field-hint">Use pelo menos 6 caracteres.</p>}
             </div>
           )}
           <button
             type="submit"
             disabled={submitting}
-            className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="auth-submit"
           >
-            {submitting
+            {submitting && <Loader2 size={15} className="animate-spin" />}{submitting
               ? "Aguarde..."
               : mode === "login"
               ? "Entrar"
               : mode === "signup"
-              ? "Criar Conta"
-              : "Enviar Email"}
+              ? "Criar minha conta"
+              : "Enviar link de recuperação"}{!submitting && <ArrowRight size={15} />}
           </button>
         </form>
 
-        <div className="text-center space-y-2">
+        <div className="auth-switch">
           {mode === "login" && (
-            <>
-              <button onClick={() => setMode("forgot")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                Esqueceu a senha?
-              </button>
-              <p className="text-xs text-muted-foreground">
+              <p>
                 Não tem conta?{" "}
-                <button onClick={() => setMode("signup")} className="text-foreground hover:underline">
+                <button type="button" onClick={() => setMode("signup")}>
                   Criar conta
                 </button>
               </p>
-            </>
           )}
           {mode === "signup" && (
-            <p className="text-xs text-muted-foreground">
+            <p>
               Já tem conta?{" "}
-              <button onClick={() => setMode("login")} className="text-foreground hover:underline">
+              <button type="button" onClick={() => setMode("login")}>
                 Entrar
               </button>
             </p>
           )}
           {mode === "forgot" && (
-            <button onClick={() => setMode("login")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={() => setMode("login")}>
               ← Voltar ao login
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 };
 

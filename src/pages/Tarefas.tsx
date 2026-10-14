@@ -439,9 +439,10 @@ const Tarefas = () => {
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Tarefas</h1>
+          <p className="page-eyebrow mb-2">Organização pessoal</p>
+          <h1 className="text-3xl font-medium tracking-tight text-foreground">Tarefas</h1>
           <p className="mt-1 text-sm text-muted-foreground">Organize seu dia e suas metas</p>
         </div>
         <button
@@ -473,7 +474,7 @@ const Tarefas = () => {
         ))}
       </div>
 
-      <div className="rounded-xl border border-dashed border-border/70 bg-card/20 p-3">
+      <div className="operation-panel rounded-2xl p-4 sm:p-5">
         <div className="flex min-w-0 items-center gap-2">
           <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
@@ -542,11 +543,11 @@ const Tarefas = () => {
       {loading ? (
         <div className="py-20 text-center text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="mb-4 rounded-full bg-secondary p-4">
+        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl px-5 py-20 text-center">
+          <div className="mb-4 rounded-2xl border border-border bg-secondary/60 p-4">
             <CheckSquare className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="mb-1 text-lg font-semibold text-foreground">Nenhuma tarefa</h2>
+          <h2 className="mb-1 text-lg font-medium text-foreground">Nenhuma tarefa</h2>
           <p className="max-w-sm text-sm text-muted-foreground">
             Não há tarefas nessa visualização.
           </p>
@@ -561,9 +562,9 @@ const Tarefas = () => {
             return (
               <article
                 key={task.id}
-                className="group overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/15 hover:bg-card-hover"
+                className="operation-panel group overflow-hidden rounded-2xl transition-colors hover:border-foreground/25"
               >
-                <div className="flex min-w-0 items-start gap-2 p-3 sm:items-center">
+                <div className="flex min-w-0 items-start gap-2 p-4 sm:items-center">
                   <button
                     type="button"
                     aria-label={task.status === "done" ? "Reabrir tarefa: " + task.title : "Concluir tarefa: " + task.title}

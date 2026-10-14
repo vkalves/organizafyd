@@ -109,16 +109,14 @@ const MapasMentais = () => {
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="rounded-xl border border-border bg-card/40 p-4 sm:p-5">
+      <div className="border-b border-border/70 pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary">
-                <Network className="h-4 w-4 text-foreground" />
-              </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Mapas mentais</h1>
-                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                <p className="page-eyebrow mb-2">Espaço criativo</p>
+                <h1 className="text-3xl font-medium tracking-tight text-foreground">Mapas mentais</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Organize ideias, links e canais em blocos conectados.
                 </p>
               </div>
@@ -161,11 +159,11 @@ const MapasMentais = () => {
       {loading ? (
         <div className="py-20 text-center text-muted-foreground animate-pulse">Carregando...</div>
       ) : maps.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/20 py-20 text-center">
-          <div className="mb-4 rounded-xl border border-border bg-secondary p-4">
+        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl py-20 text-center">
+          <div className="mb-4 rounded-2xl border border-border bg-secondary/60 p-4">
             <Network className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="mb-1 text-lg font-semibold text-foreground">Nenhum mapa mental</h2>
+          <h2 className="mb-1 text-lg font-medium text-foreground">Nenhum mapa mental</h2>
           <p className="max-w-sm px-4 text-sm text-muted-foreground">
             Crie um tema central e conecte ideias, perfis, links, tarefas ou qualquer informação importante.
           </p>
@@ -178,20 +176,20 @@ const MapasMentais = () => {
           </button>
         </div>
       ) : filteredMaps.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <div className="operation-panel rounded-2xl py-16 text-center">
           <Search className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">Nenhum mapa encontrado</p>
           <p className="mt-1 text-xs text-muted-foreground">Tente outro termo na busca.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredMaps.map((map) => {
             const blocks = map.data?.root ? countTopics(map.data.root) : 1;
             const rootIcon = map.data?.root?.icon;
             return (
               <div
                 key={map.id}
-                className="group relative overflow-hidden rounded-xl border border-border bg-card transition-all duration-150 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg"
+                className="operation-panel group relative overflow-hidden rounded-2xl transition-all duration-150 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-lg"
               >
                 <button
                   type="button"
@@ -199,7 +197,7 @@ const MapasMentais = () => {
                     setOpenMap(map);
                     setDraft(map.data);
                   }}
-                  className="w-full p-4 text-left"
+                  className="w-full p-5 text-left"
                 >
                   <div className="mb-4 flex items-start justify-between gap-3 pr-8">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-secondary text-foreground">
@@ -219,7 +217,7 @@ const MapasMentais = () => {
                     </div>
                   </div>
 
-                  <h3 className="truncate text-sm font-semibold text-foreground">{map.title}</h3>
+                  <h3 className="truncate text-sm font-medium text-foreground">{map.title}</h3>
                   {map.description ? (
                     <p className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-relaxed text-muted-foreground">{map.description}</p>
                   ) : (
