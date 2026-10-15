@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { scheduleTaskCalendarSync } from "@/lib/task-calendar-sync";
 
 type TableName = "tasks" | "notes" | "links" | "funnels" | "funnel_nodes" | "funnel_edges" | "transactions" | "financial_accounts" | "financial_categories" | "financial_goals" | "folders" | "profiles" | "mind_maps";
 
@@ -22,7 +23,10 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
       .eq("user_id", user.id)
       .order(orderBy, { ascending: false });
     if (error) toast.error(`Erro ao carregar: ${error.message}`);
-    else setData((rows || []) as T[]);
+    else {
+      setData((rows || []) as T[]);
+      if (table === "tasks") scheduleTaskCalendarSync();
+    }
     setLoading(false);
   }, [user, table, orderBy]);
 
@@ -42,6 +46,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
     }
     toast.success("Criado com sucesso!");
     setData((prev) => [row as T, ...prev]);
+    if (table === "tasks") scheduleTaskCalendarSync();
     return row as T;
   };
 
@@ -57,6 +62,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
     }
     if (!options?.silent) toast.success("Atualizado!");
     setData((prev) => prev.map((r: any) => (r.id === id ? (row as T) : r)));
+    if (table === "tasks") scheduleTaskCalendarSync();
     return row as T;
   };
 
@@ -68,6 +74,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
     }
     toast.success("Excluído!");
     setData((prev) => prev.filter((r: any) => r.id !== id));
+    if (table === "tasks") scheduleTaskCalendarSync();
     return true;
   };
 

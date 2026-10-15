@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { wipeInstagram } from "@/features/instagram/data";
+import { GoogleCalendarSettings } from "@/features/google-calendar/GoogleCalendarSettings";
 import {
   Dialog,
   DialogContent,
@@ -114,6 +115,8 @@ const Config = () => {
           </select>
         </div>
       </div>
+
+      <GoogleCalendarSettings />
 
       <div className="operation-panel space-y-5 rounded-2xl p-5 sm:p-6">
         <h2 className="text-sm font-medium text-foreground flex items-center gap-2"><Download className="w-4 h-4 text-muted-foreground" /> Backup & Exportação</h2>

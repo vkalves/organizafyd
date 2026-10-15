@@ -20,6 +20,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Subtasks, type Subtask } from "@/components/tasks/Subtasks";
+import { GoogleCalendarTaskStatus } from "@/features/google-calendar/GoogleCalendarTaskStatus";
 
 const priorities = [
   { value: "low", label: "Baixa", color: "text-muted-foreground", dot: "bg-muted-foreground/60" },
@@ -453,6 +454,8 @@ const Tarefas = () => {
           <Plus className="h-4 w-4" /> Nova tarefa
         </button>
       </div>
+
+      <GoogleCalendarTaskStatus />
 
       <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {views.map((view) => (
