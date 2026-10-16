@@ -19,6 +19,7 @@ const navItems = [
   { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Slides", path: "/slides", icon: Presentation },
   { title: "Instagram", path: "/instagram", icon: Instagram },
+  { title: "X", path: "/x", icon: Globe },
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 

@@ -4,3 +4,7 @@ project_id = "csaplfphtvufxjhbpstl"
 # themselves, while cron uses a separate worker secret.
 [functions.google-calendar]
 verify_jwt = false
+
+# GET OAuth redirect is public; POST actions validate the user JWT or worker secret.
+[functions.x-publisher]
+verify_jwt = false
