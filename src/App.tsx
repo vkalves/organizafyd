@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
+const XPublisher = lazy(() => import("./pages/XPublisher"));
 const Instagram = lazy(() => import("./pages/Instagram"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/instagram/prontos/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/tarefas" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/conta/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
+              <Route path="/x" element={<ProtectedRoute><XPublisher /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
