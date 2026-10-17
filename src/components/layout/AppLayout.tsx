@@ -5,12 +5,20 @@ import {
   Globe, Clock, CheckCircle2, Network, Presentation, X,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayoutContext } from "@/contexts/AppLayoutContext";
 import logoImg from "@/assets/logo-organify.png";
 import "./app-shell.css";
+
+function XLogoIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" {...props}>
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.47l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+    </svg>
+  );
+}
 
 const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -19,7 +27,7 @@ const navItems = [
   { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Slides", path: "/slides", icon: Presentation },
   { title: "Instagram", path: "/instagram", icon: Instagram },
-  { title: "X", path: "/x", icon: Globe },
+  { title: "X", path: "/x", icon: XLogoIcon },
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 
