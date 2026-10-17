@@ -64,8 +64,10 @@ function SideNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
           <div key={item.path} className="shell-nav-group">
             <NavLink
               to={item.path}
+              target={item.path === "/x" ? "_blank" : undefined}
+              rel={item.path === "/x" ? "noopener noreferrer" : undefined}
               onClick={onNavigate}
-              title={item.title}
+              title={item.path === "/x" ? "X · abrir em nova guia" : item.title}
               aria-label={item.title}
               className={cn("shell-nav-link", isActive && "is-active", collapsed && "is-collapsed")}
             >
@@ -225,7 +227,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {mobileNavItems.map((item) => {
             const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
             return (
-              <NavLink key={item.path} to={item.path} aria-label={item.title} className={cn("shell-bottom-link flex min-w-0 flex-1 touch-manipulation flex-col items-center", isActive && "is-active")}>
+              <NavLink key={item.path} to={item.path} target={item.path === "/x" ? "_blank" : undefined} rel={item.path === "/x" ? "noopener noreferrer" : undefined} aria-label={item.title} className={cn("shell-bottom-link flex min-w-0 flex-1 touch-manipulation flex-col items-center", isActive && "is-active")}>
                 <span className="shell-bottom-icon"><item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" /></span>
                 <span className="w-full truncate text-center text-[10px] font-medium">{item.title}</span>
               </NavLink>
