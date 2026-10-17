@@ -78,15 +78,19 @@ describe("individual batch controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));
     const [first, second] = dates();
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 1" }));
     fireEvent.change(screen.getByLabelText("Data e horário da postagem 1"), {
       target: { value: first },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 2" }));
     fireEvent.change(screen.getByLabelText("Data e horário da postagem 2"), {
       target: { value: second },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 1" }));
     fireEvent.change(screen.getByLabelText("Legenda da postagem 1"), {
       target: { value: "Texto primeiro" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 2" }));
     fireEvent.change(screen.getByLabelText("Legenda da postagem 2"), {
       target: { value: "Texto segundo" },
     });
@@ -148,7 +152,13 @@ describe("individual batch controls", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Duplicar postagem 1" }),
     );
-    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Editar postagem 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Editar postagem 2" }),
+    ).toHaveAttribute("aria-current", "true");
     expect(
       within(screen.getByRole("article", { name: "Postagem 2" })).getByRole(
         "img",
