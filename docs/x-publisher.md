@@ -93,3 +93,13 @@ deno check supabase/functions/x-publisher/index.ts
 ```
 
 O script de banco usa PGlite instalado fora do repositório. Cron, Storage e Vault usam estruturas simuladas apenas nesse teste; a ativação real dessas extensões precisa ser conferida no Supabase.
+
+## Agendamento em lote e limpeza de metadados
+
+Na área **Em lote**, cada arquivo corresponde a uma postagem. Selecione a conta, o primeiro horário e o intervalo (padrão: 3 horas). Adicione até 30 arquivos, no máximo 200 MB no lote, e revise legendas e ordem antes de **Limpar e agendar**. Cada foto continua limitada a 5 MB e cada vídeo MP4 a 20 MB, inclusive depois da limpeza.
+
+A limpeza também é automática no compositor individual. Fotos são decodificadas respeitando a orientação e reconstruídas em um canvas sRGB, sem copiar EXIF, GPS, XMP, comentários ou outros dados do arquivo original. Vídeos são decodificados e recodificados por FFmpeg WebAssembly em um worker local: apenas o primeiro vídeo e áudio são mantidos, sem copiar metadados globais, de faixas, capítulos ou fluxos de dados. O arquivo recebe nome neutro. Resolução, duração, codecs e outros dados técnicos necessários continuam presentes; o conteúdo visível ou audível não é anonimizado. A recodificação pode alterar qualidade e tamanho. Arquivos já enviados/agendados antes desta atualização não são alterados.
+
+O core de vídeo é servido pelo próprio site e carregado sob demanda. A mídia original permanece no dispositivo durante a limpeza; somente o resultado limpo é enviado ao Storage. Uma falha na limpeza impede o upload/agendamento daquele arquivo. Não há fallback para enviar o original. Vídeos têm limite de processamento de 3 minutos e limite total de 4 minutos (incluindo carregamento). Fotos são limitadas a 40 megapixels.
+
+Mantenha a guia aberta até concluir. Cada item é confirmado individualmente; o lote não é uma transação única. A interface mostra falhas parciais e permite continuar os pendentes, preservando UUID e mídia enviada para evitar duplicação de uma resposta ambígua. Itens já confirmados são ignorados em novas tentativas. É possível parar após o arquivo atual. A composição do lote fica em memória: ao recarregar ou fechar, confira a fila antes de recriar itens pendentes. O botão de encerrar lote não cancela posts já agendados. A integração usa a ação `schedule` existente; esta atualização não exige nova migração nem novo deploy da Edge Function.
