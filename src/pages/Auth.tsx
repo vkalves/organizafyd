@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import AuthLayout from "@/components/layout/AuthLayout";
 
 const Auth = () => {
+  const [searchParams] = useSearchParams();
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ const Auth = () => {
     );
   }
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={searchParams.get("next") === "x" ? "/x" : "/"} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

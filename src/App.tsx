@@ -25,11 +25,11 @@ function AppLoading() {
   return <div className="flex min-h-[100dvh] items-center justify-center bg-background"><div className="animate-pulse text-muted-foreground">Carregando...</div></div>;
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, standalone = false }: { children: React.ReactNode; standalone?: boolean }) {
   const { user, loading } = useAuth();
   if (loading) return <AppLoading />;
-  if (!user) return <Navigate to="/auth" replace />;
-  return <AppLayout>{children}</AppLayout>;
+  if (!user) return <Navigate to={standalone ? "/auth?next=x" : "/auth"} replace />;
+  return standalone ? <>{children}</> : <AppLayout>{children}</AppLayout>;
 }
 
 const App = () => (
@@ -57,7 +57,7 @@ const App = () => (
               <Route path="/instagram/prontos/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/tarefas" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/instagram/conta/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/x" element={<ProtectedRoute><XPublisher /></ProtectedRoute>} />
+              <Route path="/x" element={<ProtectedRoute standalone><XPublisher /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

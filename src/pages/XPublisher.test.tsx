@@ -116,6 +116,28 @@ describe("X publishing panel", () => {
       screen.getByRole("button", { name: "Agendar postagem" }),
     ).toBeDisabled();
   });
+  it("keeps the draft when switching sections and sets the three-hour shortcut", async () => {
+    mount();
+    await screen.findByText("@conta1", { selector: "h2" });
+    fireEvent.change(screen.getByLabelText("Texto da postagem"), {target: {value: "Meu rascunho"}});
+    fireEvent.click(screen.getByRole("button", {name: "Daqui a 3h"}));
+    const value = (screen.getByLabelText("Data e horário") as HTMLInputElement).value;
+    expect(Math.abs(Date.parse(value) - Date.now() - 3 * 3600000)).toBeLessThan(60000);
+    fireEvent.click(screen.getByRole("button", {name: "Contas"}));
+    expect(screen.getByRole("region", {name: "Contas conectadas"})).toBeVisible();
+    expect(screen.queryByRole("button", {name: "Agendar postagem"})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name: "Nova postagem"}));
+    expect(screen.getByLabelText("Texto da postagem")).toHaveValue("Meu rascunho");
+  });
+  it("filters failed and uncertain posts together from the attention summary", async () => {
+    mocks.request.mockResolvedValue({configured: true, accounts, posts: ["scheduled", "failed", "uncertain"].map((status, i) => ({id: String(i), account_id: "first", text: `Conteúdo ${status}`, media: [], scheduled_at: new Date().toISOString(), status, x_post_id: null, error_code: null}))});
+    mount();
+    fireEvent.click(await screen.findByRole("button", {name: "Para conferir 2"}));
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.queryByText("Conteúdo scheduled")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar postagem"), {target: {value: "uncertain"}});
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+  });
   it("shows ambiguous sends without an automatic retry button", async () => {
     mocks.request.mockResolvedValue({
       configured: true,
@@ -134,6 +156,7 @@ describe("X publishing panel", () => {
       ],
     });
     mount();
+    fireEvent.click(screen.getByRole("button", { name: "Postagens" }));
     expect(
       await screen.findByText("Conferir no X", { selector: "span" }),
     ).toBeInTheDocument();
