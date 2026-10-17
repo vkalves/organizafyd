@@ -1,3 +1,4 @@
+import { cleanMedia, type MediaStage } from "./clean-media";
 import { supabase } from "@/integrations/supabase/client";
 export interface XAccount {
   id: string;
@@ -83,6 +84,7 @@ export async function xRequest<T = { success: boolean }>(
 export async function uploadFiles(
   files: File[],
   userId: string,
+  onProgress?: (stage: MediaStage, index: number, total: number) => void,
 ): Promise<XMedia[]> {
   if (
     files.length > 4 ||
@@ -95,7 +97,10 @@ export async function uploadFiles(
   )
     throw new Error(messages.invalid_media);
   const result: XMedia[] = [];
-  for (const file of files) {
+  for (const [index, original] of files.entries()) {
+    onProgress?.("cleaning", index + 1, files.length);
+    const file = await cleanMedia(original);
+    onProgress?.("uploading", index + 1, files.length);
     const ext =
       file.type === "image/jpeg"
         ? "jpg"

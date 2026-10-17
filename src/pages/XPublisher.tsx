@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Files,
+  ShieldCheck,
   ArrowLeft,
   Search,
   Users,
@@ -26,6 +28,7 @@ import { toast } from "sonner";
 import { errorMessage, uploadFiles, xRequest } from "@/features/x/api";
 import type { XData, XMedia } from "@/features/x/api";
 import { textWeight } from "../../supabase/functions/x-publisher/model";
+import { BatchComposer } from "@/features/x/BatchComposer";
 import "./x-publisher.css";
 const labels: Record<string, string> = {
   scheduled: "Agendado",
@@ -52,6 +55,7 @@ export default function XPublisher() {
   const [view, setView] = useState("compose");
   const [search, setSearch] = useState("");
   const [previews, setPreviews] = useState<string[]>([]);
+  const [mediaProgress, setMediaProgress] = useState("");
   const [busy, setBusy] = useState(false);
   const [accountId, setAccountId] = useState("");
   const [text, setText] = useState("");
@@ -178,7 +182,20 @@ export default function XPublisher() {
       !Number.isFinite(Date.parse(time))
     )
       throw new Error(errorMessage("invalid_schedule"));
-    if (!uploaded.current) uploaded.current = await uploadFiles(files, user.id);
+    if (!uploaded.current) {
+      try {
+        uploaded.current = await uploadFiles(
+          files,
+          user.id,
+          (stage, index, total) =>
+            setMediaProgress(
+              `${stage === "cleaning" ? "Limpando metadados" : "Enviando mídia limpa"} · ${index}/${total}`,
+            ),
+        );
+      } finally {
+        setMediaProgress("");
+      }
+    }
     await xRequest("schedule", {
       id: draftId.current,
       accountId,
@@ -221,6 +238,7 @@ export default function XPublisher() {
         <nav className="x-studio-nav" aria-label="Navegação do X">
           {[
             { id: "compose", label: "Nova postagem", icon: Plus },
+            { id: "batch", label: "Em lote", icon: Files },
             { id: "queue", label: "Postagens", icon: ListOrdered },
             { id: "accounts", label: "Contas", icon: Users },
           ].map(({ id, label, icon: Icon }) => (
@@ -282,16 +300,20 @@ export default function XPublisher() {
               <h2 className="text-xl font-semibold">
                 {view === "compose"
                   ? "Prepare sua próxima postagem"
-                  : view === "queue"
-                    ? "Suas postagens"
-                    : "Suas contas"}
+                  : view === "batch"
+                    ? "Prepare sua sequência de postagens"
+                    : view === "queue"
+                      ? "Suas postagens"
+                      : "Suas contas"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {view === "compose"
                   ? "Texto, mídia e horário. Tudo pronto para publicar."
-                  : view === "queue"
-                    ? "Acompanhe o que está na fila e o que já foi publicado."
-                    : "Conecte suas contas e controle a automação de cada uma."}
+                  : view === "batch"
+                    ? "Envie várias mídias. A limpeza acontece antes de cada agendamento."
+                    : view === "queue"
+                      ? "Acompanhe o que está na fila e o que já foi publicado."
+                      : "Conecte suas contas e controle a automação de cada uma."}
               </p>
             </div>
             <Button
@@ -347,10 +369,22 @@ export default function XPublisher() {
         )}
         {data?.configured && (
           <>
+            <div hidden={view !== "batch"}>
+              <BatchComposer
+                accounts={accounts}
+                userId={user?.id || ""}
+                disabled={busy}
+                onBusy={setBusy}
+                onComplete={() => cache.invalidateQueries({ queryKey: key })}
+              />
+            </div>
             <section
               aria-label="Contas conectadas"
               className="space-y-3"
-              hidden={view !== "accounts" && accounts.length > 0}
+              hidden={
+                view !== "accounts" &&
+                (accounts.length > 0 || view !== "compose")
+              }
             >
               {!accounts.length ? (
                 <div className="rounded-xl border border-dashed p-8 text-center">
@@ -541,6 +575,15 @@ export default function XPublisher() {
                   )}
                 </div>
                 <div className="space-y-2">
+                  <p className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs leading-relaxed text-muted-foreground">
+                    <ShieldCheck
+                      size={16}
+                      className="shrink-0 text-emerald-300"
+                    />
+                    Limpeza automática antes do envio: fotos e vídeos são
+                    reconstruídos sem copiar metadados pessoais. Vídeos podem
+                    mudar de tamanho e qualidade.
+                  </p>
                   <Label htmlFor="x-time">Data e horário</Label>
                   <div className="flex flex-wrap gap-2">
                     {[1, 3, 6, 24].map((hours) => (
@@ -593,7 +636,7 @@ export default function XPublisher() {
                   ) : (
                     <CalendarClock className="mr-2 h-4 w-4" />
                   )}
-                  Agendar postagem
+                  {mediaProgress || "Agendar postagem"}
                 </Button>
               </section>
               {view === "compose" && accounts.length > 0 && (
