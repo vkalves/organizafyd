@@ -215,7 +215,7 @@ export default function XPublisher() {
     resetSubmission();
   }
   return (
-    <div className="x-studio">
+    <div className="x-studio" data-view={view}>
       <header className="x-studio-header">
         <a href="/x" className="x-studio-brand">
           <span className="x-brand-mark">𝕏</span>
