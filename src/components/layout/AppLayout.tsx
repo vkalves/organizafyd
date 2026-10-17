@@ -2,7 +2,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, Menu, ChevronLeft, LogOut, Instagram,
-  Globe, Clock, CheckCircle2, Network, Presentation, X,
+  Music2, Globe, Clock, CheckCircle2, Network, Presentation, X,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
@@ -27,6 +27,7 @@ const navItems = [
   { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Slides", path: "/slides", icon: Presentation },
   { title: "Instagram", path: "/instagram", icon: Instagram },
+  { title: "TikTok", path: "/tiktok", icon: Music2 },
   { title: "X", path: "/x", icon: XLogoIcon },
   { title: "Configurações", path: "/config", icon: Settings },
 ];
@@ -72,10 +73,10 @@ function SideNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
           <div key={item.path} className="shell-nav-group">
             <NavLink
               to={item.path}
-              target={item.path === "/x" ? "_blank" : undefined}
-              rel={item.path === "/x" ? "noopener noreferrer" : undefined}
+              target={["/x", "/tiktok"].includes(item.path) ? "_blank" : undefined}
+              rel={["/x", "/tiktok"].includes(item.path) ? "noopener noreferrer" : undefined}
               onClick={onNavigate}
-              title={item.path === "/x" ? "X · abrir em nova guia" : item.title}
+              title={["/x", "/tiktok"].includes(item.path) ? `${item.title} · abrir em nova guia` : item.title}
               aria-label={item.title}
               className={cn("shell-nav-link", isActive && "is-active", collapsed && "is-collapsed")}
             >
@@ -235,7 +236,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {mobileNavItems.map((item) => {
             const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
             return (
-              <NavLink key={item.path} to={item.path} target={item.path === "/x" ? "_blank" : undefined} rel={item.path === "/x" ? "noopener noreferrer" : undefined} aria-label={item.title} className={cn("shell-bottom-link flex min-w-0 flex-1 touch-manipulation flex-col items-center", isActive && "is-active")}>
+              <NavLink key={item.path} to={item.path} target={["/x", "/tiktok"].includes(item.path) ? "_blank" : undefined} rel={["/x", "/tiktok"].includes(item.path) ? "noopener noreferrer" : undefined} aria-label={item.title} className={cn("shell-bottom-link flex min-w-0 flex-1 touch-manipulation flex-col items-center", isActive && "is-active")}>
                 <span className="shell-bottom-icon"><item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" /></span>
                 <span className="w-full truncate text-center text-[10px] font-medium">{item.title}</span>
               </NavLink>

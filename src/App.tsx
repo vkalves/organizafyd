@@ -2,10 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+
+const TikTokPublisher = lazy(() => import("./pages/TikTokPublisher"));
+const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 
 const XPublisher = lazy(() => import("./pages/XPublisher"));
 const Instagram = lazy(() => import("./pages/Instagram"));
@@ -27,8 +30,9 @@ function AppLoading() {
 
 function ProtectedRoute({ children, standalone = false }: { children: React.ReactNode; standalone?: boolean }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <AppLoading />;
-  if (!user) return <Navigate to={standalone ? "/auth?next=x" : "/auth"} replace />;
+  if (!user) return <Navigate to={standalone ? `/auth?next=${location.pathname.startsWith("/tiktok") ? "tiktok" : "x"}${location.hash}` : "/auth"} replace />;
   return standalone ? <>{children}</> : <AppLayout>{children}</AppLayout>;
 }
 
@@ -41,6 +45,8 @@ const App = () => (
         <AuthProvider>
           <Suspense fallback={<AppLoading />}>
             <Routes>
+              {["/sobre", "/privacidade", "/termos", "/exclusao-de-dados", "/contato"].map(path => <Route key={path} path={path} element={<PublicInfo />} />)}
+              <Route path="/tiktok" element={<ProtectedRoute standalone><TikTokPublisher /></ProtectedRoute>} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

@@ -8,3 +8,7 @@ verify_jwt = false
 # GET OAuth redirect is public; POST actions validate the user JWT or worker secret.
 [functions.x-publisher]
 verify_jwt = false
+
+# OAuth GET is public; every client POST validates its JWT; cron has its own secret.
+[functions.tiktok-publisher]
+verify_jwt = false

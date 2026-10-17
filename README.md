@@ -71,3 +71,7 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Publicação de fotos no TikTok
+
+O módulo `/tiktok` usa a API oficial, com revisão e autorização por postagem. Para configurar credenciais, banco, fila, verificação de domínio e revisão do TikTok, siga [o guia completo](docs/tiktok-publisher.md). As páginas públicas ficam em `/sobre`, `/privacidade`, `/termos`, `/exclusao-de-dados` e `/contato`. A integração depende de configuração e aprovação antes da disponibilização pública.

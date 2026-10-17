@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { PublicLinks } from "./PublicInfo";
 import AuthLayout from "@/components/layout/AuthLayout";
 
 const Auth = () => {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
@@ -23,7 +25,7 @@ const Auth = () => {
     );
   }
 
-  if (user) return <Navigate to={searchParams.get("next") === "x" ? "/x" : "/"} replace />;
+  if (user) return <Navigate to={searchParams.get("next") === "tiktok" ? `/tiktok${location.hash}` : searchParams.get("next") === "x" ? `/x${location.hash}` : "/"} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +136,7 @@ const Auth = () => {
             </button>
           )}
         </div>
+      <div className="auth-public-links"><PublicLinks /></div>
     </AuthLayout>
   );
 };
