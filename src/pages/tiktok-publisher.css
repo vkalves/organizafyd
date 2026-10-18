@@ -14,7 +14,7 @@
   background: hsl(var(--card));
 }
 .tt-top > a:nth-child(2) {
-  font-weight: 750;
+  font-weight: 600;
   font-size: 18px;
   letter-spacing: -0.5px;
 }
@@ -39,7 +39,7 @@
 .tt-heading h1 {
   font-size: 30px;
   letter-spacing: -1px;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -52,8 +52,8 @@
 }
 .tt-kicker {
   font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 1.8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: #0d9488;
 }
 .tt-pill,
@@ -337,7 +337,7 @@
 }
 .tt-public h1 {
   font-size: clamp(30px, 5vw, 52px);
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.12;
   letter-spacing: -1.7px;
   margin: 14px 0 24px;
@@ -402,10 +402,8 @@
 .tt-public code {
   word-break: break-all;
 }
-button:focus-visible,
-a:focus-visible,
-select:focus-visible,
-input:focus-visible {
+.tt-studio :focus-visible,
+.tt-public :focus-visible {
   outline: 2px solid #0d9488;
   outline-offset: 3px;
 }

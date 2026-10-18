@@ -103,10 +103,10 @@ function StatCard({
       to={path}
       className="operation-panel group p-4 transition-all hover:border-foreground/25 sm:p-5"
     >
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{title}</p>
         <div className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground",
+          "flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground",
           attention && "text-destructive"
         )}>
           <Icon className="h-4 w-4" />
@@ -114,7 +114,7 @@ function StatCard({
       </div>
       <p className="text-3xl font-medium tabular-nums tracking-tight text-foreground">{value.toLocaleString("pt-BR")}</p>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
         <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
       </div>
     </Link>
@@ -333,10 +333,10 @@ const Dashboard = () => {
       <div className="flex flex-wrap items-end justify-between gap-4 pb-1">
         <div>
           <p className="page-eyebrow">Seu espaço de trabalho</p>
-          <h1 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">Dashboard</h1>
+          <h1 className="mt-2 text-3xl font-medium tracking-tight">Dashboard</h1>
           <p className="mt-2 text-xs text-muted-foreground sm:text-sm">Tudo o que importa, em um só lugar.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-[10px] text-foreground/65 sm:text-xs">
+        <div className="flex items-center gap-2 px-1 py-2 text-[10px] text-foreground/65 sm:text-xs">
           <CalendarDays className="h-3.5 w-3.5 shrink-0" />
           <span className="capitalize">{formattedDate.toLocaleLowerCase("pt-BR")}</span>
         </div>
@@ -347,16 +347,16 @@ const Dashboard = () => {
           <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-6 sm:px-7">
             <div>
               <h2 className="text-sm font-medium">Tarefas concluídas</h2>
-              <p className="mt-2 text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Atividade dos últimos {period} dias</p>
+              <p className="mt-2 text-xs text-muted-foreground">Atividade dos últimos {period} dias</p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <p className="text-5xl font-normal tabular-nums tracking-[-0.06em] sm:text-6xl">{completedInPeriod.toLocaleString("pt-BR")}</p>
+                <p className="text-4xl font-medium tabular-nums tracking-tight sm:text-5xl">{completedInPeriod.toLocaleString("pt-BR")}</p>
                 <span className="rounded-full border border-foreground/15 bg-foreground/[0.04] px-2.5 py-1 text-[10px] text-foreground/75">{period} dias</span>
               </div>
             </div>
             <div className="flex rounded-full border border-border bg-black/15 p-1" aria-label="Período do gráfico">
               {([7, 30] as const).map((days) => (
                 <button key={days} type="button" aria-pressed={period === days} onClick={() => setPeriod(days)}
-                  className={cn("min-h-9 rounded-full px-3 text-[11px] transition-colors", period === days ? "bg-foreground/10 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  className={cn("min-h-9 rounded-full px-3 text-xs transition-colors", period === days ? "bg-foreground/10 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                   {days} dias
                 </button>
               ))}
@@ -367,7 +367,7 @@ const Dashboard = () => {
               <AreaChart data={activity} margin={{ top: 12, right: 18, bottom: 4, left: 18 }}>
                 <defs>
                   <linearGradient id="activityFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#d6d0c5" stopOpacity={0.5} />
+                    <stop offset="0%" stopColor="#d6d0c5" stopOpacity={0.18} />
                     <stop offset="100%" stopColor="#d6d0c5" stopOpacity={0.01} />
                   </linearGradient>
                 </defs>
@@ -452,7 +452,7 @@ const Dashboard = () => {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Foco agora</h2>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Atrasos e prioridades aparecem primeiro.
               </p>
             </div>
@@ -530,7 +530,7 @@ const Dashboard = () => {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Últimas notas</h2>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Continue de onde parou.</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Continue de onde parou.</p>
             </div>
             <Link
               to="/notas"
@@ -576,7 +576,7 @@ const Dashboard = () => {
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Acesso rápido</h2>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Entre direto nas áreas que você mais usa.
             </p>
           </div>
