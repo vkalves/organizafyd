@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { errorMessage, uploadFiles, xRequest } from "@/features/x/api";
 import type { XData, XMedia } from "@/features/x/api";
 import { textWeight } from "../../supabase/functions/x-publisher/model";
+import { MediaDropZone } from "@/features/x/MediaDropZone";
+import { validatePostFiles } from "@/features/x/batch";
 import { BatchComposer } from "@/features/x/BatchComposer";
 import "./x-publisher.css";
 const labels: Record<string, string> = {
@@ -164,6 +166,18 @@ export default function XPublisher() {
   function resetSubmission() {
     draftId.current = crypto.randomUUID();
     uploaded.current = null;
+  }
+  function addMedia(nextFiles: File[]) {
+    try {
+      const next = [...files, ...nextFiles];
+      validatePostFiles(next);
+      setFiles(next);
+      resetSubmission();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : errorMessage("invalid_media"),
+      );
+    }
   }
   async function connect() {
     const result = await xRequest<{ url: string }>("connect");
@@ -514,66 +528,59 @@ export default function XPublisher() {
                     {count}/280
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="x-files" className="flex items-center gap-2">
-                    <ImagePlus className="h-4 w-4" />
-                    Fotos ou vídeo
-                  </Label>
-                  <Input
-                    key={fileKey}
-                    id="x-files"
-                    type="file"
-                    accept="image/jpeg,image/png,video/mp4"
-                    multiple
-                    disabled={busy}
-                    onChange={(e) => {
-                      const nextFiles = Array.from(e.target.files || []);
-                      if (
-                        nextFiles.length > 4 ||
-                        (nextFiles.some((f) => f.type === "video/mp4") &&
-                          nextFiles.length !== 1) ||
-                        nextFiles.some(
-                          (f) =>
-                            !["image/jpeg", "image/png", "video/mp4"].includes(
-                              f.type,
-                            ) ||
-                            f.size >
-                              (f.type === "video/mp4" ? 20 : 5) * 1024 * 1024,
-                        )
-                      ) {
-                        toast.error(errorMessage("invalid_media"));
+                <MediaDropZone
+                  disabled={busy}
+                  label="Arrastar arquivos para a nova postagem"
+                  onFiles={addMedia}
+                >
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="x-files"
+                      className="flex items-center gap-2"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      Fotos ou vídeo
+                    </Label>
+                    <Input
+                      key={fileKey}
+                      id="x-files"
+                      type="file"
+                      accept="image/jpeg,image/png,video/mp4"
+                      multiple
+                      disabled={busy}
+                      onChange={(e) => {
+                        addMedia(Array.from(e.target.files || []));
                         e.target.value = "";
-                        return;
-                      }
-                      setFiles(nextFiles);
-                      resetSubmission();
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Até 4 fotos JPG/PNG (5 MB cada) ou 1 vídeo MP4 (20 MB).
-                  </p>
-                  {files.length > 0 && (
-                    <p className="break-all text-xs">
-                      {files.map((f, i) => (
-                        <span key={`${f.name}-${i}`} className="x-file-chip">
-                          {f.name}
-                          <button
-                            type="button"
-                            disabled={busy}
-                            aria-label={`Remover ${f.name}`}
-                            onClick={() => {
-                              setFiles(files.filter((_, index) => index !== i));
-                              setFileKey((v) => v + 1);
-                              resetSubmission();
-                            }}
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Até 4 fotos JPG/PNG (5 MB cada) ou 1 vídeo MP4 (20 MB).
                     </p>
-                  )}
-                </div>
+                    {files.length > 0 && (
+                      <p className="break-all text-xs">
+                        {files.map((f, i) => (
+                          <span key={`${f.name}-${i}`} className="x-file-chip">
+                            {f.name}
+                            <button
+                              type="button"
+                              disabled={busy}
+                              aria-label={`Remover ${f.name}`}
+                              onClick={() => {
+                                setFiles(
+                                  files.filter((_, index) => index !== i),
+                                );
+                                setFileKey((v) => v + 1);
+                                resetSubmission();
+                              }}
+                            >
+                              <X size={14} />
+                            </button>
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </div>
+                </MediaDropZone>
                 <div className="space-y-2">
                   <p className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs leading-relaxed text-muted-foreground">
                     <ShieldCheck

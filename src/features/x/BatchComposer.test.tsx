@@ -73,6 +73,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("individual batch controls", () => {
+  it("appends dropped photos only to the selected post and rejects excess files", () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 1" }));
+    const photo = (name: string) =>
+      new File([name], name + ".jpg", { type: "image/jpeg" });
+    const zone = screen.getByRole("region", {
+      name: "Arrastar arquivos para a postagem 1",
+    });
+    const a = photo("a"),
+      b = photo("b");
+    fireEvent.drop(zone, { dataTransfer: { types: ["Files"], files: [a, b] } });
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+    fireEvent.drop(zone, {
+      dataTransfer: {
+        types: ["Files"],
+        files: [photo("c"), photo("d"), photo("e")],
+      },
+    });
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.stringContaining("4 fotos"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 2" }));
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Editar postagem 1" }));
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+  });
+
   it("creates one carousel from imported photos and sends all photos in one request", async () => {
     mount();
     const photos = [
