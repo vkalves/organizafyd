@@ -73,6 +73,71 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("individual batch controls", () => {
+  it("creates one carousel from imported photos and sends all photos in one request", async () => {
+    mount();
+    const photos = [
+      new File(["a"], "a.jpg", { type: "image/jpeg" }),
+      new File(["b"], "b.jpg", { type: "image/jpeg" }),
+    ];
+    const media = photos.map((file, i) => ({
+      path: `user/${i}.jpg`,
+      name: file.name,
+      type: file.type,
+    }));
+    mocks.upload.mockResolvedValue(media);
+    fireEvent.change(screen.getByLabelText("Fotos de um novo carrossel"), {
+      target: { files: photos },
+    });
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+    expect(
+      screen.getByText("As 2 fotos serão publicadas juntas, no mesmo post."),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Limpar e agendar 1 postagens" }),
+    );
+    await waitFor(() => expect(mocks.request).toHaveBeenCalledTimes(1));
+    expect(mocks.upload).toHaveBeenCalledWith(
+      photos,
+      "user",
+      expect.any(Function),
+    );
+    expect(mocks.request).toHaveBeenCalledWith(
+      "schedule",
+      expect.objectContaining({ media }),
+    );
+  });
+  it("appends photos to the current post, fills four slots and rejects a fifth", () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));
+    const photo = (name: string) =>
+      new File([name], name + ".jpg", { type: "image/jpeg" });
+    fireEvent.change(screen.getByLabelText("Adicionar arquivos à postagem 1"), {
+      target: { files: [photo("first")] },
+    });
+    expect(
+      screen.getByRole("button", { name: "Adicionar fotos ao carrossel" }),
+    ).toBeEnabled();
+    fireEvent.change(screen.getByLabelText("Adicionar arquivos à postagem 1"), {
+      target: { files: [photo("second"), photo("third"), photo("fourth")] },
+    });
+    expect(
+      screen.getByRole("button", { name: "Carrossel completo: 4 fotos" }),
+    ).toBeDisabled();
+    expect(screen.getAllByRole("img")).toHaveLength(4);
+    fireEvent.change(screen.getByLabelText("Fotos de um novo carrossel"), {
+      target: {
+        files: [photo("a"), photo("b"), photo("c"), photo("d"), photo("e")],
+      },
+    });
+    expect(
+      screen.queryByRole("button", { name: "Editar postagem 2" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.stringContaining("4 fotos"),
+    );
+  });
+
   it("keeps custom dates attached to each post when reordering and submits the exact details", async () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "Adicionar postagem" }));

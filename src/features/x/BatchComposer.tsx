@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Copy,
   Upload,
+  Images,
   ChevronRight,
   Files,
   Loader2,
@@ -18,6 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { type XAccount } from "./api";
 import {
   batchTimes,
@@ -130,11 +137,15 @@ export function BatchComposer({
       state: "waiting",
     };
   }
-  function addPosts(files?: File[]) {
+  function addPosts(files?: File[], grouped = false) {
     try {
       const next = [
         ...items,
-        ...(files ? files.map((file) => makeItem([file])) : [makeItem()]),
+        ...(files
+          ? grouped
+            ? [makeItem(files)]
+            : files.map((file) => makeItem([file]))
+          : [makeItem()]),
       ];
       if (next.length > 30)
         throw new Error("Adicione até 30 postagens por lote.");
@@ -257,14 +268,50 @@ export function BatchComposer({
           <p>Escolha um post na lista para editar.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={frozen || items.length >= 30}>
+                <Upload size={15} className="mr-2" />
+                Importar arquivos
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() =>
+                  document.getElementById("batch-carousel")?.click()
+                }
+              >
+                <Images size={16} className="mr-2" />
+                Fotos juntas em um carrossel
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => document.getElementById("batch-files")?.click()}
+              >
+                <Files size={16} className="mr-2" />
+                Um arquivo por postagem separada
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            id="batch-carousel"
+            aria-label="Fotos de um novo carrossel"
+            type="file"
+            multiple
+            accept="image/jpeg,image/png"
+            className="sr-only"
             disabled={frozen || items.length >= 30}
-            onClick={() => document.getElementById("batch-files")?.click()}
-          >
-            <Upload size={15} className="mr-2" />
-            Importar arquivos
-          </Button>
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              if (files.length) {
+                if (files.some((file) => !file.type.startsWith("image/")))
+                  toast.error(
+                    "Selecione apenas fotos JPG ou PNG para o carrossel.",
+                  );
+                else addPosts(files, true);
+              }
+              e.target.value = "";
+            }}
+          />
           <input
             id="batch-files"
             aria-label="Um arquivo por nova postagem"
@@ -529,7 +576,26 @@ export function BatchComposer({
                   </p>
                 </div>
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">Fotos ou vídeo</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {item.files.some((file) => file.type === "video/mp4")
+                        ? "Vídeo desta postagem"
+                        : item.files.length >= 2
+                          ? "Carrossel de fotos"
+                          : "Fotos desta postagem"}
+                    </p>
+                    <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                      {item.files.some((file) => file.type === "video/mp4")
+                        ? "1 vídeo"
+                        : `${item.files.length}/4 fotos`}
+                    </span>
+                  </div>
+                  {item.files.length >= 2 && (
+                    <p className="text-sm text-emerald-300">
+                      As {item.files.length} fotos serão publicadas juntas, no
+                      mesmo post.
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Até 4 fotos JPG/PNG (5 MB cada) ou 1 vídeo MP4 (20 MB). O
                     envio de mídia é opcional.
@@ -604,10 +670,36 @@ export function BatchComposer({
                       ))}
                     </div>
                   )}
-                  <Label className="block" htmlFor={`files-${item.id}`}>
-                    Adicionar arquivos
-                  </Label>
+                  <Button
+                    variant="outline"
+                    className="w-full border-dashed"
+                    disabled={
+                      frozen ||
+                      item.files.length === 4 ||
+                      item.files.some((file) => file.type === "video/mp4")
+                    }
+                    onClick={() =>
+                      document.getElementById(`files-${item.id}`)?.click()
+                    }
+                  >
+                    <Images size={17} className="mr-2" />
+                    {item.files.some((file) => file.type === "video/mp4")
+                      ? "Remova o vídeo para adicionar fotos"
+                      : item.files.length === 4
+                        ? "Carrossel completo: 4 fotos"
+                        : item.files.length
+                          ? "Adicionar fotos ao carrossel"
+                          : "Adicionar fotos ou vídeo"}
+                  </Button>
+                  {!item.files.some((file) => file.type === "video/mp4") &&
+                    item.files.length < 4 && (
+                      <p className="text-xs text-muted-foreground">
+                        Selecione várias fotos de uma vez ou adicione uma por
+                        vez. Todas ficam nesta mesma postagem.
+                      </p>
+                    )}
                   <Input
+                    className="sr-only"
                     id={`files-${item.id}`}
                     aria-label={`Adicionar arquivos à postagem ${index + 1}`}
                     type="file"
