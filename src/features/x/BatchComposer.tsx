@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { type XAccount } from "./api";
+import { MediaDropZone } from "./MediaDropZone";
 import {
   batchTimes,
   submitBatch,
@@ -575,149 +576,159 @@ export function BatchComposer({
                     {textWeight(item.text)}/280
                   </p>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {item.files.some((file) => file.type === "video/mp4")
-                        ? "Vídeo desta postagem"
-                        : item.files.length >= 2
-                          ? "Carrossel de fotos"
-                          : "Fotos desta postagem"}
-                    </p>
-                    <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                      {item.files.some((file) => file.type === "video/mp4")
-                        ? "1 vídeo"
-                        : `${item.files.length}/4 fotos`}
-                    </span>
-                  </div>
-                  {item.files.length >= 2 && (
-                    <p className="text-sm text-emerald-300">
-                      As {item.files.length} fotos serão publicadas juntas, no
-                      mesmo post.
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Até 4 fotos JPG/PNG (5 MB cada) ou 1 vídeo MP4 (20 MB). O
-                    envio de mídia é opcional.
-                  </p>
-                  {item.files.length > 0 && (
-                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-                      {item.files.map((file, mediaIndex) => (
-                        <div
-                          key={`${item.id}-${mediaIndex}-${file.name}`}
-                          className="min-w-0 rounded-xl border p-2 space-y-2"
-                        >
-                          <Preview file={file} />
-                          <p className="truncate text-xs" title={file.name}>
-                            {file.name}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            <label
-                              className={`inline-flex items-center rounded-md border px-2 py-1 text-xs ${frozen ? "opacity-50" : "cursor-pointer hover:bg-muted"}`}
-                              htmlFor={`replace-${item.id}-${mediaIndex}`}
-                            >
-                              Trocar
-                            </label>
-                            <input
-                              className="sr-only"
-                              id={`replace-${item.id}-${mediaIndex}`}
-                              aria-label={`Trocar arquivo ${mediaIndex + 1} da postagem ${index + 1}`}
-                              type="file"
-                              accept="image/jpeg,image/png,video/mp4"
-                              disabled={frozen}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const next = [...item.files];
-                                  next[mediaIndex] = file;
-                                  changeFiles(item, next);
-                                }
-                                e.target.value = "";
-                              }}
-                            />
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={frozen}
-                              aria-label={`Remover arquivo ${mediaIndex + 1} da postagem ${index + 1}`}
-                              onClick={() =>
-                                changeFiles(
-                                  item,
-                                  item.files.filter((_, i) => i !== mediaIndex),
-                                )
-                              }
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={frozen || mediaIndex === 0}
-                              aria-label={`Mover arquivo ${mediaIndex + 1} da postagem ${index + 1} para antes`}
-                              onClick={() => {
-                                const next = [...item.files];
-                                [next[mediaIndex], next[mediaIndex - 1]] = [
-                                  next[mediaIndex - 1],
-                                  next[mediaIndex],
-                                ];
-                                changeFiles(item, next);
-                              }}
-                            >
-                              <ArrowUp size={14} />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                <MediaDropZone
+                  disabled={frozen}
+                  label={`Arrastar arquivos para a postagem ${index + 1}`}
+                  onFiles={(files) =>
+                    changeFiles(item, [...item.files, ...files])
+                  }
+                >
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium">
+                        {item.files.some((file) => file.type === "video/mp4")
+                          ? "Vídeo desta postagem"
+                          : item.files.length >= 2
+                            ? "Carrossel de fotos"
+                            : "Fotos desta postagem"}
+                      </p>
+                      <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        {item.files.some((file) => file.type === "video/mp4")
+                          ? "1 vídeo"
+                          : `${item.files.length}/4 fotos`}
+                      </span>
                     </div>
-                  )}
-                  <Button
-                    variant="outline"
-                    className="w-full border-dashed"
-                    disabled={
-                      frozen ||
-                      item.files.length === 4 ||
-                      item.files.some((file) => file.type === "video/mp4")
-                    }
-                    onClick={() =>
-                      document.getElementById(`files-${item.id}`)?.click()
-                    }
-                  >
-                    <Images size={17} className="mr-2" />
-                    {item.files.some((file) => file.type === "video/mp4")
-                      ? "Remova o vídeo para adicionar fotos"
-                      : item.files.length === 4
-                        ? "Carrossel completo: 4 fotos"
-                        : item.files.length
-                          ? "Adicionar fotos ao carrossel"
-                          : "Adicionar fotos ou vídeo"}
-                  </Button>
-                  {!item.files.some((file) => file.type === "video/mp4") &&
-                    item.files.length < 4 && (
-                      <p className="text-xs text-muted-foreground">
-                        Selecione várias fotos de uma vez ou adicione uma por
-                        vez. Todas ficam nesta mesma postagem.
+                    {item.files.length >= 2 && (
+                      <p className="text-sm text-emerald-300">
+                        As {item.files.length} fotos serão publicadas juntas, no
+                        mesmo post.
                       </p>
                     )}
-                  <Input
-                    className="sr-only"
-                    id={`files-${item.id}`}
-                    aria-label={`Adicionar arquivos à postagem ${index + 1}`}
-                    type="file"
-                    multiple
-                    accept="image/jpeg,image/png,video/mp4"
-                    disabled={
-                      frozen ||
-                      item.files.length === 4 ||
-                      item.files.some((file) => file.type === "video/mp4")
-                    }
-                    onChange={(e) => {
-                      const next = Array.from(e.target.files || []);
-                      if (next.length)
-                        changeFiles(item, [...item.files, ...next]);
-                      e.target.value = "";
-                    }}
-                  />
-                </div>
+                    <p className="text-xs text-muted-foreground">
+                      Até 4 fotos JPG/PNG (5 MB cada) ou 1 vídeo MP4 (20 MB). O
+                      envio de mídia é opcional.
+                    </p>
+                    {item.files.length > 0 && (
+                      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                        {item.files.map((file, mediaIndex) => (
+                          <div
+                            key={`${item.id}-${mediaIndex}-${file.name}`}
+                            className="min-w-0 rounded-xl border p-2 space-y-2"
+                          >
+                            <Preview file={file} />
+                            <p className="truncate text-xs" title={file.name}>
+                              {file.name}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              <label
+                                className={`inline-flex items-center rounded-md border px-2 py-1 text-xs ${frozen ? "opacity-50" : "cursor-pointer hover:bg-muted"}`}
+                                htmlFor={`replace-${item.id}-${mediaIndex}`}
+                              >
+                                Trocar
+                              </label>
+                              <input
+                                className="sr-only"
+                                id={`replace-${item.id}-${mediaIndex}`}
+                                aria-label={`Trocar arquivo ${mediaIndex + 1} da postagem ${index + 1}`}
+                                type="file"
+                                accept="image/jpeg,image/png,video/mp4"
+                                disabled={frozen}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const next = [...item.files];
+                                    next[mediaIndex] = file;
+                                    changeFiles(item, next);
+                                  }
+                                  e.target.value = "";
+                                }}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={frozen}
+                                aria-label={`Remover arquivo ${mediaIndex + 1} da postagem ${index + 1}`}
+                                onClick={() =>
+                                  changeFiles(
+                                    item,
+                                    item.files.filter(
+                                      (_, i) => i !== mediaIndex,
+                                    ),
+                                  )
+                                }
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={frozen || mediaIndex === 0}
+                                aria-label={`Mover arquivo ${mediaIndex + 1} da postagem ${index + 1} para antes`}
+                                onClick={() => {
+                                  const next = [...item.files];
+                                  [next[mediaIndex], next[mediaIndex - 1]] = [
+                                    next[mediaIndex - 1],
+                                    next[mediaIndex],
+                                  ];
+                                  changeFiles(item, next);
+                                }}
+                              >
+                                <ArrowUp size={14} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full border-dashed"
+                      disabled={
+                        frozen ||
+                        item.files.length === 4 ||
+                        item.files.some((file) => file.type === "video/mp4")
+                      }
+                      onClick={() =>
+                        document.getElementById(`files-${item.id}`)?.click()
+                      }
+                    >
+                      <Images size={17} className="mr-2" />
+                      {item.files.some((file) => file.type === "video/mp4")
+                        ? "Remova o vídeo para adicionar fotos"
+                        : item.files.length === 4
+                          ? "Carrossel completo: 4 fotos"
+                          : item.files.length
+                            ? "Adicionar fotos ao carrossel"
+                            : "Adicionar fotos ou vídeo"}
+                    </Button>
+                    {!item.files.some((file) => file.type === "video/mp4") &&
+                      item.files.length < 4 && (
+                        <p className="text-xs text-muted-foreground">
+                          Selecione várias fotos de uma vez ou adicione uma por
+                          vez. Todas ficam nesta mesma postagem.
+                        </p>
+                      )}
+                    <Input
+                      className="sr-only"
+                      id={`files-${item.id}`}
+                      aria-label={`Adicionar arquivos à postagem ${index + 1}`}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,video/mp4"
+                      disabled={
+                        frozen ||
+                        item.files.length === 4 ||
+                        item.files.some((file) => file.type === "video/mp4")
+                      }
+                      onChange={(e) => {
+                        const next = Array.from(e.target.files || []);
+                        if (next.length)
+                          changeFiles(item, [...item.files, ...next]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </MediaDropZone>
                 {account?.paused && (
                   <p className="text-sm text-amber-300">
                     Esta conta está pausada. Retome a conta para os posts serem
