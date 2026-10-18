@@ -107,3 +107,11 @@ O core de vídeo é servido pelo próprio site e carregado sob demanda. A mídia
 Mantenha a guia aberta até concluir. Cada item é confirmado individualmente; o lote não é uma transação única. A interface mostra falhas parciais e permite continuar os pendentes, preservando UUID e mídia enviada para evitar duplicação de uma resposta ambígua. Itens já confirmados são ignorados em novas tentativas. É possível parar após o arquivo atual. A composição do lote fica em memória: ao recarregar ou fechar, confira a fila antes de recriar itens pendentes. O botão de encerrar lote não cancela posts já agendados. A integração usa a ação `schedule` existente; esta atualização não exige nova migração nem novo deploy da Edge Function.
 
 Também é possível arrastar arquivos do computador e soltá-los na área de mídia da postagem individual ou do post selecionado no lote. O destaque mostra onde soltar. As fotos são acrescentadas às existentes no mesmo post; permanecem os limites de quatro fotos ou um vídeo e a limpeza automática. Arquivos inválidos ou em excesso são recusados sem apagar os já selecionados. O recebimento fica bloqueado durante o processamento.
+
+
+### Segunda etapa de limpeza
+Depois da reconstrução, uma verificação binária remove todos os segmentos APP/COM do JPEG (incluindo EXIF, XMP, IPTC e perfis ICC) e conserva no PNG somente pixels, paleta, transparência e informações padrão de renderização sRGB. Dados após o fim das imagens também são descartados. O canvas converte a imagem para sRGB antes dessa etapa.
+
+Nos vídeos H.264, o filtro `filter_units=remove_types=6` remove SEI, incluindo identificação do codificador e legendas embutidas nesse formato; `asidedata=delete` descarta dados auxiliares de áudio. Depois da recodificação, caixas MP4 de metadados (`udta`, `meta`, `uuid`) e preenchimento são zeradas, assim como datas de criação/modificação e nomes de faixas. As posições dos dados de áudio/vídeo permanecem intactas. A verificação é exclusiva da saída recodificada, não um limpador genérico de arquivos arbitrários.
+
+Arquivos inválidos nessa verificação são bloqueados. Isso não promete anonimato nem remove marcas d'água, texto visível, rostos, vozes ou conteúdo oculto nos próprios pixels/áudio. Dados técnicos necessários à reprodução permanecem. Vale para novos envios; arquivos anteriormente agendados não são reprocessados.

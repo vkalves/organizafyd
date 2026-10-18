@@ -1,3 +1,4 @@
+import { stripImageMetadata, stripVideoMetadata } from "./strip-metadata";
 /** Reconstruct media before upload. Originals never enter Storage. */
 export type MediaStage = "cleaning" | "uploading";
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -61,6 +62,11 @@ export async function cleanMedia(file: File): Promise<File> {
       file.type === "video/mp4"
         ? await (await import("./clean-video")).cleanVideo(file)
         : await cleanImage(file);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const verified = file.type === "video/mp4"
+      ? stripVideoMetadata(bytes)
+      : stripImageMetadata(bytes, file.type);
+    blob = new Blob([verified], { type: file.type });
   } catch (error) {
     throw new Error(
       error instanceof Error
