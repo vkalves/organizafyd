@@ -189,7 +189,7 @@ const MapasMentais = () => {
             return (
               <div
                 key={map.id}
-                className="operation-panel group relative overflow-hidden rounded-2xl transition-all duration-150 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-lg"
+                className="operation-panel group relative overflow-hidden rounded-2xl transition-colors duration-150 hover:border-foreground/25"
               >
                 <button
                   type="button"

@@ -1,7 +1,6 @@
 .x-studio {
   min-height: 100dvh;
-  background:
-    radial-gradient(ellipse at 80% 0%, #18332d55, transparent 40%), #101312;
+  background: hsl(var(--background));
   color: #ecefec;
 }
 .x-studio [hidden] {
@@ -15,7 +14,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 0 max(24px, calc((100vw - 1200px) / 2));
-  background: #101312cc;
+  background: hsl(var(--surface));
 }
 .x-studio-brand {
   display: flex;
@@ -58,12 +57,12 @@
 }
 .x-studio-intro > p {
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.04em;
   color: #9fc3b1;
   font-weight: 600;
 }
 .x-studio-intro h1 {
-  font-size: clamp(26px, 4vw, 40px);
+  font-size: clamp(26px, 4vw, 32px);
   line-height: 1.2;
   letter-spacing: -0.045em;
   font-weight: 600;
@@ -108,7 +107,7 @@
   align-items: center;
   gap: 10px;
   border: 1px solid #ffffff12;
-  background: #191f1b;
+  background: hsl(var(--card));
   padding: 18px 22px;
   border-radius: 14px;
   text-align: left;
@@ -145,7 +144,7 @@
 .x-preview-label {
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.04em;
   color: #bac8bf;
 }
 .x-preview-label span {
@@ -158,7 +157,7 @@
 }
 .x-preview-post {
   border: 1px solid #ffffff18;
-  background: #151a17;
+  background: hsl(var(--card));
   border-radius: 18px;
   padding: 24px;
   min-height: 210px;
@@ -349,13 +348,13 @@
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   border: 1px solid #ffffff14;
-  background: #141917;
+  background: hsl(var(--card));
   border-radius: 16px;
   min-height: 490px;
   overflow: clip;
 }
 .x-batch-sidebar {
-  background: #111613;
+  background: hsl(var(--surface));
   border-right: 1px solid #ffffff10;
   min-width: 0;
 }
@@ -512,13 +511,13 @@
 .x-batch-footer {
   position: static;
   bottom: 12px;
-  background: #161d19f5;
+  background: hsl(var(--surface));
   border: 1px solid #a4dfbd22;
   border-radius: 12px;
   padding: 16px;
   backdrop-filter: blur(16px);
   z-index: 10;
-  box-shadow: 0 8px 30px #0005;
+  box-shadow: none;
 }
 .x-batch-footer p {
   max-width: 410px;

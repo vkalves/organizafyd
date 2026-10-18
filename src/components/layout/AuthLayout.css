@@ -17,8 +17,8 @@
   overflow: hidden;
   border: 1px solid #ffffff15;
   border-radius: 20px;
-  background: radial-gradient(ellipse at 30% 0%, #ffffff0d, transparent 55%), linear-gradient(160deg, #262626 0%, #1c1c1e 45%, #141415 100%);
-  box-shadow: inset 0 1px 0 #ffffff0d;
+  background: hsl(var(--card));
+  box-shadow: none;
 }
 
 .auth-logo { display: block; width: 180px; height: 59px; object-fit: contain; }
@@ -28,7 +28,7 @@
 .auth-story h1 { font-size: clamp(36px, 4.2vw, 64px); font-weight: 500; letter-spacing: -3px; line-height: 1.12; }
 .auth-story h1 > span { color: #aaa9a5; }
 .auth-story-description { margin-top: 21px; color: #a7a6a3; font-size: 14px; line-height: 1.9; }
-.auth-preview { margin-top: 44px; border: 1px solid #ffffff1d; border-radius: 13px; overflow: hidden; background: linear-gradient(150deg, #292929, #141415 65%); box-shadow: 0 20px 45px #00000025; transform: rotate(-2deg); }
+.auth-preview { margin-top: 44px; border: 1px solid #ffffff1d; border-radius: 13px; overflow: hidden; background: hsl(var(--surface)); box-shadow: none; }
 .auth-preview-bar { display: flex; align-items: center; gap: 8px; height: 39px; padding: 0 16px; border-bottom: 1px solid #ffffff10; color: #a4a3a1; }
 .auth-preview-bar > span { margin-right: auto; font-size: 7px; font-weight: 600; letter-spacing: 1.4px; }
 .auth-preview-body { padding: 23px 23px 0; }
@@ -72,11 +72,11 @@
 @media (min-width: 1600px) { .auth-layout { padding: 28px; } .auth-story { padding: 40px 72px; } }
 @media (max-width: 1100px) { .auth-story { padding: 28px; } .auth-story h1 { letter-spacing: -2px; } .auth-form-area { padding: 40px 28px; } .auth-preview-tags { gap: 5px; } }
 @media (max-width: 767px) {
-  .auth-layout { grid-template-columns: 1fr; padding: 24px; background: radial-gradient(ellipse at 50% 0%, #ffffff08, transparent 60%), #111112; }
+  .auth-layout { grid-template-columns: 1fr; padding: 24px; background: hsl(var(--background)); }
   .auth-story { display: none; }
   .auth-form-area { justify-content: center; padding: 18px 0; }
   .auth-mobile-logo { display: block; width: 158px; height: 55px; margin-bottom: 42px; }
-  .auth-card { padding: 28px 24px; border: 1px solid #ffffff14; border-radius: 16px; background: linear-gradient(150deg, #202022, #181819); box-shadow: 0 24px 60px #00000020; }
+  .auth-card { padding: 28px 24px; border: 1px solid #ffffff14; border-radius: 16px; background: hsl(var(--card)); box-shadow: none; }
   .auth-card h2 { font-size: 25px; }
   .auth-form { margin-top: 29px; }
   .auth-form-footer { margin-top: 28px; }
