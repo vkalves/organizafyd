@@ -12,7 +12,6 @@ const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 
 const XPublisher = lazy(() => import("./pages/XPublisher"));
 const InstagramPublisher = lazy(() => import("./pages/InstagramPublisher"));
-const Instagram = lazy(() => import("./pages/Instagram"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
@@ -55,16 +54,9 @@ const App = () => (
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
               <Route path="/slides" element={<ProtectedRoute><Slides /></ProtectedRoute>} />
               <Route path="/mapas" element={<ProtectedRoute><MapasMentais /></ProtectedRoute>} />
+              <Route path="/instagram" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
+              <Route path="/instagram/*" element={<Navigate to="/instagram" replace />} />
               <Route path="/instagram/publicar" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
-              <Route path="/instagram" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/hoje" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/pendentes" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/pendentes/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/pendentes/:accountId/grupo/:group" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/prontos" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/prontos/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/tarefas" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
-              <Route path="/instagram/conta/:accountId" element={<ProtectedRoute><Instagram /></ProtectedRoute>} />
               <Route path="/x" element={<ProtectedRoute standalone><XPublisher /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

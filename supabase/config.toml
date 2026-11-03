@@ -12,3 +12,7 @@ verify_jwt = false
 # OAuth GET is public; every client POST validates its JWT; cron has its own secret.
 [functions.tiktok-publisher]
 verify_jwt = false
+
+# User requests validate JWT via auth.getUser; cron uses its Vault secret.
+[functions.instagram-publisher]
+verify_jwt = false

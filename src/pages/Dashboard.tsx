@@ -62,7 +62,7 @@ const quickActions: QuickAction[] = [
   { label: "Notas", description: "Ideias e textos", icon: StickyNote, path: "/notas" },
   { label: "Mapas", description: "Planeje visualmente", icon: Network, path: "/mapas" },
   { label: "Slides", description: "Apresente suas ideias", icon: Presentation, path: "/slides" },
-  { label: "Instagram", description: "Conteúdo e contas", icon: Instagram, path: "/instagram" }
+  { label: "Instagram", description: "Automação de postagens", icon: Instagram, path: "/instagram" }
 ];
 
 function safeTimeZone(value?: string | null) {

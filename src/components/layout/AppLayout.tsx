@@ -2,7 +2,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, Menu, ChevronLeft, LogOut, Instagram,
-  Music2, Globe, Clock, CheckCircle2, Network, Presentation, X,
+  Music2, Network, Presentation, X,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
@@ -32,33 +32,10 @@ const navItems = [
   { title: "Configurações", path: "/config", icon: Settings },
 ];
 
-const instagramSubs = [
-  { title: "Publicação automática", path: "/instagram/publicar", icon: Clock },
-  { title: "Contas", path: "/instagram", icon: Globe },
-  { title: "Conteúdos pendentes", path: "/instagram/pendentes", icon: Clock },
-  { title: "Conteúdos prontos", path: "/instagram/prontos", icon: CheckCircle2 },
-];
-
 const mobileNavItems = navItems.filter((item) => item.path !== "/config");
 
 function isInstagramPath(path: string) {
   return path.startsWith("/instagram");
-}
-
-function isInstagramSubActive(path: string, subPath: string) {
-  if (subPath === "/instagram/pendentes") {
-    return path.startsWith("/instagram/pendentes") || path.endsWith("/hoje");
-  }
-  if (subPath === "/instagram/prontos") {
-    return path.includes("/prontos") || path.endsWith("/tarefas");
-  }
-  return (
-    isInstagramPath(path) &&
-    !path.startsWith("/instagram/pendentes") &&
-    !path.includes("/prontos") &&
-    !path.endsWith("/hoje") &&
-    !path.endsWith("/tarefas")
-  );
 }
 
 function SideNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
@@ -84,23 +61,7 @@ function SideNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
               <span className="shell-nav-icon"><item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" /></span>
               {!collapsed && <span className="shell-nav-label">{item.title}</span>}
             </NavLink>
-            {item.path === "/instagram" && instagramOpen && (
-              <div className={cn("shell-subnav", collapsed && "is-collapsed")}>
-                {instagramSubs.map((sub) => (
-                  <NavLink
-                    key={sub.path}
-                    to={sub.path}
-                    title={sub.title}
-                    aria-label={sub.title}
-                    onClick={onNavigate}
-                    className={cn("shell-nav-link shell-subnav-link", isInstagramSubActive(location.pathname, sub.path) && "is-active", collapsed && "is-collapsed")}
-                  >
-                    <span className="shell-nav-icon"><sub.icon className="h-4 w-4 shrink-0" aria-hidden="true" /></span>
-                    {!collapsed && <span className="shell-nav-label">{sub.title}</span>}
-                  </NavLink>
-                ))}
-              </div>
-            )}
+
           </div>
         );
       })}
