@@ -24,8 +24,11 @@ async function graph(
   token: string,
   params: Record<string, string> = {},
   post = false,
+  provider = "facebook",
 ) {
-  const url = new URL(`https://graph.facebook.com/${version}/${path}`);
+  const url = new URL(
+    `https://${provider === "instagram" ? "graph.instagram.com" : "graph.facebook.com"}/${version}/${path}`,
+  );
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
   if (!post)
     url.search = new URLSearchParams({
@@ -85,6 +88,12 @@ async function worker() {
   }
   try {
     const { c, token } = await credential(job.account_id);
+    const accountGraph = (
+      path: string,
+      access: string,
+      params: Record<string, string> = {},
+      post = false,
+    ) => graph(path, access, params, post, c.provider);
     if (c.paused || c.reconnect_required) {
       await update({ status: "scheduled" });
       return { processed: 0 };
@@ -96,7 +105,7 @@ async function worker() {
       if (job.format === "Carrossel") {
         const children = [];
         for (const url of urls) {
-          const child = await graph(
+          const child = await accountGraph(
             c.graph_id + "/media",
             token,
             { image_url: url, is_carousel_item: "true" },
@@ -114,12 +123,19 @@ async function worker() {
         params = mediaParams(job.format, urls[0], job.media_urls[0]);
         if (job.format !== "Story") params.caption = job.caption;
       }
-      const created = await graph(c.graph_id + "/media", token, params, true);
+      const created = await accountGraph(
+        c.graph_id + "/media",
+        token,
+        params,
+        true,
+      );
       if (!created.id) throw new Error("invalid_container");
       container = created.id;
       await update({ container_id: container });
     }
-    const state = await graph(container, token, { fields: "status_code" });
+    const state = await accountGraph(container, token, {
+      fields: "status_code",
+    });
     if (state.status_code === "IN_PROGRESS") {
       if (job.attempts >= 30) throw new Error("media_processing_timeout");
       await update({
@@ -146,7 +162,7 @@ async function worker() {
     // Persist the publication boundary BEFORE calling Meta. Never retry after this point.
     await update({ publish_started: true });
     publishing = true;
-    const result = await graph(
+    const result = await accountGraph(
       c.graph_id + "/media_publish",
       token,
       { creation_id: container },
@@ -212,9 +228,15 @@ Deno.serve(async (req) => {
             .single(),
         );
         const { c: connection, token } = await credential(c.account_id);
-        const profile = await graph(connection.graph_id, token, {
-          fields: "id,username",
-        });
+        const profile = await graph(
+          connection.graph_id,
+          token,
+          {
+            fields: "id,username",
+          },
+          false,
+          connection.provider,
+        );
         return reply({
           ok: profile.id === connection.graph_id,
           username: profile.username,
@@ -240,6 +262,15 @@ Deno.serve(async (req) => {
       if (!body.graph_id) throw new Error("invalid_instagram_id");
       // Revalidate at save time; never trust profile names or owner IDs from the browser.
       const profile = await checkProfile(graph, token, body.graph_id);
+      const existing = checked(
+        await db
+          .from("ig_publisher_connections")
+          .select("provider")
+          .eq("graph_id", profile.id)
+          .maybeSingle(),
+      );
+      if (existing?.provider === "instagram")
+        throw new Error("use_instagram_login");
       const saved = await db.rpc("ig_connect_account", {
         p_user: user.id,
         p_graph: profile.id,
@@ -271,20 +302,28 @@ Deno.serve(async (req) => {
       );
       if (!owned) return reply({ error: "account_missing" }, 404);
       const { c, token } = await credential(body.account_id);
-      const profile = await graph(c.graph_id, token, { fields: "id,username" });
+      const profile = await graph(
+        c.graph_id,
+        token,
+        { fields: "id,username" },
+        false,
+        c.provider,
+      );
       return reply({ id: profile.id, username: profile.username });
     }
     if (body.action === "reconnect") {
       const owned = checked(
         await db
           .from("ig_publisher_connections")
-          .select("account_id,graph_id")
+          .select("account_id,graph_id,provider")
           .eq("account_id", body.account_id)
           .eq("user_id", user.id)
           .maybeSingle(),
       );
       if (!owned || typeof body.token !== "string" || body.token.length > 4096)
         return reply({ error: "invalid_connection" }, 400);
+      if (owned.provider === "instagram")
+        return reply({ error: "use_instagram_login" }, 400);
       const profile = await graph(owned.graph_id, body.token, {
         fields: "id,username",
       });

@@ -1,0 +1,128 @@
+import { useEffect, useRef, useState } from "react";
+import { Instagram, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { loginRequest } from "@/features/instagram-publisher/login";
+export default function InstagramConnect() {
+  const [params] = useState(
+    () => new URLSearchParams(window.location.hash.slice(1)),
+  );
+  const [manager, setManager] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [busy, setBusy] = useState(true);
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    async function load() {
+      try {
+        if (params.has("error"))
+          throw new Error(
+            "Autorização cancelada. Solicite um novo link para tentar novamente.",
+          );
+        if (params.has("code")) {
+          const state = params.get("state") || "";
+          const key = "ig-login:" + state;
+          const verifier = sessionStorage.getItem(key);
+          sessionStorage.removeItem(key);
+          if (!verifier)
+            throw new Error(
+              "Abra a autorização no mesmo navegador em que iniciou a conexão. Solicite um novo link.",
+            );
+          const result = await loginRequest<{ username: string }>("finish", {
+            code: params.get("code"),
+            state,
+            verifier,
+          });
+          setSuccess(result.username);
+        } else {
+          const info = await loginRequest<{ manager: string }>("invite_info", {
+            invite: params.get("invite"),
+          });
+          setManager(info.manager);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Falha na conexão.");
+      } finally {
+        setBusy(false);
+      }
+    }
+    void load();
+  }, [params]);
+  async function authorize() {
+    setBusy(true);
+    setError("");
+    try {
+      const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map((v) => v.toString(16).padStart(2, "0"))
+        .join("");
+      const result = await loginRequest<{ url: string; state: string }>(
+        "start",
+        { invite: params.get("invite"), verifier },
+      );
+      sessionStorage.setItem("ig-login:" + result.state, verifier);
+      window.location.assign(result.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na conexão.");
+      setBusy(false);
+    }
+  }
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background p-6">
+      <section className="w-full max-w-lg space-y-5 rounded-2xl border p-6">
+        <Instagram className="h-9 w-9" />
+        <h1 className="text-2xl font-semibold">Conectar Instagram</h1>
+        {busy && (
+          <p role="status" className="flex gap-2">
+            <Loader2 className="animate-spin" />
+            Aguarde…
+          </p>
+        )}
+        {success ? (
+          <div role="status">
+            <h2 className="font-semibold">@{success} conectado!</h2>
+            <p>
+              O responsável já pode agendar publicações autorizadas. Você pode
+              fechar esta janela.
+            </p>
+          </div>
+        ) : (
+          manager && (
+            <>
+              <p>
+                Você está conectando seu Instagram à conta de{" "}
+                <strong className="break-all">{manager}</strong> no Organizafy.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ao autorizar, esse responsável poderá agendar e publicar
+                conteúdo no perfil escolhido. Use uma conta profissional. Sua
+                senha é informada somente à Meta.
+              </p>
+              <Button disabled={busy} onClick={() => void authorize()}>
+                Autorizar no Instagram
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Confira o @ na autorização da Meta. Você pode revogar o acesso
+                posteriormente nas configurações do Instagram.
+              </p>
+            </>
+          )
+        )}
+        {error && (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-4 text-xs">
+          <a href="/privacidade" className="underline">
+            Privacidade
+          </a>
+          <a href="/termos" className="underline">
+            Termos
+          </a>
+        </div>
+      </section>
+    </main>
+  );
+}

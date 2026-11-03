@@ -16,3 +16,6 @@ verify_jwt = false
 # User requests validate JWT via auth.getUser; cron uses its Vault secret.
 [functions.instagram-publisher]
 verify_jwt = false
+
+[functions.instagram-login]
+verify_jwt = false

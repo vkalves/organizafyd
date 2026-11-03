@@ -11,6 +11,7 @@ const TikTokPublisher = lazy(() => import("./pages/TikTokPublisher"));
 const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 
 const XPublisher = lazy(() => import("./pages/XPublisher"));
+const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
 const InstagramPublisher = lazy(() => import("./pages/InstagramPublisher"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/notas" element={<ProtectedRoute><Notas /></ProtectedRoute>} />
               <Route path="/slides" element={<ProtectedRoute><Slides /></ProtectedRoute>} />
               <Route path="/mapas" element={<ProtectedRoute><MapasMentais /></ProtectedRoute>} />
+              <Route path="/instagram/conectar" element={<InstagramConnect />} />
               <Route path="/instagram" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
               <Route path="/instagram/*" element={<Navigate to="/instagram" replace />} />
               <Route path="/instagram/publicar" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
