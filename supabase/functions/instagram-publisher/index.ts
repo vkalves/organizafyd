@@ -119,7 +119,9 @@ async function worker() {
       if (job.attempts >= 30) throw new Error("media_processing_timeout");
       await update({
         status: "scheduled",
-        next_attempt_at: new Date(Date.now() + 60000).toISOString(),
+        // The cron already limits checks to once a minute. Adding 60 seconds
+        // here skips the next tick when processing finishes after the boundary.
+        next_attempt_at: new Date().toISOString(),
       });
       return { processed: 1 };
     }
