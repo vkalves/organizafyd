@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Instagram, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useInstagramData } from '@/features/instagram/data';
-import { listPosts, savePost, cancelPost } from '@/features/instagram-publisher/api';
+import { listAccounts, listPosts, savePost, cancelPost } from '@/features/instagram-publisher/api';
 import type { Format, Post } from '@/features/instagram-publisher/model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +13,8 @@ const labels = { draft: 'Rascunho', waiting_integration: 'Aguardando integraçã
 const field = 'w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm';
 export default function InstagramPublisher() {
  const { user } = useAuth();
- const accountsQuery = useInstagramData();
- const accounts = accountsQuery.data?.accounts ?? [];
+ const accountsQuery = useQuery({ queryKey: ['instagram-publisher-accounts', user?.id], queryFn: () => listAccounts(user!.id), enabled: !!user });
+ const accounts = accountsQuery.data ?? [];
  const cache = useQueryClient();
  const key = ['instagram-publisher', user?.id];
  const query = useQuery({ queryKey: key, queryFn: () => listPosts(user!.id), enabled: !!user });
@@ -52,12 +50,12 @@ export default function InstagramPublisher() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
  }
  return <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-  <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="flex items-center gap-2 text-2xl font-semibold"><Instagram /> Instagram Studio</h1><p className="text-muted-foreground">Prepare suas publicações e organize sua fila.</p></div><Button variant="outline" asChild><Link to="/instagram">Gerenciar contas</Link></Button></header>
+  <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="flex items-center gap-2 text-2xl font-semibold"><Instagram /> Instagram Studio</h1><p className="text-muted-foreground">Prepare suas publicações e organize sua fila.</p></div></header>
   <div className="operation-panel rounded-2xl border border-amber-500/30 p-4" role="status"><strong>Estrutura em preparação</strong><p className="text-sm text-muted-foreground">A conexão com a Meta e o envio automático ainda não estão ativos. Os horários são planejamento; suas postagens não serão publicadas até a integração ser ativada e você confirmar os envios.</p></div>
   {accountsQuery.isError && <p role="alert">Não foi possível carregar as contas. <Button variant="outline" onClick={() => accountsQuery.refetch()}>Tentar novamente</Button></p>}
   {query.isError && <div role="alert" className="text-destructive">{query.error.message} <Button variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>}
   <div className="grid gap-6 lg:grid-cols-2"><section className="operation-panel space-y-4 rounded-2xl p-5"><div className="flex justify-between"><h2 className="text-lg font-semibold">Preparar postagem</h2><Button variant="ghost" disabled={busy} onClick={reset}><Plus className="mr-1 h-4 w-4" />Nova</Button></div>
-   <div><Label htmlFor="ig-account">Conta</Label><select id="ig-account" className={field} value={accountId} onChange={e => setAccountId(e.target.value)}><option value="">Selecione uma conta</option>{accounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}</select>{!accounts.length && !accountsQuery.isLoading && <p className="text-sm text-muted-foreground">Cadastre uma conta em Gerenciar contas para começar.</p>}</div>
+   <div><Label htmlFor="ig-account">Conta</Label><select id="ig-account" className={field} value={accountId} onChange={e => setAccountId(e.target.value)}><option value="">Selecione uma conta</option>{accounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}</select>{!accounts.length && !accountsQuery.isLoading && <p className="text-sm text-muted-foreground">Nenhuma conta disponível para a automação. A conexão com o Instagram será habilitada na etapa de integração.</p>}</div>
    <div><Label htmlFor="ig-format">Formato</Label><select id="ig-format" className={field} value={format} onChange={e => setFormat(e.target.value as Format)}>{['Feed','Reel','Story','Carrossel'].map(v => <option key={v}>{v}</option>)}</select></div>
    <div><Label htmlFor="ig-caption">Legenda</Label><Textarea id="ig-caption" rows={5} maxLength={2200} value={caption} onChange={e => setCaption(e.target.value)} /><p className="text-right text-xs text-muted-foreground">{caption.length}/2.200</p></div>
    <div><Label htmlFor="ig-media">Links HTTPS das mídias</Label><Textarea id="ig-media" rows={3} placeholder="https://… (um link por linha)" value={media} onChange={e => setMedia(e.target.value)} /><p className="text-xs text-muted-foreground">Uma mídia para Feed, Reel ou Story; de 2 a 10 para carrossel. Upload e validação dos arquivos serão integrados na próxima etapa.</p></div>

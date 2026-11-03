@@ -1,6 +1,6 @@
 # Instagram Studio — etapa de preparação
 
-Entrada: Instagram → Publicação automática (`/instagram/publicar`). Segue a navegação existente, autenticação Supabase e React Query usadas no projeto, com composição e fila inspiradas nos publicadores X/TikTok.
+Entrada: Instagram (`/instagram`; `/instagram/publicar` também abre a automação). As antigas telas de contas, pendentes, prontos e tarefas foram retiradas da navegação e suas URLs redirecionam para a automação. Segue a navegação existente, autenticação Supabase e React Query usadas no projeto, com composição e fila inspiradas nos publicadores X/TikTok.
 
 ## Implementado
 - Seleção das contas já cadastradas no módulo Instagram (cadastro não significa autorização OAuth).
