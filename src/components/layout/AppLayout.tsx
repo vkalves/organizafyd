@@ -33,6 +33,7 @@ const navItems = [
 ];
 
 const instagramSubs = [
+  { title: "Publicação automática", path: "/instagram/publicar", icon: Clock },
   { title: "Contas", path: "/instagram", icon: Globe },
   { title: "Conteúdos pendentes", path: "/instagram/pendentes", icon: Clock },
   { title: "Conteúdos prontos", path: "/instagram/prontos", icon: CheckCircle2 },
