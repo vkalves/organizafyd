@@ -390,7 +390,15 @@ const Dashboard = () => {
         <section className="operation-panel flex flex-col justify-between p-5 sm:p-6">
           <div>
             <p className="page-eyebrow">Seu dia em foco</p>
-            <h2 classNam…225 tokens truncated…n                <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
+            <h2 className="mt-3 text-lg font-medium">{greeting}, {displayName}.</h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {data.overdue > 0 ? `${data.overdue} tarefa${data.overdue === 1 ? " atrasada precisa" : "s atrasadas precisam"} da sua atenção.` : data.todayPending > 0 ? `${data.todayPending} tarefa${data.todayPending === 1 ? " pendente" : "s pendentes"} para hoje. Um passo de cada vez.` : "Seu dia está em ordem. Espaço para novas ideias."}
+            </p>
+          </div>
+          <div className="flex items-center gap-5 py-6">
+            <div className="relative h-24 w-24 shrink-0" role="progressbar" aria-label="Progresso de hoje" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden="true">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
                 <circle cx="50" cy="50" r="44" fill="none" stroke="#e2dcd2" strokeWidth="4" strokeLinecap="round" strokeDasharray="276.46" strokeDashoffset={276.46 * (1 - progress / 100)} className="transition-all duration-500" />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-xl font-medium tabular-nums">{progress}%</span>
