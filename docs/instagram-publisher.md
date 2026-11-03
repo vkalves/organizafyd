@@ -37,3 +37,19 @@ O botão **Conectar conta** abre o assistente: token de usuário da Meta (Facebo
 `ig_connect_account` é uma operação atômica, exclusiva do service_role. Ela vincula o perfil ao usuário autenticado, cria o segredo no Vault e evita duplicação por Graph ID. A reconexão do mesmo proprietário preserva a pausa e a fila; outro proprietário recebe conflito. Nenhuma credencial é retornada pela API. O formulário mantém o token apenas em memória e o limpa ao concluir ou fechar.
 
 Este assistente não implementa OAuth: ainda exige um token e sua renovação quando expirar. A descoberta depende das permissões de Páginas e do vínculo profissional. Login direto pela Meta exige configuração do aplicativo, segredo no servidor e callback OAuth; acesso a clientes externos depende da aprovação da Meta.
+
+## Instagram Login e links para clientes
+
+A conexão direta usa a função `instagram-login` e a página pública `/instagram/conectar`. O responsável autenticado gera um convite aleatório, válido por 24 horas, substituindo o convite anterior ainda não usado. O destinatário vê o email do responsável e confirma a autorização no Instagram. O convite inicia uma única autorização. O estado dura dez minutos, é armazenado com hash e vinculado a um verificador aleatório do navegador, guardado em sessionStorage. A troca consome o estado atomicamente. Código e estado são removidos da URL antes da troca. Tokens são trocados e armazenados exclusivamente no servidor.
+
+### Ativação pelo administrador
+
+1. No Vault do Supabase, criar `instagram_app_id` e `instagram_app_secret` com o **ID e segredo do aplicativo Instagram**, obtidos na configuração Instagram Login da Meta (não o token de um perfil). Também são aceitas as variáveis de ambiente `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET`.
+2. Cadastrar exatamente esta URL de redirecionamento OAuth no aplicativo Meta:
+   `https://csaplfphtvufxjhbpstl.supabase.co/functions/v1/instagram-login`
+3. Autorizar `instagram_business_basic` e `instagram_business_content_publish`. Durante desenvolvimento, usar contas de teste autorizadas. Para atender clientes externos sem função no app, concluir o processo de análise/acesso avançado exigido pela Meta.
+4. Testar Conectar meu Instagram com uma conta profissional; confirmar o @ retornado e depois um agendamento autorizado.
+
+Sem ID e segredo, o botão fica desativado e a API retorna `not_configured`. A implantação não equivale à ativação ou aprovação da Meta. O fluxo real não foi validado enquanto essas credenciais estiverem ausentes.
+
+Novas conexões OAuth usam graph.instagram.com; as anteriores continuam em graph.facebook.com. Uma coincidência de Graph ID entre os dois provedores exige migração explícita, sem trocar o token de uma fila ativa silenciosamente. A validade do token longo é registrada. Esta versão não implementa renovação periódica: reconectar pela autorização quando necessário. Links compartilhados dão acesso de publicação ao responsável exibido; não enviar tokens nem senha ao responsável.

@@ -29,6 +29,7 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  use_instagram_login: "Use Conectar conta → Conectar meu Instagram para renovar este acesso.",
   missing_publish_permission:
     "Gere um token de usuário com instagram_basic e instagram_content_publish autorizadas para esta conta.",
   invalid_connection: "Cole um token de acesso válido da Meta.",
