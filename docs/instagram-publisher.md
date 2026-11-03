@@ -1,25 +1,31 @@
-# Instagram Studio — etapa de preparação
+# Instagram Studio — publicação automática
 
-Entrada: Instagram (`/instagram`; `/instagram/publicar` também abre a automação). As antigas telas de contas, pendentes, prontos e tarefas foram retiradas da navegação e suas URLs redirecionam para a automação. Segue a navegação existente, autenticação Supabase e React Query usadas no projeto, com composição e fila inspiradas nos publicadores X/TikTok.
+Entrada: `/instagram` ou `/instagram/publicar`. O módulo exibe somente a automação; os endereços dos painéis antigos redirecionam para ela.
 
-## Implementado
-- Seleção das contas já cadastradas no módulo Instagram (cadastro não significa autorização OAuth).
-- Rascunhos persistentes, edição, cancelamento, filtro e até 200 registros recentes.
-- Planejamento de Feed, Reel, Story e Carrossel, legenda e URLs HTTPS de mídia, horário local convertido para UTC.
-- Fila `waiting_integration` explicitamente sem envio. Nunca apresentar estes registros como publicados ou como agendamento ativo.
-- Tabela independente com RLS por usuário e chave composta impedindo associação a conta de outro usuário.
+## Funcionamento
 
-## Instalação
-1. Revisar e aplicar `supabase/migrations/20261103000000_instagram_publisher_foundation.sql` no Supabase do projeto, após as migrações existentes de Instagram.
-2. Publicar o frontend normalmente (`npm ci` e `npm run build`).
-3. Com dois usuários de teste, verificar que cada usuário só lê/altera seus próprios registros e não consegue vincular uma conta do outro.
-4. Abrir `/instagram/publicar`, criar rascunho, recarregar, editar e cancelar. Planejar um horário futuro e verificar o status Aguardando integração.
+A interface permite salvar rascunhos, enviar JPG/MP4 para Storage privado, agendar Feed (foto JPG), Reel (MP4), Story (JPG/MP4, sujeito ao tipo de conta Meta), ou carrossel de 2 a 10 fotos JPG. O limite local de upload é 100 MB. Links HTTPS diretos também são aceitos. Dimensões, duração, codec e elegibilidade final são verificados pela Meta. Um token com leitura e escopo de publicação não garante elegibilidade de toda mídia ou de Stories.
 
-Sem a migração, a tela informa a instalação pendente e bloqueia salvamento. Nenhum cron ou segredo é criado nesta etapa. A migração não foi aplicada remotamente durante o desenvolvimento.
+O horário é convertido do fuso local para UTC. Um cron chama a Edge Function a cada minuto; cada chamada tenta uma postagem. O horário pode atrasar por processamento de vídeo, pausa, fila ou limites externos. Rascunhos e planejamentos antigos NÃO são convertidos automaticamente em envios: precisam ser revisados e agendados pela interface.
 
-## Próxima etapa: execução real
-Implementar autorização Meta no servidor, com estado OAuth de uso único vinculado ao usuário; armazenamento de tokens cifrados separado das tabelas expostas ao cliente; renovação e desconexão. Consultar a documentação vigente da Meta antes de definir permissões, tipos de conta e formatos suportados.
+Uma conta pode ser pausada. Ao retomar, posts vencidos também serão enviados; cancele antes os que não deseja enviar. Cancelamento é permitido somente enquanto o trabalho está agendado; depois do início do processamento não é garantido. Trabalhos agendados são imutáveis: para alterar, cancele e crie outro.
 
-Adicionar upload privado, validação real de tamanho/tipo/duração/proporção e entrega controlada da mídia. Os links atuais são apenas referências de planejamento; não são baixados nem validados como arquivos. Os limites de 10 itens e 2.200 caracteres são limites locais desta interface, não uma promessa de compatibilidade com todos os formatos da API.
+## Segurança e confiabilidade
 
-Criar fila operacional separada e worker autenticado, claim atômico, idempotência por postagem, pausa por conta, processamento de contêineres, histórico de tentativas e estado incerto para evitar duplicações após timeouts. O worker deve operar com o navegador fechado. Registros `waiting_integration` exigem revisão de data e confirmação explícita antes de serem convertidos para envio real; não publicar automaticamente itens antigos ao ativar a integração.
+A credencial é cifrada pelo Supabase Vault e associada à conta de acesso correta no servidor. Ela não aparece no bundle, no GitHub, em respostas do servidor ou na tabela de jobs. O Storage é privado, com caminhos por usuário; URLs assinadas de uma hora são geradas no momento do envio. Os arquivos ficam armazenados após cancelamento/publicação; esta versão não oferece limpeza automática.
+
+As chamadas da interface validam JWT via `auth.getUser`; o cron valida um segredo próprio. RLS limita leitura de jobs ao dono; somente o serviço pode escrever. O serviço também valida propriedade da conexão e dos caminhos do Storage. A criação do job tem UUID estável para evitar duplicações após reenvio de uma requisição.
+
+A fila usa claim atômico com lock. Após criar o contêiner, seu ID é persistido e o processamento é consultado em chamadas posteriores. Antes de `media_publish`, o servidor registra a fronteira de publicação. Uma falha após esse ponto vira **Conferir no Instagram** e nunca gera reenvio automático. Um trabalho interrompido por mais de dez minutos recebe o mesmo status conservador. Falhas anteriores à publicação ficam como Falhou, sem retry automático. Limite: 30 verificações de processamento antes de falhar.
+
+## Instalação e manutenção
+
+Aplicar as migrações `instagram_publisher_foundation`, `instagram_publisher_live` e `instagram_token_rotation`, e implantar `supabase/functions/instagram-publisher`. O cron depende de pg_cron, pg_net e Vault. O backend usa Graph API v24.0 pelo fluxo Facebook Login.
+
+O provisionamento inicial da conexão é administrativo, por SQL transacional: localizar o usuário por e-mail, criar/reutilizar `instagram_accounts`, criar o segredo no Vault e associar seu UUID a `ig_publisher_connections`. Nunca incluir o token em migrações ou código. Depois, o usuário pode trocar o token em **Atualizar token da conta**: o servidor confere que o novo token acessa o mesmo ID antes de substituir o segredo. A reconexão preserva a pausa.
+
+Esta entrega conecta a conta já autorizada; não implementa onboarding OAuth para terceiros. Para atender clientes, implementar OAuth e cumprir a análise/requisitos da Meta antes de disponibilizar conexão de outras contas. A duração do token depende de como ele foi emitido: não há renovação automática sem as credenciais de aplicativo necessárias. Ao receber erro 190, o serviço marca reconexão necessária e bloqueia novos envios até a troca do token.
+
+## Verificação
+
+Testes locais cobrem validação de agendamento, formatos, contagem de mídia e isolamento de caminhos de upload. No banco, verificar grants, RLS e claim/lease em transações com rollback. Verificar a conexão no servidor com chamada de leitura autenticada; não usar conteúdo de teste arbitrário em uma conta real. Um teste completo de publicação exige mídia e legenda escolhidas pelo usuário.

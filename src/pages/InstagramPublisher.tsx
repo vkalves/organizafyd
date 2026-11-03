@@ -1,70 +1,500 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Instagram, Loader2, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { listAccounts, listPosts, savePost, cancelPost } from '@/features/instagram-publisher/api';
-import type { Format, Post } from '@/features/instagram-publisher/model';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-const labels = { draft: 'Rascunho', waiting_integration: 'Aguardando integração', cancelled: 'Cancelado' };
-const field = 'w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm';
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarClock, Instagram, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  listAccounts,
+  listPosts,
+  savePost,
+  cancelPost,
+  connections,
+  publisherRequest,
+  uploadMedia,
+} from "@/features/instagram-publisher/api";
+import type { Format, Post } from "@/features/instagram-publisher/model";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+const labels = {
+  draft: "Rascunho",
+  waiting_integration: "Revisar e agendar",
+  cancelled: "Cancelado",
+  scheduled: "Agendado",
+  processing: "Processando",
+  published: "Publicado",
+  failed: "Falhou",
+  uncertain: "Conferir no Instagram",
+};
+const field =
+  "w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm";
 export default function InstagramPublisher() {
- const { user } = useAuth();
- const accountsQuery = useQuery({ queryKey: ['instagram-publisher-accounts', user?.id], queryFn: () => listAccounts(user!.id), enabled: !!user });
- const accounts = accountsQuery.data ?? [];
- const cache = useQueryClient();
- const key = ['instagram-publisher', user?.id];
- const query = useQuery({ queryKey: key, queryFn: () => listPosts(user!.id), enabled: !!user });
- const [id, setId] = useState<string>(() => crypto.randomUUID());
- const [accountId, setAccountId] = useState('');
- const [caption, setCaption] = useState('');
- const [format, setFormat] = useState<Format>('Feed');
- const [media, setMedia] = useState('');
- const [time, setTime] = useState('');
- const [busy, setBusy] = useState(false);
- const [filter, setFilter] = useState('all');
- function reset() { setId(crypto.randomUUID()); setCaption(''); setMedia(''); setTime(''); }
- async function perform(run: () => Promise<void>) {
-  setBusy(true);
-  try { await run(); await cache.invalidateQueries({ queryKey: key }); }
-  catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível concluir.'); }
-  finally { setBusy(false); }
- }
- function save(queue: boolean) {
-  if (!user) return;
-  void perform(async () => {
-   await savePost({ id, user_id: user.id, account_id: accountId, caption, format,
-    media_urls: media.split('\n').map(v => v.trim()).filter(Boolean),
-    scheduled_at: time ? new Date(time).toISOString() : null,
-    status: queue ? 'waiting_integration' : 'draft' });
-   reset(); toast.success(queue ? 'Planejamento salvo. Nenhuma publicação será enviada nesta etapa.' : 'Rascunho salvo.');
+  const { user } = useAuth();
+  const accountsQuery = useQuery({
+    queryKey: ["instagram-publisher-accounts", user?.id],
+    queryFn: () => listAccounts(user!.id),
+    enabled: !!user,
   });
- }
- function edit(post: Post) {
-  setId(post.id); setAccountId(post.account_id); setCaption(post.caption); setFormat(post.format); setMedia(post.media_urls.join('\n'));
-  const date = post.scheduled_at ? new Date(post.scheduled_at) : null;
-  setTime(date ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16) : '');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
- }
- return <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-  <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="flex items-center gap-2 text-2xl font-semibold"><Instagram /> Instagram Studio</h1><p className="text-muted-foreground">Prepare suas publicações e organize sua fila.</p></div></header>
-  <div className="operation-panel rounded-2xl border border-amber-500/30 p-4" role="status"><strong>Estrutura em preparação</strong><p className="text-sm text-muted-foreground">A conexão com a Meta e o envio automático ainda não estão ativos. Os horários são planejamento; suas postagens não serão publicadas até a integração ser ativada e você confirmar os envios.</p></div>
-  {accountsQuery.isError && <p role="alert">Não foi possível carregar as contas. <Button variant="outline" onClick={() => accountsQuery.refetch()}>Tentar novamente</Button></p>}
-  {query.isError && <div role="alert" className="text-destructive">{query.error.message} <Button variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>}
-  <div className="grid gap-6 lg:grid-cols-2"><section className="operation-panel space-y-4 rounded-2xl p-5"><div className="flex justify-between"><h2 className="text-lg font-semibold">Preparar postagem</h2><Button variant="ghost" disabled={busy} onClick={reset}><Plus className="mr-1 h-4 w-4" />Nova</Button></div>
-   <div><Label htmlFor="ig-account">Conta</Label><select id="ig-account" className={field} value={accountId} onChange={e => setAccountId(e.target.value)}><option value="">Selecione uma conta</option>{accounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}</select>{!accounts.length && !accountsQuery.isLoading && <p className="text-sm text-muted-foreground">Nenhuma conta disponível para a automação. A conexão com o Instagram será habilitada na etapa de integração.</p>}</div>
-   <div><Label htmlFor="ig-format">Formato</Label><select id="ig-format" className={field} value={format} onChange={e => setFormat(e.target.value as Format)}>{['Feed','Reel','Story','Carrossel'].map(v => <option key={v}>{v}</option>)}</select></div>
-   <div><Label htmlFor="ig-caption">Legenda</Label><Textarea id="ig-caption" rows={5} maxLength={2200} value={caption} onChange={e => setCaption(e.target.value)} /><p className="text-right text-xs text-muted-foreground">{caption.length}/2.200</p></div>
-   <div><Label htmlFor="ig-media">Links HTTPS das mídias</Label><Textarea id="ig-media" rows={3} placeholder="https://… (um link por linha)" value={media} onChange={e => setMedia(e.target.value)} /><p className="text-xs text-muted-foreground">Uma mídia para Feed, Reel ou Story; de 2 a 10 para carrossel. Upload e validação dos arquivos serão integrados na próxima etapa.</p></div>
-   <div><Label htmlFor="ig-time">Data e horário planejados</Label><Input id="ig-time" type="datetime-local" value={time} onChange={e => setTime(e.target.value)} /><p className="text-xs text-muted-foreground">Fuso: {Intl.DateTimeFormat().resolvedOptions().timeZone}</p></div>
-   <div className="flex flex-wrap gap-2"><Button disabled={busy || query.isError || !accountId} variant="outline" onClick={() => save(false)}>Salvar rascunho</Button><Button disabled={busy || query.isError || !accountId} onClick={() => save(true)}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-2 h-4 w-4" />}Salvar planejamento</Button></div>
-  </section><section className="operation-panel space-y-4 rounded-2xl p-5"><h2 className="text-lg font-semibold">Fila de preparação</h2><Label htmlFor="ig-filter">Status</Label><select id="ig-filter" className={field} value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select>
-   {query.isLoading && <p>Carregando postagens…</p>}
-   {query.data?.filter(p => filter === 'all' || p.status === filter).map(post => <article key={post.id} className="space-y-2 rounded-xl border p-4"><div className="flex flex-wrap justify-between gap-2"><strong>@{accounts.find(a => a.id === post.account_id)?.username ?? 'Conta'}</strong><span className="text-xs text-muted-foreground">{labels[post.status]}</span></div><p className="whitespace-pre-wrap break-words text-sm">{post.caption || 'Sem legenda'}</p><p className="text-xs text-muted-foreground">{post.format} · {post.media_urls.length} mídia(s) · {post.scheduled_at ? new Date(post.scheduled_at).toLocaleString('pt-BR') : 'Sem horário'}</p>{post.status !== 'cancelled' && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => edit(post)}>Editar</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => void perform(async () => { await cancelPost(post.id, user!.id); if (id === post.id) reset(); })}>Cancelar</Button></div>}</article>)}
-   {!query.isLoading && !query.isError && !query.data?.some(p => filter === 'all' || p.status === filter) && <p className="py-8 text-center text-muted-foreground">Nenhuma postagem neste filtro.</p>}<p className="text-xs text-muted-foreground">Exibindo até 200 postagens recentes.</p>
-  </section></div>
- </div>;
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+  const cache = useQueryClient();
+  const key = ["instagram-publisher", user?.id];
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => listPosts(user!.id),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+  const [id, setId] = useState<string>(() => crypto.randomUUID());
+  const [accountId, setAccountId] = useState("");
+  const [caption, setCaption] = useState("");
+  const [format, setFormat] = useState<Format>("Feed");
+  const [media, setMedia] = useState("");
+  const [time, setTime] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [newToken, setNewToken] = useState("");
+  const linkQuery = useQuery({
+    queryKey: ["ig-connections", user?.id],
+    queryFn: connections,
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+  const connection = linkQuery.data?.find((c) => c.account_id === accountId);
+  useEffect(() => {
+    if (!accountId && accounts.length) setAccountId(accounts[0].id);
+  }, [accounts, accountId]);
+  function reset() {
+    setId(crypto.randomUUID());
+    setCaption("");
+    setMedia("");
+    setTime("");
+  }
+  async function perform(run: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await run();
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: key }),
+        cache.invalidateQueries({ queryKey: ["ig-connections", user?.id] }),
+      ]);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível concluir.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  function save(queue: boolean) {
+    if (!user) return;
+    void perform(async () => {
+      await savePost({
+        id,
+        user_id: user.id,
+        account_id: accountId,
+        caption,
+        format,
+        media_urls: media
+          .split("\n")
+          .map((v) => v.trim())
+          .filter(Boolean),
+        scheduled_at: time ? new Date(time).toISOString() : null,
+        status: queue ? "scheduled" : "draft",
+      });
+      reset();
+      toast.success(
+        queue
+          ? "Postagem agendada. O envio ocorrerá automaticamente no horário escolhido."
+          : "Rascunho salvo.",
+      );
+    });
+  }
+  function edit(post: Post) {
+    setId(post.id);
+    setAccountId(post.account_id);
+    setCaption(post.caption);
+    setFormat(post.format);
+    setMedia(post.media_urls.join("\n"));
+    const date = post.scheduled_at ? new Date(post.scheduled_at) : null;
+    setTime(
+      date
+        ? new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16)
+        : "",
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+            <Instagram /> Instagram Studio
+          </h1>
+          <p className="text-muted-foreground">
+            Prepare suas publicações e organize sua fila.
+          </p>
+        </div>
+      </header>
+      <div
+        className="operation-panel rounded-2xl border border-amber-500/30 p-4"
+        role="status"
+      >
+        <strong>Publicação automática</strong>
+        <p className="text-sm text-muted-foreground">
+          Agende para publicar com o navegador fechado. A fila é verificada a
+          cada minuto; o processamento da Meta pode atrasar o envio. Rascunhos
+          antigos só serão enviados depois de revisados e agendados por você.
+        </p>
+      </div>
+      {accountsQuery.isError && (
+        <p role="alert">
+          Não foi possível carregar as contas.{" "}
+          <Button variant="outline" onClick={() => accountsQuery.refetch()}>
+            Tentar novamente
+          </Button>
+        </p>
+      )}
+      {query.isError && (
+        <div role="alert" className="text-destructive">
+          {query.error.message}{" "}
+          <Button variant="outline" onClick={() => query.refetch()}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="operation-panel space-y-4 rounded-2xl p-5">
+          <div className="flex justify-between">
+            <h2 className="text-lg font-semibold">Preparar postagem</h2>
+            <Button variant="ghost" disabled={busy} onClick={reset}>
+              <Plus className="mr-1 h-4 w-4" />
+              Nova
+            </Button>
+          </div>
+          <div>
+            <Label htmlFor="ig-account">Conta</Label>
+            <select
+              id="ig-account"
+              className={field}
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            >
+              <option value="">Selecione uma conta</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  @{a.username}
+                </option>
+              ))}
+            </select>
+            {!accounts.length && !accountsQuery.isLoading && (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma conta conectada a este usuário. Entre com a conta em que
+                a integração foi configurada.
+              </p>
+            )}
+          </div>
+          {connection && (
+            <div className="space-y-3 rounded-xl border p-3">
+              <p className="text-sm">
+                {connection.reconnect_required
+                  ? "Reconexão necessária"
+                  : connection.paused
+                    ? "Automação pausada"
+                    : "Conta conectada"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ao retomar, postagens atrasadas também entram na fila. Cancele
+                as que não deseja enviar antes de retomar.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      await publisherRequest("pause", {
+                        account_id: accountId,
+                        paused: !connection.paused,
+                      });
+                    })
+                  }
+                >
+                  {connection.paused ? "Retomar" : "Pausar"}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      const data = await publisherRequest<{ username: string }>(
+                        "verify",
+                        { account_id: accountId },
+                      );
+                      toast.success("Acesso confirmado: @" + data.username);
+                    })
+                  }
+                >
+                  Verificar conexão
+                </Button>
+              </div>
+              <details>
+                <summary className="cursor-pointer text-sm">
+                  Atualizar token da conta
+                </summary>
+                <Label htmlFor="ig-token">Novo token</Label>
+                <Input
+                  id="ig-token"
+                  type="password"
+                  autoComplete="off"
+                  value={newToken}
+                  onChange={(e) => setNewToken(e.target.value)}
+                />
+                <Button
+                  className="mt-2"
+                  disabled={busy || !newToken}
+                  onClick={() =>
+                    void perform(async () => {
+                      await publisherRequest("reconnect", {
+                        account_id: accountId,
+                        token: newToken,
+                      });
+                      setNewToken("");
+                      toast.success("Conexão atualizada");
+                    })
+                  }
+                >
+                  Atualizar conexão
+                </Button>
+              </details>
+            </div>
+          )}
+          <div>
+            <Label htmlFor="ig-format">Formato</Label>
+            <select
+              id="ig-format"
+              className={field}
+              value={format}
+              onChange={(e) => setFormat(e.target.value as Format)}
+            >
+              {["Feed", "Reel", "Story", "Carrossel"].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="ig-caption">Legenda</Label>
+            <Textarea
+              id="ig-caption"
+              rows={5}
+              maxLength={2200}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+            />
+            <p className="text-right text-xs text-muted-foreground">
+              {caption.length}/2.200
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="ig-upload">Enviar fotos ou vídeos</Label>
+            <Input
+              id="ig-upload"
+              type="file"
+              accept="image/jpeg,video/mp4"
+              multiple={format === "Carrossel"}
+              disabled={busy}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (files.length && user)
+                  void perform(async () => {
+                    if (
+                      files.length +
+                        (media.trim() ? media.trim().split("\n").length : 0) >
+                      (format === "Carrossel" ? 10 : 1)
+                    )
+                      throw new Error(
+                        "Quantidade de mídias excedida para o formato.",
+                      );
+                    const urls = await uploadMedia(files, user.id);
+                    setMedia((prev) =>
+                      [prev, ...urls].filter(Boolean).join("\n"),
+                    );
+                  });
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              JPG ou MP4, até 100 MB por arquivo. O armazenamento é privado.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="ig-media">Mídias da postagem</Label>
+            <Textarea
+              id="ig-media"
+              rows={3}
+              placeholder="https://… (um link por linha)"
+              value={media}
+              onChange={(e) => setMedia(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Feed: JPG. Reel: MP4. Story: JPG ou MP4 (conta empresarial).
+              Carrossel: 2 a 10 fotos JPG. A Meta valida dimensões, proporção,
+              duração e codecs. Você também pode usar links HTTPS diretos com
+              essas extensões.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="ig-time">Data e horário de publicação</Label>
+            <Input
+              id="ig-time"
+              type="datetime-local"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Fuso: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={busy || query.isError || !accountId}
+              variant="outline"
+              onClick={() => save(false)}
+            >
+              Salvar rascunho
+            </Button>
+            <Button
+              disabled={
+                busy ||
+                query.isError ||
+                !connection ||
+                connection.reconnect_required ||
+                connection.paused
+              }
+              onClick={() => save(true)}
+            >
+              {busy ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarClock className="mr-2 h-4 w-4" />
+              )}
+              Agendar postagem
+            </Button>
+          </div>
+        </section>
+        <section className="operation-panel space-y-4 rounded-2xl p-5">
+          <h2 className="text-lg font-semibold">Fila de publicações</h2>
+          <Label htmlFor="ig-filter">Status</Label>
+          <select
+            id="ig-filter"
+            className={field}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">Todos</option>
+            {Object.entries(labels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {query.isLoading && <p>Carregando postagens…</p>}
+          {query.data
+            ?.filter((p) => filter === "all" || p.status === filter)
+            .map((post) => (
+              <article
+                key={post.id}
+                className="space-y-2 rounded-xl border p-4"
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <strong>
+                    @
+                    {accounts.find((a) => a.id === post.account_id)?.username ??
+                      "Conta"}
+                  </strong>
+                  <span className="text-xs text-muted-foreground">
+                    {labels[post.status]}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-sm">
+                  {post.caption || "Sem legenda"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {post.format} · {post.media_urls.length} mídia(s) ·{" "}
+                  {post.scheduled_at
+                    ? new Date(post.scheduled_at).toLocaleString("pt-BR")
+                    : "Sem horário"}
+                </p>
+                {post.source !== "job" && post.status !== "cancelled" && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => edit(post)}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        void perform(async () => {
+                          await cancelPost(post, user!.id);
+                          if (id === post.id) reset();
+                        })
+                      }
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                {post.source === "job" && post.status === "scheduled" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void perform(async () => {
+                        await cancelPost(post, user!.id);
+                      })
+                    }
+                  >
+                    Cancelar agendamento
+                  </Button>
+                )}
+                {post.status === "published" && post.media_id && (
+                  <p className="text-xs text-muted-foreground">
+                    ID da publicação: {post.media_id}
+                  </p>
+                )}
+                {post.error_code && (
+                  <p role="status" className="text-sm text-destructive">
+                    {post.status === "uncertain"
+                      ? "O envio pode ter ocorrido. Confira o perfil antes de criar outro agendamento."
+                      : "A Meta ou o servidor não concluiu o envio. Revise a mídia e a conexão."}{" "}
+                    ({post.error_code})
+                  </p>
+                )}
+              </article>
+            ))}
+          {!query.isLoading &&
+            !query.isError &&
+            !query.data?.some(
+              (p) => filter === "all" || p.status === filter,
+            ) && (
+              <p className="py-8 text-center text-muted-foreground">
+                Nenhuma postagem neste filtro.
+              </p>
+            )}
+          <p className="text-xs text-muted-foreground">
+            Exibindo até 200 postagens recentes.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
 }
