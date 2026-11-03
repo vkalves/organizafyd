@@ -29,3 +29,11 @@ Esta entrega conecta a conta já autorizada; não implementa onboarding OAuth pa
 ## Verificação
 
 Testes locais cobrem validação de agendamento, formatos, contagem de mídia e isolamento de caminhos de upload. No banco, verificar grants, RLS e claim/lease em transações com rollback. Verificar a conexão no servidor com chamada de leitura autenticada; não usar conteúdo de teste arbitrário em uma conta real. Um teste completo de publicação exige mídia e legenda escolhidas pelo usuário.
+
+## Conectar contas pelo site
+
+O botão **Conectar conta** abre o assistente: token de usuário da Meta (Facebook Login), descoberta de perfis via `me/accounts`, confirmação do @ e gravação segura. O ID numérico é uma alternativa à descoberta. O servidor revalida perfil, permissões `instagram_basic`/`instagram_content_publish` e acesso ao endpoint de limite de publicação antes de salvar.
+
+`ig_connect_account` é uma operação atômica, exclusiva do service_role. Ela vincula o perfil ao usuário autenticado, cria o segredo no Vault e evita duplicação por Graph ID. A reconexão do mesmo proprietário preserva a pausa e a fila; outro proprietário recebe conflito. Nenhuma credencial é retornada pela API. O formulário mantém o token apenas em memória e o limpa ao concluir ou fechar.
+
+Este assistente não implementa OAuth: ainda exige um token e sua renovação quando expirar. A descoberta depende das permissões de Páginas e do vínculo profissional. Login direto pela Meta exige configuração do aplicativo, segredo no servidor e callback OAuth; acesso a clientes externos depende da aprovação da Meta.

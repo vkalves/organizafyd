@@ -1,3 +1,4 @@
+import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Instagram, Loader2, Plus } from "lucide-react";
@@ -36,7 +37,10 @@ export default function InstagramPublisher() {
     queryFn: () => listAccounts(user!.id),
     enabled: !!user,
   });
-  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+  const accounts = useMemo(
+    () => accountsQuery.data ?? [],
+    [accountsQuery.data],
+  );
   const cache = useQueryClient();
   const key = ["instagram-publisher", user?.id];
   const query = useQuery({
@@ -137,6 +141,19 @@ export default function InstagramPublisher() {
             Prepare suas publicações e organize sua fila.
           </p>
         </div>
+        <ConnectAccount
+          onConnected={async (connectedId) => {
+            await Promise.all([
+              cache.invalidateQueries({
+                queryKey: ["instagram-publisher-accounts", user?.id],
+              }),
+              cache.invalidateQueries({
+                queryKey: ["ig-connections", user?.id],
+              }),
+            ]);
+            setAccountId(connectedId);
+          }}
+        />
       </header>
       <div
         className="operation-panel rounded-2xl border border-amber-500/30 p-4"
@@ -191,8 +208,8 @@ export default function InstagramPublisher() {
             </select>
             {!accounts.length && !accountsQuery.isLoading && (
               <p className="text-sm text-muted-foreground">
-                Nenhuma conta conectada a este usuário. Entre com a conta em que
-                a integração foi configurada.
+                Nenhuma conta conectada ainda. Clique em “Conectar conta” acima
+                para adicionar seu Instagram.
               </p>
             )}
           </div>
