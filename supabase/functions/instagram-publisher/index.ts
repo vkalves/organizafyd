@@ -1,5 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
+import {
+  connectionInput,
+  checkProfile,
+  discoverProfiles,
+} from "./connection.ts";
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -224,6 +229,28 @@ Deno.serve(async (req) => {
       error,
     } = await db.auth.getUser(jwt);
     if (error || !user) return reply({ error: "unauthorized" }, 401);
+    if (body.action === "discover" || body.action === "connect") {
+      const token = connectionInput(body.token, body.graph_id);
+      if (body.action === "discover") {
+        const profiles = body.graph_id
+          ? [await checkProfile(graph, token, body.graph_id)]
+          : await discoverProfiles(graph, token);
+        return reply({ profiles });
+      }
+      if (!body.graph_id) throw new Error("invalid_instagram_id");
+      // Revalidate at save time; never trust profile names or owner IDs from the browser.
+      const profile = await checkProfile(graph, token, body.graph_id);
+      const saved = await db.rpc("ig_connect_account", {
+        p_user: user.id,
+        p_graph: profile.id,
+        p_username: profile.username,
+        p_token: token,
+      });
+      if (saved.error?.message === "account_already_connected")
+        return reply({ error: "account_already_connected" }, 409);
+      const account_id = checked(saved);
+      return reply({ account_id, username: profile.username });
+    }
     if (body.action === "status") {
       const accounts = checked(
         await db

@@ -29,6 +29,19 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  missing_publish_permission:
+    "Gere um token de usuário com instagram_basic e instagram_content_publish autorizadas para esta conta.",
+  invalid_connection: "Cole um token de acesso válido da Meta.",
+  invalid_instagram_id:
+    "Informe o ID numérico da conta profissional do Instagram, não o ID do aplicativo ou da Página.",
+  account_already_connected:
+    "Este perfil já está conectado a outro usuário do site.",
+  meta_100:
+    "A Meta não encontrou esse perfil ou não permitiu o acesso. Confira o ID e as permissões do token.",
+  meta_10:
+    "O token não tem as permissões necessárias. Gere um token com acesso ao perfil e à publicação no Instagram.",
+  meta_200:
+    "A Meta não autorizou o acesso. Confira as permissões do token e o vínculo entre a Página e o Instagram.",
   account_not_connected: "Reconecte sua conta antes de agendar.",
   invalid_schedule: "Escolha uma data futura.",
   invalid_media_format:
