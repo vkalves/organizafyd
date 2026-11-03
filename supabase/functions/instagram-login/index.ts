@@ -1,3 +1,4 @@
+import { authorizeUrl, authorizedAccount } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -62,12 +63,13 @@ Deno.serve(async (req) => {
     if (raw.length > 12000) throw new Error("invalid_request");
     const b = JSON.parse(raw);
     const config = checked(await db.rpc("ig_login_config")) || {};
-    const appId = Deno.env.get("INSTAGRAM_APP_ID") || config.instagram_app_id;
-    const secret =
-      Deno.env.get("INSTAGRAM_APP_SECRET") || config.instagram_app_secret;
-    if (b.action === "config")
-      return reply({ ready: !!(appId && secret), callback });
-    if (!appId || !secret) return reply({ error: "not_configured" }, 503);
+    const appId = config.meta_app_id;
+    const secret = config.meta_app_secret;
+    const configId = config.meta_config_id;
+    const ready = !!(appId && secret && configId);
+    if (b.action === "config") return reply({ ready, callback });
+    if (!ready) return reply({ error: "not_configured" }, 503);
+    const loginConfig = { appId, secret, configId };
     if (b.action === "invite") {
       const jwt =
         req.headers.get("authorization")?.replace(/^Bearer /i, "") || "";
@@ -81,13 +83,11 @@ Deno.serve(async (req) => {
         await db.from("ig_connection_invites").delete().eq("user_id", user.id),
       );
       checked(
-        await db
-          .from("ig_connection_invites")
-          .insert({
-            token_hash: await hash(token),
-            user_id: user.id,
-            manager_label: user.email || "Administrador da conta",
-          }),
+        await db.from("ig_connection_invites").insert({
+          token_hash: await hash(token),
+          user_id: user.id,
+          manager_label: user.email || "Administrador da conta",
+        }),
       );
       return reply({ url: site + "/instagram/conectar#invite=" + token });
     }
@@ -124,23 +124,13 @@ Deno.serve(async (req) => {
           .lt("expires_at", new Date().toISOString()),
       );
       checked(
-        await db
-          .from("ig_login_states")
-          .insert({
-            state_hash: await hash(state),
-            verifier_hash: await hash(b.verifier),
-            user_id: invite.user_id,
-          }),
+        await db.from("ig_login_states").insert({
+          state_hash: await hash(state),
+          verifier_hash: await hash(b.verifier),
+          user_id: invite.user_id,
+        }),
       );
-      const url = new URL("https://www.instagram.com/oauth/authorize");
-      url.search = new URLSearchParams({
-        client_id: appId,
-        redirect_uri: callback,
-        response_type: "code",
-        scope: "instagram_business_basic,instagram_business_content_publish",
-        state,
-      }).toString();
-      return reply({ url: url.toString(), state });
+      return reply({ url: authorizeUrl(loginConfig, callback, state), state });
     }
     if (b.action === "finish") {
       if (
@@ -162,67 +152,19 @@ Deno.serve(async (req) => {
           .select("user_id"),
       );
       if (states.length !== 1) throw new Error("invalid_state");
-      const tokenResponse = await json(
-        "https://api.instagram.com/oauth/access_token",
-        {
-          method: "POST",
-          body: new URLSearchParams({
-            client_id: appId,
-            client_secret: secret,
-            grant_type: "authorization_code",
-            redirect_uri: callback,
-            code: b.code,
-          }),
-        },
+      const account = await authorizedAccount(
+        loginConfig,
+        callback,
+        b.code,
+        json,
       );
-      const short = tokenResponse.access_token
-        ? tokenResponse
-        : tokenResponse.data?.length === 1
-          ? tokenResponse.data[0]
-          : null;
-      if (!short?.access_token) throw new Error("meta_authorization_failed");
-      const long = await json(
-        "https://graph.instagram.com/access_token?" +
-          new URLSearchParams({
-            grant_type: "ig_exchange_token",
-            client_secret: secret,
-            access_token: short.access_token,
-          }),
-      );
-      if (
-        !long.access_token ||
-        !Number.isFinite(long.expires_in) ||
-        long.expires_in <= 0
-      )
-        throw new Error("meta_authorization_failed");
-      const auth = { Authorization: "Bearer " + long.access_token };
-      const profile = await json(
-        "https://graph.instagram.com/v24.0/me?fields=user_id,username",
-        { headers: auth },
-      );
-      const id = String(profile.user_id || profile.id || "");
-      if (!/^\d{5,30}$/.test(id) || !profile.username)
-        throw new Error("meta_authorization_failed");
-      const permissions = await json(
-        "https://graph.instagram.com/v24.0/me/permissions",
-        { headers: auth },
-      );
-      const granted = new Set(
-        (permissions.data || [])
-          .filter((p: any) => p.status === "granted")
-          .map((p: any) => p.permission),
-      );
-      if (
-        !granted.has("instagram_business_basic") ||
-        !granted.has("instagram_business_content_publish")
-      )
-        throw new Error("missing_permission");
-      const saved = await db.rpc("ig_connect_oauth", {
+      const saved = await db.rpc("ig_connect_unified", {
         p_user: states[0].user_id,
-        p_graph: id,
-        p_username: profile.username,
-        p_token: long.access_token,
-        p_expires: new Date(Date.now() + long.expires_in * 1000).toISOString(),
+        p_graph: account.id,
+        p_username: account.username,
+        p_token: account.token,
+        p_business: account.businessId,
+        p_expires: account.expiresAt,
       });
       if (saved.error) {
         if (
@@ -233,11 +175,15 @@ Deno.serve(async (req) => {
           throw new Error(saved.error.message);
         throw new Error("database_error");
       }
-      return reply({ username: profile.username });
+      return reply({ username: account.username });
     }
     return reply({ error: "unknown_action" }, 400);
   } catch (e) {
     const safe = [
+      "invalid_token",
+      "business_missing",
+      "no_instagram_accounts",
+      "multiple_instagram_accounts",
       "invalid_invite",
       "invalid_state",
       "meta_authorization_failed",

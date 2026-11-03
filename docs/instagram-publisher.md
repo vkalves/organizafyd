@@ -38,18 +38,22 @@ O botão **Conectar conta** abre o assistente: token de usuário da Meta (Facebo
 
 Este assistente não implementa OAuth: ainda exige um token e sua renovação quando expirar. A descoberta depende das permissões de Páginas e do vínculo profissional. Login direto pela Meta exige configuração do aplicativo, segredo no servidor e callback OAuth; acesso a clientes externos depende da aprovação da Meta.
 
-## Instagram Login e links para clientes
+## Login unificado da Meta e links para clientes
 
-A conexão direta usa a função `instagram-login` e a página pública `/instagram/conectar`. O responsável autenticado gera um convite aleatório, válido por 24 horas, substituindo o convite anterior ainda não usado. O destinatário vê o email do responsável e confirma a autorização no Instagram. O convite inicia uma única autorização. O estado dura dez minutos, é armazenado com hash e vinculado a um verificador aleatório do navegador, guardado em sessionStorage. A troca consome o estado atomicamente. Código e estado são removidos da URL antes da troca. Tokens são trocados e armazenados exclusivamente no servidor.
+O app HOTfy usa a configuração de **login unificado**, não o antigo Instagram Login. A função `instagram-login` abre Facebook Login for Business com `config_id`, `response_type=code`, `override_default_response_type=true` e `prompt=login`, sem lista `scope`. A tela da Meta pode oferecer Instagram e Facebook. O usuário deve escolher o portfólio empresarial correto e compartilhar um único perfil profissional.
 
-### Ativação pelo administrador
+A troca de código ocorre somente no servidor, em graph.facebook.com. A resposta é validada em debug_token: app correto, token válido do tipo SYSTEM_USER e permissões instagram_basic/instagram_content_publish. O servidor consulta client_business_id e me/assigned_instagram_accounts; nunca trata o /me do usuário do sistema como um Instagram. Zero ou vários perfis resultam em mensagem específica sem cadastro arbitrário. Uma leitura de content_publishing_limit verifica o acesso antes da gravação. O token é salvo criptografado no Vault com o business ID e a expiração retornada pela Meta (zero significa sem vencimento programado, mas ainda pode ser revogado).
 
-1. No Vault do Supabase, criar `instagram_app_id` e `instagram_app_secret` com o **ID e segredo do aplicativo Instagram**, obtidos na configuração Instagram Login da Meta (não o token de um perfil). Também são aceitas as variáveis de ambiente `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET`.
-2. Cadastrar exatamente esta URL de redirecionamento OAuth no aplicativo Meta:
-   `https://csaplfphtvufxjhbpstl.supabase.co/functions/v1/instagram-login`
-3. Autorizar `instagram_business_basic` e `instagram_business_content_publish`. Durante desenvolvimento, usar contas de teste autorizadas. Para atender clientes externos sem função no app, concluir o processo de análise/acesso avançado exigido pela Meta.
-4. Testar Conectar meu Instagram com uma conta profissional; confirmar o @ retornado e depois um agendamento autorizado.
+### Configuração
 
-Sem ID e segredo, o botão fica desativado e a API retorna `not_configured`. A implantação não equivale à ativação ou aprovação da Meta. O fluxo real não foi validado enquanto essas credenciais estiverem ausentes.
+No Vault, cadastrar `meta_app_id`, `meta_app_secret` e `meta_config_id`, vindos do aplicativo Meta e da configuração de login unificado. Nenhuma credencial deve estar no código ou no frontend. A URL de redirecionamento deve ser exatamente:
 
-Novas conexões OAuth usam graph.instagram.com; as anteriores continuam em graph.facebook.com. Uma coincidência de Graph ID entre os dois provedores exige migração explícita, sem trocar o token de uma fila ativa silenciosamente. A validade do token longo é registrada. Esta versão não implementa renovação periódica: reconectar pela autorização quando necessário. Links compartilhados dão acesso de publicação ao responsável exibido; não enviar tokens nem senha ao responsável.
+`https://csaplfphtvufxjhbpstl.supabase.co/functions/v1/instagram-login`
+
+O responsável autenticado gera um convite válido por 24 horas; gerar outro invalida o anterior ainda não usado. O destinatário vê o email do responsável e confirma que ele poderá publicar. A autorização usa estado de dez minutos com hash e verificador aleatório no navegador; o callback remove código/estado da URL e exige o verificador do navegador original. Estado e convite têm consumo único. O token nunca é enviado ao frontend.
+
+Conexões unificadas usam o provedor facebook e graph.facebook.com, preservando fila e pausa para o mesmo Graph ID e proprietário. O cadastro bloqueia outro proprietário e uma troca silenciosa de provedor Instagram antigo. A API pública config informa apenas readiness e callback. O endpoint invite exige sessão válida no site.
+
+### Verificação e limites
+
+Testes cobrem parâmetros do login, seleção de ativos, app/tipo/validade do token, ausência de permissão e resposta vazia ou ambígua. Testes do callback cobrem consentimento e verificador do navegador. A aprovação de credenciais do app não comprova autorização de um Instagram: o cliente precisa concluir o diálogo real, e o fluxo completo só é confirmado após seu retorno. Para clientes sem função de teste no app, concluir as exigências de análise/acesso avançado da Meta. Tokens revogados exigem reconexão; não há renovação periódica nesta versão.

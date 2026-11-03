@@ -103,8 +103,9 @@ export default function InstagramConnect() {
                 Autorizar no Instagram
               </Button>
               <p className="text-xs text-muted-foreground">
-                Confira o @ na autorização da Meta. Você pode revogar o acesso
-                posteriormente nas configurações do Instagram.
+                Na tela da Meta, escolha o portfólio correto e apenas um perfil
+                do Instagram. Confira o @ antes de autorizar. Você pode revogar
+                o acesso posteriormente nas configurações do Instagram.
               </p>
             </>
           )
