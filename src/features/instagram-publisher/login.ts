@@ -1,5 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 const messages: Record<string, string> = {
+  invalid_token:
+    "A Meta retornou um acesso incompatível. Gere outro link e autorize com a configuração de login unificado.",
+  business_missing:
+    "Selecione o portfólio empresarial que possui o Instagram durante a autorização.",
+  no_instagram_accounts:
+    "A Meta não retornou nenhum Instagram autorizado. Confira o perfil profissional e o portfólio escolhido e solicite um novo link.",
+  multiple_instagram_accounts:
+    "Autorize apenas o Instagram que deseja conectar. Solicite um novo link e selecione um único perfil.",
   not_configured:
     "A conexão direta aguarda a configuração do aplicativo Meta pelo administrador.",
   invalid_invite: "Este link expirou ou já foi usado. Solicite um novo link.",
