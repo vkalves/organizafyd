@@ -1,3 +1,4 @@
+import { PublicationFeedback } from '@/features/instagram-publisher/PublicationSound';
 import { InstagramAlerts } from "@/features/instagram-publisher/InstagramAlerts";
 import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
@@ -140,6 +141,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <input type="search" placeholder="Buscar..." aria-label="Buscar" />
           </div>
+          <PublicationFeedback />
           <InstagramAlerts />
           <div className="shell-shortcuts"><Shortcuts key={user?.id} /></div>
           <button type="button" onClick={signOut} className="shell-icon-button shell-header-signout" title="Sair" aria-label="Sair da conta">

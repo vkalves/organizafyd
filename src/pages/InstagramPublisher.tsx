@@ -1,10 +1,13 @@
-import { useSearchParams } from 'react-router-dom';
-import { HotfyDashboard, type InstagramView } from '@/features/instagram-publisher/HotfyDashboard';
-import { useInstagramMonitor } from '@/features/instagram-publisher/InstagramAlerts';
-import { monitorRequest } from '@/features/instagram-publisher/monitor';
-import '@/features/instagram-publisher/hotfy-dashboard.css';
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  HotfyDashboard,
+  type InstagramView,
+} from "@/features/instagram-publisher/HotfyDashboard";
+import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
+import { monitorRequest } from "@/features/instagram-publisher/monitor";
+import "@/features/instagram-publisher/hotfy-dashboard.css";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Instagram, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +26,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+const Flows = lazy(() => import("@/features/instagram-publisher/Flows"));
+import {
+  playConfirmation,
+  unlockAudio,
+} from "@/features/instagram-publisher/sound";
 const labels = {
   draft: "Rascunho",
   waiting_integration: "Revisar e agendar",
@@ -38,19 +46,35 @@ const field =
 export default function InstagramPublisher() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const views: InstagramView[] = ['dashboard', 'compose', 'queue', 'accounts', 'alerts'];
-  const view = views.includes(params.get('view') as InstagramView) ? params.get('view') as InstagramView : 'dashboard';
+  const views: InstagramView[] = [
+    "flows",
+    "dashboard",
+    "compose",
+    "queue",
+    "accounts",
+    "alerts",
+  ];
+  const view =
+    views.includes(params.get("view") as InstagramView) &&
+    params.get("view") !== "dashboard"
+      ? (params.get("view") as InstagramView)
+      : "flows";
   const monitor = useInstagramMonitor();
   const [reading, setReading] = useState(false);
-  function go(next: InstagramView, nextFormat?: 'Reel' | 'Story') {
+  function go(next: InstagramView, nextFormat?: "Reel" | "Story") {
     setParams({ view: next });
     if (nextFormat) setFormat(nextFormat);
   }
   async function markRead(alertId: string) {
     setReading(true);
-    try { await monitorRequest('read', alertId); await monitor.refetch(); }
-    catch { toast.error('Não foi possível marcar o alerta.'); }
-    finally { setReading(false); }
+    try {
+      await monitorRequest("read", alertId);
+      await monitor.refetch();
+    } catch {
+      toast.error("Não foi possível marcar o alerta.");
+    } finally {
+      setReading(false);
+    }
   }
   const accountsQuery = useQuery({
     queryKey: ["instagram-publisher-accounts", user?.id],
@@ -72,7 +96,13 @@ export default function InstagramPublisher() {
   const [id, setId] = useState<string>(() => crypto.randomUUID());
   const [accountId, setAccountId] = useState("");
   const [caption, setCaption] = useState("");
-  const [format, setFormat] = useState<Format>("Feed");
+  const [format, setFormat] = useState<Format>(() =>
+    params.get("format") === "Reel"
+      ? "Reel"
+      : params.get("format") === "Story"
+        ? "Story"
+        : "Feed",
+  );
   const [media, setMedia] = useState("");
   const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
@@ -111,6 +141,7 @@ export default function InstagramPublisher() {
     }
   }
   function save(queue: boolean) {
+    unlockAudio();
     if (!user) return;
     void perform(async () => {
       await savePost({
@@ -127,6 +158,7 @@ export default function InstagramPublisher() {
         status: queue ? "scheduled" : "draft",
       });
       reset();
+      if (queue) playConfirmation("scheduled");
       toast.success(
         queue
           ? "Postagem agendada. O envio ocorrerá automaticamente no horário escolhido."
@@ -152,37 +184,95 @@ export default function InstagramPublisher() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   const connectControl = (
-<ConnectAccount
-          onConnected={async (connectedId) => {
-            await Promise.all([
-              cache.invalidateQueries({
-                queryKey: ["instagram-publisher-accounts", user?.id],
-              }),
-              cache.invalidateQueries({
-                queryKey: ["ig-connections", user?.id],
-              }),
-            ]);
-            setAccountId(connectedId);
-          }}
-        />
+    <ConnectAccount
+      onConnected={async (connectedId) => {
+        await Promise.all([
+          cache.invalidateQueries({
+            queryKey: ["instagram-publisher-accounts", user?.id],
+          }),
+          cache.invalidateQueries({
+            queryKey: ["ig-connections", user?.id],
+          }),
+        ]);
+        setAccountId(connectedId);
+      }}
+    />
   );
   return (
     <div className="ig-hotfy">
       <header className="ig-hotfy-header">
         <div>
           <p className="ig-eyebrow">Instagram · Central de publicação</p>
-          <h1>Olá, {(typeof user?.user_metadata?.display_name === "string" ? user.user_metadata.display_name.split(" ")[0] : "") || user?.email?.split("@")[0] || "você"}.</h1>
+          <h1>Instagram</h1>
           <p className="text-muted-foreground">
-            Seu centro de publicação, organizado para você pensar só no conteúdo.
+            Seu centro de publicação, organizado para você pensar só no
+            conteúdo.
           </p>
         </div>
         {connectControl}
       </header>
-      <nav className="ig-tabs" aria-label="Seções do Instagram">{([
-        ['dashboard','Dashboard'], ['accounts','Contas'], ['compose','Nova publicação'], ['queue','Agendamentos'], ['alerts','Alertas'],
-      ] as const).map(([target,label]) => <button type="button" key={target} aria-current={view === target ? 'page' : undefined} onClick={() => go(target)}>{label}</button>)}</nav>
-      <HotfyDashboard accounts={accounts} connections={linkQuery.data ?? []} posts={query.data ?? []} monitor={monitor.data} loading={accountsQuery.isLoading || query.isLoading} failed={accountsQuery.isError || query.isError} monitorFailed={monitor.isError} view={view} go={go} connect={connectControl} markRead={markRead} reading={reading} />
-      <p className={`ig-monitor-status ${monitor.isError ? 'error' : ''}`} role="status">{monitor.isError ? 'Não foi possível atualizar o monitoramento.' : 'Monitor automático · verificações em segundo plano · painel atualizado a cada 30 segundos.'} <button className="underline ml-2" onClick={() => { void monitor.refetch(); void accountsQuery.refetch(); void query.refetch(); }}>Atualizar dados</button></p>
+      <nav className="ig-tabs" aria-label="Seções do Instagram">
+        {(
+          [
+            ["flows", "Fluxos"],
+            ["accounts", "Contas"],
+            ["compose", "Nova publicação"],
+            ["queue", "Agendamentos"],
+            ["alerts", "Alertas"],
+          ] as const
+        ).map(([target, label]) => (
+          <button
+            type="button"
+            key={target}
+            aria-current={view === target ? "page" : undefined}
+            onClick={() => go(target)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {view === "flows" && (
+        <Suspense fallback={<p role="status">Carregando Fluxos…</p>}>
+          <Flows
+            accounts={accounts}
+            connections={linkQuery.data ?? []}
+            posts={query.data ?? []}
+            onCreated={() => cache.invalidateQueries({ queryKey: key })}
+          />
+        </Suspense>
+      )}
+      <HotfyDashboard
+        accounts={accounts}
+        connections={linkQuery.data ?? []}
+        posts={query.data ?? []}
+        monitor={monitor.data}
+        loading={accountsQuery.isLoading || query.isLoading}
+        failed={accountsQuery.isError || query.isError}
+        monitorFailed={monitor.isError}
+        view={view}
+        go={go}
+        connect={connectControl}
+        markRead={markRead}
+        reading={reading}
+      />
+      <p
+        className={`ig-monitor-status ${monitor.isError ? "error" : ""}`}
+        role="status"
+      >
+        {monitor.isError
+          ? "Não foi possível atualizar o monitoramento."
+          : "Monitor automático · verificações em segundo plano · painel atualizado a cada 30 segundos."}{" "}
+        <button
+          className="underline ml-2"
+          onClick={() => {
+            void monitor.refetch();
+            void accountsQuery.refetch();
+            void query.refetch();
+          }}
+        >
+          Atualizar dados
+        </button>
+      </p>
       <div
         className="operation-panel rounded-2xl border border-amber-500/30 p-4"
         role="status"
@@ -211,8 +301,19 @@ export default function InstagramPublisher() {
           </Button>
         </div>
       )}
-      <div className="grid gap-6" hidden={view !== "compose" && view !== "queue"} style={view !== "compose" && view !== "queue" ? { display: "none" } : undefined}>
-        <section hidden={view !== "compose"} className="operation-panel space-y-4 rounded-2xl p-5">
+      <div
+        className="grid gap-6"
+        hidden={view !== "compose" && view !== "queue"}
+        style={
+          view !== "compose" && view !== "queue"
+            ? { display: "none" }
+            : undefined
+        }
+      >
+        <section
+          hidden={view !== "compose"}
+          className="operation-panel space-y-4 rounded-2xl p-5"
+        >
           <div className="flex justify-between">
             <h2 className="text-lg font-semibold">Preparar postagem</h2>
             <Button variant="ghost" disabled={busy} onClick={reset}>
@@ -348,7 +449,7 @@ export default function InstagramPublisher() {
             <Input
               id="ig-upload"
               type="file"
-              accept="image/jpeg,video/mp4"
+              accept="image/jpeg,image/png,video/mp4"
               multiple={format === "Carrossel"}
               disabled={busy}
               onChange={(e) => {
@@ -372,7 +473,9 @@ export default function InstagramPublisher() {
               }}
             />
             <p className="text-xs text-muted-foreground">
-              JPG ou MP4, até 100 MB por arquivo. O armazenamento é privado.
+              JPG, PNG ou MP4, até 100 MB por arquivo. Os metadados são
+              removidos antes do upload; PNG é convertido para JPG. O
+              armazenamento é privado.
             </p>
           </div>
           <div>
@@ -430,7 +533,10 @@ export default function InstagramPublisher() {
             </Button>
           </div>
         </section>
-        <section hidden={view !== "queue"} className="operation-panel space-y-4 rounded-2xl p-5">
+        <section
+          hidden={view !== "queue"}
+          className="operation-panel space-y-4 rounded-2xl p-5"
+        >
           <h2 className="text-lg font-semibold">Fila de publicações</h2>
           <Label htmlFor="ig-filter">Status</Label>
           <select

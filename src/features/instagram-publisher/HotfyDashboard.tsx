@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { Post } from './model';
 import type { Connection } from './api';
 import { healthLabels, healthDetails, type MonitorData, type HealthState } from './monitor';
-export type InstagramView = 'dashboard' | 'compose' | 'queue' | 'accounts' | 'alerts';
+export type InstagramView = 'flows' | 'dashboard' | 'compose' | 'queue' | 'accounts' | 'alerts';
 export function publishedToday(post: Post, now = new Date()) {
  if (post.status !== 'published' || !post.published_at) return false;
  const date = new Date(post.published_at);

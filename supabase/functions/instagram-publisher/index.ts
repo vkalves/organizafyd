@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
+import { buildFlow, type FlowInput } from './flow.ts';
 import {
   connectionInput,
   checkProfile,
@@ -70,6 +71,15 @@ async function signed(value: string) {
   return data.signedUrl;
 }
 async function worker() {
+  // Cleanup failures never change the outcome of a confirmed publication.
+  try {
+    checked(await db.rpc('ig_retire_flow_media'));
+    const retired = checked(await db.from('ig_flow_library').select('id,url').eq('retired',true).limit(100));
+    if (retired.length) {
+      checked(await db.storage.from('instagram-publisher').remove(retired.map(m => m.url.slice(10))));
+      checked(await db.from('ig_flow_library').delete().in('id',retired.map(m => m.id)));
+    }
+  } catch { /* Retry cleanup on the next tick. */ }
   const lock = crypto.randomUUID();
   const job = checked(await db.rpc("ig_claim_job", { p_token: lock }))?.[0];
   if (!job) return { processed: 0 };
@@ -121,6 +131,7 @@ async function worker() {
         };
       } else {
         params = mediaParams(job.format, urls[0], job.media_urls[0]);
+        if (job.format === 'Reel' && job.cover_url) params.cover_url = await signed(job.cover_url);
         if (job.format !== "Story") params.caption = job.caption;
       }
       const created = await accountGraph(
@@ -209,10 +220,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers });
   if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
   try {
-    if (Number(req.headers.get("content-length") || 0) > 20000)
+    if (Number(req.headers.get("content-length") || 0) > 100000)
       return reply({ error: "request_too_large" }, 413);
     const raw = await req.text();
-    if (raw.length > 20000) return reply({ error: "request_too_large" }, 413);
+    if (raw.length > 100000) return reply({ error: "request_too_large" }, 413);
     const body = JSON.parse(raw);
     if (body.action === "worker" || body.action === "health") {
       const key = checked(await db.rpc("ig_worker_key"));
@@ -361,6 +372,17 @@ Deno.serve(async (req) => {
       );
       if (!rows.length) return reply({ error: "cannot_cancel" }, 409);
       return reply({ ok: true });
+    }
+    if (body.action === 'create_flow') {
+      const input = body.flow as FlowInput;
+      const library = checked(await db.from('ig_flow_library').select('id,url,kind,caption').eq('user_id',user.id).eq('retired',false));
+      const jobs = buildFlow(input,library,user.id);
+      checked(await db.rpc('ig_create_flow',{p_user:user.id,p_id:input.id,p_name:input.name.trim() || (input.kind === 'stories' ? 'Fluxo de Stories' : 'Novo fluxo'),p_settings:input,p_jobs:jobs}));
+      return reply({ok:true});
+    }
+    if (body.action === 'cancel_flow') {
+      checked(await db.from('ig_publication_jobs').update({status:'cancelled'}).eq('user_id',user.id).eq('flow_id',body.id).eq('status','scheduled'));
+      return reply({ok:true});
     }
     if (body.action === "schedule") {
       const d = body.post as Draft;

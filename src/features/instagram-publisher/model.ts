@@ -16,6 +16,7 @@ export type Post = {
     | "published"
     | "failed"
     | "uncertain";
+  flow_id?: string | null;
   source?: "draft" | "job";
   error_code?: string | null;
   media_id?: string | null;

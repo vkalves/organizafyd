@@ -1,3 +1,4 @@
+import { InstagramOverview } from '@/features/instagram-publisher/InstagramOverview';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -341,6 +342,8 @@ const Dashboard = () => {
           <span className="capitalize">{formattedDate.toLocaleLowerCase("pt-BR")}</span>
         </div>
       </div>
+
+      <InstagramOverview />
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <section className="operation-panel min-w-0 overflow-hidden" aria-label="Histórico de tarefas concluídas">

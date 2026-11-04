@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
+import { cleanMedia } from '@/features/x/clean-media';
 type PublisherAccount = { id: string; user_id: string; username: string };
 type Schema = {
   public: {
@@ -29,6 +30,12 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  invalid_gap: 'O intervalo mínimo entre mídias da mesma conta é de 3 minutos.',
+  invalid_flow: 'Revise os dados do fluxo.',
+  invalid_accounts: 'Selecione ao menos uma conta.',
+  flow_too_large: 'Crie fluxos com até 500 publicações por vez.',
+  invalid_caption: 'Cada legenda deve ter até 2.200 caracteres.',
+  invalid_media: 'Selecione ao menos uma mídia da biblioteca.',
   use_instagram_login: "Use Conectar conta → Conectar meu Instagram para renovar este acesso.",
   missing_publish_permission:
     "Gere um token de usuário com instagram_basic e instagram_content_publish autorizadas para esta conta.",
@@ -105,7 +112,7 @@ export async function listPosts(userId: string): Promise<Post[]> {
   const jobs = await jobsDb
     .from("ig_publication_jobs")
     .select(
-      "id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id",
+      "id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id,flow_id",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -171,10 +178,11 @@ export async function uploadMedia(
 ): Promise<string[]> {
   const result: string[] = [];
   for (const file of files) {
+    const cleaned = await cleanMedia(file, { maxBytes: 100 * 1024 * 1024, jpeg: true });
     const ext =
-      file.type === "image/jpeg"
+      cleaned.type === "image/jpeg"
         ? "jpg"
-        : file.type === "video/mp4"
+        : cleaned.type === "video/mp4"
           ? "mp4"
           : null;
     if (!ext || file.size > 100 * 1024 * 1024)
@@ -182,7 +190,7 @@ export async function uploadMedia(
     const path = userId + "/" + crypto.randomUUID() + "." + ext;
     const { error } = await supabase.storage
       .from("instagram-publisher")
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
     if (error) throw new Error("Falha no upload. Tente novamente.");
     result.push("storage://" + path);
   }
