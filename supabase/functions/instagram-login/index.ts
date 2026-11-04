@@ -6,6 +6,7 @@ const db = createClient(
   { auth: { persistSession: false } },
 );
 const site = "https://www.organizafy.site";
+const allowedOrigins = new Set([site, "https://organizafy.site", "https://organizafyd.vercel.app"]);
 const callback =
   Deno.env.get("SUPABASE_URL")! + "/functions/v1/instagram-login";
 const hash = async (s: string) =>
@@ -31,7 +32,9 @@ Deno.serve(async (req) => {
   const headers = {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
-    "Access-Control-Allow-Origin": site,
+    "Access-Control-Allow-Origin": allowedOrigins.has(req.headers.get("origin") || "")
+      ? req.headers.get("origin")! : site,
+    Vary: "Origin",
     "Access-Control-Allow-Headers":
       "authorization,apikey,content-type,x-client-info",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
