@@ -105,7 +105,7 @@ export async function listPosts(userId: string): Promise<Post[]> {
   const jobs = await jobsDb
     .from("ig_publication_jobs")
     .select(
-      "id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,error_code,media_id",
+      "id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })

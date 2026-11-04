@@ -1,3 +1,8 @@
+import { useSearchParams } from 'react-router-dom';
+import { HotfyDashboard, type InstagramView } from '@/features/instagram-publisher/HotfyDashboard';
+import { useInstagramMonitor } from '@/features/instagram-publisher/InstagramAlerts';
+import { monitorRequest } from '@/features/instagram-publisher/monitor';
+import '@/features/instagram-publisher/hotfy-dashboard.css';
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +37,21 @@ const field =
   "w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm";
 export default function InstagramPublisher() {
   const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const views: InstagramView[] = ['dashboard', 'compose', 'queue', 'accounts', 'alerts'];
+  const view = views.includes(params.get('view') as InstagramView) ? params.get('view') as InstagramView : 'dashboard';
+  const monitor = useInstagramMonitor();
+  const [reading, setReading] = useState(false);
+  function go(next: InstagramView, nextFormat?: 'Reel' | 'Story') {
+    setParams({ view: next });
+    if (nextFormat) setFormat(nextFormat);
+  }
+  async function markRead(alertId: string) {
+    setReading(true);
+    try { await monitorRequest('read', alertId); await monitor.refetch(); }
+    catch { toast.error('Não foi possível marcar o alerta.'); }
+    finally { setReading(false); }
+  }
   const accountsQuery = useQuery({
     queryKey: ["instagram-publisher-accounts", user?.id],
     queryFn: () => listAccounts(user!.id),
@@ -128,20 +148,11 @@ export default function InstagramPublisher() {
             .slice(0, 16)
         : "",
     );
+    go("compose");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-  return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <Instagram /> Instagram Studio
-          </h1>
-          <p className="text-muted-foreground">
-            Prepare suas publicações e organize sua fila.
-          </p>
-        </div>
-        <ConnectAccount
+  const connectControl = (
+<ConnectAccount
           onConnected={async (connectedId) => {
             await Promise.all([
               cache.invalidateQueries({
@@ -154,10 +165,28 @@ export default function InstagramPublisher() {
             setAccountId(connectedId);
           }}
         />
+  );
+  return (
+    <div className="ig-hotfy">
+      <header className="ig-hotfy-header">
+        <div>
+          <p className="ig-eyebrow">Instagram · Central de publicação</p>
+          <h1>Olá, {(typeof user?.user_metadata?.display_name === "string" ? user.user_metadata.display_name.split(" ")[0] : "") || user?.email?.split("@")[0] || "você"}.</h1>
+          <p className="text-muted-foreground">
+            Seu centro de publicação, organizado para você pensar só no conteúdo.
+          </p>
+        </div>
+        {connectControl}
       </header>
+      <nav className="ig-tabs" aria-label="Seções do Instagram">{([
+        ['dashboard','Dashboard'], ['accounts','Contas'], ['compose','Nova publicação'], ['queue','Agendamentos'], ['alerts','Alertas'],
+      ] as const).map(([target,label]) => <button type="button" key={target} aria-current={view === target ? 'page' : undefined} onClick={() => go(target)}>{label}</button>)}</nav>
+      <HotfyDashboard accounts={accounts} connections={linkQuery.data ?? []} posts={query.data ?? []} monitor={monitor.data} loading={accountsQuery.isLoading || query.isLoading} failed={accountsQuery.isError || query.isError} monitorFailed={monitor.isError} view={view} go={go} connect={connectControl} markRead={markRead} reading={reading} />
+      <p className={`ig-monitor-status ${monitor.isError ? 'error' : ''}`} role="status">{monitor.isError ? 'Não foi possível atualizar o monitoramento.' : 'Monitor automático · verificações em segundo plano · painel atualizado a cada 30 segundos.'} <button className="underline ml-2" onClick={() => { void monitor.refetch(); void accountsQuery.refetch(); void query.refetch(); }}>Atualizar dados</button></p>
       <div
         className="operation-panel rounded-2xl border border-amber-500/30 p-4"
         role="status"
+        hidden={view !== "compose"}
       >
         <strong>Publicação automática</strong>
         <p className="text-sm text-muted-foreground">
@@ -182,8 +211,8 @@ export default function InstagramPublisher() {
           </Button>
         </div>
       )}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="operation-panel space-y-4 rounded-2xl p-5">
+      <div className="grid gap-6" hidden={view !== "compose" && view !== "queue"} style={view !== "compose" && view !== "queue" ? { display: "none" } : undefined}>
+        <section hidden={view !== "compose"} className="operation-panel space-y-4 rounded-2xl p-5">
           <div className="flex justify-between">
             <h2 className="text-lg font-semibold">Preparar postagem</h2>
             <Button variant="ghost" disabled={busy} onClick={reset}>
@@ -401,7 +430,7 @@ export default function InstagramPublisher() {
             </Button>
           </div>
         </section>
-        <section className="operation-panel space-y-4 rounded-2xl p-5">
+        <section hidden={view !== "queue"} className="operation-panel space-y-4 rounded-2xl p-5">
           <h2 className="text-lg font-semibold">Fila de publicações</h2>
           <Label htmlFor="ig-filter">Status</Label>
           <select

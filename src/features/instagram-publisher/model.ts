@@ -19,6 +19,7 @@ export type Post = {
   source?: "draft" | "job";
   error_code?: string | null;
   media_id?: string | null;
+  published_at?: string | null;
   created_at: string;
   updated_at: string;
 };
