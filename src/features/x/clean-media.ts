@@ -14,7 +14,7 @@ export function validateFile(file: File) {
     );
   }
 }
-async function cleanImage(file: File): Promise<Blob> {
+async function cleanImage(file: File, outputType = file.type): Promise<Blob> {
   const image = await createImageBitmap(file, {
     imageOrientation: "from-image",
   });
@@ -54,19 +54,25 @@ async function cleanImage(file: File): Promise<Blob> {
     image.close();
   }
 }
-export async function cleanMedia(file: File): Promise<File> {
-  validateFile(file);
+export async function cleanMedia(file: File, options?: { maxBytes: number; jpeg?: boolean }): Promise<File> {
+  if (options) {
+    if (!["image/jpeg", "image/png", "video/mp4"].includes(file.type) || !file.size || file.size > options.maxBytes)
+      throw new Error(`Use JPG, PNG ou MP4 de até ${options.maxBytes / 1024 / 1024} MB.`);
+  } else validateFile(file);
+  // Instagram accepts JPEG photos; decoding also applies EXIF orientation.
+  const outputType = options?.jpeg && file.type.startsWith('image/') ? 'image/jpeg' : file.type;
+  const source = outputType === file.type ? file : new File([file], file.name, { type: outputType });
   let blob: Blob;
   try {
     blob =
       file.type === "video/mp4"
         ? await (await import("./clean-video")).cleanVideo(file)
-        : await cleanImage(file);
+        : await cleanImage(file, outputType);
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const verified = file.type === "video/mp4"
       ? stripVideoMetadata(bytes)
-      : stripImageMetadata(bytes, file.type);
-    blob = new Blob([verified], { type: file.type });
+      : stripImageMetadata(bytes, outputType);
+    blob = new Blob([verified], { type: outputType });
   } catch (error) {
     throw new Error(
       error instanceof Error
@@ -75,21 +81,21 @@ export async function cleanMedia(file: File): Promise<File> {
     );
   }
   const ext =
-    file.type === "video/mp4"
+    outputType === "video/mp4"
       ? "mp4"
-      : file.type === "image/png"
+      : outputType === "image/png"
         ? "png"
         : "jpg";
   // Neutral filename and date: avoid copying identifying information into post records.
   const clean = new File([blob], `midia-${crypto.randomUUID()}.${ext}`, {
-    type: file.type,
+    type: outputType,
     lastModified: 0,
   });
   if (
-    clean.size > (file.type === "video/mp4" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES)
+    clean.size > (options?.maxBytes ?? (file.type === "video/mp4" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES))
   ) {
     throw new Error(
-      `Após a limpeza, o arquivo ultrapassou ${file.type === "video/mp4" ? 20 : 5} MB. Reduza o tamanho e envie novamente.`,
+      `Após a limpeza, o arquivo ultrapassou ${options ? options.maxBytes / 1024 / 1024 : file.type === "video/mp4" ? 20 : 5} MB. Reduza o tamanho e envie novamente.`,
     );
   }
   if (!clean.size)
