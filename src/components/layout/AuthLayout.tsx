@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowUpRight, Check, Circle, LayoutGrid } from "lucide-react";
-import logoImg from "@/assets/logo-organify.png";
+import { SilverBrand } from "./SilverBrand";
+import { SilverNebula } from "./SilverNebula";
 import "./AuthLayout.css";
 
 interface AuthLayoutProps {
@@ -10,8 +11,9 @@ interface AuthLayoutProps {
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <main className="auth-layout">
+      <SilverNebula />
       <section className="auth-story" aria-label="Organizafy">
-        <img src={logoImg} alt="Organizafy" className="auth-logo" />
+        <div className="auth-logo"><SilverBrand /></div>
         <div className="auth-story-content">
           <p className="auth-eyebrow"><span /> SEU DIA, EM ORDEM</p>
           <h1>Mais clareza.<br /><span>Mais controle.</span></h1>
@@ -35,7 +37,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       </section>
 
       <section className="auth-form-area" aria-label="Acesso à sua conta">
-        <img src={logoImg} alt="Organizafy" className="auth-logo auth-mobile-logo" />
+        <div className="auth-logo auth-mobile-logo"><SilverBrand /></div>
         <div className="auth-card">{children}</div>
         <p className="auth-form-footer">Seu espaço para uma rotina mais leve.</p>
       </section>

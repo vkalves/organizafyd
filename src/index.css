@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@font-face { font-family: Inter; src: url('/hotfy/inter.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: Sora; src: url('/hotfy/sora.woff2') format('woff2'); font-weight: 100 800; font-display: swap; }
 
 @tailwind base;
 @tailwind components;
@@ -6,44 +7,44 @@
 
 @layer base {
   :root {
-    --background: 30 3% 11%;
-    --foreground: 35 8% 90%;
+    --background: 240 33% 1%;
+    --foreground: 223 41% 97%;
 
-    --card: 30 3% 13%;
-    --card-foreground: 35 8% 90%;
+    --card: 240 23% 5%;
+    --card-foreground: 223 41% 97%;
 
-    --popover: 30 4% 10%;
-    --popover-foreground: 35 16% 94%;
+    --popover: 240 20% 6%;
+    --popover-foreground: 223 41% 97%;
 
-    --primary: 35 16% 92%;
-    --primary-foreground: 30 4% 9%;
+    --primary: 225 42% 94%;
+    --primary-foreground: 240 33% 2%;
 
-    --secondary: 30 3% 15%;
-    --secondary-foreground: 35 16% 94%;
+    --secondary: 233 15% 10%;
+    --secondary-foreground: 223 41% 97%;
 
-    --muted: 30 3% 18%;
-    --muted-foreground: 30 3% 68%;
+    --muted: 230 12% 14%;
+    --muted-foreground: 224 15% 66%;
 
-    --accent: 30 3% 19%;
-    --accent-foreground: 35 16% 94%;
+    --accent: 230 14% 16%;
+    --accent-foreground: 223 41% 97%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 3% 21%;
-    --input: 30 3% 25%;
-    --ring: 35 12% 75%;
+    --border: 230 12% 19%;
+    --input: 230 12% 24%;
+    --ring: 223 32% 85%;
 
     --radius: 1rem;
 
-    --sidebar-background: 30 3% 12%;
-    --sidebar-foreground: 30 4% 65%;
-    --sidebar-primary: 35 16% 94%;
-    --sidebar-primary-foreground: 30 4% 9%;
-    --sidebar-accent: 30 3% 18%;
-    --sidebar-accent-foreground: 35 16% 94%;
-    --sidebar-border: 30 3% 23%;
-    --sidebar-ring: 35 12% 75%;
+    --sidebar-background: 240 28% 3%;
+    --sidebar-foreground: 224 15% 66%;
+    --sidebar-primary: 223 41% 97%;
+    --sidebar-primary-foreground: 240 33% 2%;
+    --sidebar-accent: 230 12% 14%;
+    --sidebar-accent-foreground: 223 41% 97%;
+    --sidebar-border: 230 12% 21%;
+    --sidebar-ring: 223 32% 85%;
 
     /* Custom tokens */
     --success: 142 71% 45%;
@@ -53,9 +54,9 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --card-hover: 30 3% 16%;
-    --surface: 30 3% 12%;
-    --surface-raised: 30 3% 15%;
+    --card-hover: 230 15% 11%;
+    --surface: 240 28% 3%;
+    --surface-raised: 233 15% 10%;
   }
 }
 

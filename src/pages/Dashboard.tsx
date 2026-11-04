@@ -101,7 +101,7 @@ function StatCard({
   return (
     <Link
       to={path}
-      className="operation-panel group p-4 transition-all hover:border-foreground/25 sm:p-5"
+      className="operation-panel silver-stat group p-4 transition-all hover:border-foreground/25 sm:p-5"
     >
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{title}</p>
@@ -333,7 +333,7 @@ const Dashboard = () => {
       <div className="flex flex-wrap items-end justify-between gap-4 pb-1">
         <div>
           <p className="page-eyebrow">Seu espaço de trabalho</p>
-          <h1 className="mt-2 text-3xl font-medium tracking-tight">Dashboard</h1>
+          <h1 className="mt-2 text-3xl font-medium tracking-tight">{greeting}, {displayName}.</h1>
           <p className="mt-2 text-xs text-muted-foreground sm:text-sm">Tudo o que importa, em um só lugar.</p>
         </div>
         <div className="flex items-center gap-2 px-1 py-2 text-[10px] text-foreground/65 sm:text-xs">
@@ -415,7 +415,7 @@ const Dashboard = () => {
         </section>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="silver-stats grid grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Pendentes hoje"
           value={data.todayPending}
