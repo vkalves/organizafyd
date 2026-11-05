@@ -95,6 +95,8 @@ export default function Flows({
   const [showCaptions, setShowCaptions] = useState(false),
     [showSaved, setShowSaved] = useState(false);
   const submitting = useRef(false);
+  const uploading = useRef(false);
+  const [uploadInProgress, setUploadInProgress] = useState(false);
   const [flowId, setFlowId] = useState(() => crypto.randomUUID());
   const media = query.data?.media ?? [],
     prefs = query.data?.prefs;
@@ -141,7 +143,15 @@ export default function Flows({
     }
   }
   async function upload(files: File[], target: Media["kind"] = kind) {
-    if (!user || !files.length || submitting.current) return;
+    if (
+      !user ||
+      !files.length ||
+      submitting.current ||
+      uploading.current
+    )
+      return;
+    uploading.current = true;
+    setUploadInProgress(true);
     setChosenFiles(files);
     setUploadItems(
       files.map((file, index) => ({
@@ -152,7 +162,7 @@ export default function Flows({
       })),
     );
     unlockAudio();
-    await perform(async () => {
+    try {
       if (
         target === "cover" &&
         (files.length !== 1 || !files[0].type.startsWith("image/"))
@@ -205,7 +215,16 @@ export default function Flows({
         toast.error(
           `${result.errors.length} arquivo(s) não foram enviados. Confira os detalhes na lista.`,
         );
-    });
+      await cache.invalidateQueries({ queryKey: key });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível concluir o upload.",
+      );
+    } finally {
+      uploading.current = false;
+      setUploadInProgress(false);
+      setProgress("");
+    }
   }
   function submit() {
     unlockAudio();
@@ -383,11 +402,12 @@ export default function Flows({
           </Button>
         </form>
         <label
-          className={`ig-upload-zone ${busy ? "is-busy" : ""}`}
+          className={`ig-upload-zone ${busy || uploadInProgress ? "is-busy" : ""}`}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            if (!busy) void upload(Array.from(e.dataTransfer.files));
+            if (!busy && !uploadInProgress)
+              void upload(Array.from(e.dataTransfer.files));
           }}
         >
           <Upload size={22} />
@@ -397,7 +417,7 @@ export default function Flows({
             type="file"
             accept="image/jpeg,image/png,video/mp4"
             multiple
-            disabled={busy}
+            disabled={busy || uploadInProgress}
             className="sr-only"
             onChange={(e) => {
               void upload(Array.from(e.target.files ?? []));
@@ -980,7 +1000,7 @@ export default function Flows({
               id="flow-cover"
               type="file"
               accept="image/jpeg,image/png"
-              disabled={busy}
+              disabled={busy || uploadInProgress}
               onChange={(e) => {
                 void upload(Array.from(e.target.files ?? []), "cover");
                 e.target.value = "";
