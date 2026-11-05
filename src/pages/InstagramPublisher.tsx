@@ -1,3 +1,5 @@
+import { LocalMediaPreviews } from "@/features/instagram-publisher/LocalMediaPreviews";
+import { MediaPreview } from "@/features/instagram-publisher/MediaPreview";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   HotfyDashboard,
@@ -27,6 +29,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 const Flows = lazy(() => import("@/features/instagram-publisher/Flows"));
+const InstagramAnalytics = lazy(() =>
+  import("@/features/instagram-publisher/InstagramAnalytics").then(
+    (module) => ({ default: module.InstagramAnalytics }),
+  ),
+);
 import {
   playConfirmation,
   unlockAudio,
@@ -53,6 +60,7 @@ export default function InstagramPublisher() {
     "queue",
     "accounts",
     "alerts",
+    "analytics",
   ];
   const view =
     views.includes(params.get("view") as InstagramView) &&
@@ -104,6 +112,7 @@ export default function InstagramPublisher() {
         : "Feed",
   );
   const [media, setMedia] = useState("");
+  const [chosenFiles, setChosenFiles] = useState<File[]>([]);
   const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -122,6 +131,7 @@ export default function InstagramPublisher() {
     setId(crypto.randomUUID());
     setCaption("");
     setMedia("");
+    setChosenFiles([]);
     setTime("");
   }
   async function perform(run: () => Promise<void>) {
@@ -219,6 +229,7 @@ export default function InstagramPublisher() {
             ["compose", "Nova publicação"],
             ["queue", "Agendamentos"],
             ["alerts", "Alertas"],
+            ["analytics", "Analytics"],
           ] as const
         ).map(([target, label]) => (
           <button
@@ -231,6 +242,11 @@ export default function InstagramPublisher() {
           </button>
         ))}
       </nav>
+      {view === "analytics" && (
+        <Suspense fallback={<p role="status">Carregando Analytics…</p>}>
+          <InstagramAnalytics />
+        </Suspense>
+      )}
       {view === "flows" && (
         <Suspense fallback={<p role="status">Carregando Fluxos…</p>}>
           <Flows
@@ -453,9 +469,11 @@ export default function InstagramPublisher() {
               multiple={format === "Carrossel"}
               disabled={busy}
               onChange={(e) => {
+                unlockAudio();
                 const files = Array.from(e.target.files ?? []);
                 e.target.value = "";
-                if (files.length && user)
+                if (files.length && user) {
+                  setChosenFiles(files);
                   void perform(async () => {
                     if (
                       files.length +
@@ -466,12 +484,17 @@ export default function InstagramPublisher() {
                         "Quantidade de mídias excedida para o formato.",
                       );
                     const urls = await uploadMedia(files, user.id);
+                    if (files.some((file) => file.type === "video/mp4"))
+                      playConfirmation("uploaded");
                     setMedia((prev) =>
                       [prev, ...urls].filter(Boolean).join("\n"),
                     );
+                    setChosenFiles([]);
                   });
+                }
               }}
             />
+            <LocalMediaPreviews files={chosenFiles} />
             <p className="text-xs text-muted-foreground">
               JPG, PNG ou MP4, até 100 MB por arquivo. Os metadados são
               removidos antes do upload; PNG é convertido para JPG. O
@@ -494,6 +517,24 @@ export default function InstagramPublisher() {
               essas extensões.
             </p>
           </div>
+          {!!media.trim() && (
+            <section
+              aria-label="Prévia da postagem"
+              className="flex flex-wrap gap-3"
+            >
+              {media
+                .split("\n")
+                .map((value) => value.trim())
+                .filter(Boolean)
+                .map((url, index) => (
+                  <MediaPreview
+                    key={`${url}-${index}`}
+                    url={url}
+                    label={`Mídia ${index + 1} da postagem`}
+                  />
+                ))}
+            </section>
+          )}
           <div>
             <Label htmlFor="ig-time">Data e horário de publicação</Label>
             <Input

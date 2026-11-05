@@ -1,3 +1,5 @@
+import { LocalMediaPreviews } from "./LocalMediaPreviews";
+import { MediaPreview } from "./MediaPreview";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +64,7 @@ export default function Flows({
     url: string;
     video: boolean;
   } | null>(null);
+  const [chosenFiles, setChosenFiles] = useState<File[]>([]);
   const [kind, setKind] = useState<"posts" | "stories">("posts");
   const [selected, setSelected] = useState<string[]>([]),
     [accountIds, setAccounts] = useState<string[]>([]);
@@ -117,7 +120,9 @@ export default function Flows({
     }
   }
   async function upload(files: File[], target: Media["kind"] = kind) {
-    if (!user || !files.length) return;
+    if (!user || !files.length || submitting.current) return;
+    setChosenFiles(files);
+    unlockAudio();
     await perform(async () => {
       if (
         target === "cover" &&
@@ -131,8 +136,11 @@ export default function Flows({
         folder === "*" ? "" : folder,
         setProgress,
       );
+      if (files.some((file) => file.type === "video/mp4"))
+        playConfirmation("uploaded");
       if (target === "cover") setCoverId(ids[0]);
       else setSelected((prev) => [...prev, ...ids]);
+      setChosenFiles([]);
       toast.success(
         "Mídias prontas. Metadados removidos antes do armazenamento.",
       );
@@ -338,6 +346,24 @@ export default function Flows({
         >
           {progress || `${picked.length} mídia(s) selecionada(s) para o fluxo.`}
         </p>
+        <LocalMediaPreviews files={chosenFiles} />
+        {!!picked.length && (
+          <section
+            aria-label="Mídias selecionadas para o fluxo"
+            className="space-y-3"
+          >
+            <h3>Prévia do fluxo · {picked.length} mídia(s)</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {picked.map((m, i) => (
+                <MediaPreview
+                  key={m.id}
+                  url={m.url}
+                  label={`Selecionada ${i + 1}`}
+                />
+              ))}
+            </div>
+          </section>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -358,13 +384,18 @@ export default function Flows({
             Limpar seleção
           </Button>
         </div>
-        <details open={visible.length < 7}>
+        <details open>
           <summary className="cursor-pointer text-sm">
             Ver mídias ({visible.length})
           </summary>
           <div className="ig-library-list">
             {visible.map((m, i) => (
               <article key={m.id} className="ig-library-item">
+                <MediaPreview
+                  url={m.url}
+                  label={`Prévia de ${m.url.endsWith(".mp4") ? "vídeo" : "foto"} ${i + 1}`}
+                  compact
+                />
                 <label>
                   <input
                     type="checkbox"

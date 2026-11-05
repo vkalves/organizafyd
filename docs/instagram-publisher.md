@@ -57,3 +57,28 @@ Conexões unificadas usam o provedor facebook e graph.facebook.com, preservando 
 ### Verificação e limites
 
 Testes cobrem parâmetros do login, seleção de ativos, app/tipo/validade do token, ausência de permissão e resposta vazia ou ambígua. Testes do callback cobrem consentimento e verificador do navegador. A aprovação de credenciais do app não comprova autorização de um Instagram: o cliente precisa concluir o diálogo real, e o fluxo completo só é confirmado após seu retorno. Para clientes sem função de teste no app, concluir as exigências de análise/acesso avançado da Meta. Tokens revogados exigem reconexão; não há renovação periódica nesta versão.
+
+## Prévias, som de upload e Analytics
+
+A nova publicação e os Fluxos exibem as mídias selecionadas. Arquivos privados
+usam URLs assinadas com validade de 10 minutos, renovadas enquanto a prévia está
+aberta. Vídeos podem ser reproduzidos sem sair do formulário. O upload concluído
+de um vídeo toca uma confirmação suave; o controle de som da barra superior
+silencia tanto o upload quanto as confirmações de publicação.
+
+A aba **Analytics** consulta vídeos de todas as contas conectadas ao usuário:
+visualizações acumuladas, média, top 10 e relatório por conta. As consultas são
+paginadas em grupos de 20 publicações por conta. Use **Carregar mais vídeos de
+todas as contas** até completar o histórico acessível pela API. Enquanto houver
+páginas ou contas indisponíveis, os totais e o ranking são parciais. Os filtros
+de 7/30 dias selecionam a data de publicação dos vídeos, não as visualizações
+obtidas nesses dias. Métricas indisponíveis não são somadas como zero.
+
+Para disponibilizar a consulta real, publique a versão atualizada da Edge Function
+`instagram-publisher` junto com o frontend. A configuração de Login Unificado da
+Meta precisa autorizar `instagram_manage_insights` (além das permissões existentes)
+para conexões via Facebook. Conexões via Instagram exigem a permissão equivalente
+`instagram_business_manage_insights`. A aprovação e disponibilidade dependem do
+aplicativo Meta; contas antigas podem precisar de nova autorização. Os tokens
+continuam no servidor e somente as contas pertencentes ao usuário autenticado
+são consultadas. Não é necessário aplicar uma nova migração SQL.

@@ -1,3 +1,4 @@
+import { readVideoAnalytics } from "./analytics.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
 import { buildFlow, type FlowInput } from './flow.ts';
@@ -292,6 +293,22 @@ Deno.serve(async (req) => {
         return reply({ error: "account_already_connected" }, 409);
       const account_id = checked(saved);
       return reply({ account_id, username: profile.username });
+    }
+    if (body.action === "analytics") {
+      const owned = checked(await db.from("ig_publisher_connections").select("account_id").eq("user_id", user.id));
+      const accounts = [];
+      for (const account of owned.filter(a => !body.account_id || a.account_id === body.account_id)) {
+        try {
+          const { c, token } = await credential(account.account_id);
+          const result = await readVideoAnalytics(account.account_id, c.graph_id,
+            (path, params) => graph(path, token, params, false, c.provider),
+            typeof body.after === "string" && body.after.length <= 2000 ? body.after : undefined);
+          accounts.push({ account_id: account.account_id, ...result, unavailable: false });
+        } catch {
+          accounts.push({ account_id: account.account_id, videos: [], complete: false, unavailable: true });
+        }
+      }
+      return reply({ accounts, checked_at: new Date().toISOString() });
     }
     if (body.action === "status") {
       const accounts = checked(

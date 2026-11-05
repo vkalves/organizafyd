@@ -172,3 +172,28 @@
     max-width: 100%;
   }
 }
+
+/* The media library keeps previews visible alongside their selection controls. */
+.ig-library-list {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+.ig-library-item {
+  align-content: start;
+  padding: 10px;
+}
+.ig-library-item > figure {
+  flex-basis: 100%;
+}
+.ig-library-item select {
+  width: 100%;
+  max-width: none;
+}
+@media (max-width: 480px) {
+  .ig-library-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ig-library-item {
+    min-width: 0;
+    gap: 8px;
+  }
+}
