@@ -17,8 +17,26 @@ export type Flow = {
   name: string;
   created_at: string;
   settings: FlowInput;
+  state?: "active" | "paused" | "stopped" | "completed";
+  cycle?: number;
+  last_error?: string | null;
 };
-type Prefs = { user_id: string; folders: string[]; captions: string[] };
+type Prefs = {
+  user_id: string;
+  folders: string[];
+  captions: string[];
+  folder_captions?: Record<string, string[]>;
+};
+export type CampaignReport = {
+  flows: { id: string; published: number; pending: number; review: number }[];
+  usage: {
+    account_id: string;
+    media_id: string;
+    published: number;
+    pending: number;
+    last_published_at: string | null;
+  }[];
+};
 type Table<T> = {
   Row: { [K in keyof T]: T[K] };
   Insert: Partial<T>;
@@ -38,7 +56,7 @@ type Schema = {
 };
 const db = supabase as unknown as SupabaseClient<Schema>;
 export async function loadFlowData(userId: string) {
-  const [media, prefs, flows] = await Promise.all([
+  const [media, prefs, flows, report] = await Promise.all([
     db
       .from("ig_flow_library")
       .select("*")
@@ -55,6 +73,7 @@ export async function loadFlowData(userId: string) {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100),
+    publisherRequest<CampaignReport>("campaign_report").catch(() => null),
   ]);
   if (media.error || prefs.error || flows.error)
     throw new Error("Não foi possível carregar os Fluxos. Tente atualizar.");
@@ -66,6 +85,7 @@ export async function loadFlowData(userId: string) {
       captions: [],
     },
     flows: flows.data as unknown as Flow[],
+    report,
   };
 }
 export async function addMedia(
@@ -110,6 +130,8 @@ export async function savePrefs(prefs: Prefs) {
 }
 export const createFlow = (input: FlowInput) =>
   publisherRequest("create_flow", { flow: input });
+export const controlFlow = (id: string, control: "pause" | "resume" | "stop") =>
+  publisherRequest("control_flow", { id, control });
 export const cancelFlow = (id: string) =>
   publisherRequest("cancel_flow", { id });
 export async function previewMedia(url: string) {

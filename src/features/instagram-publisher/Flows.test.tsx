@@ -18,6 +18,7 @@ vi.mock("./flows-api", () => ({
   setMedia: vi.fn(),
   previewMedia: vi.fn(),
   cancelFlow: vi.fn(),
+  controlFlow: vi.fn(),
 }));
 vi.mock("./sound", () => ({
   playConfirmation: vi.fn(),
@@ -57,6 +58,7 @@ describe("Fluxos interface", () => {
       media: [media],
       prefs: { user_id: "u", folders: [], captions: [] },
       flows: [],
+      report: { flows: [], usage: [] },
     });
     mocks.create.mockResolvedValue({ ok: true });
   });
@@ -101,5 +103,39 @@ describe("Fluxos interface", () => {
     expect(
       screen.getByRole("button", { name: "Criar fluxo de Stories" }),
     ).toBeDisabled();
+  });
+  it("envia loop, descanso e legendas da pasta na criação da campanha", async () => {
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Repetir campanha em loop" }),
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Descansar entre lotes" }),
+    );
+    fireEvent.change(screen.getByLabelText("Publicações por lote, por conta"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByText("Legendas sorteadas por pasta"));
+    fireEvent.change(
+      screen.getByLabelText("Sem pasta", { selector: "textarea" }),
+      { target: { value: "Legenda A\n---\nLegenda B" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Criar fluxo e iniciar" }),
+    );
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          repeat: "loop",
+          batchSize: 2,
+          restMinutes: 20,
+          avoidReuse: true,
+          folderCaptions: { "": ["Legenda A", "Legenda B"] },
+        }),
+      ),
+    );
   });
 });

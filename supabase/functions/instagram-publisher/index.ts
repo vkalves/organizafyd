@@ -71,7 +71,76 @@ async function signed(value: string) {
   );
   return data.signedUrl;
 }
+async function advanceCampaigns() {
+  const due = checked(await db.rpc("ig_campaign_due"));
+  for (const flow of due) {
+    try {
+      const input = flow.settings as FlowInput;
+      const library = checked(
+        await db
+          .from("ig_flow_library")
+          .select("id,url,kind,caption,folder")
+          .eq("user_id", flow.user_id)
+          .eq("retired", false),
+      );
+      const progress = checked(
+        await db.rpc("ig_campaign_progress", {
+          p_user: flow.user_id,
+          p_id: flow.id,
+        }),
+      );
+      const used = checked(
+        await db.rpc("ig_flow_used", {
+          p_user: flow.user_id,
+          p_urls: library.map((m) => m.url),
+        }),
+      ).filter((row) => row.flow_id !== flow.id);
+      const offsets: Record<string, number> = {},
+        starts: Record<string, number> = {};
+      const now = Date.now();
+      for (const row of progress) {
+        offsets[row.account_id] = Number(row.total);
+        const rest =
+          Number(row.total) > 0 &&
+          Number(row.total) % (input.batchSize || 500) === 0
+            ? (input.restMinutes || 0) * 60000
+            : 0;
+        starts[row.account_id] = Math.max(
+          now + 60000,
+          Date.parse(row.last_at) + input.gapMinutes * 60000 + rest,
+        );
+      }
+      const jobs = buildFlow(
+        { ...input, startAt: null },
+        library,
+        flow.user_id,
+        now,
+        Math.random,
+        { used, offsets, starts },
+      );
+      checked(
+        await db.rpc("ig_append_flow_cycle", {
+          p_user: flow.user_id,
+          p_id: flow.id,
+          p_cycle: flow.cycle,
+          p_jobs: jobs,
+        }),
+      );
+    } catch {
+      // Preserve existing queued work; pause only an unchanged cycle.
+      checked(
+        await db
+          .from("ig_flows")
+          .update({ state: "paused", last_error: "campaign_needs_review" })
+          .eq("id", flow.id)
+          .eq("cycle", flow.cycle)
+          .eq("state", "active"),
+      );
+    }
+  }
+}
 async function worker() {
+  await advanceCampaigns();
   // Cleanup failures never change the outcome of a confirmed publication.
   try {
     checked(await db.rpc('ig_retire_flow_media'));
@@ -86,6 +155,10 @@ async function worker() {
   if (!job) return { processed: 0 };
   let publishing = job.publish_started;
   async function update(values: Record<string, unknown>) {
+    if (job.flow_id && values.status === "scheduled") {
+      const flow = checked(await db.from("ig_flows").select("state").eq("id",job.flow_id).single());
+      if(flow.state === "stopped") values.status="cancelled";
+    }
     const rows = checked(
       await db
         .from("ig_publication_jobs")
@@ -167,6 +240,11 @@ async function worker() {
         .eq("account_id", job.account_id)
         .single(),
     );
+    const campaign = job.flow_id ? checked(await db.from("ig_flows").select("state").eq("id",job.flow_id).single()) : null;
+    if (campaign && campaign.state !== "active") {
+      await update({status:campaign.state === "stopped" ? "cancelled" : "scheduled"});
+      return {processed:0};
+    }
     if (current.paused || current.reconnect_required) {
       await update({ status: "scheduled" });
       return { processed: 0 };
@@ -392,15 +470,26 @@ Deno.serve(async (req) => {
     }
     if (body.action === 'create_flow') {
       const input = body.flow as FlowInput;
-      const library = checked(await db.from('ig_flow_library').select('id,url,kind,caption').eq('user_id',user.id).eq('retired',false));
-      const jobs = buildFlow(input,library,user.id);
+      const library = checked(await db.from('ig_flow_library').select('id,url,kind,caption,folder').eq('user_id',user.id).eq('retired',false));
+      const existing = checked(await db.from("ig_flows").select("id").eq("id",input.id).eq("user_id",user.id).maybeSingle());
+      if(existing) {
+        checked(await db.rpc('ig_create_flow',{p_user:user.id,p_id:input.id,p_name:input.name,p_settings:input,p_jobs:[]}));
+        return reply({ok:true});
+      }
+      const used = input.avoidReuse ? checked(await db.rpc("ig_flow_used",{p_user:user.id,p_urls:library.map(m=>m.url)})) : [];
+      const jobs = buildFlow(input,library,user.id,Date.now(),Math.random,{used});
       checked(await db.rpc('ig_create_flow',{p_user:user.id,p_id:input.id,p_name:input.name.trim() || (input.kind === 'stories' ? 'Fluxo de Stories' : 'Novo fluxo'),p_settings:input,p_jobs:jobs}));
       return reply({ok:true});
     }
     if (body.action === 'cancel_flow') {
-      checked(await db.from('ig_publication_jobs').update({status:'cancelled'}).eq('user_id',user.id).eq('flow_id',body.id).eq('status','scheduled'));
+      checked(await db.rpc('ig_control_flow',{p_user:user.id,p_id:body.id,p_action:'stop'}));
       return reply({ok:true});
     }
+    if (body.action === "control_flow") {
+      checked(await db.rpc("ig_control_flow",{p_user:user.id,p_id:body.id,p_action:body.control}));
+      return reply({ok:true});
+    }
+    if (body.action === "campaign_report") return reply(checked(await db.rpc("ig_campaign_report",{p_user:user.id})));
     if (body.action === "schedule") {
       const d = body.post as Draft;
       validate(d, user.id);

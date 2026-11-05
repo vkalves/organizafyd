@@ -30,6 +30,7 @@ import {
   setMedia,
   createFlow,
   cancelFlow,
+  controlFlow,
   previewMedia,
   type Media,
 } from "./flows-api";
@@ -74,6 +75,12 @@ export default function Flows({
     [caption, setCaption] = useState(""),
     [gap, setGap] = useState(1),
     [unit, setUnit] = useState(60);
+  const [repeat, setRepeat] = useState<"once" | "loop">("once");
+  const [batchSize, setBatchSize] = useState(3);
+  const [restMinutes, setRestMinutes] = useState(20);
+  const [batchRest, setBatchRest] = useState(false);
+  const [avoidReuse, setAvoidReuse] = useState(true);
+  const [folderDrafts, setFolderDrafts] = useState<Record<string, string>>({});
   const [random, setRandom] = useState(true),
     [distribution, setDistribution] = useState<"all" | "split">("all"),
     [format, setFormat] = useState<FlowInput["format"]>("auto");
@@ -99,6 +106,18 @@ export default function Flows({
     connections.some(
       (c) => c.account_id === id && !c.paused && !c.reconnect_required,
     ),
+  );
+  const captionFolders = [
+    ...new Set(["", ...(prefs?.folders ?? []), ...picked.map((m) => m.folder)]),
+  ];
+  const folderPools = Object.fromEntries(
+    captionFolders.map((f) => [
+      f,
+      (folderDrafts[f] ?? (prefs?.folder_captions?.[f] ?? []).join("\n---\n"))
+        .split("\n---\n")
+        .map((v) => v.trim())
+        .filter(Boolean),
+    ]),
   );
   const total =
     distribution === "all" ? picked.length * available.length : picked.length;
@@ -172,6 +191,15 @@ export default function Flows({
           .filter(Boolean),
         startAt: when === "schedule" ? new Date(start).toISOString() : null,
         coverId,
+        ...(query.data?.report
+          ? {
+              repeat,
+              batchSize: batchRest ? batchSize : 500,
+              restMinutes: batchRest ? restMinutes : 0,
+              avoidReuse,
+              folderCaptions: folderPools,
+            }
+          : {}),
       };
       await createFlow(input);
       setFlowId(crypto.randomUUID());
@@ -636,6 +664,171 @@ export default function Flows({
             </details>
           </>
         )}
+        {!query.data?.report && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Campanhas em loop e histórico completo ainda não estão disponíveis.
+            Os fluxos simples continuam funcionando.
+          </p>
+        )}
+        <fieldset
+          disabled={busy || !query.data?.report}
+          className="space-y-4 rounded-xl border border-white/10 p-4"
+        >
+          <legend>Campanha automática</legend>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={repeat === "loop"}
+              disabled={busy}
+              onChange={(e) => setRepeat(e.target.checked ? "loop" : "once")}
+            />
+            Repetir campanha em loop
+          </label>
+          <p className="text-xs text-muted-foreground">
+            {repeat === "loop"
+              ? "Depois que todas as contas concluírem sua lista, um novo ciclo começa. Cada mídia aparece uma vez por conta a cada ciclo, conforme a distribuição escolhida. Continua até você pausar ou encerrar."
+              : "Publicar a seleção uma vez e concluir a campanha."}
+          </p>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={avoidReuse}
+              disabled={busy}
+              onChange={(e) => setAvoidReuse(e.target.checked)}
+            />
+            Evitar mídias já usadas ou reservadas na mesma conta
+          </label>
+          <p className="text-xs text-muted-foreground">
+            A proteção consulta o histórico de cada conta. No loop, a repetição
+            é permitida somente no próximo ciclo da própria campanha.
+          </p>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={batchRest}
+              disabled={busy}
+              onChange={(e) => setBatchRest(e.target.checked)}
+            />
+            Descansar entre lotes
+          </label>
+          {batchRest && (
+            <div className="ig-flow-grid">
+              <div>
+                <Label htmlFor="flow-batch-size">
+                  Publicações por lote, por conta
+                </Label>
+                <Input
+                  id="flow-batch-size"
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="flow-rest">
+                  Descanso extra entre lotes (minutos)
+                </Label>
+                <Input
+                  id="flow-rest"
+                  type="number"
+                  min={0}
+                  max={10080}
+                  value={restMinutes}
+                  onChange={(e) => setRestMinutes(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
+        </fieldset>
+        {query.data?.report && (
+          <details className="space-y-3">
+            <summary className="cursor-pointer">
+              Legendas sorteadas por pasta
+            </summary>
+            <p className="text-xs text-muted-foreground">
+              Separe as opções com uma linha contendo ---. Cada publicação
+              sorteia uma legenda da pasta. A legenda individual da mídia tem
+              prioridade. Na campanha, as opções ficam salvas como estão no
+              momento da criação.
+            </p>
+            {captionFolders.map((f) => (
+              <div key={f}>
+                <Label htmlFor={`folder-caption-${encodeURIComponent(f)}`}>
+                  {f || "Sem pasta"}
+                </Label>
+                <Textarea
+                  id={`folder-caption-${encodeURIComponent(f)}`}
+                  rows={3}
+                  value={
+                    folderDrafts[f] ??
+                    (prefs?.folder_captions?.[f] ?? []).join("\n---\n")
+                  }
+                  onChange={(e) =>
+                    setFolderDrafts((previous) => ({
+                      ...previous,
+                      [f]: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              disabled={busy || !prefs}
+              onClick={() =>
+                void perform(() =>
+                  savePrefs({ ...prefs!, folder_captions: folderPools }),
+                )
+              }
+            >
+              Salvar legendas das pastas
+            </Button>
+          </details>
+        )}
+        {!!accountIds.length && query.data?.report && (
+          <section aria-label="Uso de mídias por conta">
+            <h3>Histórico por conta</h3>
+            <div className="ig-table-scroll">
+              <table className="ig-table">
+                <thead>
+                  <tr>
+                    <th>Conta</th>
+                    <th>Selecionadas já publicadas</th>
+                    <th>Selecionadas na fila</th>
+                    <th>Selecionadas inéditas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts
+                    .filter((a) => accountIds.includes(a.id))
+                    .map((a) => {
+                      const usage =
+                        query.data?.report?.usage.filter(
+                          (u) =>
+                            u.account_id === a.id &&
+                            picked.some((m) => m.id === u.media_id),
+                        ) ?? [];
+                      return (
+                        <tr key={a.id}>
+                          <td>@{a.username.replace(/^@/, "")}</td>
+                          <td>{usage.filter((u) => u.published > 0).length}</td>
+                          <td>{usage.filter((u) => u.pending > 0).length}</td>
+                          <td>
+                            {picked.length -
+                              usage.filter(
+                                (u) => u.published > 0 || u.pending > 0,
+                              ).length}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
         <div className="ig-flow-grid">
           <div>
             <Label htmlFor="flow-gap">Intervalo entre postagens (GAP)</Label>
@@ -783,8 +976,9 @@ export default function Flows({
             publicação(ões)
           </strong>
           <p>
-            As mídias são removidas da biblioteca quando todos os envios forem
-            concluídos, preservando arquivos usados por outros agendamentos.
+            As mídias ficam preservadas na biblioteca para reutilização e novos
+            ciclos. A quantidade efetiva pode ser menor quando a proteção contra
+            repetição estiver ativada.
           </p>
         </div>
         <Button
@@ -794,7 +988,14 @@ export default function Flows({
             !picked.length ||
             !available.length ||
             total > 500 ||
-            gap * unit < 3
+            gap * unit < 3 ||
+            (batchRest &&
+              (!Number.isInteger(batchSize) ||
+                batchSize < 1 ||
+                batchSize > 500 ||
+                !Number.isFinite(restMinutes) ||
+                restMinutes < 0 ||
+                restMinutes > 10080))
           }
           onClick={submit}
         >
@@ -831,43 +1032,98 @@ export default function Flows({
           <p className="ig-empty">Nenhum fluxo criado ainda.</p>
         )}
         {query.data?.flows.map((flow) => {
+          const summary = query.data?.report?.flows.find(
+            (item) => item.id === flow.id,
+          );
           const jobs = posts.filter((p) => p.flow_id === flow.id),
-            done = jobs.filter((p) => p.status === "published").length,
-            pending = jobs.filter((p) => p.status === "scheduled").length;
+            done =
+              summary?.published ??
+              jobs.filter((p) => p.status === "published").length,
+            pending =
+              summary?.pending ??
+              jobs.filter((p) => p.status === "scheduled").length;
           return (
             <article key={flow.id} className="ig-flow-card">
               <div>
                 <strong>{flow.name}</strong>
+                <p>
+                  {
+                    {
+                      active: "Ativa",
+                      paused: "Pausada",
+                      stopped: "Encerrada",
+                      completed: "Concluída",
+                    }[flow.state || "active"]
+                  }{" "}
+                  ·{" "}
+                  {flow.settings.repeat === "loop"
+                    ? `Loop · ciclo ${flow.cycle || 1}`
+                    : "Ciclo único"}
+                </p>
+                {flow.last_error && (
+                  <p role="status">
+                    Campanha pausada para revisão. Confira a fila antes de
+                    retomar.
+                  </p>
+                )}
                 <p>{new Date(flow.created_at).toLocaleString("pt-BR")}</p>
                 <p>
                   {done} confirmado(s) · {pending} agendado(s) ·{" "}
-                  {
+                  {summary?.review ??
                     jobs.filter(
                       (p) => p.status === "failed" || p.status === "uncertain",
-                    ).length
-                  }{" "}
+                    ).length}{" "}
                   para revisar
                 </p>
                 <small>
-                  Contagem nos 200 registros recentes. Veja a fila para
-                  detalhes.
+                  {summary
+                    ? "Histórico completo da campanha."
+                    : "Contagem nos 200 registros recentes."}{" "}
+                  Veja a fila para detalhes.
                 </small>
               </div>
-              {pending > 0 && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(async () => {
-                      await cancelFlow(flow.id);
-                      await onCreated();
-                      toast.success("Envios pendentes cancelados.");
-                    })
-                  }
-                >
-                  Cancelar pendentes
-                </Button>
-              )}
+              <div className="flex flex-wrap items-start gap-2">
+                {query.data?.report &&
+                  (!flow.state ||
+                    ["active", "paused"].includes(flow.state)) && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() =>
+                        void perform(async () => {
+                          await controlFlow(
+                            flow.id,
+                            flow.state === "paused" ? "resume" : "pause",
+                          );
+                          await onCreated();
+                        })
+                      }
+                    >
+                      {flow.state === "paused"
+                        ? "Retomar campanha"
+                        : "Pausar campanha"}
+                    </Button>
+                  )}
+                {(pending > 0 ||
+                  flow.state === "active" ||
+                  flow.state === "paused") && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void perform(async () => {
+                        await cancelFlow(flow.id);
+                        await onCreated();
+                        toast.success("Envios pendentes cancelados.");
+                      })
+                    }
+                  >
+                    {query.data?.report
+                      ? "Encerrar campanha"
+                      : "Cancelar pendentes"}
+                  </Button>
+                )}
+              </div>
             </article>
           );
         })}

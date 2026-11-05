@@ -120,3 +120,109 @@ describe("Fluxos de publicação", () => {
     ).toThrow("invalid_media_owner");
   });
 });
+
+describe("Campanhas recorrentes", () => {
+  it("adiciona descanso extra depois de cada lote sem duplicar o GAP", () => {
+    const jobs = buildFlow(
+      { ...input, batchSize: 2, restMinutes: 20 },
+      library,
+      user,
+      0,
+    );
+    const own = jobs.filter((j) => j.account_id === accounts[0]);
+    expect(
+      Date.parse(own[1].scheduled_at!) - Date.parse(own[0].scheduled_at!),
+    ).toBe(3 * 60000);
+    expect(
+      Date.parse(own[2].scheduled_at!) - Date.parse(own[1].scheduled_at!),
+    ).toBe(23 * 60000);
+  });
+  it("carrega o lote incompleto entre ciclos", () => {
+    const jobs = buildFlow(
+      { ...input, repeat: "loop", batchSize: 2, restMinutes: 20 },
+      library,
+      user,
+      0,
+      () => 0,
+      { offsets: { [accounts[0]]: 3 } },
+    );
+    const own = jobs.filter((j) => j.account_id === accounts[0]);
+    expect(
+      Date.parse(own[1].scheduled_at!) - Date.parse(own[0].scheduled_at!),
+    ).toBe(23 * 60000);
+    expect(
+      Date.parse(own[2].scheduled_at!) - Date.parse(own[1].scheduled_at!),
+    ).toBe(3 * 60000);
+  });
+  it("sorteia legendas da pasta sem substituir a legenda individual", () => {
+    const jobs = buildFlow(
+      { ...input, folderCaptions: { cortes: ["Primeira", "Segunda"] } },
+      library.map((m) => ({ ...m, folder: "cortes" })),
+      user,
+      0,
+      () => 0.99,
+    );
+    expect(jobs[0].caption).toBe("própria");
+    expect(jobs[1].caption).toBe("Segunda");
+  });
+  it("filtra usadas por conta sem excluir a mídia das outras contas", () => {
+    const jobs = buildFlow(
+      { ...input, avoidReuse: true },
+      library,
+      user,
+      0,
+      () => 0,
+      { used: [{ account_id: accounts[0], url: library[0].url }] },
+    );
+    expect(jobs.filter((j) => j.account_id === accounts[0])).toHaveLength(3);
+    expect(jobs.filter((j) => j.account_id === accounts[1])).toHaveLength(4);
+    expect(() =>
+      buildFlow({ ...input, avoidReuse: true }, library, user, 0, () => 0, {
+        used: accounts.flatMap((account_id) =>
+          library.map((m) => ({ account_id, url: m.url })),
+        ),
+      }),
+    ).toThrow("no_unused_media");
+  });
+  it("mantém a distribuição das contas ao repetir um loop randomizado", () => {
+    const first = buildFlow(
+      { ...input, distribution: "split", repeat: "loop", random: true },
+      library,
+      user,
+      0,
+      () => 0,
+    );
+    const next = buildFlow(
+      { ...input, distribution: "split", repeat: "loop", random: true },
+      library,
+      user,
+      0,
+      () => 0.99,
+    );
+    for (const account of accounts)
+      expect(
+        first
+          .filter((j) => j.account_id === account)
+          .map((j) => j.media_urls[0])
+          .sort(),
+      ).toEqual(
+        next
+          .filter((j) => j.account_id === account)
+          .map((j) => j.media_urls[0])
+          .sort(),
+      );
+  });
+  it("rejeita lotes inválidos e legendas malformadas", () => {
+    for (const changes of [
+      { batchSize: 0 },
+      { batchSize: 1.5 },
+      { restMinutes: -1 },
+      { restMinutes: Infinity },
+      { repeat: "forever" },
+      { folderCaptions: { folder: "invalid" } },
+    ])
+      expect(() =>
+        buildFlow({ ...input, ...changes } as FlowInput, library, user, 0),
+      ).toThrow();
+  });
+});

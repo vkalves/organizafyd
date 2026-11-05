@@ -30,6 +30,11 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  invalid_campaign: 'Revise o tamanho dos lotes e o descanso da campanha.',
+  no_unused_media: 'Todas as mídias selecionadas já foram usadas ou reservadas nessas contas. Escolha outras mídias ou desative a proteção contra repetição.',
+  media_already_used: 'Uma mídia foi reservada por outro fluxo. Atualize a seleção e tente novamente.',
+  publication_needs_review: 'Revise as publicações com falha ou resultado incerto antes de retomar. Nenhum reenvio será feito automaticamente.',
+  campaign_stopped: 'Esta campanha foi encerrada. Crie uma nova campanha para publicar novamente.',
   invalid_gap: 'O intervalo mínimo entre mídias da mesma conta é de 3 minutos.',
   invalid_flow: 'Revise os dados do fluxo.',
   invalid_accounts: 'Selecione ao menos uma conta.',

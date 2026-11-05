@@ -4,6 +4,7 @@ export type LibraryMedia = {
   url: string;
   kind: string;
   caption: string;
+  folder?: string;
 };
 export type FlowInput = {
   id: string;
@@ -19,6 +20,11 @@ export type FlowInput = {
   variations: string[];
   startAt: string | null;
   coverId: string | null;
+  repeat?: "once" | "loop";
+  batchSize?: number;
+  restMinutes?: number;
+  avoidReuse?: boolean;
+  folderCaptions?: Record<string, string[]>;
 };
 export function buildFlow(
   input: FlowInput,
@@ -26,6 +32,11 @@ export function buildFlow(
   userId: string,
   now = Date.now(),
   random = Math.random,
+  context: {
+    used?: { account_id: string; url: string }[];
+    offsets?: Record<string, number>;
+    starts?: Record<string, number>;
+  } = {},
 ) {
   if (
     !input ||
@@ -68,6 +79,36 @@ export function buildFlow(
     input.variations.some((v) => typeof v !== "string" || v.length > 2200)
   )
     throw new Error("invalid_caption");
+  if (
+    (input.repeat !== undefined && !["once", "loop"].includes(input.repeat)) ||
+    (input.avoidReuse !== undefined && typeof input.avoidReuse !== "boolean") ||
+    (input.batchSize !== undefined &&
+      (!Number.isInteger(input.batchSize) ||
+        input.batchSize < 1 ||
+        input.batchSize > 500)) ||
+    (input.restMinutes !== undefined &&
+      (!Number.isFinite(input.restMinutes) ||
+        input.restMinutes < 0 ||
+        input.restMinutes > 10080))
+  )
+    throw new Error("invalid_campaign");
+  if (
+    input.folderCaptions !== undefined &&
+    (typeof input.folderCaptions !== "object" ||
+      input.folderCaptions === null ||
+      Array.isArray(input.folderCaptions) ||
+      Object.entries(input.folderCaptions).length > 100 ||
+      Object.values(input.folderCaptions).some(
+        (values) =>
+          !Array.isArray(values) ||
+          values.length > 100 ||
+          values.some(
+            (value) =>
+              typeof value !== "string" || !value.trim() || value.length > 2200,
+          ),
+      ))
+  )
+    throw new Error("invalid_caption");
   const start = input.startAt ? Date.parse(input.startAt) : now + 60000;
   if (!Number.isFinite(start) || start <= now)
     throw new Error("invalid_schedule");
@@ -92,14 +133,42 @@ export function buildFlow(
       }
     return result;
   };
-  const split = shuffle(media);
+  // Loop campaigns keep the same split membership in every cycle.
+  const stableHash = (value: string) =>
+    [...value].reduce(
+      (hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0,
+      2166136261,
+    );
+  const split =
+    input.repeat === "loop" && input.distribution === "split"
+      ? input.random
+        ? [...media].sort(
+            (a, b) => stableHash(input.id + a.id) - stableHash(input.id + b.id),
+          )
+        : [...media]
+      : shuffle(media);
   const jobs: (Draft & { cover_url: string | null })[] = [];
   input.accountIds.forEach((accountId, accountIndex) => {
     const items =
       input.distribution === "split"
         ? split.filter((_, i) => i % input.accountIds.length === accountIndex)
         : shuffle(media);
-    items.forEach((item, index) => {
+    const fresh = items.filter(
+      (item) =>
+        !input.avoidReuse ||
+        !context.used?.some(
+          (used) => used.account_id === accountId && used.url === item.url,
+        ),
+    );
+    const offset = context.offsets?.[accountId] ?? 0;
+    const batch = input.batchSize || 500;
+    const rest = (input.restMinutes || 0) * 60000;
+    const ownStart = context.starts?.[accountId] ?? start;
+    fresh.forEach((item, index) => {
+      const pool = input.folderCaptions?.[item.folder || ""] || [];
+      const folderCaption = pool.length
+        ? pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))]
+        : "";
       const format: Format =
         input.kind === "stories"
           ? "Story"
@@ -116,11 +185,17 @@ export function buildFlow(
           format === "Story"
             ? ""
             : item.caption ||
+              folderCaption ||
               input.variations[index % (input.variations.length || 1)] ||
               input.caption,
         media_urls: [item.url],
         scheduled_at: new Date(
-          start + index * input.gapMinutes * 60000 + accountIndex * 5000,
+          ownStart +
+            index * input.gapMinutes * 60000 +
+            (Math.floor((offset + index) / batch) -
+              Math.floor(offset / batch)) *
+              rest +
+            accountIndex * 5000,
         ).toISOString(),
         cover_url: format === "Reel" ? (cover?.url ?? null) : null,
       };
@@ -128,6 +203,7 @@ export function buildFlow(
       jobs.push(job);
     });
   });
-  if (!jobs.length || jobs.length > 500) throw new Error("flow_too_large");
+  if (!jobs.length || jobs.length > 500)
+    throw new Error(jobs.length ? "flow_too_large" : "no_unused_media");
   return jobs;
 }
