@@ -45,6 +45,10 @@ export const messages: Record<string, string> = {
     "As permissões da conta mudaram. Atualize as opções e revise a postagem.",
   account_paused: "Retome esta conta antes de agendar.",
   invalid_media: "Confira as fotos: de 1 a 35, até 4 MB por foto.",
+  picture_size_check_failed:
+    "O TikTok rejeitou as dimensões da foto. Adicione a foto novamente em uma nova postagem para preparar uma cópia menor.",
+  photo_pull_failed:
+    "O TikTok não conseguiu baixar a foto. Verifique a entrega da imagem antes de reenviar.",
   invalid_date: "Escolha um horário futuro.",
   consent_required: "Revise e autorize o envio.",
   commercial_required: "Informe qual marca é promovida.",
@@ -106,7 +110,9 @@ export async function preparePhoto(file: File): Promise<File> {
       !bitmap.height
     )
       throw new Error("A imagem deve ter até 40 megapixels.");
-    const scale = Math.min(1, 2160 / Math.max(bitmap.width, bitmap.height));
+    // TikTok documents a maximum of 1080p for photos. Keep both axes
+    // within 1080 px conservatively, preserving aspect ratio without cropping.
+    const scale = Math.min(1, 1080 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
