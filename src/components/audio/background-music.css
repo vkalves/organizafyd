@@ -1,0 +1,81 @@
+.background-music {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 55;
+  width: 238px;
+  padding: 12px 14px;
+  border: 1px solid #ffffff20;
+  border-radius: 18px;
+  background: #0b0b10ed;
+  color: #e5e5ec;
+  box-shadow: 0 8px 36px #0005;
+  backdrop-filter: blur(16px);
+}
+.background-music-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+}
+.background-music-title small {
+  display: block;
+  margin-top: 2px;
+  color: #9294a4;
+  font-size: 10px;
+}
+.background-music-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+.background-music-controls button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #ffffff20;
+}
+.background-music-controls button:hover {
+  background: #ffffff10;
+}
+.background-music-controls button:disabled {
+  opacity: 0.4;
+}
+.background-music-controls input {
+  min-width: 0;
+  width: 100%;
+  accent-color: #d6d4e2;
+}
+.background-music-controls output {
+  min-width: 28px;
+  color: #a7a8b8;
+  font-size: 10px;
+  text-align: right;
+}
+.background-music :focus-visible {
+  outline: 2px solid #ddd9ef;
+  outline-offset: 3px;
+}
+@media (max-width: 1023px) {
+  .background-music {
+    right: 12px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    width: 216px;
+    padding: 10px 12px;
+  }
+}
+@media (max-width: 600px) {
+  body:has(.auth-layout) .background-music {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    margin: 0 auto 20px;
+  }
+  .auth-layout {
+    padding-bottom: 140px;
+  }
+}

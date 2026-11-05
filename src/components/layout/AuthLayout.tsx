@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { ArrowUpRight, Check, Circle, LayoutGrid } from "lucide-react";
 import { SilverBrand } from "./SilverBrand";
@@ -13,7 +14,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
     <main className="auth-layout">
       <SilverNebula />
       <section className="auth-story" aria-label="Organizafy">
-        <div className="auth-logo"><SilverBrand /></div>
+        <div className="auth-logo"><Link to="/auth?welcome=1" aria-label="Organizafy · Voltar à tela inicial"><SilverBrand /></Link></div>
         <div className="auth-story-content">
           <p className="auth-eyebrow"><span /> SEU DIA, EM ORDEM</p>
           <h1>Mais clareza.<br /><span>Mais controle.</span></h1>
@@ -37,7 +38,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       </section>
 
       <section className="auth-form-area" aria-label="Acesso à sua conta">
-        <div className="auth-logo auth-mobile-logo"><SilverBrand /></div>
+        <div className="auth-logo auth-mobile-logo"><Link to="/auth?welcome=1" aria-label="Organizafy · Voltar à tela inicial"><SilverBrand /></Link></div>
         <div className="auth-card">{children}</div>
         <p className="auth-form-footer">Seu espaço para uma rotina mais leve.</p>
       </section>

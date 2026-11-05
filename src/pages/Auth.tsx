@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useSearchParams, useLocation } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { PublicLinks } from "./PublicInfo";
@@ -9,6 +9,8 @@ import AuthLayout from "@/components/layout/AuthLayout";
 const Auth = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const destination = searchParams.get("next") === "tiktok" ? `/tiktok${location.hash}` : searchParams.get("next") === "x" ? `/x${location.hash}` : "/";
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
@@ -25,7 +27,7 @@ const Auth = () => {
     );
   }
 
-  if (user) return <Navigate to={searchParams.get("next") === "tiktok" ? `/tiktok${location.hash}` : searchParams.get("next") === "x" ? `/x${location.hash}` : "/"} replace />;
+  if (user && searchParams.get("welcome") !== "1") return <Navigate to={destination} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ const Auth = () => {
       if (mode === "login") {
         const { error } = await signIn(email, password);
         if (error) toast.error(error.message);
+        else navigate(destination, { replace: true });
       } else if (mode === "signup") {
         const { error } = await signUp(email, password, displayName);
         if (error) toast.error(error.message);
@@ -50,6 +53,7 @@ const Auth = () => {
 
   return (
     <AuthLayout>
+        {user && <Link to={destination} className="auth-submit mb-4">Continuar na minha conta <ArrowRight size={16} /></Link>}
         <p className="auth-card-eyebrow">{mode === "forgot" ? "RECUPERE SEU ACESSO" : "SEU ESPAÇO DE ORGANIZAÇÃO"}</p>
         <h2>{mode === "login" ? "Bem-vindo de volta." : mode === "signup" ? "Sua rotina começa aqui." : "Vamos recuperar sua conta."}</h2>
         <p className="auth-card-description">{mode === "login" ? "Entre na sua conta e coloque o dia em ordem." : mode === "signup" ? "Crie sua conta e dê espaço para o que importa." : "Informe seu email para receber o link de recuperação."}</p>

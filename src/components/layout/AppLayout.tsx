@@ -154,7 +154,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className={cn("app-body flex min-h-[100dvh] min-w-0", mobileFocusMode && "app-body-focus")}>
           <aside id="desktop-workspace-menu" className="app-desktop-sidebar shell-rail hidden lg:flex" aria-label="Menu lateral">
-            <NavLink to="/" className="shell-brand" title="Organizafy · Dashboard" aria-label="Organizafy · Dashboard">
+            <NavLink to="/auth?welcome=1" className="shell-brand" title="Organizafy · Tela inicial" aria-label="Organizafy · Voltar à tela inicial">
               <SilverBrand compact={!desktopSidebarOpen} />
             </NavLink>
             <span className="shell-rail-divider" aria-hidden="true" />
@@ -175,7 +175,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="app-mobile-drawer shell-mobile-overlay fixed inset-x-0 bottom-0 z-[60] lg:hidden" onClick={() => setMobileMenuOpen(false)}>
               <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
               <aside ref={mobileMenuRef} id="mobile-workspace-menu" className="shell-mobile-menu relative h-full w-[min(19rem,86vw)] animate-slide-in-left" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Menu principal">
-                <div className="shell-mobile-brand"><SilverBrand /><button type="button" onClick={() => setMobileMenuOpen(false)} className="shell-icon-button" aria-label="Fechar menu"><X className="h-4 w-4" /></button></div>
+                <div className="shell-mobile-brand"><NavLink to="/auth?welcome=1" aria-label="Organizafy · Voltar à tela inicial"><SilverBrand /></NavLink><button type="button" onClick={() => setMobileMenuOpen(false)} className="shell-icon-button" aria-label="Fechar menu"><X className="h-4 w-4" /></button></div>
                 <p className="shell-eyebrow px-6 pb-4">Seu espaço de trabalho</p>
                 <nav className="shell-mobile-nav space-y-1 px-4" aria-label="Menu principal"><SideNav onNavigate={() => setMobileMenuOpen(false)} /></nav>
                 <div className="shell-mobile-account"><span className="shell-avatar">{initials}</span><span className="shell-account-name">{displayName}<span>Conta pessoal</span></span><button type="button" onClick={signOut} className="shell-icon-button ml-auto" title="Sair" aria-label="Sair da conta"><LogOut className="h-4 w-4" /></button></div>
