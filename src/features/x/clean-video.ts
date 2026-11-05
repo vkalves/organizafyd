@@ -1,7 +1,11 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import coreURL from "@ffmpeg/core?url";
 import wasmURL from "@ffmpeg/core/wasm?url";
-import { videoCleanCommand } from "./video-command";
+import {
+  canFastRemuxH264,
+  videoCleanCommand,
+  videoRemuxCommand,
+} from "./video-command";
 export type CleaningProgress = (
   stage: "loading" | "encoding" | "verifying",
   percent?: number,
@@ -43,12 +47,31 @@ async function encode(
         await ffmpeg.load({ coreURL, wasmURL });
       }
       progress?.("encoding", 0);
-      await ffmpeg.writeFile(
-        "input.mp4",
-        new Uint8Array(await file.arrayBuffer()),
-      );
-      // Prefer the fast encoder; retain the old compression as a bounded fallback
-      // when a fast output would exceed the destination's existing file limit.
+      const input = new Uint8Array(await file.arrayBuffer());
+      await ffmpeg.writeFile("input.mp4", input);
+      // Copy common H.264 video without decoding it. MP4 container metadata and
+      // H.264 SEI are still removed; all other inputs use the transcode below.
+      if (canFastRemuxH264(input)) {
+        let remuxed: Uint8Array | undefined;
+        try {
+          const exit = await ffmpeg.exec(
+            videoRemuxCommand("input.mp4", "output.mp4"),
+            180_000,
+          );
+          if (exit === 0) {
+            const bytes = await ffmpeg.readFile("output.mp4");
+            if (typeof bytes !== "string") remuxed = bytes;
+          }
+        } catch {
+          // A remux failure falls through to the compatibility transcode.
+        }
+        if (remuxed?.byteLength && remuxed.byteLength <= maxOutputBytes)
+          return new Blob([remuxed], { type: "video/mp4" });
+        await Promise.allSettled([ffmpeg.deleteFile("output.mp4")]);
+        progress?.("encoding", 0);
+      }
+      // Use the existing compatibility transcode when stream-copy is unsafe or
+      // when the remuxed output exceeds the destination's size limit.
       for (const preset of ["ultrafast", "veryfast"]) {
         const command = videoCleanCommand("input.mp4", "output.mp4").map(
           (arg) => (arg === "ultrafast" ? preset : arg),

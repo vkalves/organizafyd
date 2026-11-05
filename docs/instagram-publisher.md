@@ -99,15 +99,17 @@ reconstrução das fotos, quando suportada por OffscreenCanvas, também acontece
 Worker. Prévias fora da área visível não carregam os vídeos, e as prévias não são
 recriadas a cada atualização do progresso.
 
-Vídeos continuam sendo decodificados e recodificados, sem alterar resolução ou
-reduzir a taxa de quadros, e passam pela verificação final dos metadados. A
-codificação rápida mantém CRF 20, mas pode produzir arquivos maiores. Quando
-ultrapassa o limite de envio, o encoder tenta a compressão anterior antes da
-checagem final de tamanho. Arquivos que falharem na limpeza nunca são enviados
-em sua forma original.
+Vídeos MP4 comuns com H.264 8-bit 4:2:0, dimensões pares e sem rotação são
+remuxados sem decodificar ou recodificar os quadros. O filtro remove SEI do
+H.264; a verificação final remove os metadados do contêiner. O áudio é limpo e
+normalizado para AAC. Isso evita o custo maior da codificação de vídeo para os
+arquivos compatíveis. HEVC, outros perfis, rotação, dimensões ímpares ou uma
+saída acima do limite continuam usando a recodificação de compatibilidade.
+Arquivos que falharem na limpeza nunca são enviados em sua forma original.
 
-Em teste local no Chromium com um vídeo sintético 720×1280, 24 fps e 4 segundos,
-a etapa passou de 5,2 s para 1,9 s no primeiro arquivo e 1,5 s com o encoder já
-carregado. Esses tempos dependem do dispositivo e do vídeo. O teste de lote
-selecionou dois MP4 válidos, um inválido e um PNG: registrou as três mídias
-válidas, converteu a foto para JPEG e manteve a navegação disponível.
+A recodificação de compatibilidade mantém a resolução e a taxa de quadros, usa
+CRF 20 e pode produzir arquivos maiores. Se a codificação ultrarrápida exceder
+o limite de envio, o encoder tenta a compressão anterior. A medição anterior
+de 5,2 s para 1,9 s no primeiro arquivo e 1,5 s com o encoder carregado foi
+feita só com um vídeo sintético 720×1280, 24 fps e 4 segundos; não mede o novo
+remux e os tempos dependem do dispositivo e do vídeo.

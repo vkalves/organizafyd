@@ -1,4 +1,4 @@
-/** Only call on freshly re-encoded output, never as a substitute for decoding. */
+/** Call after FFmpeg removes codec SEI and rebuilds the MP4; this pass removes container metadata. */
 const invalid = () => new Error("Não foi possível verificar a mídia limpa. Nada foi enviado.");
 const tag = (b: Uint8Array, p: number) => String.fromCharCode(...b.subarray(p, p + 4));
 const join = (parts: Uint8Array[]) => {
