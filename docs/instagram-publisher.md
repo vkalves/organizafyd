@@ -82,3 +82,32 @@ para conexões via Facebook. Conexões via Instagram exigem a permissão equival
 aplicativo Meta; contas antigas podem precisar de nova autorização. Os tokens
 continuam no servidor e somente as contas pertencentes ao usuário autenticado
 são consultadas. Não é necessário aplicar uma nova migração SQL.
+
+## Upload em lote e desempenho da limpeza
+
+O fluxo aceita vários arquivos por seleção ou arraste. A fila mostra a etapa de
+cada arquivo; mídias concluídas aparecem na biblioteca imediatamente. Um arquivo
+inválido ou uma falha no envio é informado individualmente, preservando os
+sucessos e continuando com os próximos. Confira os erros antes de selecionar
+novamente arquivos que já foram enviados.
+
+O encoder de vídeo roda em um Worker, é compartilhado por uma fila de trabalho e
+reutilizado entre arquivos. Entradas e saídas temporárias são apagadas a cada
+arquivo, e o Worker é encerrado após 30 segundos sem uso. Uma falha descarta o
+encoder antes de processar o próximo arquivo. A verificação de metadados e a
+reconstrução das fotos, quando suportada por OffscreenCanvas, também acontecem em
+Worker. Prévias fora da área visível não carregam os vídeos, e as prévias não são
+recriadas a cada atualização do progresso.
+
+Vídeos continuam sendo decodificados e recodificados, sem alterar resolução ou
+reduzir a taxa de quadros, e passam pela verificação final dos metadados. A
+codificação rápida mantém CRF 20, mas pode produzir arquivos maiores. Quando
+ultrapassa o limite de envio, o encoder tenta a compressão anterior antes da
+checagem final de tamanho. Arquivos que falharem na limpeza nunca são enviados
+em sua forma original.
+
+Em teste local no Chromium com um vídeo sintético 720×1280, 24 fps e 4 segundos,
+a etapa passou de 5,2 s para 1,9 s no primeiro arquivo e 1,5 s com o encoder já
+carregado. Esses tempos dependem do dispositivo e do vídeo. O teste de lote
+selecionou dois MP4 válidos, um inválido e um PNG: registrou as três mídias
+válidas, converteu a foto para JPEG e manteve a navegação disponível.

@@ -33,6 +33,7 @@ import {
   controlFlow,
   previewMedia,
   type Media,
+  type UploadItemState,
 } from "./flows-api";
 import type { Connection } from "./api";
 import type { Post } from "./model";
@@ -65,6 +66,7 @@ export default function Flows({
     url: string;
     video: boolean;
   } | null>(null);
+  const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const [chosenFiles, setChosenFiles] = useState<File[]>([]);
   const [kind, setKind] = useState<"posts" | "stories">("posts");
   const [selected, setSelected] = useState<string[]>([]),
@@ -141,6 +143,14 @@ export default function Flows({
   async function upload(files: File[], target: Media["kind"] = kind) {
     if (!user || !files.length || submitting.current) return;
     setChosenFiles(files);
+    setUploadItems(
+      files.map((file, index) => ({
+        index,
+        name: file.name,
+        status: "pending",
+        message: "Na fila",
+      })),
+    );
     unlockAudio();
     await perform(async () => {
       if (
@@ -148,21 +158,53 @@ export default function Flows({
         (files.length !== 1 || !files[0].type.startsWith("image/"))
       )
         throw new Error("Escolha uma imagem JPG ou PNG para a capa.");
-      const ids = await addMedia(
+      const result = await addMedia(
         files,
         user.id,
         target,
         folder === "*" ? "" : folder,
         setProgress,
+        {
+          onItem: (item) =>
+            setUploadItems((previous) =>
+              previous.map((entry) =>
+                entry.index === item.index ? item : entry,
+              ),
+            ),
+          onSaved: (saved) => {
+            if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
+            cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(
+              key,
+              (previous) =>
+                previous
+                  ? {
+                      ...previous,
+                      media: [
+                        ...previous.media.filter((m) => m.id !== saved.id),
+                        saved,
+                      ],
+                    }
+                  : previous,
+            );
+            if (target === "cover") setCoverId(saved.id);
+            else
+              setSelected((previous) => [...new Set([...previous, saved.id])]);
+          },
+        },
       );
-      if (files.some((file) => file.type === "video/mp4"))
-        playConfirmation("uploaded");
+      const ids = result.ids;
+
       if (target === "cover") setCoverId(ids[0]);
-      else setSelected((prev) => [...prev, ...ids]);
+      else setSelected((prev) => [...new Set([...prev, ...ids])]);
       setChosenFiles([]);
-      toast.success(
-        "Mídias prontas. Metadados removidos antes do armazenamento.",
-      );
+      if (ids.length)
+        toast.success(
+          `${ids.length} de ${files.length} mídia(s) pronta(s) para publicar.`,
+        );
+      if (result.errors.length)
+        toast.error(
+          `${result.errors.length} arquivo(s) não foram enviados. Confira os detalhes na lista.`,
+        );
     });
   }
   function submit() {
@@ -363,8 +405,8 @@ export default function Flows({
             }}
           />
           <span>
-            Fotos e vídeos são reconstruídos para remover os metadados antes do
-            envio.
+            Selecione vários arquivos de uma vez e acompanhe cada mídia na fila.
+            Os metadados são removidos antes do envio.
           </span>
         </label>
         <p
@@ -374,6 +416,35 @@ export default function Flows({
         >
           {progress || `${picked.length} mídia(s) selecionada(s) para o fluxo.`}
         </p>
+        {!!uploadItems.length && (
+          <section
+            aria-label="Fila de upload"
+            className="space-y-2 rounded-xl border border-white/10 p-3"
+          >
+            <h3 className="text-sm font-medium">
+              {uploadItems.filter((item) => item.status === "done").length}/
+              {uploadItems.length} mídia(s) pronta(s)
+            </h3>
+            <ol className="max-h-48 space-y-2 overflow-y-auto">
+              {uploadItems.map((item) => (
+                <li key={item.index} className="text-xs">
+                  <span className="block truncate font-medium">
+                    {item.index + 1}. {item.name}
+                  </span>
+                  <span
+                    className={
+                      item.status === "error"
+                        ? "text-red-400"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {item.message}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
         <LocalMediaPreviews files={chosenFiles} />
         {!!picked.length && (
           <section

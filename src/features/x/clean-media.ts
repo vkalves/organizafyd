@@ -1,3 +1,5 @@
+import { processInWorker } from "./media-worker-client";
+import type { CleaningProgress } from "./clean-video";
 import { stripImageMetadata, stripVideoMetadata } from "./strip-metadata";
 /** Reconstruct media before upload. Originals never enter Storage. */
 export type MediaStage = "cleaning" | "uploading";
@@ -42,7 +44,7 @@ async function cleanImage(file: File, outputType = file.type): Promise<Blob> {
             blob
               ? resolve(blob)
               : reject(new Error("Não foi possível limpar a foto.")),
-          file.type,
+          outputType,
           0.95,
         ),
       );
@@ -54,25 +56,61 @@ async function cleanImage(file: File, outputType = file.type): Promise<Blob> {
     image.close();
   }
 }
-export async function cleanMedia(file: File, options?: { maxBytes: number; jpeg?: boolean }): Promise<File> {
+export async function cleanMedia(
+  file: File,
+  options?: { maxBytes: number; jpeg?: boolean; onProgress?: CleaningProgress },
+): Promise<File> {
   if (options) {
-    if (!["image/jpeg", "image/png", "video/mp4"].includes(file.type) || !file.size || file.size > options.maxBytes)
-      throw new Error(`Use JPG, PNG ou MP4 de até ${options.maxBytes / 1024 / 1024} MB.`);
+    if (
+      !["image/jpeg", "image/png", "video/mp4"].includes(file.type) ||
+      !file.size ||
+      file.size > options.maxBytes
+    )
+      throw new Error(
+        `Use JPG, PNG ou MP4 de até ${options.maxBytes / 1024 / 1024} MB.`,
+      );
   } else validateFile(file);
   // Instagram accepts JPEG photos; decoding also applies EXIF orientation.
-  const outputType = options?.jpeg && file.type.startsWith('image/') ? 'image/jpeg' : file.type;
-  const source = outputType === file.type ? file : new File([file], file.name, { type: outputType });
+  const outputType =
+    options?.jpeg && file.type.startsWith("image/") ? "image/jpeg" : file.type;
   let blob: Blob;
   try {
-    blob =
-      file.type === "video/mp4"
-        ? await (await import("./clean-video")).cleanVideo(file)
-        : await cleanImage(file, outputType);
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    const verified = file.type === "video/mp4"
-      ? stripVideoMetadata(bytes)
-      : stripImageMetadata(bytes, outputType);
-    blob = new Blob([verified], { type: outputType });
+    const video = file.type === "video/mp4";
+    const workerAvailable = typeof Worker !== "undefined";
+    if (video) {
+      blob = await (
+        await import("./clean-video")
+      ).cleanVideo(
+        file,
+        options?.onProgress,
+        options?.maxBytes ?? MAX_VIDEO_BYTES,
+      );
+      options?.onProgress?.("verifying");
+      blob = workerAvailable
+        ? await processInWorker(blob, outputType, false)
+        : new Blob(
+            [
+              stripVideoMetadata(new Uint8Array(await blob.arrayBuffer()), {
+                inPlace: true,
+              }),
+            ],
+            { type: outputType },
+          );
+    } else if (workerAvailable && typeof OffscreenCanvas !== "undefined") {
+      options?.onProgress?.("verifying");
+      blob = await processInWorker(file, outputType, true);
+    } else {
+      blob = await cleanImage(file, outputType);
+      blob = new Blob(
+        [
+          stripImageMetadata(
+            new Uint8Array(await blob.arrayBuffer()),
+            outputType,
+          ),
+        ],
+        { type: outputType },
+      );
+    }
   } catch (error) {
     throw new Error(
       error instanceof Error
@@ -92,7 +130,9 @@ export async function cleanMedia(file: File, options?: { maxBytes: number; jpeg?
     lastModified: 0,
   });
   if (
-    clean.size > (options?.maxBytes ?? (file.type === "video/mp4" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES))
+    clean.size >
+    (options?.maxBytes ??
+      (file.type === "video/mp4" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES))
   ) {
     throw new Error(
       `Após a limpeza, o arquivo ultrapassou ${options ? options.maxBytes / 1024 / 1024 : file.type === "video/mp4" ? 20 : 5} MB. Reduza o tamanho e envie novamente.`,

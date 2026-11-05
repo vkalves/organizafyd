@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
-import { cleanMedia } from '@/features/x/clean-media';
+import { cleanMedia } from "@/features/x/clean-media";
 type PublisherAccount = { id: string; user_id: string; username: string };
 type Schema = {
   public: {
@@ -30,18 +30,23 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
-  invalid_campaign: 'Revise o tamanho dos lotes e o descanso da campanha.',
-  no_unused_media: 'Todas as mídias selecionadas já foram usadas ou reservadas nessas contas. Escolha outras mídias ou desative a proteção contra repetição.',
-  media_already_used: 'Uma mídia foi reservada por outro fluxo. Atualize a seleção e tente novamente.',
-  publication_needs_review: 'Revise as publicações com falha ou resultado incerto antes de retomar. Nenhum reenvio será feito automaticamente.',
-  campaign_stopped: 'Esta campanha foi encerrada. Crie uma nova campanha para publicar novamente.',
-  invalid_gap: 'O intervalo mínimo entre mídias da mesma conta é de 3 minutos.',
-  invalid_flow: 'Revise os dados do fluxo.',
-  invalid_accounts: 'Selecione ao menos uma conta.',
-  flow_too_large: 'Crie fluxos com até 500 publicações por vez.',
-  invalid_caption: 'Cada legenda deve ter até 2.200 caracteres.',
-  invalid_media: 'Selecione ao menos uma mídia da biblioteca.',
-  use_instagram_login: "Use Conectar conta → Conectar meu Instagram para renovar este acesso.",
+  invalid_campaign: "Revise o tamanho dos lotes e o descanso da campanha.",
+  no_unused_media:
+    "Todas as mídias selecionadas já foram usadas ou reservadas nessas contas. Escolha outras mídias ou desative a proteção contra repetição.",
+  media_already_used:
+    "Uma mídia foi reservada por outro fluxo. Atualize a seleção e tente novamente.",
+  publication_needs_review:
+    "Revise as publicações com falha ou resultado incerto antes de retomar. Nenhum reenvio será feito automaticamente.",
+  campaign_stopped:
+    "Esta campanha foi encerrada. Crie uma nova campanha para publicar novamente.",
+  invalid_gap: "O intervalo mínimo entre mídias da mesma conta é de 3 minutos.",
+  invalid_flow: "Revise os dados do fluxo.",
+  invalid_accounts: "Selecione ao menos uma conta.",
+  flow_too_large: "Crie fluxos com até 500 publicações por vez.",
+  invalid_caption: "Cada legenda deve ter até 2.200 caracteres.",
+  invalid_media: "Selecione ao menos uma mídia da biblioteca.",
+  use_instagram_login:
+    "Use Conectar conta → Conectar meu Instagram para renovar este acesso.",
   missing_publish_permission:
     "Gere um token de usuário com instagram_basic e instagram_content_publish autorizadas para esta conta.",
   invalid_connection: "Cole um token de acesso válido da Meta.",
@@ -180,10 +185,26 @@ export async function listAccounts(
 export async function uploadMedia(
   files: File[],
   userId: string,
+  progress?: (message: string) => void,
 ): Promise<string[]> {
   const result: string[] = [];
   for (const file of files) {
-    const cleaned = await cleanMedia(file, { maxBytes: 100 * 1024 * 1024, jpeg: true });
+    const cleaned = await cleanMedia(file, {
+      maxBytes: 100 * 1024 * 1024,
+      jpeg: true,
+      ...(progress
+        ? {
+            onProgress: (stage, percent) =>
+              progress(
+                stage === "loading"
+                  ? "Preparando o processador de vídeo…"
+                  : stage === "verifying"
+                    ? "Verificando os metadados removidos…"
+                    : `Limpando vídeo${percent === undefined ? "" : `: ${percent}%`}…`,
+              ),
+          }
+        : {}),
+    });
     const ext =
       cleaned.type === "image/jpeg"
         ? "jpg"
@@ -193,6 +214,7 @@ export async function uploadMedia(
     if (!ext || file.size > 100 * 1024 * 1024)
       throw new Error("Use JPG ou MP4, com até 100 MB por arquivo.");
     const path = userId + "/" + crypto.randomUUID() + "." + ext;
+    progress?.("Enviando arquivo limpo…");
     const { error } = await supabase.storage
       .from("instagram-publisher")
       .upload(path, cleaned, { contentType: cleaned.type, upsert: false });

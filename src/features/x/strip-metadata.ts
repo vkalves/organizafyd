@@ -70,8 +70,8 @@ export function stripImageMetadata(bytes: Uint8Array, type: string): Uint8Array 
 }
 
 /** Zero metadata boxes without shifting sample offsets in the MP4. */
-export function stripVideoMetadata(input: Uint8Array): Uint8Array {
-  const bytes = new Uint8Array(input);
+export function stripVideoMetadata(input: Uint8Array, { inPlace = false }: { inPlace?: boolean } = {}): Uint8Array {
+  const bytes = inPlace ? input : new Uint8Array(input);
   const view = new DataView(bytes.buffer);
   const seen = new Set<string>();
   const walk = (start: number, end: number, depth: number) => {

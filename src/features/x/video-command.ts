@@ -18,7 +18,7 @@ export const videoCleanCommand = (input: string, output: string) => [
   "-c:v",
   "libx264",
   "-preset",
-  "veryfast",
+  "ultrafast",
   "-crf",
   "20",
   "-pix_fmt",

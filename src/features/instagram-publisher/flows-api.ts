@@ -88,31 +88,65 @@ export async function loadFlowData(userId: string) {
     report,
   };
 }
+export type UploadItemState = {
+  index: number;
+  name: string;
+  status: "pending" | "processing" | "done" | "error";
+  message: string;
+};
 export async function addMedia(
   files: File[],
   userId: string,
   kind: Media["kind"],
   folder: string,
   progress: (message: string) => void,
+  callbacks?: {
+    onSaved?: (media: Media) => void;
+    onItem?: (item: UploadItemState) => void;
+  },
 ) {
   const ids: string[] = [];
+  const errors: { name: string; message: string }[] = [];
   for (const [index, file] of files.entries()) {
-    progress(
-      `Limpando metadados e enviando mídia ${index + 1} de ${files.length}…`,
-    );
-    const [url] = await uploadMedia([file], userId);
-    const { data, error } = await db
-      .from("ig_flow_library")
-      .insert({ user_id: userId, url, kind, folder })
-      .select("id")
-      .single();
-    if (error)
-      throw new Error(
-        "Upload concluído, mas não foi possível registrar a mídia na biblioteca.",
-      );
-    ids.push(data.id);
+    const notify = (
+      message: string,
+      status: UploadItemState["status"] = "processing",
+    ) => {
+      progress(`${index + 1}/${files.length} · ${message}`);
+      callbacks?.onItem?.({ index, name: file.name, status, message });
+    };
+    try {
+      // Give the browser a paint/input opportunity before starting each file.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      notify("Preparando limpeza…");
+      const [url] = await uploadMedia([file], userId, notify);
+      notify("Registrando na biblioteca…");
+      const { data, error } = await db
+        .from("ig_flow_library")
+        .insert({ user_id: userId, url, kind, folder })
+        .select("*")
+        .single();
+      if (error)
+        throw new Error(
+          "Arquivo enviado, mas não foi possível registrá-lo na biblioteca. Tente novamente.",
+        );
+      const saved = data as unknown as Media;
+      if (!saved?.id)
+        throw new Error("A biblioteca não confirmou o registro desta mídia.");
+      ids.push(saved.id);
+      callbacks?.onSaved?.(saved);
+      notify("Pronta para publicar", "done");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível processar o arquivo.";
+      errors.push({ name: file.name, message });
+      notify(message, "error");
+      // A malformed file must not discard completed uploads or skip the rest.
+    }
   }
-  return ids;
+  return { ids, errors };
 }
 export async function setMedia(
   id: string,
