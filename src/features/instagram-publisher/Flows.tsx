@@ -136,7 +136,13 @@ export default function Flows({
       toast.error(
         error instanceof Error ? error.message : "Não foi possível concluir.",
       );
-     async function upload(files: File[], target: Media["kind"] = kind) {
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+      setProgress("");
+    }
+  }
+  async function upload(files: File[], target: Media["kind"] = kind) {
     if (
       !user ||
       !files.length ||
