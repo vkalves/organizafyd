@@ -32,6 +32,8 @@ export function BackgroundMusic({
 }) {
   const { user } = useAuth();
   const audio = useRef<HTMLAudioElement>(null);
+  const container = useRef<HTMLElement>(null);
+  const [expanded, setExpanded] = useState(false);
   const previousUser = useRef(user?.id);
   const lastVolume = useRef(defaultVolume);
   const [volume, setVolume] = useState(savedVolume);
@@ -85,6 +87,16 @@ export function BackgroundMusic({
     };
   }, [source, enabled]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!container.current?.contains(event.target as Node))
+        setExpanded(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [expanded]);
+
   function toggle() {
     if (playing) {
       setEnabled(false);
@@ -97,7 +109,31 @@ export function BackgroundMusic({
   }
   const percent = Math.round(volume * 100);
   return (
-    <aside className="background-music" aria-label="Player de música de fundo">
+    <aside
+      ref={container}
+      className={`background-music ${expanded ? "is-expanded" : ""}`}
+      aria-label="Player de música de fundo"
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      onFocusCapture={() => setExpanded(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node))
+          setExpanded(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setExpanded(false);
+      }}
+    >
+      <button
+        type="button"
+        className="background-music-launcher"
+        aria-label="Mostrar player de música"
+        aria-expanded={expanded}
+        aria-controls="background-music-panel"
+        onClick={() => setExpanded(true)}
+      >
+        <Music2 size={18} aria-hidden="true" />
+      </button>
       <audio
         ref={audio}
         src={source || undefined}
@@ -110,62 +146,64 @@ export function BackgroundMusic({
           setPlaying(false);
         }}
       />
-      <div className="background-music-title">
-        <Music2 size={14} aria-hidden="true" />
-        <span>
-          Música de fundo
-          <small>
-            {!source
-              ? "Aguardando a faixa da HOTfy"
-              : failed
-                ? "Não foi possível carregar a música"
-                : playing
-                  ? percent === 0
-                    ? "Silenciada"
-                    : percent <= 10
-                      ? "Tocando suavemente"
-                      : "Reproduzindo"
-                  : "Pausada · toque para ouvir"}
-          </small>
-        </span>
-      </div>
-      <div className="background-music-controls">
-        <button
-          type="button"
-          onClick={toggle}
-          disabled={!source}
-          aria-label={playing ? "Pausar música" : "Reproduzir música"}
-        >
-          {playing ? <Pause size={16} /> : <Play size={16} />}
-        </button>
-        <button
-          type="button"
-          disabled={!source}
-          aria-label={
-            volume === 0 ? "Ativar volume da música" : "Silenciar música"
-          }
-          onClick={() =>
-            setVolume((current) => (current === 0 ? lastVolume.current : 0))
-          }
-        >
-          {volume === 0 ? (
-            <VolumeX size={16} />
-          ) : volume < 0.3 ? (
-            <Volume1 size={16} />
-          ) : (
-            <Volume2 size={16} />
-          )}
-        </button>
-        <input
-          type="range"
-          aria-label="Volume da música de fundo"
-          min="0"
-          max="100"
-          step="1"
-          value={percent}
-          onChange={(event) => setVolume(Number(event.target.value) / 100)}
-        />
-        <output aria-live="off">{percent}%</output>
+      <div id="background-music-panel" className="background-music-panel">
+        <div className="background-music-title">
+          <Music2 size={14} aria-hidden="true" />
+          <span>
+            Música de fundo
+            <small>
+              {!source
+                ? "Aguardando a faixa da HOTfy"
+                : failed
+                  ? "Não foi possível carregar a música"
+                  : playing
+                    ? percent === 0
+                      ? "Silenciada"
+                      : percent <= 10
+                        ? "Tocando suavemente"
+                        : "Reproduzindo"
+                    : "Pausada · toque para ouvir"}
+            </small>
+          </span>
+        </div>
+        <div className="background-music-controls">
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={!source}
+            aria-label={playing ? "Pausar música" : "Reproduzir música"}
+          >
+            {playing ? <Pause size={16} /> : <Play size={16} />}
+          </button>
+          <button
+            type="button"
+            disabled={!source}
+            aria-label={
+              volume === 0 ? "Ativar volume da música" : "Silenciar música"
+            }
+            onClick={() =>
+              setVolume((current) => (current === 0 ? lastVolume.current : 0))
+            }
+          >
+            {volume === 0 ? (
+              <VolumeX size={16} />
+            ) : volume < 0.3 ? (
+              <Volume1 size={16} />
+            ) : (
+              <Volume2 size={16} />
+            )}
+          </button>
+          <input
+            type="range"
+            aria-label="Volume da música de fundo"
+            min="0"
+            max="100"
+            step="1"
+            value={percent}
+            onChange={(event) => setVolume(Number(event.target.value) / 100)}
+          />
+          <output aria-live="off">{percent}%</output>
+        </div>
       </div>
     </aside>
   );
