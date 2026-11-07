@@ -95,6 +95,49 @@ function nextDay(year: number, month: number, day: number) {
   };
 }
 
+function slotAtOrAfter(
+  year: number,
+  month: number,
+  day: number,
+  minutes: number,
+  timeZone: string,
+  cursor: number,
+) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const first = zonedTimeToUtc(year, month, day, hour, minute, timeZone);
+  if (first === null || first >= cursor) return first;
+
+  // If the date contains a backward clock change shortly after this slot,
+  // the same wall-clock time may occur a second time.
+  const firstWall = Date.UTC(year, month - 1, day, hour, minute);
+  const firstOffset = firstWall - first;
+  const sample = first + 3 * 60 * 60 * 1000;
+  const sampleParts = zonedParts(sample, timeZone);
+  const sampleWall = Date.UTC(
+    sampleParts.year,
+    sampleParts.month - 1,
+    sampleParts.day,
+    sampleParts.hour,
+    sampleParts.minute,
+    sampleParts.second,
+  );
+  const sampleOffset = sampleWall - sample;
+  const repeatedBy = firstOffset - sampleOffset;
+  if (repeatedBy <= 0) return null;
+
+  const second = first + repeatedBy;
+  const parts = zonedParts(second, timeZone);
+  return parts.year === year &&
+    parts.month === month &&
+    parts.day === day &&
+    parts.hour === hour &&
+    parts.minute === minute &&
+    second >= cursor
+    ? second
+    : null;
+}
+
 export function slotInstants(
   count: number,
   fromMs: number,
@@ -125,15 +168,8 @@ export function slotInstants(
       day = cursorParts.day;
     for (let step = 0; step < 800 && found === null; step++) {
       for (const minutes of slotMinutes) {
-        const at = zonedTimeToUtc(
-          year,
-          month,
-          day,
-          Math.floor(minutes / 60),
-          minutes % 60,
-          timeZone,
-        );
-        if (at !== null && at >= cursor) {
+        const at = slotAtOrAfter(year, month, day, minutes, timeZone, cursor);
+        if (at !== null) {
           found = at;
           break;
         }
