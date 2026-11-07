@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { PublicLinks } from "./PublicInfo";
 import AuthLayout from "@/components/layout/AuthLayout";
+import { LoginTransition } from "@/components/layout/LoginTransition";
 
 const Auth = () => {
   const location = useLocation();
@@ -18,6 +19,14 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [welcomeName, setWelcomeName] = useState<string | null>(null);
+  const finishLogin = useCallback(() => navigate(destination, { replace: true }), [navigate, destination]);
+
+  if (welcomeName !== null) {
+    const metadataName = user?.user_metadata?.display_name;
+    const name = (typeof metadataName === "string" && metadataName.trim()) || welcomeName;
+    return <LoginTransition name={name} onDone={finishLogin} />;
+  }
 
   if (loading) {
     return (
@@ -36,7 +45,7 @@ const Auth = () => {
       if (mode === "login") {
         const { error } = await signIn(email, password);
         if (error) toast.error(error.message);
-        else navigate(destination, { replace: true });
+        else setWelcomeName(email.split("@")[0] || "você");
       } else if (mode === "signup") {
         const { error } = await signUp(email, password, displayName);
         if (error) toast.error(error.message);

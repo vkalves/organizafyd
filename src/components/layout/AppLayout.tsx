@@ -4,7 +4,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard, CheckSquare, StickyNote, Settings,
   Search, Menu, ChevronLeft, LogOut, Instagram,
-  Music2, Network, Presentation, X,
+  Music2, Network, Presentation, X, Sparkles,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
@@ -29,6 +29,7 @@ const navItems = [
   { title: "Mapas", path: "/mapas", icon: Network },
   { title: "Slides", path: "/slides", icon: Presentation },
   { title: "Instagram", path: "/instagram", icon: Instagram },
+  { title: "Agonia Pro", path: "/agonia", icon: Sparkles },
   { title: "TikTok", path: "/tiktok", icon: Music2 },
   { title: "X", path: "/x", icon: XLogoIcon },
   { title: "Configurações", path: "/config", icon: Settings },

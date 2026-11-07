@@ -15,6 +15,7 @@ const XPublisher = lazy(() => import("./pages/XPublisher"));
 const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
 const InstagramPublisher = lazy(() => import("./pages/InstagramPublisher"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Agonia = lazy(() => import("./pages/Agonia"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const Notas = lazy(() => import("./pages/Notas"));
 const Slides = lazy(() => import("./pages/Slides"));
@@ -60,6 +61,8 @@ const App = () => (
               <Route path="/instagram" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
               <Route path="/instagram/*" element={<Navigate to="/instagram" replace />} />
               <Route path="/instagram/publicar" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
+              <Route path="/agonia" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/agonia/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
               <Route path="/x" element={<ProtectedRoute standalone><XPublisher /></ProtectedRoute>} />
               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
