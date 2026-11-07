@@ -1,0 +1,188 @@
+.welcome-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgb(222 219 214 / 16%), transparent 34%),
+    radial-gradient(circle at 20% 20%, rgb(200 206 221 / 10%), transparent 30%),
+    #040407fa;
+  animation: welcome-intro-out 0.45s 3.25s forwards;
+}
+
+.welcome-intro::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background: linear-gradient(120deg, transparent 35%, rgb(233 236 246 / 9%), transparent 65%);
+}
+
+.welcome-mask-stage {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: min(46vw, 350px);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 0 32px rgb(222 219 214 / 28%));
+  animation: welcome-mask-sequence 2.15s cubic-bezier(0.22, 0.8, 0.26, 1) forwards;
+}
+
+.welcome-mask-stage img {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 82%;
+  height: auto;
+  object-fit: contain;
+  filter: grayscale(0.25) contrast(1.08);
+}
+
+.welcome-orbit {
+  position: absolute;
+  border: 1px solid rgb(222 219 214 / 32%);
+  border-radius: 50%;
+}
+
+.welcome-orbit-one {
+  width: 92%;
+  height: 32%;
+  border-left-color: transparent;
+  border-right-color: rgb(244 243 240 / 75%);
+  transform: rotate(-22deg);
+  animation: auth-orbit-spin 8s linear infinite;
+}
+
+.welcome-orbit-two {
+  width: 106%;
+  height: 54%;
+  border-top-color: transparent;
+  border-bottom-color: rgb(200 206 221 / 55%);
+  transform: rotate(34deg);
+  animation: auth-orbit-spin-reverse 11s linear infinite;
+}
+
+.welcome-message {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  text-align: center;
+  color: #f4f3f0;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: welcome-message-in 0.65s 2.15s forwards;
+}
+
+.welcome-message span {
+  color: #9aa1b5;
+  font-size: clamp(14px, 2vw, 19px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.welcome-message strong {
+  font-family: Sora, Inter, sans-serif;
+  font-size: clamp(30px, 5vw, 58px);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  background: linear-gradient(110deg, #fff, #c8cedd 30%, #e9ecf6 70%, #fff);
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 28px rgb(222 219 214 / 26%);
+}
+
+@keyframes welcome-mask-sequence {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.72) rotate(-3deg);
+  }
+  22% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.02) rotate(1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(1.1) rotate(3deg);
+  }
+}
+
+@keyframes welcome-message-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes welcome-intro-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes auth-mask-float {
+  0%, 100% {
+    transform: translateY(7px) rotate(-2deg) scale(0.96);
+  }
+  50% {
+    transform: translateY(-9px) rotate(2deg) scale(1);
+  }
+}
+
+@keyframes auth-orbit-spin {
+  to {
+    transform: rotate(338deg);
+  }
+}
+
+@keyframes auth-orbit-spin-reverse {
+  to {
+    transform: rotate(-326deg);
+  }
+}
+
+@keyframes lt-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Entrada animada do card de login */
+.auth-card > * {
+  animation: lt-up 0.55s ease-out both;
+}
+.auth-card > :nth-child(2) { animation-delay: 0.06s; }
+.auth-card > :nth-child(3) { animation-delay: 0.12s; }
+.auth-card > :nth-child(4) { animation-delay: 0.18s; }
+.auth-card > :nth-child(5) { animation-delay: 0.24s; }
+.auth-story-content {
+  animation: lt-up 0.7s 0.08s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-mask-stage {
+    display: none;
+  }
+  .welcome-message {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+  .welcome-intro {
+    animation: welcome-intro-out 0.4s 1.5s forwards;
+  }
+}
