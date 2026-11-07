@@ -54,7 +54,7 @@ interface FunnelNodeData {
   value?: number;
   link?: string;
   status?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 const FunnelNode = memo(({ data, selected }: NodeProps<Node<FunnelNodeData>>) => {
@@ -105,18 +105,18 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
     if (!user) return;
     setLoading(true);
     const [nodesRes, edgesRes] = await Promise.all([
-      (supabase.from("funnel_nodes") as any).select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
-      (supabase.from("funnel_edges") as any).select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
+      supabase.from("funnel_nodes").select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
+      supabase.from("funnel_edges").select("*").eq("funnel_id", funnelId).eq("user_id", user.id),
     ]);
 
-    const loadedNodes: Node<FunnelNodeData>[] = (nodesRes.data || []).map((n: any) => ({
+    const loadedNodes: Node<FunnelNodeData>[] = (nodesRes.data || []).map((n) => ({
       id: n.id,
       type: "funnelNode",
       position: { x: Number(n.position_x), y: Number(n.position_y) },
       data: { dbId: n.id, title: n.title, description: n.description, node_type: n.node_type, value: n.value, link: n.link, status: n.status },
     }));
 
-    const loadedEdges: Edge[] = (edgesRes.data || []).map((e: any) => ({
+    const loadedEdges: Edge[] = (edgesRes.data || []).map((e) => ({
       id: e.id,
       source: e.source_node_id,
       target: e.target_node_id,
@@ -134,19 +134,19 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
 
   const onConnect = useCallback(async (connection: Connection) => {
     if (!user || !connection.source || !connection.target) return;
-    const { data: edge, error } = await (supabase.from("funnel_edges") as any)
+    const { data: edge, error } = await supabase.from("funnel_edges")
       .insert({ funnel_id: funnelId, user_id: user.id, source_node_id: connection.source, target_node_id: connection.target })
       .select().single();
     if (error) return toast.error("Erro ao criar conexão");
     setEdges(eds => addEdge({ ...connection, id: edge.id, animated: true, style: { stroke: "hsl(0 0% 40%)" } }, eds));
   }, [user, funnelId, setEdges]);
 
-  const onNodeDragStop = useCallback((_: any, node: Node) => {
+  const onNodeDragStop = useCallback((_: MouseEvent | TouchEvent, node: Node) => {
     if (!user) return;
     const existing = debounceMap.current.get(node.id);
     if (existing) clearTimeout(existing);
     debounceMap.current.set(node.id, setTimeout(async () => {
-      await (supabase.from("funnel_nodes") as any)
+      await supabase.from("funnel_nodes")
         .update({ position_x: node.position.x, position_y: node.position.y })
         .eq("id", node.id);
       debounceMap.current.delete(node.id);
@@ -156,7 +156,7 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   const handleAddNode = async (type: string) => {
     if (!user) return;
     const config = getNodeConfig(type);
-    const { data: node, error } = await (supabase.from("funnel_nodes") as any)
+    const { data: node, error } = await supabase.from("funnel_nodes")
       .insert({ funnel_id: funnelId, user_id: user.id, title: config.label, node_type: type, position_x: 250 + Math.random() * 200, position_y: 150 + Math.random() * 200 })
       .select().single();
     if (error) return toast.error("Erro ao criar nó");
@@ -191,7 +191,7 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
       link: nodeForm.link || null,
       status: nodeForm.status,
     };
-    const { error } = await (supabase.from("funnel_nodes") as any).update(payload).eq("id", editNode.id);
+    const { error } = await supabase.from("funnel_nodes").update(payload).eq("id", editNode.id);
     if (error) return toast.error("Erro ao salvar");
     setNodes(nds => nds.map(n => n.id === editNode.id ? { ...n, data: { ...n.data, ...payload } } : n));
     setEditNode(null);
@@ -201,8 +201,8 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   const handleDeleteNode = async () => {
     if (!deleteNodeId) return;
     // Delete edges first
-    await (supabase.from("funnel_edges") as any).delete().or(`source_node_id.eq.${deleteNodeId},target_node_id.eq.${deleteNodeId}`);
-    await (supabase.from("funnel_nodes") as any).delete().eq("id", deleteNodeId);
+    await supabase.from("funnel_edges").delete().or(`source_node_id.eq.${deleteNodeId},target_node_id.eq.${deleteNodeId}`);
+    await supabase.from("funnel_nodes").delete().eq("id", deleteNodeId);
     setNodes(nds => nds.filter(n => n.id !== deleteNodeId));
     setEdges(eds => eds.filter(e => e.source !== deleteNodeId && e.target !== deleteNodeId));
     setDeleteNodeId(null);
@@ -210,15 +210,15 @@ export function FunnelCanvas({ funnelId, onBack, funnelTitle }: FunnelCanvasProp
   };
 
   const handleDeleteEdge = async (edgeId: string) => {
-    await (supabase.from("funnel_edges") as any).delete().eq("id", edgeId);
+    await supabase.from("funnel_edges").delete().eq("id", edgeId);
     setEdges(eds => eds.filter(e => e.id !== edgeId));
   };
 
-  const onNodeDoubleClick = useCallback((_: any, node: Node<FunnelNodeData>) => {
+  const onNodeDoubleClick = useCallback((_: MouseEvent | TouchEvent, node: Node<FunnelNodeData>) => {
     openEditNode(node);
   }, []);
 
-  const onEdgeDoubleClick = useCallback((_: any, edge: Edge) => {
+  const onEdgeDoubleClick = useCallback((_: MouseEvent | TouchEvent, edge: Edge) => {
     handleDeleteEdge(edge.id);
   }, []);
 

@@ -3,7 +3,10 @@ type Graph = (
   path: string,
   token: string,
   params?: Record<string, string>,
-) => Promise<any>;
+) => Promise<Record<string, unknown>>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 export function connectionInput(token: unknown, id?: unknown) {
   if (typeof token !== "string" || !token.trim() || token.trim().length > 4096)
     throw new Error("invalid_connection");
@@ -19,9 +22,10 @@ export async function checkProfile(
   connectionInput(token, id);
   const permissions = await graph("me/permissions", token);
   const granted = new Set(
-    (permissions.data ?? [])
-      .filter((p: { status: string }) => p.status === "granted")
-      .map((p: { permission: string }) => p.permission),
+    (Array.isArray(permissions.data) ? permissions.data : [])
+      .filter((permission) => isRecord(permission) && permission.status === "granted")
+      .map((permission) => isRecord(permission) ? permission.permission : null)
+      .filter((permission): permission is string => typeof permission === "string"),
   );
   if (
     !granted.has("instagram_basic") ||
@@ -55,12 +59,18 @@ export async function discoverProfiles(
       limit: "100",
       ...(after ? { after } : {}),
     });
-    for (const item of response.data ?? []) {
-      const p = item.instagram_business_account;
-      if (p?.id && p?.username)
-        result.set(p.id, { id: p.id, username: p.username });
+    for (const item of Array.isArray(response.data) ? response.data : []) {
+      if (!isRecord(item)) continue;
+      const account = item.instagram_business_account;
+      if (!isRecord(account)) continue;
+      const id = account.id;
+      const username = account.username;
+      if (typeof id === "string" && typeof username === "string" && username)
+        result.set(id, { id, username });
     }
-    after = response.paging?.next ? response.paging?.cursors?.after : undefined;
+    const paging = isRecord(response.paging) ? response.paging : undefined;
+    const cursors = paging && isRecord(paging.cursors) ? paging.cursors : undefined;
+    after = paging?.next && typeof cursors?.after === "string" ? cursors.after : undefined;
     if (!after) break;
   }
   return [...result.values()];

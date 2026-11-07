@@ -22,11 +22,11 @@ describe("Subtarefas", () => {
     fireEvent.click(screen.getByLabelText("Salvar subtarefa"));
     await waitFor(() => expect(screen.getByText("Publicar")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Concluir subtarefa: Publicar"));
-    await waitFor(() => expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1"));
+    await waitFor(() => expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50"));
     await waitFor(() => expect(screen.getByLabelText("Excluir subtarefa: Publicar")).toBeEnabled());
     fireEvent.click(screen.getByLabelText("Excluir subtarefa: Publicar"));
     await waitFor(() => expect(screen.queryByText("Publicar")).not.toBeInTheDocument());
-    expect(screen.getByText("0/1 concluídas")).toBeInTheDocument();
+    expect(screen.getByText("0/1 · 0%")).toBeInTheDocument();
   });
 
   it("retains the draft after a failed save and prevents simultaneous writes", async () => {

@@ -24,6 +24,13 @@ export interface Config {
   encryptionKey?: string;
   workerSecret?: string;
 }
+interface TikTokAccount {
+  id: string;
+  user_id: string;
+  credentials: string | null;
+  expires_at: string;
+  reconnect_required: boolean;
+}
 export function createTikTokHandler(
   db: SupabaseClient,
   config: Config,
@@ -54,7 +61,7 @@ export function createTikTokHandler(
       reconnect_required: false,
     };
   }
-  async function account(id: unknown, user: string) {
+  async function account(id: unknown, user: string): Promise<TikTokAccount> {
     if (!uuid(id)) throw new TikTokError("invalid_account");
     const a = checked(
       await db
@@ -65,7 +72,7 @@ export function createTikTokHandler(
         .maybeSingle(),
     );
     if (!a) throw new TikTokError("account_missing", 404);
-    return a;
+    return a as TikTokAccount;
   }
   async function lock<T>(id: string, run: () => Promise<T>): Promise<T> {
     const token = crypto.randomUUID();
@@ -83,8 +90,8 @@ export function createTikTokHandler(
       );
     }
   }
-  async function access(a: Record<string, any>): Promise<string> {
-    a = await account(a.id, a.user_id);
+  async function access(accountRef: Pick<TikTokAccount, "id" | "user_id">): Promise<string> {
+    const a = await account(accountRef.id, accountRef.user_id);
     if (a.reconnect_required || !a.credentials)
       throw new TikTokError("reconnect_required", 401);
     try {
@@ -124,7 +131,7 @@ export function createTikTokHandler(
       throw e;
     }
   }
-  async function revoke(a: Record<string, any>) {
+  async function revoke(a: TikTokAccount) {
     if (!a.credentials) return;
     try {
       const value: Tokens = JSON.parse(
