@@ -1,0 +1,839 @@
+From bc4ed68aca21c06c42c2146cd6dab4caea09f107 Mon Sep 17 00:00:00 2001
+From: vkalves <264537240+vkalves@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 07:39:58 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20m=C3=B3dulo=20Agonia=20Pro=20(ag=C3=AAn?=
+ =?UTF-8?q?cia=20de=20modelos)=20e=20anima=C3=A7=C3=A3o=20de=20login?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ src/App.tsx                                |   3 +
+ src/components/layout/AppLayout.tsx        |   3 +-
+ src/components/layout/LoginTransition.tsx  |  34 ++
+ src/components/layout/login-transition.css |  50 +++
+ src/features/agonia/agonia.css             |  44 +++
+ src/features/agonia/schedule.test.ts       |  39 ++
+ src/features/agonia/schedule.ts            | 115 ++++++
+ src/pages/Agonia.tsx                       | 408 +++++++++++++++++++++
+ src/pages/Auth.tsx                         |  13 +-
+ 9 files changed, 706 insertions(+), 3 deletions(-)
+ create mode 100644 src/components/layout/LoginTransition.tsx
+ create mode 100644 src/components/layout/login-transition.css
+ create mode 100644 src/features/agonia/agonia.css
+ create mode 100644 src/features/agonia/schedule.test.ts
+ create mode 100644 src/features/agonia/schedule.ts
+ create mode 100644 src/pages/Agonia.tsx
+
+diff --git a/src/App.tsx b/src/App.tsx
+index 9123de5..6bca9ce 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -15,6 +15,7 @@ const XPublisher = lazy(() => import("./pages/XPublisher"));
+ const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
+ const InstagramPublisher = lazy(() => import("./pages/InstagramPublisher"));
+ const Dashboard = lazy(() => import("./pages/Dashboard"));
++const Agonia = lazy(() => import("./pages/Agonia"));
+ const Tarefas = lazy(() => import("./pages/Tarefas"));
+ const Notas = lazy(() => import("./pages/Notas"));
+ const Slides = lazy(() => import("./pages/Slides"));
+@@ -60,6 +61,8 @@ const App = () => (
+               <Route path="/instagram" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
+               <Route path="/instagram/*" element={<Navigate to="/instagram" replace />} />
+               <Route path="/instagram/publicar" element={<ProtectedRoute><InstagramPublisher /></ProtectedRoute>} />
++              <Route path="/agonia" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
++              <Route path="/agonia/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+               <Route path="/x" element={<ProtectedRoute standalone><XPublisher /></ProtectedRoute>} />
+               <Route path="/config" element={<ProtectedRoute><Config /></ProtectedRoute>} />
+               <Route path="*" element={<NotFound />} />
+diff --git a/src/components/layout/AppLayout.tsx b/src/components/layout/AppLayout.tsx
+index 2f25371..161693b 100644
+--- a/src/components/layout/AppLayout.tsx
++++ b/src/components/layout/AppLayout.tsx
+@@ -4,7 +4,7 @@ import { Shortcuts } from "@/components/shortcuts/Shortcuts";
+ import {
+   LayoutDashboard, CheckSquare, StickyNote, Settings,
+   Search, Menu, ChevronLeft, LogOut, Instagram,
+-  Music2, Network, Presentation, X,
++  Music2, Network, Presentation, X, Sparkles,
+ } from "lucide-react";
+ import { NavLink, useLocation } from "react-router-dom";
+ import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
+@@ -29,6 +29,7 @@ const navItems = [
+   { title: "Mapas", path: "/mapas", icon: Network },
+   { title: "Slides", path: "/slides", icon: Presentation },
+   { title: "Instagram", path: "/instagram", icon: Instagram },
++  { title: "Agonia Pro", path: "/agonia", icon: Sparkles },
+   { title: "TikTok", path: "/tiktok", icon: Music2 },
+   { title: "X", path: "/x", icon: XLogoIcon },
+   { title: "Configurações", path: "/config", icon: Settings },
+diff --git a/src/components/layout/LoginTransition.tsx b/src/components/layout/LoginTransition.tsx
+new file mode 100644
+index 0000000..6efbd25
+--- /dev/null
++++ b/src/components/layout/LoginTransition.tsx
+@@ -0,0 +1,34 @@
++import { useEffect } from "react";
++import { SilverBrand } from "./SilverBrand";
++import "./login-transition.css";
++
++const DURATION_MS = 2400;
++const REDUCED_MS = 700;
++
++/** Tela de transição exibida após um login bem-sucedido. */
++export function LoginTransition({ name, onDone }: { name: string; onDone: () => void }) {
++  useEffect(() => {
++    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
++    const timer = window.setTimeout(onDone, reduced ? REDUCED_MS : DURATION_MS);
++    return () => window.clearTimeout(timer);
++  }, [onDone]);
++
++  return (
++    <div className="login-transition" role="status" aria-live="polite" aria-label={`Entrando como ${name}`}>
++      <div className="login-transition-glow" aria-hidden="true" />
++      <div className="login-transition-center">
++        <div className="login-transition-ring">
++          <svg viewBox="0 0 120 120" aria-hidden="true">
++            <circle className="login-transition-track" cx="60" cy="60" r="54" />
++            <circle className="login-transition-arc" cx="60" cy="60" r="54" pathLength={100} />
++          </svg>
++          <SilverBrand compact />
++        </div>
++        <p className="login-transition-hello">Bem-vindo de volta,</p>
++        <h2 className="login-transition-name">{name}</h2>
++        <p className="login-transition-sub">Preparando seu espaço…</p>
++      </div>
++      <span className="login-transition-bar" aria-hidden="true" />
++    </div>
++  );
++}
+diff --git a/src/components/layout/login-transition.css b/src/components/layout/login-transition.css
+new file mode 100644
+index 0000000..8fdc09d
+--- /dev/null
++++ b/src/components/layout/login-transition.css
+@@ -0,0 +1,50 @@
++.login-transition {
++  position: fixed;
++  inset: 0;
++  z-index: 200;
++  display: grid;
++  place-items: center;
++  overflow: hidden;
++  background: #0a0a0b;
++  color: #f4f3f0;
++  animation: lt-in .35s ease-out both;
++}
++.login-transition-glow {
++  position: absolute;
++  width: 70vmax;
++  height: 70vmax;
++  border-radius: 50%;
++  background: radial-gradient(closest-side, #dedbd61f, #dedbd600);
++  animation: lt-glow 2.4s ease-in-out both;
++}
++.login-transition-center { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px; }
++.login-transition-ring { position: relative; display: grid; place-items: center; width: 132px; height: 132px; animation: lt-pop .7s cubic-bezier(.2,.8,.2,1) both; }
++.login-transition-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
++.login-transition-ring circle { fill: none; stroke-width: 2; }
++.login-transition-track { stroke: #ffffff14; }
++.login-transition-arc { stroke: #dedbd6; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; filter: drop-shadow(0 0 6px #dedbd680); animation: lt-draw 1.7s .25s cubic-bezier(.5,0,.2,1) forwards; }
++.login-transition-ring .silver-brand img { width: 56px; height: 56px; }
++.login-transition-hello { margin-top: 34px; color: #a7a6a3; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; animation: lt-up .6s .5s ease-out both; }
++.login-transition-name { margin-top: 8px; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(28px, 5vw, 44px); font-weight: 500; letter-spacing: -1.4px; animation: lt-up .6s .7s ease-out both; }
++.login-transition-sub { margin-top: 14px; color: #8b8b89; font-size: 12px; animation: lt-up .6s .95s ease-out both; }
++.login-transition-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, transparent, #dedbd6, transparent); transform-origin: left; animation: lt-bar 2.2s ease-in-out both; }
++
++@keyframes lt-in { from { opacity: 0; } to { opacity: 1; } }
++@keyframes lt-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
++@keyframes lt-draw { to { stroke-dashoffset: 0; } }
++@keyframes lt-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
++@keyframes lt-glow { 0% { opacity: 0; transform: scale(.6); } 50% { opacity: 1; } 100% { opacity: .6; transform: scale(1.1); } }
++@keyframes lt-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
++
++/* Entrada suave do formulário de login */
++.auth-card > * { animation: lt-up .55s ease-out both; }
++.auth-card > :nth-child(2) { animation-delay: .06s; }
++.auth-card > :nth-child(3) { animation-delay: .12s; }
++.auth-card > :nth-child(4) { animation-delay: .18s; }
++.auth-card > :nth-child(5) { animation-delay: .24s; }
++.auth-story-content { animation: lt-up .7s .1s ease-out both; }
++
++@media (prefers-reduced-motion: reduce) {
++  .login-transition, .login-transition *, .auth-card > *, .auth-story-content { animation-duration: .01ms !important; animation-delay: 0s !important; }
++  .login-transition-arc { stroke-dashoffset: 0; }
++}
+diff --git a/src/features/agonia/agonia.css b/src/features/agonia/agonia.css
+new file mode 100644
+index 0000000..54624ad
+--- /dev/null
++++ b/src/features/agonia/agonia.css
+@@ -0,0 +1,44 @@
++.ag{max-width:1180px;margin:auto;min-width:0}
++.ag-header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:22px}
++.ag-eyebrow{font-size:11px;letter-spacing:2.2px;color:#9aa1b5;margin-bottom:8px;text-transform:uppercase}
++.ag-header h1{font:300 clamp(30px,4vw,44px)/1.1 Sora,sans-serif;letter-spacing:-.04em}
++.ag-sub{margin-top:8px;color:#9aa1b5;font-size:14px;max-width:560px}
++.ag-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 18px;margin-bottom:10px}
++.ag-tabs a{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:9px 14px;border:1px solid #ffffff1a;border-radius:999px;color:#9aa1b5;font-size:13px;transition:border-color .2s,color .2s}
++.ag-tabs a:hover{color:#f4f3f0;border-color:#ffffff40}
++.ag-tabs a[aria-current=page]{background:linear-gradient(110deg,#fff,#c8cedd);color:#05050a;border-color:transparent}
++.ag-grid{display:grid;gap:18px}
++.ag-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:hidden}
++.ag-stat{text-align:left;padding:22px 24px;min-width:0}
++.ag-stat+.ag-stat{border-left:1px solid #ffffff1a}
++.ag-stat span,.ag-stat small{display:block;color:#9aa1b5;font-size:13px}
++.ag-stat strong{display:block;margin:12px 0 6px;font:300 clamp(36px,3.6vw,50px)/1.05 Sora,sans-serif;letter-spacing:-.04em}
++.ag-two{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
++.ag-panel{padding:22px;min-width:0}
++.ag-panel h2{margin-bottom:4px}
++.ag-hint{color:#9aa1b5;font-size:12px;line-height:1.6}
++.ag-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
++.ag-field{display:flex;flex-direction:column;gap:7px}
++.ag-input{width:100%;min-height:42px;border:1px solid hsl(var(--input));border-radius:10px;background:hsl(var(--background));padding:9px 12px;font-size:14px;color:inherit}
++.ag-input:focus{outline:2px solid hsl(var(--ring)/.5);outline-offset:1px}
++.ag-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
++.ag-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #ffffff14;border-radius:12px;min-width:0}
++.ag-row>div{min-width:0}
++.ag-row strong{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis}
++.ag-row small{display:block;color:#9aa1b5;font-size:12px}
++.ag-pick{cursor:pointer;transition:border-color .2s,background .2s}
++.ag-pick:hover{background:#ffffff08}
++.ag-pick.is-on{border-color:#dedbd6}
++.ag-pick input{accent-color:#dedbd6;width:16px;height:16px}
++.ag-badge{flex-shrink:0;padding:4px 9px;border-radius:999px;border:1px solid #ffffff1f;font-size:11px;color:#c9ced9}
++.ag-badge.ok{color:hsl(var(--success));border-color:hsl(var(--success)/.4)}
++.ag-badge.warn{color:hsl(var(--warning));border-color:hsl(var(--warning)/.4)}
++.ag-badge.bad{color:hsl(var(--destructive));border-color:hsl(var(--destructive)/.5)}
++.ag-empty{padding:34px 12px;text-align:center;color:#9aa1b5;font-size:14px}
++.ag-picker-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
++.ag-picker-scroll{max-height:320px;overflow:auto;padding-right:4px}
++.ag-steps{counter-reset:s;display:flex;flex-direction:column;gap:10px;margin-top:14px}
++.ag-steps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;font-size:14px}
++.ag-steps li::before{content:counter(s);flex-shrink:0;width:24px;height:24px;border-radius:50%;border:1px solid #ffffff30;display:grid;place-items:center;font-size:12px;color:#c9ced9}
++@media(max-width:900px){.ag-two{grid-template-columns:1fr}}
++@media(max-width:767px){.ag-header{align-items:flex-start;flex-direction:column}.ag-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ag-stat{padding:18px}.ag-stat:nth-child(3){border-left:0}.ag-stat:nth-child(n+3){border-top:1px solid #ffffff1a}}
+diff --git a/src/features/agonia/schedule.test.ts b/src/features/agonia/schedule.test.ts
+new file mode 100644
+index 0000000..4d5432c
+--- /dev/null
++++ b/src/features/agonia/schedule.test.ts
+@@ -0,0 +1,39 @@
++import { describe, expect, it } from "vitest";
++import { buildSchedule, clampInterval, localToUtcIso } from "./schedule";
++
++describe("agonia schedule", () => {
++  it("converte horário de São Paulo (UTC-3) para UTC", () => {
++    expect(localToUtcIso("2026-11-10T09:30", "America/Sao_Paulo")).toBe(
++      "2026-11-10T12:30:00.000Z",
++    );
++  });
++  it("respeita horário de verão em Nova York", () => {
++    expect(localToUtcIso("2026-07-01T12:00", "America/New_York")).toBe(
++      "2026-07-01T16:00:00.000Z",
++    );
++    expect(localToUtcIso("2026-12-01T12:00", "America/New_York")).toBe(
++      "2026-12-01T17:00:00.000Z",
++    );
++  });
++  it("UTC não altera", () => {
++    expect(localToUtcIso("2026-11-10T09:30", "UTC")).toBe(
++      "2026-11-10T09:30:00.000Z",
++    );
++  });
++  it("rejeita data inválida", () => {
++    expect(() => localToUtcIso("amanhã", "UTC")).toThrow();
++  });
++  it("distribui contas com intervalo", () => {
++    const rows = buildSchedule(["a", "b", "c"], "2026-11-10T12:00:00.000Z", 5);
++    expect(rows.map((r) => r.scheduledAt)).toEqual([
++      "2026-11-10T12:00:00.000Z",
++      "2026-11-10T12:05:00.000Z",
++      "2026-11-10T12:10:00.000Z",
++    ]);
++  });
++  it("limita o intervalo", () => {
++    expect(clampInterval(-4)).toBe(0);
++    expect(clampInterval(99999)).toBe(1440);
++    expect(clampInterval("abc")).toBe(5);
++  });
++});
+diff --git a/src/features/agonia/schedule.ts b/src/features/agonia/schedule.ts
+new file mode 100644
+index 0000000..762bed2
+--- /dev/null
++++ b/src/features/agonia/schedule.ts
+@@ -0,0 +1,115 @@
++export const TIMEZONES = [
++  "America/Sao_Paulo",
++  "America/New_York",
++  "Europe/Lisbon",
++  "UTC",
++] as const;
++
++export type AgoniaSettings = {
++  timezone: string;
++  intervalMinutes: number;
++  defaultCaption: string;
++};
++
++export const DEFAULT_SETTINGS: AgoniaSettings = {
++  timezone: "America/Sao_Paulo",
++  intervalMinutes: 5,
++  defaultCaption: "",
++};
++
++const storageKey = (userId: string) => `agonia:settings:${userId}`;
++
++export function loadSettings(userId: string | undefined): AgoniaSettings {
++  if (!userId || typeof localStorage === "undefined") return DEFAULT_SETTINGS;
++  try {
++    const raw = JSON.parse(localStorage.getItem(storageKey(userId)) || "{}");
++    return {
++      timezone:
++        typeof raw.timezone === "string" && isValidTimezone(raw.timezone)
++          ? raw.timezone
++          : DEFAULT_SETTINGS.timezone,
++      intervalMinutes: clampInterval(raw.intervalMinutes),
++      defaultCaption:
++        typeof raw.defaultCaption === "string"
++          ? raw.defaultCaption.slice(0, 2200)
++          : "",
++    };
++  } catch {
++    return DEFAULT_SETTINGS;
++  }
++}
++
++export function saveSettings(userId: string, settings: AgoniaSettings) {
++  localStorage.setItem(
++    storageKey(userId),
++    JSON.stringify({
++      ...settings,
++      intervalMinutes: clampInterval(settings.intervalMinutes),
++    }),
++  );
++}
++
++export function clampInterval(value: unknown) {
++  const n = Math.round(Number(value));
++  if (!Number.isFinite(n)) return DEFAULT_SETTINGS.intervalMinutes;
++  // A Meta/o backend exigem pelo menos 3 min entre mídias da mesma conta;
++  // para contas diferentes aceitamos 0 (todas no mesmo minuto).
++  return Math.min(1440, Math.max(0, n));
++}
++
++export function isValidTimezone(tz: string) {
++  try {
++    new Intl.DateTimeFormat("en-US", { timeZone: tz });
++    return true;
++  } catch {
++    return false;
++  }
++}
++
++function offsetMinutes(utcMs: number, timeZone: string) {
++  const parts = new Intl.DateTimeFormat("en-US", {
++    timeZone,
++    hourCycle: "h23",
++    year: "numeric",
++    month: "2-digit",
++    day: "2-digit",
++    hour: "2-digit",
++    minute: "2-digit",
++    second: "2-digit",
++  }).formatToParts(new Date(utcMs));
++  const get = (type: string) =>
++    Number(parts.find((p) => p.type === type)?.value);
++  const asUtc = Date.UTC(
++    get("year"),
++    get("month") - 1,
++    get("day"),
++    get("hour"),
++    get("minute"),
++    get("second"),
++  );
++  return (asUtc - Math.floor(utcMs / 1000) * 1000) / 60000;
++}
++
++/** Converte "YYYY-MM-DDTHH:mm" no fuso informado para um ISO UTC. */
++export function localToUtcIso(local: string, timeZone: string) {
++  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
++  if (!m) throw new Error("Informe uma data válida.");
++  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
++  let guess = wall - offsetMinutes(wall, timeZone) * 60000;
++  guess = wall - offsetMinutes(guess, timeZone) * 60000;
++  return new Date(guess).toISOString();
++}
++
++/** Distribui as contas a partir de `startIso`, uma a cada `intervalMinutes`. */
++export function buildSchedule(
++  accountIds: string[],
++  startIso: string,
++  intervalMinutes: number,
++) {
++  const start = Date.parse(startIso);
++  const step = clampInterval(intervalMinutes) * 60000;
++  return accountIds.map((accountId, index) => ({
++    accountId,
++    scheduledAt: new Date(start + index * step).toISOString(),
++  }));
++}
+diff --git a/src/pages/Agonia.tsx b/src/pages/Agonia.tsx
+new file mode 100644
+index 0000000..0d3be86
+--- /dev/null
++++ b/src/pages/Agonia.tsx
+@@ -0,0 +1,408 @@
++import { useEffect, useMemo, useState } from "react";
++import { Link, Navigate, useParams } from "react-router-dom";
++import { useQuery, useQueryClient } from "@tanstack/react-query";
++import {
++  CalendarClock, CheckCircle2, Clapperboard, Download, Images, LayoutDashboard,
++  Link2, Loader2, Settings, Users, Send, PauseCircle, PlayCircle, ShieldCheck, LogOut,
++} from "lucide-react";
++import { toast } from "sonner";
++import { useAuth } from "@/contexts/AuthContext";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { Textarea } from "@/components/ui/textarea";
++import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
++import { LocalMediaPreviews } from "@/features/instagram-publisher/LocalMediaPreviews";
++import { MediaPreview } from "@/features/instagram-publisher/MediaPreview";
++import { publishedToday } from "@/features/instagram-publisher/HotfyDashboard";
++import { playConfirmation, unlockAudio } from "@/features/instagram-publisher/sound";
++import {
++  cancelPost, connections, listAccounts, listPosts, publisherRequest, savePost, uploadMedia,
++} from "@/features/instagram-publisher/api";
++import type { Connection } from "@/features/instagram-publisher/api";
++import type { Format, Post } from "@/features/instagram-publisher/model";
++import {
++  TIMEZONES, buildSchedule, clampInterval, loadSettings, localToUtcIso, saveSettings,
++  type AgoniaSettings,
++} from "@/features/agonia/schedule";
++import "@/features/agonia/agonia.css";
++
++type Account = { id: string; username: string };
++
++const TABS = [
++  { slug: "", label: "Dashboard", icon: LayoutDashboard },
++  { slug: "modelos", label: "Modelos", icon: Users },
++  { slug: "reels", label: "Novo Reel", icon: Clapperboard },
++  { slug: "stories", label: "Stories", icon: Images },
++  { slug: "stories-link", label: "Stories com link", icon: Link2 },
++  { slug: "agendamentos", label: "Agendamentos", icon: CalendarClock },
++  { slug: "publicados", label: "Publicados", icon: CheckCircle2 },
++  { slug: "config", label: "Configurações", icon: Settings },
++] as const;
++
++const STATUS: Record<Post["status"], { label: string; tone: "ok" | "warn" | "bad" | "" }> = {
++  draft: { label: "Rascunho", tone: "" },
++  waiting_integration: { label: "Revisar e agendar", tone: "warn" },
++  cancelled: { label: "Cancelado", tone: "" },
++  scheduled: { label: "Agendado", tone: "warn" },
++  processing: { label: "Processando", tone: "warn" },
++  published: { label: "Publicado", tone: "ok" },
++  failed: { label: "Falhou", tone: "bad" },
++  uncertain: { label: "Conferir no Instagram", tone: "bad" },
++};
++
++const fmtDate = (iso: string | null | undefined, tz: string) =>
++  iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: tz, dateStyle: "short", timeStyle: "short" }) : "—";
++
++function useAgonia() {
++  const { user } = useAuth();
++  const cache = useQueryClient();
++  const accountsQ = useQuery({ queryKey: ["instagram-publisher-accounts", user?.id], queryFn: () => listAccounts(user!.id), enabled: !!user });
++  const postsQ = useQuery({ queryKey: ["instagram-publisher", user?.id], queryFn: () => listPosts(user!.id), enabled: !!user, refetchInterval: 30000 });
++  const linksQ = useQuery({ queryKey: ["ig-connections", user?.id], queryFn: connections, enabled: !!user, refetchInterval: 30000 });
++  const refresh = () => Promise.all([
++    cache.invalidateQueries({ queryKey: ["instagram-publisher-accounts", user?.id] }),
++    cache.invalidateQueries({ queryKey: ["instagram-publisher", user?.id] }),
++    cache.invalidateQueries({ queryKey: ["ig-connections", user?.id] }),
++  ]);
++  return {
++    user, refresh,
++    accounts: (accountsQ.data ?? []) as Account[],
++    posts: postsQ.data ?? [],
++    links: linksQ.data ?? [],
++    loading: accountsQ.isLoading || postsQ.isLoading,
++    error: accountsQ.isError || postsQ.isError,
++  };
++}
++type Ctx = ReturnType<typeof useAgonia> & { settings: AgoniaSettings };
++
++const linkOf = (links: Connection[], id: string) => links.find((c) => c.account_id === id);
++const isReady = (links: Connection[], id: string) => {
++  const c = linkOf(links, id);
++  return !!c && !c.paused && !c.reconnect_required;
++};
++const accStatus = (links: Connection[], id: string) => {
++  const c = linkOf(links, id);
++  if (!c) return { label: "Sem conexão", tone: "bad" as const };
++  if (c.reconnect_required) return { label: "Reconectar", tone: "bad" as const };
++  if (c.paused) return { label: "Pausada", tone: "warn" as const };
++  return { label: "Pronta", tone: "ok" as const };
++};
++
++function Dashboard({ accounts, posts, links, settings, loading }: Ctx) {
++  const pending = posts.filter((p) => ["scheduled", "processing"].includes(p.status))
++    .sort((a, b) => Date.parse(a.scheduled_at || "") - Date.parse(b.scheduled_at || ""));
++  const name = (id: string) => "@" + (accounts.find((a) => a.id === id)?.username ?? "modelo");
++  const stats = [
++    ["Modelos conectadas", accounts.length, `${accounts.filter((a) => isReady(links, a.id)).length} prontas para publicar`],
++    ["Na fila", pending.length, "agendados e em processamento"],
++    ["Publicados hoje", posts.filter((p) => publishedToday(p)).length, "confirmados pela Meta"],
++    ["Com atenção", posts.filter((p) => ["failed", "uncertain"].includes(p.status)).length, "falhas ou resultado incerto"],
++  ] as const;
++  return (
++    <div className="ag-grid">
++      <section className="operation-panel ag-stats" aria-label="Resumo">
++        {stats.map(([title, value, hint]) => (
++          <div className="ag-stat" key={title}>
++            <span>{title}</span><strong>{loading ? "…" : value}</strong><small>{hint}</small>
++          </div>
++        ))}
++      </section>
++      <div className="ag-two">
++        <section className="operation-panel ag-panel">
++          <h2>Próximos envios</h2>
++          <p className="ag-hint">Horários no fuso {settings.timezone}.</p>
++          <div className="ag-list">
++            {pending.slice(0, 8).map((p) => (
++              <div className="ag-row" key={p.id}>
++                <div><strong>{name(p.account_id)}</strong><small>{p.format} · {fmtDate(p.scheduled_at, settings.timezone)}</small></div>
++                <span className={`ag-badge ${STATUS[p.status].tone}`}>{STATUS[p.status].label}</span>
++              </div>
++            ))}
++            {!loading && !pending.length && <p className="ag-empty">Nenhum envio agendado.</p>}
++          </div>
++        </section>
++        <section className="operation-panel ag-panel">
++          <h2>Ações rápidas</h2>
++          <p className="ag-hint">Publique em várias modelos de uma vez, com intervalo entre elas.</p>
++          <div className="ag-actions">
++            <Button asChild><Link to="/agonia/reels"><Clapperboard className="mr-2 h-4 w-4" />Novo Reel</Link></Button>
++            <Button asChild variant="outline"><Link to="/agonia/stories"><Images className="mr-2 h-4 w-4" />Novo Story</Link></Button>
++            <Button asChild variant="outline"><Link to="/agonia/modelos"><Users className="mr-2 h-4 w-4" />Gerenciar modelos</Link></Button>
++          </div>
++        </section>
++      </div>
++    </div>
++  );
++}
++
++function Models({ accounts, links, user, refresh, loading }: Ctx) {
++  const [busy, setBusy] = useState<string | null>(null);
++  async function run(key: string, fn: () => Promise<void>) {
++    setBusy(key);
++    try { await fn(); await refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível concluir."); } finally { setBusy(null); }
++  }
++  return (
++    <section className="operation-panel ag-panel">
++      <div className="ag-picker-head">
++        <div><h2>Modelos e contas</h2><p className="ag-hint">Cada perfil profissional do Instagram conectado representa uma modelo da agência.</p></div>
++        <ConnectAccount onConnected={async () => { await refresh(); }} />
++      </div>
++      <div className="ag-list">
++        {loading && <p className="ag-empty">Carregando…</p>}
++        {accounts.map((a) => {
++          const s = accStatus(links, a.id);
++          const c = linkOf(links, a.id);
++          return (
++            <div className="ag-row" key={a.id}>
++              <div><strong>@{a.username}</strong><small>Instagram profissional</small></div>
++              <div className="flex flex-wrap items-center justify-end gap-2">
++                <span className={`ag-badge ${s.tone}`}>{s.label}</span>
++                <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => run("v" + a.id, async () => {
++                  const d = await publisherRequest<{ username: string }>("verify", { account_id: a.id });
++                  toast.success("Acesso confirmado: @" + d.username);
++                })}>
++                  {busy === "v" + a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-1 h-4 w-4" />}Verificar
++                </Button>
++                {c && <Button size="sm" variant="ghost" disabled={busy !== null || !user} onClick={() => run("p" + a.id, async () => {
++                  await publisherRequest("pause", { account_id: a.id, paused: !c.paused });
++                })}>
++                  {c.paused ? <PlayCircle className="mr-1 h-4 w-4" /> : <PauseCircle className="mr-1 h-4 w-4" />}{c.paused ? "Retomar" : "Pausar"}
++                </Button>}
++              </div>
++            </div>
++          );
++        })}
++        {!loading && !accounts.length && <p className="ag-empty">Nenhuma modelo conectada. Use “Conectar conta” para começar.</p>}
++      </div>
++    </section>
++  );
++}
++
++function Composer({ format, accounts, links, user, settings, refresh, loading }: Ctx & { format: Extract<Format, "Reel" | "Story"> }) {
++  const [selected, setSelected] = useState<string[]>([]);
++  const [caption, setCaption] = useState(format === "Reel" ? settings.defaultCaption : "");
++  const [media, setMedia] = useState("");
++  const [files, setFiles] = useState<File[]>([]);
++  const [when, setWhen] = useState("");
++  const [interval, setIntervalMin] = useState(settings.intervalMinutes);
++  const [busy, setBusy] = useState(false);
++  const [uploading, setUploading] = useState(false);
++  const ready = useMemo(() => accounts.filter((a) => isReady(links, a.id)), [accounts, links]);
++  const mediaList = media.split("\n").map((v) => v.trim()).filter(Boolean);
++  const allOn = ready.length > 0 && selected.length === ready.length;
++  useEffect(() => { setSelected((cur) => cur.filter((id) => ready.some((a) => a.id === id))); }, [ready]);
++
++  async function onFile(list: FileList | null) {
++    unlockAudio();
++    const picked = Array.from(list ?? []).slice(0, 1);
++    if (!picked.length || !user) return;
++    setFiles(picked); setUploading(true);
++    try {
++      const urls = await uploadMedia(picked, user.id);
++      setMedia(urls.join("\n"));
++      if (picked[0].type === "video/mp4") playConfirmation("uploaded");
++    } catch (e) { toast.error(e instanceof Error ? e.message : "Falha no upload."); }
++    finally { setUploading(false); setFiles([]); }
++  }
++
++  async function submit() {
++    if (!user) return;
++    unlockAudio();
++    if (!selected.length) return toast.error("Selecione ao menos uma conta.");
++    if (!mediaList.length) return toast.error("Adicione um vídeo ou imagem.");
++    if (format === "Reel" && mediaList.some((m) => /\.(jpe?g|png)(\?|$)/i.test(m))) return toast.error("Reels precisam de vídeo MP4.");
++    setBusy(true);
++    try {
++      const start = when ? localToUtcIso(when, settings.timezone) : new Date(Date.now() + 2 * 60000).toISOString();
++      const plan = buildSchedule(selected, start, interval);
++      let ok = 0; const failed: string[] = [];
++      for (const row of plan) {
++        try {
++          await savePost({ id: crypto.randomUUID(), user_id: user.id, account_id: row.accountId, caption, format, media_urls: mediaList, scheduled_at: row.scheduledAt, status: "scheduled" });
++          ok++;
++        } catch (e) {
++          failed.push("@" + (accounts.find((a) => a.id === row.accountId)?.username ?? "conta") + ": " + (e instanceof Error ? e.message : "erro"));
++        }
++      }
++      await refresh();
++      if (ok) { playConfirmation("scheduled"); toast.success(`${ok} ${format === "Reel" ? "Reel(s)" : "Story(s)"} agendado(s).`); }
++      failed.slice(0, 3).forEach((m) => toast.error(m));
++      if (!failed.length) { setMedia(""); setWhen(""); setSelected([]); if (format === "Story") setCaption(""); }
++      else setSelected(plan.map((p) => p.accountId).filter((id) => failed.some((f) => f.startsWith("@" + accounts.find((a) => a.id === id)?.username + ":"))));
++    } catch (e) {
++      toast.error(e instanceof Error ? e.message : "Não foi possível agendar.");
++    } finally { setBusy(false); }
++  }
++
++  const noun = format === "Reel" ? "Reel" : "Story";
++  return (
++    <div className="ag-two">
++      <section className="operation-panel ag-panel">
++        <div className="ag-picker-head">
++          <div><h2>Modelos</h2><p className="ag-hint">{selected.length} de {ready.length} pronta(s) selecionada(s)</p></div>
++          <Button size="sm" variant="outline" onClick={() => setSelected(allOn ? [] : ready.map((a) => a.id))}>{allOn ? "Limpar" : "Selecionar todas"}</Button>
++        </div>
++        <div className="ag-list ag-picker-scroll">
++          {ready.map((a) => (
++            <label key={a.id} className={`ag-row ag-pick ${selected.includes(a.id) ? "is-on" : ""}`}>
++              <div><strong>@{a.username}</strong><small>pronta para publicar</small></div>
++              <input type="checkbox" checked={selected.includes(a.id)} onChange={() => setSelected((cur) => cur.includes(a.id) ? cur.filter((x) => x !== a.id) : [...cur, a.id])} />
++            </label>
++          ))}
++          {!loading && !ready.length && <p className="ag-empty">Nenhuma conta pronta. <Link className="underline" to="/agonia/modelos">Conecte ou retome uma conta</Link>.</p>}
++        </div>
++      </section>
++      <section className="operation-panel ag-panel ag-grid">
++        <div><h2>Novo {noun}</h2><p className="ag-hint">{format === "Reel" ? "Vídeo MP4 (9:16)." : "Imagem JPG/PNG ou vídeo MP4 (conta empresarial)."} A fila é verificada a cada minuto.</p></div>
++        <div className="ag-field">
++          <Label htmlFor="ag-file">Enviar {format === "Reel" ? "vídeo" : "imagem ou vídeo"}</Label>
++          <Input id="ag-file" type="file" accept={format === "Reel" ? "video/mp4" : "image/jpeg,image/png,video/mp4"} disabled={uploading || busy} onChange={(e) => { const f = e.target.files; void onFile(f); e.target.value = ""; }} />
++          {uploading && <p className="ag-hint" role="status"><Loader2 className="mr-1 inline h-3 w-3 animate-spin" />Limpando e enviando…</p>}
++          <LocalMediaPreviews files={files} />
++          {mediaList.map((u, i) => <MediaPreview key={u + i} url={u} label={`Mídia ${i + 1}`} />)}
++        </div>
++        <div className="ag-field">
++          <Label htmlFor="ag-url">Ou link HTTPS direto</Label>
++          <Textarea id="ag-url" rows={2} placeholder="https://…" value={media} onChange={(e) => setMedia(e.target.value)} />
++        </div>
++        <div className="ag-field">
++          <Label htmlFor="ag-caption">Legenda</Label>
++          <Textarea id="ag-caption" rows={4} maxLength={2200} value={caption} onChange={(e) => setCaption(e.target.value)} />
++          <p className="ag-hint text-right">{caption.length}/2.200</p>
++        </div>
++        <div className="grid gap-3 sm:grid-cols-2">
++          <div className="ag-field"><Label htmlFor="ag-when">Início ({settings.timezone})</Label><Input id="ag-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /><p className="ag-hint">Vazio = em ~2 minutos.</p></div>
++          <div className="ag-field"><Label htmlFor="ag-int">Intervalo entre contas (min)</Label><Input id="ag-int" type="number" min={0} max={1440} value={interval} onChange={(e) => setIntervalMin(clampInterval(e.target.value))} /></div>
++        </div>
++        <Button disabled={busy || uploading || !selected.length} onClick={() => void submit()}>
++          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
++          Agendar em {selected.length || "0"} conta(s)
++        </Button>
++      </section>
++    </div>
++  );
++}
++
++function Queue({ mode, accounts, posts, settings, user, refresh, loading }: Ctx & { mode: "queue" | "done" }) {
++  const [account, setAccount] = useState("all");
++  const [busy, setBusy] = useState<string | null>(null);
++  const statuses: Post["status"][] = mode === "queue" ? ["scheduled", "processing", "draft", "waiting_integration"] : ["published", "failed", "uncertain", "cancelled"];
++  const rows = posts.filter((p) => statuses.includes(p.status) && (account === "all" || p.account_id === account))
++    .sort((a, b) => mode === "queue" ? Date.parse(a.scheduled_at || "9") - Date.parse(b.scheduled_at || "9") : Date.parse(b.published_at || b.created_at) - Date.parse(a.published_at || a.created_at));
++  const name = (id: string) => "@" + (accounts.find((a) => a.id === id)?.username ?? "modelo");
++  return (
++    <section className="operation-panel ag-panel">
++      <div className="ag-picker-head">
++        <div><h2>{mode === "queue" ? "Agendamentos" : "Publicados"}</h2><p className="ag-hint">{mode === "queue" ? "Fila persistente no servidor — publica mesmo com o navegador fechado." : "Histórico recente (até 200 itens)."}</p></div>
++        <select aria-label="Filtrar por conta" className="ag-input" style={{ maxWidth: 220 }} value={account} onChange={(e) => setAccount(e.target.value)}>
++          <option value="all">Todas as contas</option>
++          {accounts.map((a) => <option key={a.id} value={a.id}>@{a.username}</option>)}
++        </select>
++      </div>
++      <div className="ag-list">
++        {loading && <p className="ag-empty">Carregando…</p>}
++        {rows.map((p) => (
++          <div className="ag-row" key={p.id}>
++            <div>
++              <strong>{name(p.account_id)} · {p.format}</strong>
++              <small>{mode === "queue" ? fmtDate(p.scheduled_at, settings.timezone) : fmtDate(p.published_at || p.scheduled_at, settings.timezone)} · {p.caption ? p.caption.slice(0, 70) : "sem legenda"}</small>
++              {p.error_code && <small className="text-destructive">{p.status === "uncertain" ? "O envio pode ter ocorrido — confira o perfil." : "Falha no envio."} ({p.error_code})</small>}
++            </div>
++            <div className="flex items-center gap-2">
++              <span className={`ag-badge ${STATUS[p.status].tone}`}>{STATUS[p.status].label}</span>
++              {mode === "queue" && ["scheduled", "draft", "waiting_integration"].includes(p.status) && (
++                <Button size="sm" variant="ghost" disabled={busy !== null || !user} onClick={async () => {
++                  setBusy(p.id);
++                  try { await cancelPost(p, user!.id); await refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Erro ao cancelar."); } finally { setBusy(null); }
++                }}>Cancelar</Button>
++              )}
++            </div>
++          </div>
++        ))}
++        {!loading && !rows.length && <p className="ag-empty">{mode === "queue" ? "Nada na fila." : "Nenhuma publicação ainda."}</p>}
++      </div>
++    </section>
++  );
++}
++
++function StoriesLink() {
++  return (
++    <section className="operation-panel ag-panel">
++      <h2>Stories com link</h2>
++      <p className="ag-hint">A API oficial da Meta não permite sticker de link em Stories. O fluxo é feito por uma extensão de navegador, direto no Instagram Web (Chrome/Edge).</p>
++      <ol className="ag-steps">
++        <li>Instale a extensão em cada navegador ou perfil que for usar.</li>
++        <li>Extraia o ZIP em uma pasta permanente.</li>
++        <li>Abra <code>chrome://extensions</code> (ou <code>edge://extensions</code>) e ative o modo desenvolvedor.</li>
++        <li>Clique em “Carregar sem compactação” e selecione a pasta com o <code>manifest.json</code>.</li>
++        <li>Abra o Instagram, entre na conta desejada e crie o Story com o sticker de link.</li>
++      </ol>
++      <div className="ag-actions">
++        <Button disabled title="Arquivo da extensão ainda não adicionado ao projeto"><Download className="mr-2 h-4 w-4" />Baixar extensão (indisponível)</Button>
++      </div>
++      <p className="ag-hint mt-3">Para habilitar o download, coloque o ZIP da extensão em <code>public/extensions/</code> e aponte o botão para ele.</p>
++    </section>
++  );
++}
++
++function Config({ user, settings, onSave }: Ctx & { onSave: (s: AgoniaSettings) => void }) {
++  const { signOut } = useAuth();
++  const [draft, setDraft] = useState(settings);
++  const name = (user?.user_metadata?.display_name as string | undefined) || user?.email?.split("@")[0] || "Minha conta";
++  return (
++    <div className="ag-two">
++      <section className="operation-panel ag-panel ag-grid">
++        <div><h2>Preferências de publicação</h2><p className="ag-hint">Salvas neste navegador para sua conta.</p></div>
++        <div className="ag-field"><Label htmlFor="ag-tz">Fuso horário padrão</Label>
++          <select id="ag-tz" className="ag-input" value={draft.timezone} onChange={(e) => setDraft({ ...draft, timezone: e.target.value })}>{TIMEZONES.map((t) => <option key={t}>{t}</option>)}</select>
++          <p className="ag-hint">Usado para interpretar os horários agendados.</p></div>
++        <div className="ag-field"><Label htmlFor="ag-gap">Intervalo padrão entre contas (min)</Label>
++          <Input id="ag-gap" type="number" min={0} max={1440} value={draft.intervalMinutes} onChange={(e) => setDraft({ ...draft, intervalMinutes: clampInterval(e.target.value) })} /></div>
++        <div className="ag-field"><Label htmlFor="ag-cap">Legenda padrão dos Reels</Label>
++          <Textarea id="ag-cap" rows={4} maxLength={2200} value={draft.defaultCaption} onChange={(e) => setDraft({ ...draft, defaultCaption: e.target.value })} /></div>
++        <Button onClick={() => { onSave(draft); toast.success("Configurações salvas."); }}>Salvar configurações</Button>
++      </section>
++      <section className="operation-panel ag-panel">
++        <h2>Meu perfil</h2>
++        <div className="ag-list"><div className="ag-row"><div><strong>{name}</strong><small>{user?.email}</small></div></div></div>
++        <div className="ag-actions"><Button variant="outline" onClick={() => void signOut()}><LogOut className="mr-2 h-4 w-4" />Sair</Button></div>
++      </section>
++    </div>
++  );
++}
++
++export default function Agonia() {
++  const { section = "" } = useParams();
++  const data = useAgonia();
++  const [settings, setSettings] = useState<AgoniaSettings>(() => loadSettings(data.user?.id));
++  useEffect(() => { setSettings(loadSettings(data.user?.id)); }, [data.user?.id]);
++  const ctx: Ctx = { ...data, settings };
++  const tab = TABS.find((t) => t.slug === section);
++  if (!tab) return <Navigate to="/agonia" replace />;
++  return (
++    <div className="ag">
++      <header className="ag-header">
++        <div>
++          <p className="ag-eyebrow">Agonia Pro · Agência de modelos</p>
++          <h1>{tab.slug === "" ? "Agonia Pro" : tab.label}</h1>
++          <p className="ag-sub">Publicação oficial de Reels e Stories para todas as modelos da agência, com fila persistente.</p>
++        </div>
++      </header>
++      <nav className="ag-tabs" aria-label="Seções da Agonia Pro">
++        {TABS.map((t) => (
++          <Link key={t.slug} to={t.slug ? `/agonia/${t.slug}` : "/agonia"} aria-current={t.slug === section ? "page" : undefined}><t.icon className="h-4 w-4" />{t.label}</Link>
++        ))}
++      </nav>
++      {data.error && <p role="alert" className="mb-4 text-destructive">Não foi possível carregar os dados. Atualize a página.</p>}
++      {section === "" && <Dashboard {...ctx} />}
++      {section === "modelos" && <Models {...ctx} />}
++      {section === "reels" && <Composer key="reel" {...ctx} format="Reel" />}
++      {section === "stories" && <Composer key="story" {...ctx} format="Story" />}
++      {section === "stories-link" && <StoriesLink />}
++      {section === "agendamentos" && <Queue {...ctx} mode="queue" />}
++      {section === "publicados" && <Queue {...ctx} mode="done" />}
++      {section === "config" && <Config {...ctx} onSave={(s) => { if (data.user) saveSettings(data.user.id, s); setSettings(s); }} />}
++    </div>
++  );
++}
+diff --git a/src/pages/Auth.tsx b/src/pages/Auth.tsx
+index fb3c12f..ed3b834 100644
+--- a/src/pages/Auth.tsx
++++ b/src/pages/Auth.tsx
+@@ -1,10 +1,11 @@
+-import { useState } from "react";
++import { useCallback, useState } from "react";
+ import { useAuth } from "@/contexts/AuthContext";
+ import { Navigate, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+ import { toast } from "sonner";
+ import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
+ import { PublicLinks } from "./PublicInfo";
+ import AuthLayout from "@/components/layout/AuthLayout";
++import { LoginTransition } from "@/components/layout/LoginTransition";
+ 
+ const Auth = () => {
+   const location = useLocation();
+@@ -18,6 +19,14 @@ const Auth = () => {
+   const [displayName, setDisplayName] = useState("");
+   const [submitting, setSubmitting] = useState(false);
+   const [showPassword, setShowPassword] = useState(false);
++  const [welcomeName, setWelcomeName] = useState<string | null>(null);
++  const finishLogin = useCallback(() => navigate(destination, { replace: true }), [navigate, destination]);
++
++  if (welcomeName !== null) {
++    const metadataName = user?.user_metadata?.display_name;
++    const name = (typeof metadataName === "string" && metadataName.trim()) || welcomeName;
++    return <LoginTransition name={name} onDone={finishLogin} />;
++  }
+ 
+   if (loading) {
+     return (
+@@ -36,7 +45,7 @@ const Auth = () => {
+       if (mode === "login") {
+         const { error } = await signIn(email, password);
+         if (error) toast.error(error.message);
+-        else navigate(destination, { replace: true });
++        else setWelcomeName(email.split("@")[0] || "você");
+       } else if (mode === "signup") {
+         const { error } = await signUp(email, password, displayName);
+         if (error) toast.error(error.message);
+-- 
+2.39.5
+
