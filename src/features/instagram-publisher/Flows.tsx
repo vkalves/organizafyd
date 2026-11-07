@@ -247,7 +247,7 @@ export default function Flows({
   }
   function readSlots(draft: string) {
     return draft
-      .split(/[\\n,;]+/)
+      .split(/[\n,;]+/)
       .map((slot) => slot.trim())
       .filter(Boolean);
   }
@@ -1054,7 +1054,7 @@ export default function Flows({
                   onClick={() => {
                     if (!slotTime) return;
                     setSlotDraft((prev) =>
-                      [...readSlots(prev), slotTime].join("\\n"),
+                      [...readSlots(prev), slotTime].join("\n"),
                     );
                     setSlotTime("");
                   }}
