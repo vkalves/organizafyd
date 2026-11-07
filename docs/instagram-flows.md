@@ -7,7 +7,7 @@ A dashboard principal (`/`) contém os indicadores, ranking e próxima publicaç
 - Biblioteca privada por usuário: pastas, Reels/posts e Stories, seleção em lote, prévia e legendas individuais.
 - Legenda padrão, coleção de legendas salvas e variações editáveis (reorganização do texto, sem serviço de IA externo).
 - Todas as contas recebem tudo, ou as mídias são divididas sem repetição. Embaralhamento independente por conta no primeiro modo.
-- Intervalo mínimo de três minutos por conta dentro de cada fluxo. Esse intervalo não garante ausência de restrições pela Meta. Fluxos separados podem coincidir.
+- Espaçamento por conta: no modo GAP, o intervalo configurado continua valendo; no modo de horários fixos, cada publicação usa o próximo horário diário da lista no fuso IANA gravado no fluxo. Os horários precisam ter pelo menos três minutos entre si, inclusive na virada do dia. A fila também mantém um piso de três minutos entre confirmações reais. Atrasos do worker ou da Meta podem fazer uma publicação sair depois do horário previsto. Fluxos separados podem coincidir.
 - Formato automático: foto vira Feed, vídeo vira Reel. Capa opcional somente em Reels; Stories não recebem legenda/capa.
 - Publicar agora entra na fila para o próximo ciclo; agendamento usa o fuso do navegador. A cron existente verifica a fila a cada minuto. Até 500 publicações por fluxo.
 - A transação `ig_create_flow` cria fluxo e jobs juntos, verifica contas e biblioteca e permite repetir o mesmo ID sem duplicar o lote.

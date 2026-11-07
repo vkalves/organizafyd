@@ -11,10 +11,11 @@ Em **Instagram → Fluxos**, escolha as mídias e contas e configure:
   disponível para outras contas que ainda não a utilizaram. Em loop, a própria
   campanha pode reutilizá-la no ciclo seguinte, depois de concluir o anterior.
 - **Descansar entre lotes**: após N publicações confirmadas por conta, soma um
-  descanso ao intervalo normal. O contador continua entre ciclos. Exemplo:
-  intervalo de 3 minutos e descanso de 20 minutos significa pelo menos 23 minutos
-  entre o fim de um lote e a próxima publicação. A fila verifica os horários de
-  confirmação reais, impedindo disparos em sequência se houver atraso.
+  descanso ao espaçamento normal. O contador continua entre ciclos. No modo GAP,
+  o descanso é somado ao intervalo configurado. Em horários fixos, o descanso é
+  contado a partir da confirmação real e a próxima publicação usa o primeiro
+  horário da lista que venha depois do fim do descanso. A fila também mantém o
+  piso mínimo de três minutos entre confirmações reais.
 - **Legendas sorteadas por pasta**: separe as opções por uma linha `---`.
   A legenda individual da mídia tem prioridade, seguida do sorteio da pasta,
   das variações alternadas e da legenda padrão. A campanha guarda uma cópia das

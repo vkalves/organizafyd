@@ -92,6 +92,27 @@ describe("Fluxos interface", () => {
       ),
     );
   });
+  it("envia horários fixos sem transformar o GAP em espaçamento", async () => {
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Horários fixos" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Criar fluxo e iniciar" }),
+    );
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: "slots",
+          slots: ["09:00", "12:30", "18:00", "21:00"],
+          gapMinutes: 3,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          startAt: null,
+        }),
+      ),
+    );
+  });
   it("troca para Stories e exige nova seleção", async () => {
     show();
     await screen.findByText("Foto 1");

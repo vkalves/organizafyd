@@ -1,4 +1,5 @@
 import { validate, type Draft, type Format } from "./model.ts";
+import { isValidTimeZone, parseSlots, slotInstants } from "./schedule.ts";
 export type LibraryMedia = {
   id: string;
   url: string;
@@ -25,6 +26,9 @@ export type FlowInput = {
   restMinutes?: number;
   avoidReuse?: boolean;
   folderCaptions?: Record<string, string[]>;
+  schedule?: "gap" | "slots";
+  slots?: string[];
+  timeZone?: string;
 };
 export function buildFlow(
   input: FlowInput,
@@ -112,6 +116,20 @@ export function buildFlow(
   const start = input.startAt ? Date.parse(input.startAt) : now + 60000;
   if (!Number.isFinite(start) || start <= now)
     throw new Error("invalid_schedule");
+  if (
+    input.schedule !== undefined &&
+    input.schedule !== "gap" &&
+    input.schedule !== "slots"
+  )
+    throw new Error("invalid_schedule");
+  const slotMinutes =
+    input.schedule === "slots" ? parseSlots(input.slots ?? []) : null;
+  if (
+    slotMinutes &&
+    (!input.timeZone || !isValidTimeZone(input.timeZone))
+  )
+    throw new Error("invalid_timezone");
+
   const media = input.mediaIds.map((id) => {
     const item = library.find((m) => m.id === id && m.kind === input.kind);
     if (!item) throw new Error("invalid_media_owner");
@@ -164,6 +182,13 @@ export function buildFlow(
     const batch = input.batchSize || 500;
     const rest = (input.restMinutes || 0) * 60000;
     const ownStart = context.starts?.[accountId] ?? start;
+    const times = slotMinutes
+      ? slotInstants(fresh.length, ownStart, slotMinutes, input.timeZone!, {
+          offset,
+          batch,
+          restMs: rest,
+        })
+      : null;
     fresh.forEach((item, index) => {
       const pool = input.folderCaptions?.[item.folder || ""] || [];
       const folderCaption = pool.length
@@ -190,11 +215,13 @@ export function buildFlow(
               input.caption,
         media_urls: [item.url],
         scheduled_at: new Date(
-          ownStart +
-            index * input.gapMinutes * 60000 +
-            (Math.floor((offset + index) / batch) -
-              Math.floor(offset / batch)) *
-              rest +
+          (times
+            ? times[index]
+            : ownStart +
+              index * input.gapMinutes * 60000 +
+              (Math.floor((offset + index) / batch) -
+                Math.floor(offset / batch)) *
+                rest) +
             accountIndex * 5000,
         ).toISOString(),
         cover_url: format === "Reel" ? (cover?.url ?? null) : null,

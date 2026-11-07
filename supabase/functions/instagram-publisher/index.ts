@@ -105,9 +105,11 @@ async function advanceCampaigns() {
           Number(row.total) % (input.batchSize || 500) === 0
             ? (input.restMinutes || 0) * 60000
             : 0;
+        const spacing =
+          input.schedule === "slots" ? 180_000 : input.gapMinutes * 60000;
         starts[row.account_id] = Math.max(
           now + 60000,
-          Date.parse(row.last_at) + input.gapMinutes * 60000 + rest,
+          Date.parse(row.last_at) + spacing + rest,
         );
       }
       const jobs = buildFlow(

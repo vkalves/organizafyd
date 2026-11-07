@@ -3,6 +3,7 @@ import {
   buildFlow,
   type FlowInput,
 } from "../../../supabase/functions/instagram-publisher/flow";
+import { slotInstants } from "../../../supabase/functions/instagram-publisher/schedule";
 const user = "00000000-0000-4000-8000-000000000001";
 const accounts = [
   "00000000-0000-4000-8000-000000000002",
@@ -224,5 +225,189 @@ describe("Campanhas recorrentes", () => {
       expect(() =>
         buildFlow({ ...input, ...changes } as FlowInput, library, user, 0),
       ).toThrow();
+  });
+});
+
+describe("Horários fixos", () => {
+  const zoned = (iso: string, timeZone: string) => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).formatToParts(new Date(iso));
+    const get = (type: string) => parts.find((part) => part.type === type)?.value;
+    return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+  };
+
+  it("ignora o GAP e usa o relógio do fuso gravado", () => {
+    const jobs = buildFlow(
+      {
+        ...input,
+        schedule: "slots",
+        slots: ["18:00", "09:00"],
+        timeZone: "UTC",
+        startAt: "2026-04-02T09:00:30.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-04-02T08:00:00.000Z"),
+    );
+    expect(
+      jobs
+        .filter((job) => job.account_id === accounts[0])
+        .map((job) => job.scheduled_at),
+    ).toEqual([
+      "2026-04-02T18:00:00.000Z",
+      "2026-04-03T09:00:00.000Z",
+      "2026-04-03T18:00:00.000Z",
+      "2026-04-04T09:00:00.000Z",
+    ]);
+    expect(
+      Date.parse(jobs.find((job) => job.account_id === accounts[1])!.scheduled_at!) -
+        Date.parse("2026-04-02T18:00:00.000Z"),
+    ).toBe(5000);
+  });
+
+  it("trata schedule ausente como GAP, mesmo com slots no objeto", () => {
+    const plain = buildFlow(input, library, user, 0);
+    const labeled = buildFlow(
+      { ...input, schedule: "gap", slots: ["09:00"], timeZone: "UTC" },
+      library,
+      user,
+      0,
+    );
+    expect(labeled.map((job) => job.scheduled_at)).toEqual(
+      plain.map((job) => job.scheduled_at),
+    );
+  });
+
+  it("divide os horários por conta e aplica o descanso até o próximo relógio válido", () => {
+    const split = buildFlow(
+      {
+        ...input,
+        distribution: "split",
+        schedule: "slots",
+        slots: ["09:00", "18:00"],
+        timeZone: "UTC",
+        startAt: "2026-04-02T08:00:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-04-02T07:00:00.000Z"),
+    );
+    expect(split.filter((job) => job.account_id === accounts[0])).toHaveLength(2);
+
+    const rested = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        schedule: "slots",
+        slots: ["10:00", "11:00", "12:00", "13:00"],
+        timeZone: "UTC",
+        batchSize: 2,
+        restMinutes: 20,
+        startAt: "2026-04-02T09:30:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-04-02T09:00:00.000Z"),
+    );
+    expect(rested.map((job) => job.scheduled_at)).toEqual([
+      "2026-04-02T10:00:00.000Z",
+      "2026-04-02T11:00:00.000Z",
+      "2026-04-02T12:00:00.000Z",
+      "2026-04-02T13:00:00.000Z",
+    ]);
+  });
+
+  it("rejeita horário duplicado, intervalo curto, fuso inválido e modo desconhecido", () => {
+    for (const changes of [
+      { schedule: "slots", slots: ["09:00", "09:02"], timeZone: "UTC" },
+      { schedule: "slots", slots: ["23:59", "00:01"], timeZone: "UTC" },
+      { schedule: "slots", slots: ["09:00", "09:00"], timeZone: "UTC" },
+      { schedule: "slots", slots: ["09:00"], timeZone: "Mars/Base" },
+      { schedule: "cron" },
+    ]) {
+      expect(() =>
+        buildFlow(
+          { ...input, ...changes } as FlowInput,
+          library,
+          user,
+          Date.parse("2026-04-02T08:00:00.000Z"),
+        ),
+      ).toThrow();
+    }
+  });
+
+  it("pula o buraco do horário de verão e usa a segunda ocorrência da hora repetida", () => {
+    const skipped = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        mediaIds: ["0"],
+        schedule: "slots",
+        slots: ["02:30"],
+        timeZone: "America/New_York",
+        startAt: "2026-03-08T06:15:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-03-08T06:00:00.000Z"),
+    );
+    expect(zoned(skipped[0].scheduled_at!, "America/New_York")).toBe(
+      "2026-03-09 02:30",
+    );
+
+    const repeated = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        mediaIds: ["0"],
+        schedule: "slots",
+        slots: ["01:30"],
+        timeZone: "America/New_York",
+        startAt: "2026-11-01T06:00:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-11-01T05:00:00.000Z"),
+    );
+    expect(repeated[0].scheduled_at).toBe("2026-11-01T06:30:00.000Z");
+    expect(
+      slotInstants(
+        1,
+        Date.parse("2026-11-01T06:00:00.000Z"),
+        [90],
+        "America/New_York",
+      ),
+    ).toEqual([Date.parse("2026-11-01T06:30:00.000Z")]);
+  });
+
+  it("não usa um horário que cai dentro do descanso", () => {
+    const jobs = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        schedule: "slots",
+        slots: ["10:00", "10:15", "10:30", "10:45", "11:00"],
+        timeZone: "UTC",
+        batchSize: 2,
+        restMinutes: 20,
+        startAt: "2026-04-02T09:00:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-04-02T08:00:00.000Z"),
+    );
+    expect(jobs.map((job) => job.scheduled_at?.slice(11, 16))).toEqual([
+      "10:00",
+      "10:15",
+      "10:45",
+      "11:00",
+    ]);
   });
 });

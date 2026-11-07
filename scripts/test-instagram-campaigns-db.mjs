@@ -10,7 +10,10 @@ const user = "11111111-1111-4111-8111-111111111111",
   other = "22222222-2222-4222-8222-222222222222",
   account = "33333333-3333-4333-8333-333333333333",
   flow = "44444444-4444-4444-8444-444444444444",
-  media = "55555555-5555-4555-8555-555555555555";
+  media = "55555555-5555-4555-8555-555555555555",
+  slotAccount = "66666666-6666-4666-8666-666666666666",
+  slotFlow = "77777777-7777-4777-8777-777777777777",
+  slotMedia = "88888888-8888-4888-8888-888888888888";
 const url = `storage://${user}/video.mp4`;
 const read = (name) =>
   readFileSync(
@@ -46,6 +49,7 @@ try {
   );
   await db.exec(read("20261104114149_instagram_flows.sql"));
   await db.exec(read("20261106000000_instagram_campaigns.sql"));
+  await db.exec(read("20261107000000_instagram_slot_claim.sql"));
   await db.query("insert into auth.users values ($1),($2)", [user, other]);
   await db.query("insert into public.instagram_accounts values ($1,$2)", [
     account,
@@ -264,6 +268,74 @@ try {
     0,
     "stopped campaigns cannot generate cycles",
   );
+  // Fixed-slot flows ignore a long configured GAP when checking real completion time.
+  await db.query("insert into public.instagram_accounts values ($1,$2)", [
+    slotAccount,
+    user,
+  ]);
+  const slotSecret = crypto.randomUUID();
+  await db.query(
+    "insert into vault.secrets values($1)",
+    [slotSecret],
+  );
+  await db.query(
+    "insert into public.ig_publisher_connections(account_id,user_id,graph_id,secret_id) values($1,$2,$3,$4)",
+    [slotAccount, user, "456", slotSecret],
+  );
+  const slotUrl = `storage://${user}/slot-video.mp4`;
+  await db.query(
+    "insert into public.ig_flow_library(id,user_id,url,kind) values($1,$2,$3,$4)",
+    [slotMedia, user, slotUrl, "posts"],
+  );
+  const slotFirst = {
+    id: crypto.randomUUID(),
+    account_id: slotAccount,
+    caption: "slot-first",
+    format: "Reel",
+    media_urls: [slotUrl],
+    scheduled_at: new Date(Date.now() - 60000).toISOString(),
+    cover_url: null,
+  };
+  const slotSecond = {
+    ...slotFirst,
+    id: crypto.randomUUID(),
+    caption: "slot-second",
+  };
+  await db.query("select public.ig_create_flow($1,$2,$3,$4,$5)", [
+    user,
+    slotFlow,
+    "Fixed slots",
+    JSON.stringify({
+      accountIds: [slotAccount],
+      mediaIds: [slotMedia],
+      schedule: "slots",
+      slots: ["09:00", "12:00"],
+      timeZone: "UTC",
+      gapMinutes: 60,
+      batchSize: 500,
+      restMinutes: 0,
+      avoidReuse: false,
+    }),
+    JSON.stringify([slotFirst, slotSecond]),
+  ]);
+  await db.query(
+    "update public.ig_publication_jobs set status='published',published_at=now()-interval '4 minutes' where id=$1",
+    [slotFirst.id],
+  );
+  const slotClaim = await db.query("select * from public.ig_claim_job($1)", [
+    crypto.randomUUID(),
+  ]);
+  assert.equal(
+    slotClaim.rows.length,
+    1,
+    "slot queue uses the three-minute floor, not the 60-minute GAP",
+  );
+  assert.equal(
+    slotClaim.rows[0].id,
+    slotSecond.id,
+    "slot flow claims its due second job",
+  );
+
   await db.exec(
     `set role authenticated; select set_config('request.jwt.claim.sub','${other}',false);`,
   );
@@ -279,7 +351,7 @@ try {
   await assert.rejects(db.query("select * from public.ig_claim_job($1)",[crypto.randomUUID()]),/permission denied/);
   await db.exec("reset role");
   console.log(
-    "PASS: migration, owner isolation, no duplicate reservations, pause/resume/stop, idempotent recurrence, actual-time batch rest, uncertain-outcome protection, report and retained media.",
+    "PASS: migrations, owner isolation, no duplicate reservations, pause/resume/stop, idempotent recurrence, GAP and fixed-slot queue pacing, actual-time batch rest, uncertain-outcome protection, report and retained media.",
   );
 } finally {
   await db.close();

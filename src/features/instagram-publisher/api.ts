@@ -40,6 +40,9 @@ const messages: Record<string, string> = {
   campaign_stopped:
     "Esta campanha foi encerrada. Crie uma nova campanha para publicar novamente.",
   invalid_gap: "O intervalo mínimo entre mídias da mesma conta é de 3 minutos.",
+  invalid_slots:
+    "Informe de 1 a 24 horários HH:MM, sem repetir e com pelo menos 3 minutos entre eles.",
+  invalid_timezone: "Escolha um fuso horário válido.",
   invalid_flow: "Revise os dados do fluxo.",
   invalid_accounts: "Selecione ao menos uma conta.",
   flow_too_large: "Crie fluxos com até 500 publicações por vez.",
