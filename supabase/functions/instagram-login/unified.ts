@@ -12,7 +12,12 @@ export function authorizeUrl(config: Config, callback: string, state: string) {
   }).toString();
   return url.toString();
 }
-type Json = (url: string, init?: RequestInit) => Promise<any>;
+type JsonObject = Record<string, unknown>;
+type Json = (url: string, init?: RequestInit) => Promise<JsonObject>;
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 export async function authorizedAccount(
   config: Config,
   callback: string,
@@ -39,6 +44,9 @@ export async function authorizedAccount(
       }),
   );
   const data = debug.data;
+  if (!isJsonObject(data)) throw new Error("invalid_token");
+  const scopes = Array.isArray(data.scopes) ? data.scopes : [];
+  const expiresAt = typeof data.expires_at === "number" ? data.expires_at : null;
   if (
     !data?.is_valid ||
     String(data.app_id) !== config.appId ||
@@ -47,11 +55,11 @@ export async function authorizedAccount(
     throw new Error("invalid_token");
   if (
     !["instagram_basic", "instagram_content_publish"].every((p) =>
-      data.scopes?.includes(p),
+      scopes.includes(p),
     )
   )
     throw new Error("missing_permission");
-  if (data.expires_at && data.expires_at * 1000 <= Date.now())
+  if (expiresAt && expiresAt * 1000 <= Date.now())
     throw new Error("invalid_token");
   const key = await crypto.subtle.importKey(
     "raw",
@@ -78,10 +86,13 @@ export async function authorizedAccount(
   const business = await read("me", "client_business_id");
   if (!business.client_business_id) throw new Error("business_missing");
   const accounts = await read("me/assigned_instagram_accounts", "id,username");
-  if (!accounts.data?.length) throw new Error("no_instagram_accounts");
-  if (accounts.data.length !== 1 || accounts.paging?.next)
+  const accountList = Array.isArray(accounts.data) ? accounts.data : [];
+  const paging = isJsonObject(accounts.paging) ? accounts.paging : {};
+  if (!accountList.length) throw new Error("no_instagram_accounts");
+  if (accountList.length !== 1 || paging.next)
     throw new Error("multiple_instagram_accounts");
-  const profile = accounts.data[0];
+  const profile = accountList[0];
+  if (!isJsonObject(profile)) throw new Error("meta_authorization_failed");
   if (
     !/^\d{5,30}$/.test(String(profile.id)) ||
     typeof profile.username !== "string" ||
@@ -94,8 +105,8 @@ export async function authorizedAccount(
     id: String(profile.id),
     username: profile.username,
     businessId: String(business.client_business_id),
-    expiresAt: data.expires_at
-      ? new Date(data.expires_at * 1000).toISOString()
+    expiresAt: expiresAt
+      ? new Date(expiresAt * 1000).toISOString()
       : null,
   };
 }

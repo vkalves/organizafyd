@@ -18,13 +18,16 @@ const hash = async (s: string) =>
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("");
 const random = () => crypto.randomUUID() + crypto.randomUUID();
-function checked({ data, error }: any) {
+function checked({ data, error }: { data: unknown; error: unknown }) {
   if (error) throw new Error("database_error");
   return data;
 }
 async function json(url: string, init?: RequestInit) {
   const r = await fetch(url, { ...init, signal: AbortSignal.timeout(20000) });
-  const d = await r.json();
+  const value: unknown = await r.json();
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error("meta_authorization_failed");
+  const d = value as Record<string, unknown>;
   if (!r.ok || d.error) throw new Error("meta_authorization_failed");
   return d;
 }
@@ -64,14 +67,23 @@ Deno.serve(async (req) => {
   try {
     const raw = await req.text();
     if (raw.length > 12000) throw new Error("invalid_request");
-    const b = JSON.parse(raw);
-    const config = checked(await db.rpc("ig_login_config")) || {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      throw new Error("invalid_request");
+    const b = parsed as Record<string, unknown>;
+    const configData = checked(await db.rpc("ig_login_config"));
+    const config =
+      typeof configData === "object" && configData !== null && !Array.isArray(configData)
+        ? configData as Record<string, unknown>
+        : {};
     const appId = config.meta_app_id;
     const secret = config.meta_app_secret;
     const configId = config.meta_config_id;
-    const ready = !!(appId && secret && configId);
+    const ready = typeof appId === "string" && typeof secret === "string" && typeof configId === "string";
     if (b.action === "config") return reply({ ready, callback });
     if (!ready) return reply({ error: "not_configured" }, 503);
+    if (typeof appId !== "string" || typeof secret !== "string" || typeof configId !== "string")
+      return reply({ error: "not_configured" }, 503);
     const loginConfig = { appId, secret, configId };
     if (b.action === "invite") {
       const jwt =

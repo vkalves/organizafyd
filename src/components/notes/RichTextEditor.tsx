@@ -5,8 +5,8 @@ import LinkExt from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { DOMSerializer } from "@tiptap/pm/model";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { DOMSerializer, type Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bold,
   CheckSquare,
@@ -85,6 +85,7 @@ export function RichTextEditor({
   readOnly = false,
 }: RichTextEditorProps) {
   const [plainText, setPlainText] = useState("");
+  const editorRef = useRef<Editor | null>(null);
 
   const editor = useEditor({
     shouldRerenderOnTransaction: true,
@@ -126,71 +127,61 @@ export function RichTextEditor({
         // Keep checklist items actionable while the note is in "Visualizar".
         // The DOM change handler below mirrors the checkbox state into the
         // ProseMirror document so the normal autosave flow can persist it.
-        onReadOnlyChecked: () => true,
+        onReadOnlyChecked: (checkedNode, checked) => {
+          const currentEditor = editorRef.current;
+          if (!currentEditor) return true;
+
+          if (readOnly && onChecklistChange) {
+            const container = document.createElement("div");
+            const fragment = DOMSerializer.fromSchema(currentEditor.state.schema)
+              .serializeFragment(currentEditor.state.doc.content);
+            container.appendChild(fragment);
+
+            const liveItems = Array.from(
+              currentEditor.view.dom.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
+            );
+            const savedItems = Array.from(
+              container.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
+            );
+            const taskNodes: ProseMirrorNode[] = [];
+            currentEditor.state.doc.descendants((node) => {
+              if (node.type.name === "taskItem") taskNodes.push(node);
+            });
+            const targetIndex = taskNodes.findIndex((node) => node === checkedNode) >= 0
+              ? taskNodes.findIndex((node) => node === checkedNode)
+              : taskNodes.findIndex((node) => node.eq(checkedNode));
+
+            savedItems.forEach((savedItem, index) => {
+              const liveItem = liveItems[index];
+              const savedCheckbox = savedItem?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+              const isChecked = index === targetIndex
+                ? checked
+                : taskNodes[index]?.attrs.checked === true;
+              liveItem?.setAttribute("data-checked", String(isChecked));
+              savedItem.setAttribute("data-checked", String(isChecked));
+              if (savedCheckbox) {
+                if (isChecked) savedCheckbox.setAttribute("checked", "checked");
+                else savedCheckbox.removeAttribute("checked");
+              }
+            });
+            onChecklistChange(container.innerHTML);
+          }
+
+          return true;
+        },
       }),
     ],
     content: content || "",
-    onCreate: ({ editor }) => setPlainText(editor.getText()),
+    onCreate: ({ editor }) => {
+      editorRef.current = editor;
+      setPlainText(editor.getText());
+    },
     onUpdate: ({ editor }) => {
       setPlainText(editor.getText());
       onChange(editor.getHTML());
     },
     editorProps: {
-      handleDOMEvents: {
-        change: (view, event) => {
-          // Tiptap intentionally keeps task checkboxes immutable in read-only
-          // mode unless onReadOnlyChecked is provided. In Visualizar mode we
-          // still want checklist actions to work without making text editable.
-          if (view.editable) return false;
-
-          const checkbox = event.target;
-          if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") return false;
-
-          const taskItem = checkbox.closest('li[data-type="taskItem"]');
-          if (!taskItem) return false;
-
-          // Keep the visual state in sync immediately in inspection mode.
-          taskItem.setAttribute("data-checked", String(checkbox.checked));
-
-          // Build clean HTML from the ProseMirror document, then copy the
-          // live checkbox states into it. In read-only mode Tiptap intentionally
-          // does not write checkbox clicks back to the document, so waiting for
-          // editor.getHTML() would lose the selection.
-          const container = document.createElement("div");
-          const fragment = DOMSerializer.fromSchema(view.state.schema)
-            .serializeFragment(view.state.doc.content);
-          container.appendChild(fragment);
-
-          const liveItems = Array.from(
-            view.dom.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
-          );
-          const savedItems = Array.from(
-            container.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
-          );
-
-          liveItems.forEach((liveItem, index) => {
-            const savedItem = savedItems[index];
-            if (!savedItem) return;
-
-            const liveCheckbox = liveItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
-            const savedCheckbox = savedItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
-            if (!liveCheckbox) return;
-
-            savedItem.setAttribute("data-checked", String(liveCheckbox.checked));
-
-            if (savedCheckbox) {
-              if (liveCheckbox.checked) {
-                savedCheckbox.setAttribute("checked", "checked");
-              } else {
-                savedCheckbox.removeAttribute("checked");
-              }
-            }
-          });
-
-          onChecklistChange?.(container.innerHTML);
-          return false;
-        },
-      },
       handleClick: (_view, _pos, event) => {
         if ((!readOnly && !(event.ctrlKey || event.metaKey)) || event.button !== 0) return false;
         const target = event.target;
@@ -207,6 +198,8 @@ export function RichTextEditor({
       },
     },
   });
+
+  if (editor) editorRef.current = editor;
 
   useEffect(() => {
     editor?.setEditable(!readOnly, false);

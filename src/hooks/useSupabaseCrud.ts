@@ -6,7 +6,7 @@ import { scheduleTaskCalendarSync } from "@/lib/task-calendar-sync";
 
 type TableName = "tasks" | "notes" | "links" | "funnels" | "funnel_nodes" | "funnel_edges" | "transactions" | "financial_accounts" | "financial_categories" | "financial_goals" | "folders" | "profiles" | "mind_maps";
 
-export function useSupabaseCrud<T extends Record<string, any>>(table: TableName, orderBy = "created_at") {
+export function useSupabaseCrud<T extends { id: string }>(table: TableName, orderBy = "created_at") {
   const { user } = useAuth();
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
       return;
     }
     setLoading(true);
-    const { data: rows, error } = await (supabase.from(table) as any)
+    const { data: rows, error } = await supabase.from(table)
       .select("*")
       .eq("user_id", user.id)
       .order(orderBy, { ascending: false });
@@ -36,7 +36,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
 
   const create = async (item: Partial<T>) => {
     if (!user) return null;
-    const { data: row, error } = await (supabase.from(table) as any)
+    const { data: row, error } = await supabase.from(table)
       .insert({ ...item, user_id: user.id })
       .select()
       .single();
@@ -51,7 +51,7 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
   };
 
   const update = async (id: string, updates: Partial<T>, options?: { silent?: boolean }) => {
-    const { data: row, error } = await (supabase.from(table) as any)
+    const { data: row, error } = await supabase.from(table)
       .update(updates)
       .eq("id", id)
       .select()
@@ -61,19 +61,19 @@ export function useSupabaseCrud<T extends Record<string, any>>(table: TableName,
       return null;
     }
     if (!options?.silent) toast.success("Atualizado!");
-    setData((prev) => prev.map((r: any) => (r.id === id ? (row as T) : r)));
+    setData((prev) => prev.map((r) => (r.id === id ? (row as T) : r)));
     if (table === "tasks") scheduleTaskCalendarSync();
     return row as T;
   };
 
   const remove = async (id: string) => {
-    const { error } = await (supabase.from(table) as any).delete().eq("id", id);
+    const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) {
       toast.error(`Erro ao excluir: ${error.message}`);
       return false;
     }
     toast.success("Excluído!");
-    setData((prev) => prev.filter((r: any) => r.id !== id));
+    setData((prev) => prev.filter((r) => r.id !== id));
     if (table === "tasks") scheduleTaskCalendarSync();
     return true;
   };
