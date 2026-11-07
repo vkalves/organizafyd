@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { SilverBrand } from "./SilverBrand";
+import agoniaMask from "@/assets/agonia-mask.webp";
 import "./login-transition.css";
 
-const DURATION_MS = 2400;
-const REDUCED_MS = 700;
+const DURATION_MS = 3700;
+const REDUCED_MS = 1600;
 
-/** Tela de transição exibida após um login bem-sucedido. */
+/** Animação de boas-vindas do Agonia Pro adaptada ao tema Silver do Organizafy. */
 export function LoginTransition({ name, onDone }: { name: string; onDone: () => void }) {
   useEffect(() => {
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -14,21 +14,16 @@ export function LoginTransition({ name, onDone }: { name: string; onDone: () => 
   }, [onDone]);
 
   return (
-    <div className="login-transition" role="status" aria-live="polite" aria-label={`Entrando como ${name}`}>
-      <div className="login-transition-glow" aria-hidden="true" />
-      <div className="login-transition-center">
-        <div className="login-transition-ring">
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <circle className="login-transition-track" cx="60" cy="60" r="54" />
-            <circle className="login-transition-arc" cx="60" cy="60" r="54" pathLength={100} />
-          </svg>
-          <SilverBrand compact />
-        </div>
-        <p className="login-transition-hello">Bem-vindo de volta,</p>
-        <h2 className="login-transition-name">{name}</h2>
-        <p className="login-transition-sub">Preparando seu espaço…</p>
+    <div className="welcome-intro" role="status" aria-live="polite" aria-label={`Seja Bem-vindo, ${name}`}>
+      <div className="welcome-mask-stage" aria-hidden="true">
+        <div className="welcome-orbit welcome-orbit-one" />
+        <div className="welcome-orbit welcome-orbit-two" />
+        <img src={agoniaMask} alt="" width={320} height={320} />
       </div>
-      <span className="login-transition-bar" aria-hidden="true" />
+      <div className="welcome-message">
+        <span>Seja Bem-vindo</span>
+        <strong>{name}</strong>
+      </div>
     </div>
   );
 }

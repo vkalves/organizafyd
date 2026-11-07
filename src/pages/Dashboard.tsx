@@ -130,6 +130,19 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [period, setPeriod] = useState<7 | 30>(7);
+  const [workspaceMode, setWorkspaceModeState] = useState<WorkspaceMode>(() =>
+    getWorkspaceMode(),
+  );
+
+  useEffect(() => {
+    const onModeChange = (event: Event) => {
+      const custom = event as CustomEvent<WorkspaceMode>;
+      setWorkspaceModeState(custom.detail || getWorkspaceMode());
+    };
+    window.addEventListener("organizafy-mode-changed", onModeChange);
+    return () =>
+      window.removeEventListener("organizafy-mode-changed", onModeChange);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
@@ -304,6 +317,10 @@ const Dashboard = () => {
       .toLocaleUpperCase("pt-BR");
   }, [now, timeZone]);
 
+  if (workspaceMode === "agonia") {
+    return <Agonia />;
+  }
+
   if (loading || !data) {
     return (
       <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
@@ -337,9 +354,22 @@ const Dashboard = () => {
           <h1 className="mt-2 text-3xl font-medium tracking-tight">{greeting}, {displayName}.</h1>
           <p className="mt-2 text-xs text-muted-foreground sm:text-sm">Tudo o que importa, em um só lugar.</p>
         </div>
-        <div className="flex items-center gap-2 px-1 py-2 text-[10px] text-foreground/65 sm:text-xs">
-          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-          <span className="capitalize">{formattedDate.toLocaleLowerCase("pt-BR")}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 px-1 py-2 text-[10px] text-foreground/65 sm:text-xs">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+            <span className="capitalize">{formattedDate.toLocaleLowerCase("pt-BR")}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setWorkspaceMode("agonia");
+              setWorkspaceModeState("agonia");
+            }}
+            className="silver-button inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span>Mudar tudo para Modo Agonia</span>
+          </button>
         </div>
       </div>
 

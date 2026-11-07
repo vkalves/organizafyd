@@ -206,3 +206,94 @@
 @media (prefers-reduced-motion: reduce) {
   .workspace-shell *, .workspace-shell *::before, .workspace-shell *::after { animation: none !important; transition: none !important; }
 }
+
+.agonia-brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  animation: agonia-shell-float 3.8s ease-in-out infinite;
+}
+
+.agonia-brand-mark img {
+  width: 38px !important;
+  height: 38px !important;
+  object-fit: contain;
+  mix-blend-mode: normal !important;
+  filter: drop-shadow(0 4px 10px rgb(222 219 214 / 30%));
+}
+
+@keyframes agonia-shell-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-3px) rotate(1.5deg); }
+}
+
+.shell-mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--shell-line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.shell-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9aa1b5;
+  white-space: nowrap;
+  transition: color 160ms, background 160ms, box-shadow 160ms;
+}
+
+.shell-mode-pill:hover {
+  color: #f4f3f0;
+}
+
+.shell-mode-pill.is-active {
+  background: linear-gradient(110deg, #fff, #e9ecf6 65%, #c8cedd);
+  color: #05050a;
+  box-shadow: inset 0 1px 0 #fff, 0 4px 14px rgb(200 206 221 / 25%);
+}
+
+.shell-rail-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 12px;
+  background: linear-gradient(110deg, rgb(255 255 255 / 10%), rgb(200 206 221 / 4%));
+  color: #f3f5fa;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 160ms, background 160ms, transform 160ms;
+}
+
+.shell-rail-mode-btn:hover {
+  border-color: rgb(255 255 255 / 28%);
+  background: linear-gradient(110deg, rgb(255 255 255 / 16%), rgb(200 206 221 / 8%));
+  transform: translateY(-1px);
+}
+
+.shell-rail-mode-btn.is-collapsed {
+  padding: 8px;
+}
+
+@media (max-width: 639px) {
+  .shell-mode-pill {
+    padding: 0 9px;
+    font-size: 11px;
+  }
+}
+
