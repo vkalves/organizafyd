@@ -38,6 +38,11 @@ import {
 import type { Connection } from "./api";
 import type { Post } from "./model";
 import type { FlowInput } from "../../../supabase/functions/instagram-publisher/flow";
+import {
+  isValidTimeZone,
+  parseSlots,
+  slotInstants,
+} from "../../../supabase/functions/instagram-publisher/schedule";
 import { playConfirmation, unlockAudio } from "./sound";
 import "./flows.css";
 const field =
@@ -77,6 +82,20 @@ export default function Flows({
     [caption, setCaption] = useState(""),
     [gap, setGap] = useState(1),
     [unit, setUnit] = useState(60);
+  const [scheduleMode, setScheduleMode] = useState<"gap" | "slots">("gap");
+  const [slotDraft, setSlotDraft] = useState("09:00\n12:30\n18:00\n21:00");
+  const [slotTime, setSlotTime] = useState("");
+  const [timeZone, setTimeZone] = useState(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
+  const supportedValuesOf = (
+    Intl as typeof Intl & {
+      supportedValuesOf?: (key: "timeZone") => string[];
+    }
+  ).supportedValuesOf;
+  const zones = supportedValuesOf
+    ? [...new Set(["UTC", timeZone, ...supportedValuesOf("timeZone")])].sort()
+    : [timeZone];
   const [repeat, setRepeat] = useState<"once" | "loop">("once");
   const [batchSize, setBatchSize] = useState(3);
   const [restMinutes, setRestMinutes] = useState(20);
@@ -226,13 +245,37 @@ export default function Flows({
       setProgress("");
     }
   }
+  function readSlots(draft: string) {
+    return draft
+      .split(/[\\n,;]+/)
+      .map((slot) => slot.trim())
+      .filter(Boolean);
+  }
+  function normalizedSlots(draft: string) {
+    return parseSlots(readSlots(draft)).map(
+      (minutes) =>
+        `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`,
+    );
+  }
   function submit() {
     unlockAudio();
     void perform(async () => {
       if (!picked.length || !available.length)
         throw new Error("Selecione ao menos uma conta ativa e uma mídia.");
-      if (gap * unit < 3 || !Number.isFinite(gap * unit))
+      let slotList: string[] | null = null;
+      if (scheduleMode === "slots") {
+        try {
+          slotList = normalizedSlots(slotDraft);
+        } catch {
+          throw new Error(
+            "Informe de 1 a 24 horários HH:MM, sem repetir e com pelo menos 3 minutos entre eles.",
+          );
+        }
+        if (!isValidTimeZone(timeZone))
+          throw new Error("Escolha um fuso horário válido.");
+      } else if (gap * unit < 3 || !Number.isFinite(gap * unit)) {
         throw new Error("O intervalo mínimo é de 3 minutos.");
+      }
       if (when === "schedule" && (!start || Date.parse(start) <= Date.now()))
         throw new Error("Escolha uma data futura.");
       const input: FlowInput = {
@@ -240,7 +283,7 @@ export default function Flows({
         name,
         accountIds: available,
         mediaIds: picked.map((m) => m.id),
-        gapMinutes: gap * unit,
+        gapMinutes: scheduleMode === "slots" ? 3 : gap * unit,
         random,
         distribution,
         format,
@@ -252,6 +295,9 @@ export default function Flows({
           .filter(Boolean),
         startAt: when === "schedule" ? new Date(start).toISOString() : null,
         coverId,
+        ...(slotList
+          ? { schedule: "slots" as const, slots: slotList, timeZone }
+          : {}),
         ...(query.data?.report
           ? {
               repeat,
@@ -275,6 +321,30 @@ export default function Flows({
       await onCreated();
     });
   }
+  function nextSlotPreview() {
+    if (scheduleMode !== "slots" || !picked.length) return [];
+    try {
+      const from =
+        when === "schedule" && start ? Date.parse(start) : Date.now() + 60000;
+      if (!Number.isFinite(from) || from <= Date.now()) return [];
+      return slotInstants(
+        Math.min(3, picked.length),
+        from,
+        parseSlots(readSlots(slotDraft)),
+        timeZone,
+        {
+          batch: batchRest ? batchSize : 500,
+          restMs: batchRest ? restMinutes * 60000 : 0,
+        },
+      ).map((ms) =>
+        new Date(ms).toLocaleString("pt-BR", { timeZone }),
+      );
+    } catch {
+      return [];
+    }
+  }
+  const slotPreview = nextSlotPreview();
+
   if (query.isLoading) return <p role="status">Carregando seus Fluxos…</p>;
   if (query.isError)
     return (
@@ -921,8 +991,28 @@ export default function Flows({
           </section>
         )}
         <div className="ig-flow-grid">
-          <div>
-            <Label htmlFor="flow-gap">Intervalo entre postagens (GAP)</Label>
+          <fieldset className="sm:col-span-2">
+            <legend>Espaçamento</legend>
+            <div className="ig-flow-options">
+              <button
+                type="button"
+                aria-pressed={scheduleMode === "gap"}
+                onClick={() => setScheduleMode("gap")}
+              >
+                Intervalo (GAP)
+              </button>
+              <button
+                type="button"
+                aria-pressed={scheduleMode === "slots"}
+                onClick={() => setScheduleMode("slots")}
+              >
+                Horários fixos
+              </button>
+            </div>
+          </fieldset>
+          {scheduleMode === "gap" && (
+            <div>
+              <Label htmlFor="flow-gap">Intervalo entre postagens (GAP)</Label>
             <div className="flex gap-2">
               <Input
                 id="flow-gap"
@@ -946,7 +1036,70 @@ export default function Flows({
               Mínimo de 3 minutos por conta. O intervalo não garante ausência de
               restrições do Instagram.
             </p>
-          </div>
+            </div>
+          )}
+          {scheduleMode === "slots" && (
+            <div className="sm:col-span-2 space-y-2">
+              <Label htmlFor="flow-slots">Horários do dia</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="time"
+                  aria-label="Novo horário"
+                  value={slotTime}
+                  onChange={(e) => setSlotTime(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!slotTime) return;
+                    setSlotDraft((prev) =>
+                      [...readSlots(prev), slotTime].join("\\n"),
+                    );
+                    setSlotTime("");
+                  }}
+                >
+                  Adicionar horário
+                </Button>
+              </div>
+              <Textarea
+                id="flow-slots"
+                rows={4}
+                value={slotDraft}
+                onChange={(e) => setSlotDraft(e.target.value)}
+              />
+              <Label htmlFor="flow-zone">Fuso dos horários</Label>
+              <select
+                id="flow-zone"
+                className={field}
+                value={timeZone}
+                onChange={(e) => setTimeZone(e.target.value)}
+              >
+                {zones.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Um horário por linha. Também aceita vírgula. O fuso fica gravado neste fluxo.
+              </p>
+              <div className="space-y-1" aria-live="polite">
+                <p className="text-sm font-medium">Próximas publicações previstas</p>
+                {slotPreview.length ? (
+                  <ol className="list-inside list-decimal text-xs text-muted-foreground">
+                    {slotPreview.map((value, index) => (
+                      <li key={index}>{value}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Confira os horários, o fuso e a data de início para visualizar a prévia.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <fieldset>
             <legend>Ordem das mídias</legend>
             <div className="ig-flow-options">
@@ -1079,7 +1232,9 @@ export default function Flows({
             !picked.length ||
             !available.length ||
             total > 500 ||
-            gap * unit < 3 ||
+            (scheduleMode === "gap"
+              ? gap * unit < 3 || !Number.isFinite(gap * unit)
+              : slotPreview.length === 0) ||
             (batchRest &&
               (!Number.isInteger(batchSize) ||
                 batchSize < 1 ||
@@ -1158,6 +1313,12 @@ export default function Flows({
                   </p>
                 )}
                 <p>{new Date(flow.created_at).toLocaleString("pt-BR")}</p>
+                {flow.settings.schedule === "slots" && (
+                  <p>
+                    Horários: {flow.settings.slots?.join(" · ")} ·{" "}
+                    {flow.settings.timeZone}
+                  </p>
+                )}
                 <p>
                   {done} confirmado(s) · {pending} agendado(s) ·{" "}
                   {summary?.review ??
