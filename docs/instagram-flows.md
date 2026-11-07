@@ -7,7 +7,7 @@ A dashboard principal (`/`) contém os indicadores, ranking e próxima publicaç
 - Biblioteca privada por usuário: pastas, Reels/posts e Stories, seleção em lote, prévia e legendas individuais.
 - Legenda padrão, coleção de legendas salvas e variações editáveis (reorganização do texto, sem serviço de IA externo).
 - Todas as contas recebem tudo, ou as mídias são divididas sem repetição. Embaralhamento independente por conta no primeiro modo.
-- Espaçamento por conta: no modo GAP, o intervalo configurado continua valendo; no modo de horários fixos, cada publicação usa o próximo horário diário da lista no fuso IANA gravado no fluxo. Os horários precisam ter pelo menos três minutos entre si, inclusive na virada do dia. A fila também mantém um piso de três minutos entre confirmações reais. Atrasos do worker ou da Meta podem fazer uma publicação sair depois do horário previsto. Fluxos separados podem coincidir.
+- Espaçamento por conta: no modo GAP, o intervalo configurado continua valendo; no modo de horários fixos, cada publicação usa o próximo horário diário da lista no fuso IANA gravado no fluxo. Os horários precisam ter pelo menos três minutos entre si, inclusive na virada do dia. A fila usa a confirmação real, mantém um piso de três minutos por conta e volta ao próximo slot válido se uma confirmação atrasar o ciclo. Horários inexistentes no avanço do relógio são pulados; horários repetidos usam a primeira ocorrência, ou a segunda se o cursor já tiver passado pela primeira. Fluxos separados podem coincidir.
 - Formato automático: foto vira Feed, vídeo vira Reel. Capa opcional somente em Reels; Stories não recebem legenda/capa.
 - Publicar agora entra na fila para o próximo ciclo; agendamento usa o fuso do navegador. A cron existente verifica a fila a cada minuto. Até 500 publicações por fluxo.
 - A transação `ig_create_flow` cria fluxo e jobs juntos, verifica contas e biblioteca e permite repetir o mesmo ID sem duplicar o lote.
@@ -29,5 +29,5 @@ O controle de volume no cabeçalho funciona em toda a aplicação. Há sons dife
 
 - Testes de modelo, formulário, limpeza, upload e transições sonoras ficam em `src/features/instagram-publisher` e `src/features/x`.
 - `supabase/tests/instagram_flows.sql` verifica transação, idempotência, retenção e RLS com fixtures revertidas por rollback; não chama a Meta nem remove objetos reais de Storage.
-- A migração `20261104114149_instagram_flows.sql` foi aplicada ao projeto Organizafy e a função `instagram-publisher` foi publicada com os mesmos controles JWT/secret do worker existentes.
-- A prévia de interface usa somente dados fictícios; nenhum post foi enviado como teste.
+- A publicação desta implementação exige aplicar `20261106000000_instagram_campaigns.sql`, `20261107000000_instagram_slot_claim.sql` e `20261107050821_instagram_slot_queue_pacing.sql`, em ordem, e depois publicar a Edge Function e o frontend. Esta tarefa não aplica migrações nem publica funções em um banco de produção.
+- Os testes isolados e a prévia de interface usam somente dados fictícios; nenhum post foi enviado como teste.

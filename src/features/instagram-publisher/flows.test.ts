@@ -3,7 +3,11 @@ import {
   buildFlow,
   type FlowInput,
 } from "../../../supabase/functions/instagram-publisher/flow";
-import { slotInstants } from "../../../supabase/functions/instagram-publisher/schedule";
+import {
+  isValidTimeZone,
+  parseSlots,
+  slotInstants,
+} from "../../../supabase/functions/instagram-publisher/schedule";
 const user = "00000000-0000-4000-8000-000000000001";
 const accounts = [
   "00000000-0000-4000-8000-000000000002",
@@ -43,6 +47,10 @@ describe("Fluxos de publicação", () => {
         Date.parse(own[1].scheduled_at!) - Date.parse(own[0].scheduled_at!),
       ).toBe(180000);
     }
+    expect(
+      Date.parse(jobs.find((job) => job.account_id === accounts[1])!.scheduled_at!) -
+        Date.parse(jobs.find((job) => job.account_id === accounts[0])!.scheduled_at!),
+    ).toBe(5000);
     expect(jobs[0].caption).toBe("própria");
     expect(jobs[1].caption).toBe("B");
     expect(library[0].id).toBe("0");
@@ -58,6 +66,29 @@ describe("Fluxos de publicação", () => {
     expect(jobs).toHaveLength(4);
     expect(new Set(jobs.map((j) => j.media_urls[0])).size).toBe(4);
     expect(jobs.filter((j) => j.account_id === accounts[0])).toHaveLength(2);
+
+    const unevenLibrary = [
+      ...library,
+      {
+        id: "4",
+        url: `storage://${user}/4.jpg`,
+        kind: "posts",
+        caption: "",
+      },
+    ];
+    const uneven = buildFlow(
+      {
+        ...input,
+        mediaIds: unevenLibrary.map((item) => item.id),
+        distribution: "split",
+      },
+      unevenLibrary,
+      user,
+      0,
+    );
+    expect(uneven.filter((job) => job.account_id === accounts[0])).toHaveLength(3);
+    expect(uneven.filter((job) => job.account_id === accounts[1])).toHaveLength(2);
+    expect(new Set(uneven.map((job) => job.media_urls[0])).size).toBe(5);
   });
   it("randomiza independentemente sem modificar a ordem original", () => {
     const jobs = buildFlow(
@@ -247,6 +278,7 @@ describe("Horários fixos", () => {
     const jobs = buildFlow(
       {
         ...input,
+        gapMinutes: 1,
         schedule: "slots",
         slots: ["18:00", "09:00"],
         timeZone: "UTC",
@@ -330,6 +362,7 @@ describe("Horários fixos", () => {
       { schedule: "slots", slots: ["23:59", "00:01"], timeZone: "UTC" },
       { schedule: "slots", slots: ["09:00", "09:00"], timeZone: "UTC" },
       { schedule: "slots", slots: ["09:00"], timeZone: "Mars/Base" },
+      { schedule: "slots", slots: ["09:00"], timeZone: "+05:30" },
       { schedule: "cron" },
     ]) {
       expect(() =>
@@ -408,6 +441,112 @@ describe("Horários fixos", () => {
       "10:15",
       "10:45",
       "11:00",
+    ]);
+  });
+
+  it("ordena horários, aceita até 24 e inclui o piso de segurança no descanso", () => {
+    expect(parseSlots(["21:00", "09:00", "12:30"])).toEqual([
+      540,
+      750,
+      1260,
+    ]);
+    const everyHour = Array.from({ length: 24 }, (_, hour) =>
+      `${String(hour).padStart(2, "0")}:00`,
+    );
+    expect(parseSlots(everyHour)).toHaveLength(24);
+    expect(() => parseSlots([...everyHour, "23:59"])).toThrow("invalid_slots");
+
+    expect(
+      slotInstants(
+        3,
+        Date.parse("2026-04-02T09:59:00.000Z"),
+        [600, 605, 610, 615, 620],
+        "UTC",
+        { batch: 1, restMs: 3 * 60000 },
+      ),
+    ).toEqual([
+      Date.parse("2026-04-02T10:00:00.000Z"),
+      Date.parse("2026-04-02T10:10:00.000Z"),
+      Date.parse("2026-04-02T10:20:00.000Z"),
+    ]);
+  });
+
+  it("calcula a hora local de São Paulo e aceita mudanças de fuso de meia hora", () => {
+    expect(isValidTimeZone("UTC")).toBe(true);
+    expect(isValidTimeZone("GMT")).toBe(true);
+    expect(isValidTimeZone("America/Sao_Paulo")).toBe(true);
+    expect(isValidTimeZone("America/New_York")).toBe(true);
+    expect(isValidTimeZone("+05:30")).toBe(false);
+
+    const saoPaulo = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        mediaIds: ["0"],
+        schedule: "slots",
+        slots: ["12:00"],
+        timeZone: "America/Sao_Paulo",
+      },
+      library,
+      user,
+      Date.parse("2026-11-07T14:00:00.000Z"),
+    );
+    expect(saoPaulo[0].scheduled_at).toBe("2026-11-07T15:00:00.000Z");
+
+    const lordHowe = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        mediaIds: ["0"],
+        schedule: "slots",
+        slots: ["01:45"],
+        timeZone: "Australia/Lord_Howe",
+        startAt: "2026-04-04T15:00:00.000Z",
+      },
+      library,
+      user,
+      Date.parse("2026-04-04T14:50:00.000Z"),
+    );
+    expect(lordHowe[0].scheduled_at).toBe("2026-04-04T15:15:00.000Z");
+  });
+
+  it("mantém o descanso contado entre ciclos sem somá-lo duas vezes", () => {
+    const loop = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        repeat: "loop",
+        schedule: "slots",
+        slots: [
+          "10:00",
+          "10:15",
+          "10:30",
+          "10:45",
+          "11:00",
+          "11:15",
+          "11:30",
+          "11:45",
+          "12:00",
+        ],
+        timeZone: "UTC",
+        batchSize: 2,
+        restMinutes: 20,
+        startAt: null,
+      },
+      library,
+      user,
+      Date.parse("2026-04-02T09:00:00.000Z"),
+      Math.random,
+      {
+        offsets: { [accounts[0]]: 2 },
+        starts: { [accounts[0]]: Date.parse("2026-04-02T10:38:00.000Z") },
+      },
+    );
+    expect(loop.map((job) => job.scheduled_at)).toEqual([
+      "2026-04-02T10:45:00.000Z",
+      "2026-04-02T11:00:00.000Z",
+      "2026-04-02T11:30:00.000Z",
+      "2026-04-02T11:45:00.000Z",
     ]);
   });
 });

@@ -93,9 +93,20 @@ export default function Flows({
       supportedValuesOf?: (key: "timeZone") => string[];
     }
   ).supportedValuesOf;
+  const fallbackZones = [
+    "America/Fortaleza",
+    "America/Manaus",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Europe/Lisbon",
+    "Europe/London",
+    "Europe/Paris",
+    "Asia/Tokyo",
+    "Australia/Sydney",
+  ];
   const zones = supportedValuesOf
     ? [...new Set(["UTC", timeZone, ...supportedValuesOf("timeZone")])].sort()
-    : [timeZone];
+    : [...new Set(["UTC", timeZone, ...fallbackZones])].sort();
   const [repeat, setRepeat] = useState<"once" | "loop">("once");
   const [batchSize, setBatchSize] = useState(3);
   const [restMinutes, setRestMinutes] = useState(20);
@@ -264,6 +275,7 @@ export default function Flows({
         throw new Error("Selecione ao menos uma conta ativa e uma mídia.");
       let slotList: string[] | null = null;
       if (scheduleMode === "slots") {
+        if (slotValidationError) throw new Error(slotValidationError);
         try {
           slotList = normalizedSlots(slotDraft);
         } catch {
@@ -284,6 +296,7 @@ export default function Flows({
         accountIds: available,
         mediaIds: picked.map((m) => m.id),
         gapMinutes: scheduleMode === "slots" ? 3 : gap * unit,
+        schedule: scheduleMode,
         random,
         distribution,
         format,
@@ -343,6 +356,19 @@ export default function Flows({
       return [];
     }
   }
+  const slotValidationError =
+    scheduleMode !== "slots"
+      ? null
+      : (() => {
+          try {
+            normalizedSlots(slotDraft);
+          } catch {
+            return "Informe de 1 a 24 horários HH:MM, sem repetir e com pelo menos 3 minutos entre eles, inclusive na virada do dia.";
+          }
+          return isValidTimeZone(timeZone)
+            ? null
+            : "Escolha um fuso horário IANA válido.";
+        })();
   const slotPreview = nextSlotPreview();
 
   if (query.isLoading) return <p role="status">Carregando seus Fluxos…</p>;
@@ -1045,12 +1071,14 @@ export default function Flows({
                 <Input
                   type="time"
                   aria-label="Novo horário"
+                  className="min-w-0 flex-1"
                   value={slotTime}
                   onChange={(e) => setSlotTime(e.target.value)}
                 />
                 <Button
                   type="button"
                   variant="outline"
+                  className="shrink-0"
                   onClick={() => {
                     if (!slotTime) return;
                     setSlotDraft((prev) =>
@@ -1065,10 +1093,16 @@ export default function Flows({
               <Textarea
                 id="flow-slots"
                 rows={4}
+                aria-invalid={!!slotValidationError}
                 value={slotDraft}
                 onChange={(e) => setSlotDraft(e.target.value)}
               />
-              <Label htmlFor="flow-zone">Fuso dos horários</Label>
+              {slotValidationError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {slotValidationError}
+                </p>
+              )}
+              <Label htmlFor="flow-zone">Fuso dos horários (IANA)</Label>
               <select
                 id="flow-zone"
                 className={field}
@@ -1087,7 +1121,10 @@ export default function Flows({
               <div className="space-y-1" aria-live="polite">
                 <p className="text-sm font-medium">Próximas publicações previstas</p>
                 {slotPreview.length ? (
-                  <ol className="list-inside list-decimal text-xs text-muted-foreground">
+                  <ol
+                    aria-label="Prévia das próximas publicações"
+                    className="list-inside list-decimal text-xs text-muted-foreground"
+                  >
                     {slotPreview.map((value, index) => (
                       <li key={index}>{value}</li>
                     ))}
@@ -1210,7 +1247,9 @@ export default function Flows({
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            Fuso: {Intl.DateTimeFormat().resolvedOptions().timeZone}. O envio
+            Fuso: {scheduleMode === "slots"
+              ? timeZone
+              : Intl.DateTimeFormat().resolvedOptions().timeZone}. O envio
             começa pela fila automática, verificada a cada minuto.
           </p>
         </fieldset>
@@ -1234,7 +1273,7 @@ export default function Flows({
             total > 500 ||
             (scheduleMode === "gap"
               ? gap * unit < 3 || !Number.isFinite(gap * unit)
-              : slotPreview.length === 0) ||
+              : !!slotValidationError || slotPreview.length === 0) ||
             (batchRest &&
               (!Number.isInteger(batchSize) ||
                 batchSize < 1 ||

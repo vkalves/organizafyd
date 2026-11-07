@@ -49,6 +49,9 @@ export function buildFlow(
     input.name.length > 120
   )
     throw new Error("invalid_flow");
+  const schedule = input.schedule ?? "gap";
+  if (schedule !== "gap" && schedule !== "slots")
+    throw new Error("invalid_schedule");
   if (
     !Array.isArray(input.accountIds) ||
     !input.accountIds.length ||
@@ -63,9 +66,10 @@ export function buildFlow(
   )
     throw new Error("invalid_media");
   if (
-    !Number.isFinite(input.gapMinutes) ||
-    input.gapMinutes < 3 ||
-    input.gapMinutes > 525600
+    schedule === "gap" &&
+    (!Number.isFinite(input.gapMinutes) ||
+      input.gapMinutes < 3 ||
+      input.gapMinutes > 525600)
   )
     throw new Error("invalid_gap");
   if (
@@ -116,14 +120,8 @@ export function buildFlow(
   const start = input.startAt ? Date.parse(input.startAt) : now + 60000;
   if (!Number.isFinite(start) || start <= now)
     throw new Error("invalid_schedule");
-  if (
-    input.schedule !== undefined &&
-    input.schedule !== "gap" &&
-    input.schedule !== "slots"
-  )
-    throw new Error("invalid_schedule");
   const slotMinutes =
-    input.schedule === "slots" ? parseSlots(input.slots ?? []) : null;
+    schedule === "slots" ? parseSlots(input.slots ?? []) : null;
   if (
     slotMinutes &&
     (!input.timeZone || !isValidTimeZone(input.timeZone))

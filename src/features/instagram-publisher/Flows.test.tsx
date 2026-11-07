@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   save: vi.fn(),
   add: vi.fn(),
+  preview: vi.fn(),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u" } }),
@@ -16,7 +17,7 @@ vi.mock("./flows-api", () => ({
   savePrefs: mocks.save,
   addMedia: mocks.add,
   setMedia: vi.fn(),
-  previewMedia: vi.fn(),
+  previewMedia: mocks.preview,
   cancelFlow: vi.fn(),
   controlFlow: vi.fn(),
 }));
@@ -54,6 +55,7 @@ function show() {
 describe("Fluxos interface", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.preview.mockResolvedValue("https://example.test/media.jpg");
     mocks.load.mockResolvedValue({
       media: [media],
       prefs: { user_id: "u", folders: [], captions: [] },
@@ -86,6 +88,7 @@ describe("Fluxos interface", () => {
           accountIds: ["a"],
           mediaIds: ["m"],
           gapMinutes: 60,
+          schedule: "gap",
           distribution: "split",
           startAt: null,
         }),
@@ -112,6 +115,79 @@ describe("Fluxos interface", () => {
         }),
       ),
     );
+  });
+  it("edita e ordena os horários, mostra a prévia e valida antes de enviar", async () => {
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Horários fixos" }));
+    fireEvent.change(screen.getByLabelText("Fuso dos horários (IANA)"), {
+      target: { value: "UTC" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Intervalo (GAP)" }));
+    expect(
+      screen.getByLabelText("Intervalo entre postagens (GAP)"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Horários fixos" }));
+    expect(screen.getByLabelText("Horários do dia")).toHaveValue(
+      "09:00\n12:30\n18:00\n21:00",
+    );
+    fireEvent.change(screen.getByLabelText("Novo horário"), {
+      target: { value: "07:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar horário" }));
+    expect(
+      screen.getByRole("list", { name: "Prévia das próximas publicações" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Criar fluxo e iniciar" }));
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: "slots",
+          slots: ["07:00", "09:00", "12:30", "18:00", "21:00"],
+          timeZone: "UTC",
+        }),
+      ),
+    );
+
+    mocks.create.mockClear();
+    fireEvent.change(screen.getByLabelText("Horários do dia"), {
+      target: { value: "09:00\n09:01" },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /pelo menos 3 minutos/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Criar fluxo e iniciar" }),
+    ).toBeDisabled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  }, 15000);
+  it("preserva o agendamento futuro do modo GAP", async () => {
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agendar" }));
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const localStart = new Date(
+      future.getTime() - future.getTimezoneOffset() * 60000,
+    )
+      .toISOString()
+      .slice(0, 16);
+    fireEvent.change(screen.getByLabelText("Início do fluxo"), {
+      target: { value: localStart },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Criar e agendar fluxo" }),
+    );
+    await waitFor(() => {
+      const input = mocks.create.mock.calls[0]?.[0];
+      expect(input).toEqual(
+        expect.objectContaining({ schedule: "gap", gapMinutes: 60 }),
+      );
+      expect(Date.parse(input.startAt)).toBeGreaterThan(Date.now());
+    });
   });
   it("troca para Stories e exige nova seleção", async () => {
     show();
