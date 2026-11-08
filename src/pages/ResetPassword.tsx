@@ -32,9 +32,9 @@ const ResetPassword = () => {
 
   return (
     <AuthLayout>
-        <p className="auth-card-eyebrow">UM NOVO COMEÇO</p>
-        <h2>Defina sua nova senha.</h2>
-        <p className="auth-card-description">Escolha uma senha para voltar ao seu espaço de organização.</p>
+        <p className="auth-card-eyebrow">Redefinição de senha</p>
+        <h2>Nova senha</h2>
+        <p className="auth-card-description">Escolha uma nova senha para acessar sua conta.</p>
         <form onSubmit={handleSubmit} className="auth-form">
           <div>
             <div className="auth-field-label"><label htmlFor="reset-password">Nova senha</label></div>

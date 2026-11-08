@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   save: vi.fn(),
   add: vi.fn(),
+  setMedia: vi.fn(),
+  control: vi.fn(),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u" } }),
@@ -15,10 +17,10 @@ vi.mock("./flows-api", () => ({
   createFlow: mocks.create,
   savePrefs: mocks.save,
   addMedia: mocks.add,
-  setMedia: vi.fn(),
-  previewMedia: vi.fn(),
+  setMedia: mocks.setMedia,
+  previewMedia: vi.fn().mockResolvedValue(null),
   cancelFlow: vi.fn(),
-  controlFlow: vi.fn(),
+  controlFlow: mocks.control,
 }));
 vi.mock("./sound", () => ({
   playConfirmation: vi.fn(),
@@ -158,5 +160,89 @@ describe("Fluxos interface", () => {
         }),
       ),
     );
+  });
+
+  it("move mídias selecionadas em lote para uma pasta em uma única ação", async () => {
+    mocks.setMedia.mockResolvedValue(undefined);
+    mocks.load.mockResolvedValue({
+      media: [
+        media,
+        { ...media, id: "m2", url: "storage://u/b.mp4" },
+      ],
+      prefs: { user_id: "u", folders: ["Ofertas"], captions: [] },
+      flows: [],
+      report: { flows: [], usage: [] },
+    });
+
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("button", { name: "Selecionar pasta" }));
+    fireEvent.change(
+      screen.getByLabelText("Mover selecionadas para pasta"),
+      { target: { value: "Ofertas" } },
+    );
+
+    await waitFor(() => {
+      expect(mocks.setMedia).toHaveBeenCalledWith("m", { folder: "Ofertas" });
+      expect(mocks.setMedia).toHaveBeenCalledWith("m2", { folder: "Ofertas" });
+    });
+  });
+
+  it("separa a gestão de campanhas e permite reutilizar configurações com 1 clique", async () => {
+    mocks.load.mockResolvedValue({
+      media: [media],
+      prefs: { user_id: "u", folders: [], captions: [] },
+      flows: [
+        {
+          id: "f1",
+          name: "Reels Diários",
+          created_at: "2026-01-02",
+          state: "active",
+          cycle: 2,
+          settings: {
+            id: "f1",
+            name: "Reels Diários",
+            accountIds: ["a"],
+            mediaIds: ["m"],
+            gapMinutes: 120,
+            random: false,
+            distribution: "split",
+            format: "Reel",
+            kind: "posts",
+            caption: "Legenda reaproveitada",
+            variations: [],
+            startAt: null,
+            coverId: null,
+            repeat: "loop",
+          },
+        },
+      ],
+      report: {
+        flows: [{ id: "f1", published: 4, pending: 2, review: 0 }],
+        usage: [],
+      },
+    });
+
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+
+    fireEvent.click(screen.getByRole("button", { name: /Campanhas \(1\)/ }));
+    expect(screen.getByText("Reels Diários")).toBeInTheDocument();
+    expect(screen.getByText("4 publicado(s)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Reusar/ }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Configurar fluxo/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome do fluxo (opcional)")).toHaveValue(
+      "Reels Diários",
+    );
+    expect(screen.getByLabelText("Legenda automática")).toHaveValue(
+      "Legenda reaproveitada",
+    );
+    expect(
+      screen.getByRole("button", { name: "Criar fluxo e iniciar" }),
+    ).toBeEnabled();
   });
 });

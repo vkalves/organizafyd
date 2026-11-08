@@ -666,74 +666,119 @@ const Notas = () => {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto min-w-0 max-w-5xl space-y-5">
+      <header className="page-header">
         <div>
-          <p className="page-eyebrow mb-2">Biblioteca de ideias</p>
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Notas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Suas ideias e anotações</p>
+          <h1 className="page-title">Notas</h1>
+          <p className="page-subtitle">Anote ideias, rascunhos e listas de verificação.</p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <button type="button" onClick={openFolderDialog} className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent sm:min-h-0">
+        <div className="page-actions">
+          <button
+            type="button"
+            onClick={openFolderDialog}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-border bg-secondary px-3.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
             <FolderOpen className="h-4 w-4" /> Pasta
           </button>
-          <button type="button" onClick={() => { setNewTitle(""); setShowTitleDialog(true); }} className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:min-h-0">
-            <Plus className="h-4 w-4" /> Nova Nota
+          <button
+            type="button"
+            onClick={() => { setNewTitle(""); setShowTitleDialog(true); }}
+            className="silver-button inline-flex h-10 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" /> Nova nota
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input type="text" placeholder="Buscar nas notas..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-11 pl-9 pr-4 rounded-xl bg-secondary/60 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative min-w-0 flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar nas notas..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 w-full rounded-[10px] border border-border bg-card pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-foreground/35 focus:outline-none"
+          />
+        </div>
 
-      <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        <button onClick={() => { setShowArchived(false); setActiveFolder(null); }} className={cn("px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
-          !showArchived && !activeFolder ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-        )}>Todas</button>
-        <button onClick={() => { setShowArchived(true); setActiveFolder(null); }} className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
-          showArchived ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-        )}>
-          <Archive className="w-3.5 h-3.5" /> Arquivadas
-        </button>
-        {folders.map((f) => (
-          <div key={f.id} className="group/folder flex items-center shrink-0">
-          <button onClick={() => { setShowArchived(false); setActiveFolder(f.id); }} className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors",
-            activeFolder === f.id ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-          )}>
-            <FolderOpen className="w-3.5 h-3.5" /> {f.name}
+        <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          <button
+            type="button"
+            onClick={() => { setShowArchived(false); setActiveFolder(null); }}
+            className={cn(
+              "h-9 rounded-lg px-3 text-xs font-medium whitespace-nowrap transition-colors",
+              !showArchived && !activeFolder
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+            )}
+          >
+            Todas
           </button>
-          <button aria-label={`Excluir pasta: ${f.name}`} title="Excluir pasta" onClick={() => setFolderToDelete(f)} className="pointer-events-none p-2 rounded-md text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-destructive group-hover/folder:pointer-events-auto group-hover/folder:opacity-100 group-focus-within/folder:pointer-events-auto group-focus-within/folder:opacity-100">
-            <Trash2 className="w-3.5 h-3.5" />
+          <button
+            type="button"
+            onClick={() => { setShowArchived(true); setActiveFolder(null); }}
+            className={cn(
+              "flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium whitespace-nowrap transition-colors",
+              showArchived
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+            )}
+          >
+            <Archive className="w-3.5 h-3.5" /> Arquivadas
           </button>
-          </div>
-        ))}
+          {folders.map((f) => (
+            <div key={f.id} className="group/folder flex items-center shrink-0">
+              <button
+                type="button"
+                onClick={() => { setShowArchived(false); setActiveFolder(f.id); }}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium whitespace-nowrap transition-colors",
+                  activeFolder === f.id
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                )}
+              >
+                <FolderOpen className="w-3.5 h-3.5" /> {f.name}
+              </button>
+              <button
+                type="button"
+                aria-label={`Excluir pasta: ${f.name}`}
+                title="Excluir pasta"
+                onClick={() => setFolderToDelete(f)}
+                className="pointer-events-none p-2 rounded-md text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-destructive group-hover/folder:pointer-events-auto group-hover/folder:opacity-100 group-focus-within/folder:pointer-events-auto group-focus-within/folder:opacity-100"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-muted-foreground animate-pulse">Carregando...</div>
+        <div className="text-center py-16 text-sm text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl px-5 py-20 text-center">
-          <div className="p-4 rounded-2xl border border-border bg-secondary/60 mb-4">
-            {showArchived ? <Archive className="w-8 h-8 text-muted-foreground" /> : <StickyNote className="w-8 h-8 text-muted-foreground" />}
-          </div>
-          <h2 className="text-lg font-medium text-foreground mb-1">{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {showArchived ? "As notas que você arquivar aparecerão aqui." : "Crie notas para organizar suas ideias."}
-          </p>
+        <div className="empty-state py-14">
+          {showArchived ? (
+            <Archive className="w-7 h-7 text-muted-foreground/50" />
+          ) : (
+            <StickyNote className="w-7 h-7 text-muted-foreground/50" />
+          )}
+          <strong>{showArchived ? "Nenhuma nota arquivada" : "Nenhuma nota"}</strong>
+          <span>
+            {showArchived
+              ? "As notas que você arquivar aparecerão aqui."
+              : "Crie notas para organizar suas ideias."}
+          </span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filtered.map((n) => (
             <div
               key={n.id}
               role="button"
               tabIndex={0}
-              className="operation-panel group cursor-pointer rounded-2xl p-5 text-left transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="panel group cursor-pointer p-4 text-left transition-colors hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => openEditor(n)}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return;
@@ -743,19 +788,35 @@ const Notas = () => {
                 }
               }}
             >
-              <div className="flex items-start justify-between mb-2">
+              <div className="flex items-start justify-between mb-1.5">
                 <h3 className="text-sm font-medium text-foreground truncate flex-1">{n.title}</h3>
                 <div className="flex gap-1 ml-2">
                   {n.is_pinned && <Pin className="w-3 h-3 text-foreground" />}
                   {n.is_favorite && <Star className="w-3 h-3 text-warning fill-warning" />}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-3">{n.content ? n.content.replace(/<[^>]*>/g, "").slice(0, 150) : "Sem conteúdo"}</p>
-              <div className="flex items-center justify-between mt-5 border-t border-border/70 pt-3">
-                <span className="text-[10px] text-muted-foreground">{new Date(n.updated_at).toLocaleDateString("pt-BR")}</span>
+              <p className="text-xs text-muted-foreground line-clamp-3 min-h-[2.75rem]">
+                {n.content ? n.content.replace(/<[^>]*>/g, "").slice(0, 150) : "Sem conteúdo"}
+              </p>
+              <div className="flex items-center justify-between mt-4 border-t border-border pt-2.5">
+                <span className="text-[11px] text-muted-foreground">
+                  {new Date(n.updated_at).toLocaleDateString("pt-BR")}
+                </span>
                 <div className="flex gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                  <button aria-label={n.is_pinned ? "Desafixar nota" : "Fixar nota"} onClick={(e) => togglePin(n, e)} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Pin className={cn("h-3.5 w-3.5", n.is_pinned ? "text-foreground" : "text-muted-foreground")} /></button>
-                  <button aria-label={n.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={(e) => toggleFav(n, e)} className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"><Star className={cn("h-3.5 w-3.5", n.is_favorite ? "fill-warning text-warning" : "text-muted-foreground")} /></button>
+                  <button
+                    aria-label={n.is_pinned ? "Desafixar nota" : "Fixar nota"}
+                    onClick={(e) => togglePin(n, e)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"
+                  >
+                    <Pin className={cn("h-3.5 w-3.5", n.is_pinned ? "text-foreground" : "text-muted-foreground")} />
+                  </button>
+                  <button
+                    aria-label={n.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    onClick={(e) => toggleFav(n, e)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent sm:h-7 sm:w-7"
+                  >
+                    <Star className={cn("h-3.5 w-3.5", n.is_favorite ? "fill-warning text-warning" : "text-muted-foreground")} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -765,13 +826,24 @@ const Notas = () => {
 
       {/* Title dialog for new note */}
       <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">Nova Nota</DialogTitle></DialogHeader>
+        <DialogContent className="bg-popover border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Nova nota</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <input type="text" placeholder="Título da nota" value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
+            <input
+              type="text"
+              placeholder="Título da nota"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreateNote()}
-              className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
-            <button onClick={handleCreateNote} className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Criar e Editar</button>
+              className="w-full h-10 px-3.5 rounded-[10px] bg-background border border-border text-sm text-foreground focus:outline-none focus:border-foreground/35"
+              autoFocus
+            />
+            <button
+              onClick={handleCreateNote}
+              className="silver-button w-full h-10 rounded-[10px] text-sm font-medium"
+            >
+              Criar e editar
+            </button>
           </div>
         </DialogContent>
       </Dialog>

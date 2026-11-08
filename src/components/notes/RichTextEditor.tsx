@@ -136,61 +136,6 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
     editorProps: {
-      handleDOMEvents: {
-        change: (view, event) => {
-          // Tiptap intentionally keeps task checkboxes immutable in read-only
-          // mode unless onReadOnlyChecked is provided. In Visualizar mode we
-          // still want checklist actions to work without making text editable.
-          if (view.editable) return false;
-
-          const checkbox = event.target;
-          if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") return false;
-
-          const taskItem = checkbox.closest('li[data-type="taskItem"]');
-          if (!taskItem) return false;
-
-          // Keep the visual state in sync immediately in inspection mode.
-          taskItem.setAttribute("data-checked", String(checkbox.checked));
-
-          // Build clean HTML from the ProseMirror document, then copy the
-          // live checkbox states into it. In read-only mode Tiptap intentionally
-          // does not write checkbox clicks back to the document, so waiting for
-          // editor.getHTML() would lose the selection.
-          const container = document.createElement("div");
-          const fragment = DOMSerializer.fromSchema(view.state.schema)
-            .serializeFragment(view.state.doc.content);
-          container.appendChild(fragment);
-
-          const liveItems = Array.from(
-            view.dom.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
-          );
-          const savedItems = Array.from(
-            container.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"]'),
-          );
-
-          liveItems.forEach((liveItem, index) => {
-            const savedItem = savedItems[index];
-            if (!savedItem) return;
-
-            const liveCheckbox = liveItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
-            const savedCheckbox = savedItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
-            if (!liveCheckbox) return;
-
-            savedItem.setAttribute("data-checked", String(liveCheckbox.checked));
-
-            if (savedCheckbox) {
-              if (liveCheckbox.checked) {
-                savedCheckbox.setAttribute("checked", "checked");
-              } else {
-                savedCheckbox.removeAttribute("checked");
-              }
-            }
-          });
-
-          onChecklistChange?.(container.innerHTML);
-          return false;
-        },
-      },
       handleClick: (_view, _pos, event) => {
         if ((!readOnly && !(event.ctrlKey || event.metaKey)) || event.button !== 0) return false;
         const target = event.target;
@@ -211,6 +156,54 @@ export function RichTextEditor({
   useEffect(() => {
     editor?.setEditable(!readOnly, false);
   }, [editor, readOnly]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    const onDomChange = (event: Event) => {
+      if (editor.view.editable) return;
+      const checkbox = event.target;
+      if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== "checkbox") return;
+      const taskItem = checkbox.closest('li[data-checked], li[data-type="taskItem"]');
+      if (!taskItem) return;
+
+      taskItem.setAttribute("data-checked", String(checkbox.checked));
+
+      const container = document.createElement("div");
+      const fragment = DOMSerializer.fromSchema(editor.view.state.schema)
+        .serializeFragment(editor.view.state.doc.content);
+      container.appendChild(fragment);
+
+      const liveItems = Array.from(
+        dom.querySelectorAll<HTMLLIElement>('li[data-checked], li[data-type="taskItem"]'),
+      );
+      const savedItems = Array.from(
+        container.querySelectorAll<HTMLLIElement>('li[data-type="taskItem"], li[data-checked]'),
+      );
+
+      liveItems.forEach((liveItem, index) => {
+        const savedItem = savedItems[index];
+        if (!savedItem) return;
+        const liveCheckbox = liveItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        const savedCheckbox = savedItem.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        if (!liveCheckbox) return;
+        savedItem.setAttribute("data-checked", String(liveCheckbox.checked));
+        if (savedCheckbox) {
+          if (liveCheckbox.checked) {
+            savedCheckbox.setAttribute("checked", "checked");
+          } else {
+            savedCheckbox.removeAttribute("checked");
+          }
+        }
+      });
+
+      onChecklistChange?.(container.innerHTML);
+    };
+    dom.addEventListener("change", onDomChange);
+    return () => {
+      dom.removeEventListener("change", onDomChange);
+    };
+  }, [editor, onChecklistChange]);
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {

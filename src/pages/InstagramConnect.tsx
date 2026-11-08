@@ -70,9 +70,11 @@ export default function InstagramConnect() {
   }
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <section className="w-full max-w-lg space-y-5 rounded-2xl border p-6">
-        <Instagram className="h-9 w-9" />
-        <h1 className="text-2xl font-semibold">Conectar Instagram</h1>
+      <section className="panel panel-body w-full max-w-md space-y-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-border bg-secondary text-foreground">
+          <Instagram className="h-5 w-5" />
+        </div>
+        <h1 className="page-title">Conectar Instagram</h1>
         {busy && (
           <p role="status" className="flex gap-2">
             <Loader2 className="animate-spin" />

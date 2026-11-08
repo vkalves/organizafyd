@@ -2330,361 +2330,178 @@
 
 /* ==========================================================================
    ORGANIZAFY SILVER-THEME NATIVE OVERRIDES
-   Garante que toda a interface do Agonia siga 100% o design do Organizafy
-   (silver-stats, operation-panel, silver-button, Sora 300, ig-table, ig-pill)
    ========================================================================== */
 .agonia-root .eyebrow {
-  color: #9aa1b5;
-  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
   font-weight: 500;
-  line-height: 1.6;
-  letter-spacing: 0.04em;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
   text-transform: none;
 }
 
 .agonia-root .page-title {
-  font: 300 clamp(30px, 3.6vw, 46px) / 1.16 Sora, Inter, sans-serif;
-  letter-spacing: -0.035em;
-  color: #f3f5fa;
-  margin: 8px 0 10px;
+  font: 600 24px / 1.2 "Sora", "Inter", sans-serif;
+  letter-spacing: -0.025em;
+  color: hsl(var(--foreground));
+  margin: 4px 0;
 }
 
 .agonia-root .page-subtitle {
-  color: #9aa1b5;
+  color: hsl(var(--muted-foreground));
   max-width: 62ch;
-  line-height: 1.6;
-  font-size: 14px;
+  line-height: 1.5;
+  font-size: 13px;
 }
 
 .agonia-root .button {
-  border-radius: 999px;
-  padding: 10px 18px;
+  border-radius: 10px;
+  padding: 9px 15px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .agonia-root .button-primary,
 .agonia-root .button-mint {
-  background: linear-gradient(110deg, #fff, #e9ecf6 65%, #c8cedd);
-  color: #05050a;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border-color: transparent;
-  box-shadow: inset 0 1px 0 #fff;
+  box-shadow: none;
 }
 
 .agonia-root .button-primary:hover:not(:disabled),
 .agonia-root .button-mint:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 28px -12px #c8cedd80;
+  background: hsl(var(--primary) / 0.9);
+  box-shadow: none;
 }
 
 .agonia-root .button-secondary {
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  background: rgb(255 255 255 / 5%);
-  color: #c9cedd;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
 }
 
 .agonia-root .button-secondary:hover:not(:disabled) {
-  border-color: rgb(255 255 255 / 22%);
-  background: rgb(255 255 255 / 9%);
-  color: #f3f5fa;
+  border-color: hsl(var(--muted-foreground) / 0.45);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .agonia-root .stats-grid {
-  gap: 0;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 22px;
-  overflow: hidden;
-  background: var(--silver-glass, rgb(10 10 16 / 58%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
 }
 
 .agonia-root .stats-grid .stat-card {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
   box-shadow: none;
-  padding: 24px 26px;
-  transition: background 0.18s;
+  padding: 16px 18px;
 }
 
 .agonia-root .stats-grid .stat-card + .stat-card {
-  border-left: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
+  border-left: 1px solid hsl(var(--border));
 }
 
 .agonia-root .stats-grid .stat-card:hover {
-  background: rgb(255 255 255 / 3%);
+  background: hsl(var(--card));
 }
 
 .agonia-root .stats-grid .stat-card .label {
-  color: #9aa1b5;
-  font-size: 13px;
-  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .agonia-root .stats-grid .stat-card .value {
-  margin: 14px 0 8px;
-  font: 300 clamp(40px, 3.8vw, 54px) / 1.05 Sora, sans-serif;
-  letter-spacing: -0.04em;
-  color: #f3f5fa;
+  margin: 8px 0 4px;
+  font: 600 28px / 1.1 "Sora", sans-serif;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
 }
 
 .agonia-root .stats-grid .stat-card .hint {
-  color: #9aa1b5;
-  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
   font-weight: 400;
 }
 
 .agonia-root .panel {
-  background: var(--silver-glass, rgb(10 10 16 / 58%));
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 22px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
-  padding: 24px 26px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: none;
+  padding: 20px;
 }
 
 .agonia-root .panel-title {
-  font: 400 19px / 1.3 Sora, Inter, sans-serif;
-  letter-spacing: -0.025em;
-  color: #f3f5fa;
+  font: 600 15px / 1.3 "Sora", "Inter", sans-serif;
+  letter-spacing: -0.015em;
+  color: hsl(var(--foreground));
 }
 
 .agonia-root .panel-copy {
-  color: #9aa1b5;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-top: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 3px;
 }
 
 .agonia-root .data-table th {
-  font-weight: 400;
-  color: #9aa1b5;
-  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
   text-transform: none;
-  letter-spacing: 0;
-  padding: 0 14px 16px 0;
+  letter-spacing: 0.01em;
+  padding: 0 12px 10px 0;
 }
 
 .agonia-root .data-table td {
-  padding: 18px 14px 18px 0;
-  border-top: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
+  padding: 12px 12px 12px 0;
+  border-top: 1px solid hsl(var(--border));
   border-bottom: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .agonia-root .badge {
-  padding: 5px 11px;
-  border: 1px solid rgb(255 255 255 / 10%);
-  background: rgb(255 255 255 / 5%);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 400;
-  color: #c9cedd;
+  padding: 2px 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
 }
 
 .agonia-root .badge-green {
-  color: #3cdc8c;
-  border-color: rgb(60 220 140 / 30%);
-  background: rgb(60 220 140 / 8%);
+  color: hsl(var(--success));
+  border-color: hsl(var(--success) / 0.3);
+  background: hsl(var(--success) / 0.1);
 }
 
 .agonia-root .badge-red {
-  color: #ffadb7;
-  border-color: rgb(255 140 154 / 30%);
-  background: rgb(255 140 154 / 8%);
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.3);
+  background: hsl(var(--destructive) / 0.1);
 }
 
 @media (max-width: 860px) {
+  .agonia-root .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .agonia-root .stats-grid .stat-card {
-    padding: 20px;
-  }
-  .agonia-root .stats-grid .stat-card:nth-child(3) {
-    border-left: 0;
-  }
-  .agonia-root .stats-grid .stat-card:nth-child(n + 3) {
-    border-top: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
+    padding: 14px 16px;
   }
 }
 
-/* ==========================================================================
-   MODO FLUXO NO AGONIA — STEPPER MINIMALISTA E NAVEGAÇÃO RÁPIDA
-   ========================================================================== */
-.agonia-root .agonia-flows-nav-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 8%));
-  background: rgb(255 255 255 / 2%);
-}
-
-.agonia-root .agonia-step-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.15s ease;
+/* Modo Fluxo herda integralmente o layout limpo de flows.css */
+.agonia-root .agonia-flows-wrapper {
   min-width: 0;
-  flex: 1;
 }
 
-.agonia-root .agonia-step-pill:hover {
-  background: rgb(255 255 255 / 4%);
-}
-
-.agonia-root .agonia-step-pill .step-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 12%);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.agonia-root .agonia-step-pill .step-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #f3f5fa;
-  white-space: nowrap;
-}
-
-.agonia-root .agonia-step-pill .step-desc {
-  font-size: 11px;
-  color: #8a91a8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.agonia-root .step-arrow {
-  color: rgb(255 255 255 / 20%);
-  font-size: 12px;
-  user-select: none;
-}
-
-@media (max-width: 840px) {
-  .agonia-root .agonia-flows-nav-stepper {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  .agonia-root .step-arrow {
-    display: none;
-  }
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flows {
-  gap: 22px;
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-intro {
-  padding: 16px 22px;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 18px;
-  background: rgb(255 255 255 / 2.5%);
-  margin: 0;
-}
-
-.agonia-root .agonia-flows-wrapper .ig-panel {
-  padding: 26px 28px;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 22px;
-  background: var(--silver-glass, rgb(10 10 16 / 58%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
-}
-
-.agonia-root .agonia-flows-wrapper .ig-step {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  background: linear-gradient(110deg, #fff, #e9ecf6 65%, #c8cedd);
-  color: #05050a;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: inset 0 1px 0 #fff;
-}
-
-.agonia-root .agonia-flows-wrapper fieldset {
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 18px;
-  padding: 16px 18px;
-  background: rgb(255 255 255 / 2.5%);
-}
-
-.agonia-root .agonia-flows-wrapper fieldset > legend {
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: #e9ecf6;
-}
-
-.agonia-root .agonia-flows-wrapper details {
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 10%));
-  border-radius: 16px;
-  padding: 12px 16px;
-  background: rgb(255 255 255 / 2%);
-}
-
-.agonia-root .agonia-flows-wrapper details > summary {
-  font-weight: 600;
-  color: #f3f5fa;
-  padding: 4px 0;
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-options button,
-.agonia-root .agonia-flows-wrapper .ig-flow-options label {
-  border-radius: 999px;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 12%));
-  background: rgb(255 255 255 / 3.5%);
-  padding: 9px 15px;
-  min-height: 40px;
-  font-size: 13px;
-  transition: background 0.16s, border-color 0.16s, color 0.16s;
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-options button:hover,
-.agonia-root .agonia-flows-wrapper .ig-flow-options label:hover {
-  border-color: rgb(255 255 255 / 24%);
-  background: rgb(255 255 255 / 6%);
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-options button[aria-pressed="true"] {
-  background: linear-gradient(110deg, #fff, #e9ecf6 65%, #c8cedd);
-  color: #05050a;
-  border-color: transparent;
-  font-weight: 600;
-  box-shadow: inset 0 1px 0 #fff;
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-summary {
-  padding: 18px 20px;
-  border-radius: 18px;
-  border: 1px solid rgb(233 236 246 / 22%);
-  background: radial-gradient(ellipse at 100% 0, rgb(210 218 255 / 14%), rgb(10 10 16 / 65%) 70%);
-}
-
-.agonia-root .agonia-flows-wrapper .ig-flow-card {
-  border-radius: 18px;
-  border: 1px solid var(--silver-line, rgb(255 255 255 / 12%));
-  background: rgb(255 255 255 / 3%);
-  padding: 20px 22px;
-}
-
-@media (max-width: 960px) {
-  .agonia-root .agonia-flows-guide {
-    grid-template-columns: 1fr;
-  }
-  .agonia-root .agonia-flows-wrapper .ig-panel {
-    padding: 20px 18px;
-  }
-}

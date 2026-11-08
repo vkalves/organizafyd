@@ -108,88 +108,76 @@ const MapasMentais = () => {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="border-b border-border/70 pb-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div>
-                <p className="page-eyebrow mb-2">Espaço criativo</p>
-                <h1 className="text-3xl font-medium tracking-tight text-foreground">Mapas mentais</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Organize ideias, links e canais em blocos conectados.
-                </p>
-              </div>
-            </div>
+    <div className="mx-auto min-w-0 max-w-5xl space-y-5">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Mapas mentais</h1>
+          <p className="page-subtitle">Organize ideias, links e canais em blocos conectados.</p>
+        </div>
 
-            {!loading && maps.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-border bg-secondary/55 px-2.5 py-1 text-[10px] text-muted-foreground">
-                  {maps.length} {maps.length === 1 ? "mapa" : "mapas"}
-                </span>
-                <span className="rounded-full border border-border bg-secondary/55 px-2.5 py-1 text-[10px] text-muted-foreground">
-                  {totalBlocks} {totalBlocks === 1 ? "bloco" : "blocos"}
-                </span>
-              </div>
-            )}
-          </div>
-
+        <div className="page-actions">
+          {!loading && maps.length > 0 && (
+            <>
+              <span className="chip">
+                {maps.length} {maps.length === 1 ? "mapa" : "mapas"}
+              </span>
+              <span className="chip">
+                {totalBlocks} {totalBlocks === 1 ? "bloco" : "blocos"}
+              </span>
+            </>
+          )}
           <button
             type="button"
             onClick={openCreate}
-            className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:min-h-10"
+            className="silver-button inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium"
           >
             <Plus className="h-4 w-4" /> Novo mapa
           </button>
         </div>
-      </div>
+      </header>
 
       {!loading && maps.length > 0 && (
-        <div className="relative">
+        <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar mapa mental..."
-            className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-foreground/25 sm:max-w-md"
+            className="h-10 w-full rounded-[10px] border border-border bg-card pl-9 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/35"
           />
         </div>
       )}
 
       {loading ? (
-        <div className="py-20 text-center text-muted-foreground animate-pulse">Carregando...</div>
+        <div className="py-16 text-center text-sm text-muted-foreground animate-pulse">Carregando...</div>
       ) : maps.length === 0 ? (
-        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl py-20 text-center">
-          <div className="mb-4 rounded-2xl border border-border bg-secondary/60 p-4">
-            <Network className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h2 className="mb-1 text-lg font-medium text-foreground">Nenhum mapa mental</h2>
-          <p className="max-w-sm px-4 text-sm text-muted-foreground">
-            Crie um tema central e conecte ideias, perfis, links, tarefas ou qualquer informação importante.
-          </p>
+        <div className="empty-state py-14">
+          <Network className="h-7 w-7 text-muted-foreground/50" />
+          <strong>Nenhum mapa mental</strong>
+          <span>Crie um tema central e conecte ideias, perfis, links ou tarefas.</span>
           <button
             type="button"
             onClick={openCreate}
-            className="mt-5 flex h-10 items-center gap-2 rounded-md bg-secondary px-4 text-sm text-foreground hover:bg-accent"
+            className="mt-2 flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3.5 text-xs font-medium text-foreground hover:bg-accent"
           >
             <Plus className="h-4 w-4" /> Criar primeiro mapa
           </button>
         </div>
       ) : filteredMaps.length === 0 ? (
-        <div className="operation-panel rounded-2xl py-16 text-center">
-          <Search className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Nenhum mapa encontrado</p>
-          <p className="mt-1 text-xs text-muted-foreground">Tente outro termo na busca.</p>
+        <div className="empty-state py-12">
+          <Search className="h-6 w-6 text-muted-foreground/50" />
+          <strong>Nenhum mapa encontrado</strong>
+          <span>Tente outro termo na busca.</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {filteredMaps.map((map) => {
             const blocks = map.data?.root ? countTopics(map.data.root) : 1;
             const rootIcon = map.data?.root?.icon;
             return (
               <div
                 key={map.id}
-                className="operation-panel group relative overflow-hidden rounded-2xl transition-colors duration-150 hover:border-foreground/25"
+                className="panel group relative overflow-hidden transition-colors duration-150 hover:border-foreground/25"
               >
                 <button
                   type="button"
@@ -197,21 +185,21 @@ const MapasMentais = () => {
                     setOpenMap(map);
                     setDraft(map.data);
                   }}
-                  className="w-full p-5 text-left"
+                  className="w-full p-4 text-left"
                 >
-                  <div className="mb-4 flex items-start justify-between gap-3 pr-8">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-secondary text-foreground">
+                  <div className="mb-3 flex items-start justify-between gap-3 pr-8">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-foreground">
                       {rootIcon && rootIcon !== "none" ? (
-                        <BrandIcon name={rootIcon} className="h-5 w-5" />
+                        <BrandIcon name={rootIcon} className="h-4 w-4" />
                       ) : (
                         <Network className="h-4 w-4" />
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="rounded-full border border-border bg-secondary/55 px-2 py-1 text-[9px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <span className="chip !h-5 !px-2 !text-[11px]">
                         {blocks} {blocks === 1 ? "bloco" : "blocos"}
                       </span>
-                      <span className="rounded-full bg-secondary/40 px-2 py-0.5 text-[8px] text-muted-foreground">
+                      <span className="chip !h-5 !px-2 !text-[11px]">
                         {getMindMapLayoutLabel(map.data?.layout)}
                       </span>
                     </div>
@@ -219,12 +207,12 @@ const MapasMentais = () => {
 
                   <h3 className="truncate text-sm font-medium text-foreground">{map.title}</h3>
                   {map.description ? (
-                    <p className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-relaxed text-muted-foreground">{map.description}</p>
+                    <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-relaxed text-muted-foreground">{map.description}</p>
                   ) : (
-                    <p className="mt-1.5 min-h-8 text-xs text-muted-foreground/55">Sem descrição</p>
+                    <p className="mt-1 min-h-8 text-xs text-muted-foreground/55">Sem descrição</p>
                   )}
 
-                  <div className="mt-4 flex items-center gap-1.5 border-t border-border/70 pt-3 text-[10px] text-muted-foreground">
+                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
                     <Clock3 className="h-3 w-3" />
                     Atualizado em {new Date(map.updated_at).toLocaleDateString("pt-BR")}
                   </div>
@@ -233,7 +221,7 @@ const MapasMentais = () => {
                 <button
                   type="button"
                   onClick={() => setDeleteId(map.id)}
-                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-100 transition-colors hover:bg-destructive/10 hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
+                  className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-100 transition-colors hover:bg-destructive/10 hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
                   aria-label={`Excluir mapa: ${map.title}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

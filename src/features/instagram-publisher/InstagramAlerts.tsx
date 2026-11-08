@@ -26,5 +26,5 @@ export function InstagramAlerts() {
  const isAgonia = location.pathname.startsWith('/agonia');
  const targetLink = isAgonia ? '/agonia/alertas' : '/instagram?view=alerts';
 
- return <Link to={targetLink} className="shell-icon-button relative" aria-label={monitor.isError ? 'Alertas do Instagram: monitoramento indisponível' : `Alertas do Instagram: ${count} não lidos`} title="Alertas do Instagram"><Bell className="h-4 w-4" />{(count > 0 || monitor.isError) && <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1 text-[10px] text-white">{monitor.isError ? '!' : count}</span>}</Link>;
+ return <Link to={targetLink} className="shell-icon-button relative" aria-label={monitor.isError ? 'Alertas do Instagram: monitoramento indisponível' : `Alertas do Instagram: ${count} não lidos`} title="Alertas do Instagram"><Bell className="h-4 w-4" />{(count > 0 || monitor.isError) && <span className=" -right-0.5 -top-0.5 absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white">{monitor.isError ? '!' : count}</span>}</Link>;
 }

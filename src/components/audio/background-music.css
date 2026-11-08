@@ -1,41 +1,42 @@
 .background-music {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 16px;
+  right: 16px;
   z-index: 55;
-  width: 44px;
-  height: 44px;
-  color: #e5e5ec;
+  width: 38px;
+  height: 38px;
+  color: hsl(var(--foreground));
 }
 .background-music-launcher {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid #ffffff20;
+  width: 38px;
+  height: 38px;
+  border: 1px solid hsl(var(--border));
   border-radius: 50%;
-  background: #0b0b10ed;
-  color: #a7a8b8;
+  background: hsl(var(--popover));
+  color: hsl(var(--muted-foreground));
+  transition: color 150ms, border-color 150ms;
+}
+.background-music-launcher:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.25);
 }
 .background-music-panel {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 238px;
+  width: 232px;
   padding: 12px 14px;
-  border: 1px solid #ffffff20;
-  border-radius: 18px;
-  background: #0b0b10ed;
-  box-shadow: 0 8px 36px #0005;
-  backdrop-filter: blur(16px);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--popover));
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(6px);
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease,
-    visibility 150ms;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms;
 }
 .background-music.is-expanded .background-music-panel {
   opacity: 1;
@@ -46,32 +47,36 @@
 .background-music-title {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   font-size: 12px;
+  font-weight: 500;
 }
 .background-music-title small {
   display: block;
-  margin-top: 2px;
-  color: #9294a4;
-  font-size: 10px;
+  margin-top: 1px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 400;
 }
 .background-music-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 9px;
+  margin-top: 10px;
 }
 .background-music-controls button {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid #ffffff20;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
 }
-.background-music-controls button:hover {
-  background: #ffffff10;
+.background-music-controls button:hover:not(:disabled) {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 .background-music-controls button:disabled {
   opacity: 0.4;
@@ -79,22 +84,18 @@
 .background-music-controls input {
   min-width: 0;
   width: 100%;
-  accent-color: #d6d4e2;
+  accent-color: hsl(var(--primary));
 }
 .background-music-controls output {
   min-width: 28px;
-  color: #a7a8b8;
-  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
   text-align: right;
-}
-.background-music :focus-visible {
-  outline: 2px solid #ddd9ef;
-  outline-offset: 3px;
 }
 @media (max-width: 1023px) {
   .background-music {
     right: 12px;
-    bottom: calc(80px + env(safe-area-inset-bottom));
+    bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
 }
 @media (max-width: 600px) {
@@ -103,14 +104,5 @@
     bottom: auto;
     right: auto;
     margin: 0 auto 20px;
-  }
-  .auth-layout {
-    padding-bottom: 140px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .background-music-panel {
-    transition: none;
   }
 }

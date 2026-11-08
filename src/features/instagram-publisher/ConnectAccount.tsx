@@ -21,8 +21,8 @@ export function ConnectAccount({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Plus className="mr-1.5 h-3.5 w-3.5" />
         Conectar conta
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

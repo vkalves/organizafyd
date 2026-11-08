@@ -19,9 +19,11 @@ export const LocalMediaPreviews = memo(function LocalMediaPreviews({
   }, [files]);
   if (!items.length) return null;
   return (
-    <section aria-label="Prévia dos arquivos escolhidos" className="space-y-3">
-      <h3 className="text-sm font-medium">Mídias selecionadas</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <section aria-label="Prévia dos arquivos escolhidos" className="space-y-2">
+      <h3 className="text-xs font-medium text-muted-foreground">
+        Processando envio ({items.length})
+      </h3>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {items.map(({ file, url }) => (
           <LocalFile key={url} file={file} url={url} />
         ))}
@@ -35,24 +37,24 @@ function LocalFile({ file, url }: { file: File; url: string }) {
   return (
     <figure
       ref={ref}
-      className="overflow-hidden rounded-xl border border-white/15 bg-black/40"
+      className="overflow-hidden rounded-[9px] border border-border bg-background"
     >
       {file.type.startsWith("video/") ? (
         <VideoPreview
           src={url}
           visible={visible}
           label={`Prévia de ${file.name}`}
-          className="h-64 w-full object-contain"
+          className="h-28 w-full object-cover"
         />
       ) : (
         <img
           src={visible ? url : undefined}
           alt={`Prévia de ${file.name}`}
           loading="lazy"
-          className="h-64 w-full object-contain"
+          className="h-28 w-full object-cover"
         />
       )}
-      <figcaption className="truncate px-3 py-2 text-xs text-muted-foreground">
+      <figcaption className="truncate px-2.5 py-1.5 text-[11px] text-muted-foreground">
         {file.name}
       </figcaption>
     </figure>

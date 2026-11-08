@@ -1,15 +1,18 @@
 import { useEffect, useRef } from "react";
+
 export function VideoPreview({
   src,
   visible,
   label,
   className,
+  controls = true,
   onError,
 }: {
   src: string;
   visible: boolean;
   label: string;
   className: string;
+  controls?: boolean;
   onError?: () => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -23,7 +26,7 @@ export function VideoPreview({
     <video
       ref={ref}
       src={visible ? src : undefined}
-      controls
+      controls={controls}
       muted
       playsInline
       preload={visible ? "metadata" : "none"}

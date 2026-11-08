@@ -1,85 +1,89 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Instagram } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { HotfyDashboard, type InstagramView } from "./HotfyDashboard";
-import { listAccounts, listPosts, connections } from "./api";
+import { publishedToday, type InstagramView } from "./HotfyDashboard";
+import { listAccounts, listPosts } from "./api";
 import { useInstagramMonitor } from "./InstagramAlerts";
-import { monitorRequest } from "./monitor";
-import { ConnectAccount } from "./ConnectAccount";
-import { toast } from "sonner";
 import "./hotfy-dashboard.css";
+
 export function InstagramOverview() {
-  const { user } = useAuth(),
-    navigate = useNavigate(),
-    cache = useQueryClient();
-  const monitor = useInstagramMonitor(),
-    [reading, setReading] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const monitor = useInstagramMonitor();
+
   const accounts = useQuery({
     queryKey: ["instagram-publisher-accounts", user?.id],
     queryFn: () => listAccounts(user!.id),
     enabled: !!user,
   });
+
   const posts = useQuery({
     queryKey: ["instagram-publisher", user?.id],
     queryFn: () => listPosts(user!.id),
     enabled: !!user,
     refetchInterval: 30000,
   });
-  const links = useQuery({
-    queryKey: ["ig-connections", user?.id],
-    queryFn: connections,
-    enabled: !!user,
-    refetchInterval: 30000,
-  });
-  function go(view: InstagramView, format?: "Reel" | "Story") {
-    navigate(`/instagram?view=${view}${format ? "&format=" + format : ""}`);
+
+  function go(view: InstagramView) {
+    navigate(`/instagram?view=${view}`);
   }
+
+  const loading = accounts.isLoading || posts.isLoading;
+  const failed = accounts.isError || posts.isError;
+  const postList = posts.data ?? [];
+  const pendingCount = postList.filter((p) => ["scheduled", "processing"].includes(p.status) && p.format === "Reel").length;
+  const todayCount = postList.filter((p) => publishedToday(p)).length;
+  const alertAccounts = new Set(
+    (monitor.data?.alerts ?? []).filter((a) => !a.resolved_at).map((a) => a.account_id),
+  ).size;
+
+  const stats = [
+    ["Contas conectadas", accounts.data?.length ?? 0, "perfis ativos", "accounts"],
+    ["Reels agendados", pendingCount, "na fila", "queue"],
+    ["Publicados hoje", todayCount, "confirmados", "queue"],
+    ["Contas com alerta", alertAccounts, "atenção", "alerts"],
+  ] as const;
+
   return (
-    <section
-      aria-label="Visão geral do Instagram"
-      className="ig-hotfy !max-w-none"
-    >
-      <div className="ig-panel-head">
-        <div>
-          <p className="page-eyebrow">Dashboard principal</p>
-          <h2 className="mt-2 text-xl font-medium">
-            Sua operação no Instagram
-          </h2>
+    <section aria-label="Visão geral do Instagram" className="panel overflow-hidden">
+      <div className="panel-head pb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground">
+            <Instagram className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="section-title">Instagram</h2>
+            <p className="section-subtitle">Resumo rápido das contas e fila de publicação</p>
+          </div>
         </div>
-        <button className="ig-pill" onClick={() => go("flows")}>
-          Abrir Instagram →
+        <button type="button" className="panel-link" onClick={() => go("flows")}>
+          Abrir Instagram <ArrowUpRight className="h-3.5 w-3.5" />
         </button>
       </div>
-      <HotfyDashboard
-        accounts={accounts.data ?? []}
-        posts={posts.data ?? []}
-        connections={links.data ?? []}
-        monitor={monitor.data}
-        loading={accounts.isLoading || posts.isLoading}
-        failed={accounts.isError || posts.isError}
-        monitorFailed={monitor.isError}
-        view="dashboard"
-        go={go}
-        connect={
-          <ConnectAccount
-            onConnected={async () => {
-              await cache.invalidateQueries({
-                queryKey: ["instagram-publisher-accounts", user?.id],
-              });
-              await links.refetch();
-            }}
-          />
-        }
-        reading={reading}
-        markRead={(id) => {
-          setReading(true);
-          void monitorRequest("read", id)
-            .then(() => monitor.refetch())
-            .catch(() => toast.error("Não foi possível marcar o alerta."))
-            .finally(() => setReading(false));
-        }}
-      />
+
+      <div className="grid grid-cols-2 border-t border-border lg:grid-cols-4">
+        {stats.map(([title, value, detail, target], idx) => (
+          <button
+            key={title}
+            type="button"
+            onClick={() => go(target)}
+            className={`flex flex-col gap-1 p-4 text-left transition-colors hover:bg-card-hover sm:px-5 ${
+              idx % 2 === 1 ? "border-l border-border" : ""
+            } ${idx >= 2 ? "border-t border-border lg:border-t-0" : ""} ${
+              idx >= 2 ? "lg:border-l lg:border-border" : ""
+            }`}
+          >
+            <span className="text-xs text-muted-foreground">{title}</span>
+            <strong className="font-display text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+              {loading || failed || (target === "alerts" && (!monitor.data || monitor.isError))
+                ? "—"
+                : value}
+            </strong>
+            <span className="text-xs text-muted-foreground">{detail}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

@@ -1234,49 +1234,22 @@ export default function Agonia() {
         <>
           <header className="topbar">
             <div>
-              <div className="eyebrow">Automação inteligente · Modo Fluxo</div>
-              <h1 className="page-title">Fluxos de Publicação</h1>
+              <h1 className="page-title">Modo Fluxo</h1>
               <p className="page-subtitle">
-                Organize sua biblioteca de mídias em pastas, defina horários
-                fixos ou intervalos (GAP) e crie campanhas automáticas em loop
-                para várias contas ao mesmo tempo.
+                Selecione mídias da biblioteca, escolha as contas e programe o envio contínuo.
               </p>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/agonia/reels-new">
-                <Plus className="h-4 w-4" /> Publicação Direta
+                <Plus className="h-4 w-4" /> Publicação direta
               </Link>
-              <Link className="button button-primary" to="/agonia/scheduled">
-                <CalendarClock className="h-4 w-4" /> Ver Fila ({stats.scheduled})
+              <Link className="button button-secondary" to="/agonia/scheduled">
+                <CalendarClock className="h-4 w-4" /> Fila ({stats.scheduled})
               </Link>
             </div>
           </header>
 
-          {/* Navegação e Etapas Minimalistas */}
-          <nav
-            className="agonia-flows-nav-stepper"
-            aria-label="Etapas do Modo Fluxo"
-          >
-            <a href="#ig-library-heading" className="agonia-step-pill">
-              <span className="step-badge">1</span>
-              <span className="step-title">Biblioteca & Mídias</span>
-              <span className="step-desc">Upload e seleção de arquivos</span>
-            </a>
-            <span className="step-arrow">→</span>
-            <a href="#ig-new-flow-heading" className="agonia-step-pill">
-              <span className="step-badge">2</span>
-              <span className="step-title">Regras & Horários</span>
-              <span className="step-desc">Contas, GAP e repetição</span>
-            </a>
-            <span className="step-arrow">→</span>
-            <a href="#agonia-flows-active-anchor" className="agonia-step-pill">
-              <span className="step-badge">3</span>
-              <span className="step-title">Campanhas Ativas</span>
-              <span className="step-desc">Progresso e controle</span>
-            </a>
-          </nav>
-
-          <div id="agonia-flows-active-anchor" className="agonia-flows-wrapper">
+          <div className="agonia-flows-wrapper">
             <Flows
               accounts={accounts}
               connections={links}

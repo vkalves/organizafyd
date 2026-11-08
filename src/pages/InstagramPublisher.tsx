@@ -49,7 +49,7 @@ const labels = {
   uncertain: "Conferir no Instagram",
 };
 const field =
-  "w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm";
+  "w-full h-10 rounded-[10px] border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 export default function InstagramPublisher() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -210,16 +210,14 @@ export default function InstagramPublisher() {
   );
   return (
     <div className="ig-hotfy">
-      <header className="ig-hotfy-header">
+      <header className="page-header">
         <div>
-          <p className="ig-eyebrow">Instagram · Central de publicação</p>
-          <h1>Instagram</h1>
-          <p className="text-muted-foreground">
-            Seu centro de publicação, organizado para você pensar só no
-            conteúdo.
+          <h1 className="page-title">Instagram</h1>
+          <p className="page-subtitle">
+            Fluxos automáticos, contas conectadas e fila de publicação.
           </p>
         </div>
-        {connectControl}
+        <div className="page-actions">{connectControl}</div>
       </header>
       <nav className="ig-tabs" aria-label="Seções do Instagram">
         {(
@@ -257,38 +255,38 @@ export default function InstagramPublisher() {
           />
         </Suspense>
       )}
-      <HotfyDashboard
-        accounts={accounts}
-        connections={linkQuery.data ?? []}
-        posts={query.data ?? []}
-        monitor={monitor.data}
-        loading={accountsQuery.isLoading || query.isLoading}
-        failed={accountsQuery.isError || query.isError}
-        monitorFailed={monitor.isError}
-        view={view}
-        go={go}
-        connect={connectControl}
-        markRead={markRead}
-        reading={reading}
-      />
-      <p
-        className={`ig-monitor-status ${monitor.isError ? "error" : ""}`}
-        role="status"
-      >
-        {monitor.isError
-          ? "Não foi possível atualizar o monitoramento."
-          : "Monitor automático · verificações em segundo plano · painel atualizado a cada 30 segundos."}{" "}
-        <button
-          className="underline ml-2"
-          onClick={() => {
-            void monitor.refetch();
-            void accountsQuery.refetch();
-            void query.refetch();
-          }}
-        >
-          Atualizar dados
-        </button>
-      </p>
+      {(view === "dashboard" || view === "accounts" || view === "alerts") && (
+        <HotfyDashboard
+          accounts={accounts}
+          connections={linkQuery.data ?? []}
+          posts={query.data ?? []}
+          monitor={monitor.data}
+          loading={accountsQuery.isLoading || query.isLoading}
+          failed={accountsQuery.isError || query.isError}
+          monitorFailed={monitor.isError}
+          view={view}
+          go={go}
+          connect={connectControl}
+          markRead={markRead}
+          reading={reading}
+        />
+      )}
+      {monitor.isError && (
+        <p className="ig-monitor-status error" role="status">
+          Não foi possível atualizar o monitoramento.{" "}
+          <button
+            type="button"
+            className="ml-2 underline"
+            onClick={() => {
+              void monitor.refetch();
+              void accountsQuery.refetch();
+              void query.refetch();
+            }}
+          >
+            Atualizar dados
+          </button>
+        </p>
+      )}
       <div
         className="operation-panel rounded-2xl border border-amber-500/30 p-4"
         role="status"

@@ -439,77 +439,77 @@ const Tarefas = () => {
           : "Salvo";
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto min-w-0 max-w-5xl space-y-5">
+      <header className="page-header">
         <div>
-          <p className="page-eyebrow mb-2">Organização pessoal</p>
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Tarefas</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Organize seu dia e suas metas</p>
+          <h1 className="page-title">Tarefas</h1>
+          <p className="page-subtitle">Organize seu dia e suas prioridades.</p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:min-h-0 sm:w-auto"
-        >
-          <Plus className="h-4 w-4" /> Nova tarefa
-        </button>
-      </div>
+        <div className="page-actions">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="silver-button inline-flex h-10 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" /> Nova tarefa
+          </button>
+        </div>
+      </header>
 
       <GoogleCalendarTaskStatus />
 
       <div className="scrollbar-none -mx-4 flex min-w-0 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        {views.map((view) => (
-          <button
-            key={view}
-            onClick={() => setActiveView(view)}
-            className={cn(
-              "flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors sm:min-h-0",
-              activeView === view
-                ? "bg-secondary font-medium text-foreground"
-                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-            )}
-          >
-            {view}
-            <span className="rounded-full bg-background/50 px-1.5 py-0.5 text-[9px] text-muted-foreground">
-              {counts[view as keyof typeof counts]}
-            </span>
-          </button>
-        ))}
+        <div className="segmented">
+          {views.map((view) => (
+            <button
+              key={view}
+              type="button"
+              aria-pressed={activeView === view}
+              onClick={() => setActiveView(view)}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <span>{view}</span>
+              <span className="rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {counts[view as keyof typeof counts]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="operation-panel rounded-2xl p-4 sm:p-5">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="panel p-3.5 sm:p-4">
+        <div className="flex min-w-0 items-center gap-2.5">
           <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Adicionar tarefa rápida..."
+            placeholder="Adicionar tarefa rápida... (pressione Enter)"
             value={quickTitle}
             onChange={(event) => setQuickTitle(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") void handleQuickAdd();
             }}
-            className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="h-9 min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
           {quickTitle && (
             <button
               type="button"
               onClick={() => void handleQuickAdd()}
-              className="hidden h-9 shrink-0 rounded-md bg-secondary px-3 text-xs font-medium text-foreground hover:bg-accent sm:block"
+              className="hidden h-8 shrink-0 rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground hover:bg-accent sm:block"
             >
               Adicionar
             </button>
           )}
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
-          <div className="flex items-center rounded-md bg-secondary/60 p-0.5">
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-border pt-2.5">
+          <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
             {priorities.map((priority) => (
               <button
                 key={priority.value}
                 type="button"
                 onClick={() => setQuickPriority(priority.value)}
                 className={cn(
-                  "flex h-7 items-center gap-1.5 rounded px-2 text-[10px] transition-colors",
+                  "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors",
                   quickPriority === priority.value
                     ? "bg-accent text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -521,7 +521,7 @@ const Tarefas = () => {
             ))}
           </div>
 
-          <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 text-[10px] text-muted-foreground hover:bg-secondary/60 hover:text-foreground">
+          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground">
             <input
               type="checkbox"
               checked={quickNoDeadline}
@@ -535,7 +535,7 @@ const Tarefas = () => {
             <button
               type="button"
               onClick={() => void handleQuickAdd()}
-              className="ml-auto h-8 rounded-md bg-secondary px-3 text-[10px] font-medium text-foreground hover:bg-accent sm:hidden"
+              className="ml-auto h-7 rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground hover:bg-accent sm:hidden"
             >
               Adicionar
             </button>
@@ -544,16 +544,12 @@ const Tarefas = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-muted-foreground animate-pulse">Carregando...</div>
+        <div className="py-16 text-center text-sm text-muted-foreground animate-pulse">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="operation-panel flex flex-col items-center justify-center rounded-2xl px-5 py-20 text-center">
-          <div className="mb-4 rounded-2xl border border-border bg-secondary/60 p-4">
-            <CheckSquare className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h2 className="mb-1 text-lg font-medium text-foreground">Nenhuma tarefa</h2>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Não há tarefas nessa visualização.
-          </p>
+        <div className="empty-state py-14">
+          <CheckSquare className="h-7 w-7 text-muted-foreground/50" />
+          <strong>Nenhuma tarefa</strong>
+          <span>Não há tarefas nesta visualização.</span>
         </div>
       ) : (
         <div className="space-y-2">
@@ -565,9 +561,9 @@ const Tarefas = () => {
             return (
               <article
                 key={task.id}
-                className="operation-panel group overflow-hidden rounded-2xl transition-colors hover:border-foreground/25"
+                className="panel group overflow-hidden transition-colors hover:border-foreground/25"
               >
-                <div className="flex min-w-0 items-start gap-2 p-4 sm:items-center">
+                <div className="flex min-w-0 items-start gap-2 p-3.5 sm:items-center sm:px-4">
                   <button
                     type="button"
                     aria-label={task.status === "done" ? "Reabrir tarefa: " + task.title : "Concluir tarefa: " + task.title}

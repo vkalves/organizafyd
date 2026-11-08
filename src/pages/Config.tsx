@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { wipeInstagram } from "@/features/instagram/data";
 import { GoogleCalendarSettings } from "@/features/google-calendar/GoogleCalendarSettings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -51,100 +53,153 @@ const Config = () => {
   const handleExport = async () => {
     if (!user) return;
     const tables = ["tasks", "notes", "links", "funnels", "transactions", "financial_accounts", "financial_categories", "folders"] as const;
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
     for (const table of tables) {
-      const { data: rows } = await (supabase.from(table) as any).select("*").eq("user_id", user.id);
+      const { data: rows } = await supabase.from(table).select("*").eq("user_id", user.id);
       data[table] = rows || [];
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `organify-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `organizafy-backup-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Backup exportado!");
   };
 
   return (
-    <div className="mx-auto min-w-0 max-w-3xl space-y-5 sm:space-y-6">
-      <div className="border-b border-border/70 pb-6">
-        <p className="page-eyebrow mb-2">Seu ambiente</p>
-        <h1 className="text-3xl font-medium text-foreground tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie seu perfil e preferências</p>
-      </div>
+    <div className="mx-auto min-w-0 max-w-2xl space-y-4">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Configurações</h1>
+          <p className="page-subtitle">Perfil, preferências, integrações e dados da conta.</p>
+        </div>
+      </header>
 
-      <div className="operation-panel space-y-5 rounded-2xl p-5 sm:p-6">
-        <h2 className="text-sm font-medium text-foreground flex items-center gap-2"><User className="w-4 h-4 text-muted-foreground" /> Perfil</h2>
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-            <User className="w-6 h-6 text-muted-foreground" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-foreground font-medium">{profile?.display_name || "Usuário"}</p>
-            <p className="break-all text-xs text-muted-foreground">{user?.email}</p>
+      {/* Perfil + Preferências em um único painel */}
+      <section className="panel">
+        <div className="panel-head">
+          <div className="flex items-center gap-2.5">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <h2 className="section-title">Perfil e preferências</h2>
           </div>
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Nome</label>
-          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-        </div>
-        <button onClick={handleSave} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto">
-          <Save className="w-4 h-4" /> Salvar Perfil
-        </button>
-      </div>
+        <div className="panel-body space-y-4">
+          <div className="flex items-center gap-3.5 pb-1">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary">
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">
+                {profile?.display_name || "Usuário"}
+              </p>
+              <p className="break-all text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+          </div>
 
-      <div className="operation-panel space-y-5 rounded-2xl p-5 sm:p-6">
-        <h2 className="text-sm font-medium text-foreground flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /> Preferências</h2>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Fuso horário</label>
-          <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
-            <option value="America/Sao_Paulo">América/São Paulo (GMT-3)</option>
-            <option value="America/Manaus">América/Manaus (GMT-4)</option>
-            <option value="America/Fortaleza">América/Fortaleza (GMT-3)</option>
-          </select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="cfg-name" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Nome de exibição
+              </label>
+              <Input
+                id="cfg-name"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Seu nome"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="cfg-tz" className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Globe className="h-3.5 w-3.5" /> Fuso horário
+              </label>
+              <select
+                id="cfg-tz"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="flex h-10 w-full rounded-[10px] border border-border bg-background px-3 text-sm text-foreground focus:border-foreground/35 focus:outline-none"
+              >
+                <option value="America/Sao_Paulo">América/São Paulo (GMT-3)</option>
+                <option value="America/Manaus">América/Manaus (GMT-4)</option>
+                <option value="America/Fortaleza">América/Fortaleza (GMT-3)</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-week" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Início da semana
+              </label>
+              <select
+                id="cfg-week"
+                value={weekStart}
+                onChange={(e) => setWeekStart(e.target.value)}
+                className="flex h-10 w-full rounded-[10px] border border-border bg-background px-3 text-sm text-foreground focus:border-foreground/35 focus:outline-none"
+              >
+                <option value="monday">Segunda-feira</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Button onClick={handleSave}>
+              <Save className="h-4 w-4" /> Salvar alterações
+            </Button>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Início da semana</label>
-          <select value={weekStart} onChange={(e) => setWeekStart(e.target.value)}
-            className="w-full h-10 px-3 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none">
-            <option value="monday">Segunda-feira</option>
-            <option value="sunday">Domingo</option>
-          </select>
-        </div>
-      </div>
+      </section>
 
       <GoogleCalendarSettings />
 
-      <div className="operation-panel space-y-5 rounded-2xl p-5 sm:p-6">
-        <h2 className="text-sm font-medium text-foreground flex items-center gap-2"><Download className="w-4 h-4 text-muted-foreground" /> Backup & Exportação</h2>
-        <button onClick={handleExport} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent sm:w-auto">
-          <Download className="w-4 h-4" /> Exportar JSON
-        </button>
-      </div>
+      {/* Backup & Exportação */}
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2 className="section-title">Backup dos dados</h2>
+            <p className="section-subtitle">Baixe uma cópia de todas as suas tarefas e notas em JSON.</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Exportar JSON
+          </Button>
+        </div>
+        <div className="pb-4" />
+      </section>
 
-      <div className="operation-panel space-y-5 rounded-2xl p-5 sm:p-6">
-        <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
-          <Trash2 className="w-4 h-4" /> Instagram
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Apaga contas, conteúdos pendentes, prontos, ideias e o restante do
-          Instagram. Não dá para desfazer.
-        </p>
-        <button
-          type="button"
-          onClick={() => setWipeOpen(true)}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 sm:w-auto"
-        >
-          <Trash2 className="w-4 h-4" /> Zerar Instagram
-        </button>
-      </div>
+      {/* Zona de atenção */}
+      <section className="panel border-destructive/25">
+        <div className="panel-head">
+          <div>
+            <h2 className="section-title">Zona de atenção</h2>
+            <p className="section-subtitle">
+              Ações sensíveis da conta e redefinição dos dados do Instagram.
+            </p>
+          </div>
+        </div>
+        <div className="panel-body flex flex-wrap items-center justify-between gap-3 border-t border-border mt-3 pt-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">Zerar dados do Instagram</p>
+            <p className="text-xs text-muted-foreground">
+              Apaga contas, conteúdos e histórico do módulo Instagram.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => setWipeOpen(true)}>
+            <Trash2 className="h-4 w-4" /> Zerar Instagram
+          </Button>
+        </div>
+        <div className="px-5 pb-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Encerrar sessão</p>
+            <p className="text-xs text-muted-foreground">Sair da sua conta neste dispositivo.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4" /> Sair da conta
+          </Button>
+        </div>
+      </section>
 
-      <button onClick={signOut} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 sm:w-auto">
-        <LogOut className="w-4 h-4" /> Sair da Conta
-      </button>
       <Dialog open={wipeOpen} onOpenChange={(open) => !wiping && setWipeOpen(open)}>
         <DialogContent className="w-[calc(100%_-_1rem)] max-w-md">
           <DialogHeader>
@@ -155,16 +210,17 @@ const Config = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               disabled={wiping}
               onClick={() => setWipeOpen(false)}
-              className="flex min-h-11 items-center rounded-md border border-border px-4 text-sm"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="destructive"
               disabled={wiping || !user}
               onClick={async () => {
                 if (!user) return;
@@ -184,10 +240,9 @@ const Config = () => {
                   setWiping(false);
                 }
               }}
-              className="flex min-h-11 items-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground"
             >
               {wiping ? "Apagando…" : "Apagar tudo"}
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

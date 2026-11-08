@@ -118,7 +118,7 @@ export function Subtasks({
         )}
 
         <span className="shrink-0" aria-live="polite">
-          {items.length ? done + "/" + items.length + " · " + progress + "%" : "Nenhuma"}
+          {items.length ? `${done}/${items.length} concluídas` : "Nenhuma"}
         </span>
       </div>
 
@@ -129,8 +129,8 @@ export function Subtasks({
               role="progressbar"
               aria-label="Progresso das subtarefas"
               aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
+              aria-valuemax={items.length}
+              aria-valuenow={done}
               className="h-1 overflow-hidden rounded-full bg-secondary"
             >
               <div

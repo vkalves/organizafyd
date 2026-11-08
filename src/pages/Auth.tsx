@@ -67,15 +67,15 @@ const Auth = () => {
           <Link
             to="/agonia"
             className="auth-submit"
-            style={{ background: "rgb(255 255 255 / 6%)", color: "#f4f3f0", borderColor: "rgb(255 255 255 / 16%)" }}
+            style={{ background: "transparent", color: "hsl(var(--foreground))", borderColor: "hsl(var(--border))" }}
           >
-            <Sparkles size={15} /> Entrar direto no Modo Agonia
+            <Sparkles size={15} /> Abrir Modo Agonia
           </Link>
         </div>
       )}
-      <p className="auth-card-eyebrow">{mode === "forgot" ? "RECUPERE SEU ACESSO" : "SEU ESPAÇO DE ORGANIZAÇÃO"}</p>
-      <h2>{mode === "login" ? "Bem-vindo de volta." : mode === "signup" ? "Sua rotina começa aqui." : "Vamos recuperar sua conta."}</h2>
-      <p className="auth-card-description">{mode === "login" ? "Entre na sua conta e coloque o dia em ordem." : mode === "signup" ? "Crie sua conta e dê espaço para o que importa." : "Informe seu email para receber o link de recuperação."}</p>
+      <p className="auth-card-eyebrow">{mode === "forgot" ? "Recuperação de senha" : "Acesso à conta"}</p>
+      <h2>{mode === "login" ? "Entrar na sua conta" : mode === "signup" ? "Criar sua conta" : "Recuperar acesso"}</h2>
+      <p className="auth-card-description">{mode === "login" ? "Acesse suas tarefas, notas e canais conectados." : mode === "signup" ? "Preencha seus dados para começar." : "Informe seu email para receber o link de redefinição."}</p>
 
       <form onSubmit={handleSubmit} className="auth-form">
         {mode === "signup" && (
