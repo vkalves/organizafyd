@@ -24,6 +24,7 @@ import {
   Film,
   UserRound,
   ArrowLeftRight,
+  Layers,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type SVGProps } from "react";
@@ -31,7 +32,6 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayoutContext } from "@/contexts/AppLayoutContext";
 import { SilverBrand } from "./SilverBrand";
-import { LoginTransition } from "./LoginTransition";
 import {
   getWorkspaceMode,
   loadAgoniaProfile,
@@ -63,6 +63,7 @@ const classicNavItems = [
 
 const agoniaNavItems = [
   { title: "Dashboard", path: "/agonia", icon: LayoutDashboard, exact: true },
+  { title: "Modo Fluxo", path: "/agonia/fluxos", icon: Layers },
   { title: "Conectar", path: "/agonia/conectar", icon: PlugZap },
   { title: "Instagram", path: "/agonia/instagram", icon: Instagram },
   { title: "Novo Reel", path: "/agonia/reels-new", icon: PlusCircle },
@@ -176,7 +177,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFocusMode, setMobileFocusMode] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
   const [profileTick, setProfileTick] = useState(0);
   const [workspaceMode, setWorkspaceModeState] = useState<WorkspaceMode>(() =>
     getWorkspaceMode(),
@@ -206,14 +206,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return () =>
       window.removeEventListener("organizafy-mode-changed", onModeChange);
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.sessionStorage.getItem("showWelcomeIntro") === "1") {
-      window.sessionStorage.removeItem("showWelcomeIntro");
-      setShowWelcome(true);
-    }
-  }, [location.pathname]);
 
   useEffect(() => {
     const onProfileUpdate = () => setProfileTick((n) => n + 1);
@@ -310,7 +302,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AppLayoutContext.Provider value={layoutContext}>
-      {showWelcome && <LoginTransition name={displayName} onDone={() => setShowWelcome(false)} />}
       <div
         className={cn(
           "workspace-shell min-h-[100dvh] min-w-0",

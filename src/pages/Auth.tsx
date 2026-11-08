@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
 import { PublicLinks } from "./PublicInfo";
 import AuthLayout from "@/components/layout/AuthLayout";
-import "@/components/layout/login-transition.css";
 
 const Auth = () => {
   const location = useLocation();
@@ -35,11 +34,8 @@ const Auth = () => {
     setSubmitting(true);
     try {
       if (mode === "login") {
-        // Set flag BEFORE signIn so AppLayout plays the Agonia welcome intro even when onAuthStateChange redirects immediately.
-        window.sessionStorage.setItem("showWelcomeIntro", "1");
         const { error } = await signIn(email, password);
         if (error) {
-          window.sessionStorage.removeItem("showWelcomeIntro");
           toast.error(error.message);
         } else {
           navigate(destination, { replace: true });
@@ -64,14 +60,12 @@ const Auth = () => {
         <div className="mb-5 flex flex-col gap-2">
           <Link
             to={destination}
-            onClick={() => window.sessionStorage.setItem("showWelcomeIntro", "1")}
             className="auth-submit"
           >
             Continuar na minha conta <ArrowRight size={16} />
           </Link>
           <Link
             to="/agonia"
-            onClick={() => window.sessionStorage.setItem("showWelcomeIntro", "1")}
             className="auth-submit"
             style={{ background: "rgb(255 255 255 / 6%)", color: "#f4f3f0", borderColor: "rgb(255 255 255 / 16%)" }}
           >

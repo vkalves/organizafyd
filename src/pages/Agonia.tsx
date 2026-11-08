@@ -25,10 +25,12 @@ import {
   TrendingDown,
   TrendingUp,
   Upload,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
+import Flows from "@/features/instagram-publisher/Flows";
 import {
   cancelPost,
   connections,
@@ -60,6 +62,7 @@ import "@/features/agonia/agonia.css";
 
 type Section =
   | "dashboard"
+  | "fluxos"
   | "conectar"
   | "instagram"
   | "reels-new"
@@ -73,6 +76,7 @@ type Section =
 
 const VALID_SECTIONS = new Set<Section>([
   "dashboard",
+  "fluxos",
   "conectar",
   "instagram",
   "reels-new",
@@ -833,6 +837,9 @@ export default function Agonia() {
               >
                 <ArrowLeft className="h-4 w-4" /> Modelo Antigo
               </button>
+              <Link className="button button-secondary" to="/agonia/fluxos">
+                <Layers className="h-4 w-4" /> Modo Fluxo
+              </Link>
               <Link className="button button-primary" to="/agonia/reels-new">
                 <Plus className="h-4 w-4" /> Novo Reel
               </Link>
@@ -919,7 +926,10 @@ export default function Agonia() {
                 </div>
               </div>
               <div style={{ display: "grid", gap: 10 }}>
-                <Link className="button button-mint" to="/agonia/conectar">
+                <Link className="button button-mint" to="/agonia/fluxos">
+                  <Layers className="h-4 w-4" /> Abrir Modo Fluxo Automático
+                </Link>
+                <Link className="button button-secondary" to="/agonia/conectar">
                   Conectar Instagram
                 </Link>
                 <Link
@@ -1031,6 +1041,85 @@ export default function Agonia() {
               <span>{accounts.length} conta(s) acompanhada(s)</span>
             </div>
           </section>
+        </>
+      )}
+
+      {/* 1.5. MODO FLUXO AUTOMÁTICO */}
+      {section === "fluxos" && (
+        <>
+          <header className="topbar">
+            <div>
+              <div className="eyebrow">Automação inteligente · Modo Fluxo</div>
+              <h1 className="page-title">Fluxos de Publicação</h1>
+              <p className="page-subtitle">
+                Organize sua biblioteca de mídias em pastas, defina horários
+                fixos ou intervalos (GAP) e crie campanhas automáticas em loop
+                para várias contas ao mesmo tempo.
+              </p>
+            </div>
+            <div className="action-row">
+              <Link className="button button-secondary" to="/agonia/reels-new">
+                <Plus className="h-4 w-4" /> Publicação Direta
+              </Link>
+              <Link className="button button-primary" to="/agonia/scheduled">
+                <CalendarClock className="h-4 w-4" /> Ver Fila ({stats.scheduled})
+              </Link>
+            </div>
+          </header>
+
+          {/* Guia visual em 3 etapas para deixar tudo fácil de entender */}
+          <section
+            className="agonia-flows-guide"
+            aria-label="Como funciona o Modo Fluxo"
+          >
+            <a href="#ig-library-heading" className="agonia-flow-step-card">
+              <div className="agonia-flow-step-head">
+                <span className="agonia-flow-step-num">Passo 1</span>
+                <span className="badge badge-gray">Biblioteca & Pastas</span>
+              </div>
+              <strong>Envie e selecione suas mídias</strong>
+              <p>
+                Suba vários vídeos (Reels) ou fotos (Stories) de uma vez. Os
+                metadados são limpos automaticamente e os arquivos ficam salvos
+                em pastas para você reutilizar.
+              </p>
+            </a>
+
+            <a href="#ig-new-flow-heading" className="agonia-flow-step-card">
+              <div className="agonia-flow-step-head">
+                <span className="agonia-flow-step-num">Passo 2</span>
+                <span className="badge badge-gray">Regras & Horários</span>
+              </div>
+              <strong>Configure contas, horários e loop</strong>
+              <p>
+                Marque os perfis que vão postar, escolha entre intervalo (GAP)
+                ou horários fixos do dia, ative repetição em loop e proteção
+                contra mídia repetida.
+              </p>
+            </a>
+
+            <a href="#agonia-flows-active-anchor" className="agonia-flow-step-card">
+              <div className="agonia-flow-step-head">
+                <span className="agonia-flow-step-num">Passo 3</span>
+                <span className="badge badge-green">Campanhas Ativas</span>
+              </div>
+              <strong>Acompanhe, pause ou retome</strong>
+              <p>
+                Veja em tempo real quantos envios já foram confirmados pela
+                Meta, quantos estão na fila e controle cada campanha com 1
+                clique.
+              </p>
+            </a>
+          </section>
+
+          <div id="agonia-flows-active-anchor" className="agonia-flows-wrapper">
+            <Flows
+              accounts={accounts}
+              connections={links}
+              posts={posts}
+              onCreated={refreshAll}
+            />
+          </div>
         </>
       )}
 
@@ -1660,6 +1749,11 @@ export default function Agonia() {
                 Envie seu vídeo, adicione uma legenda opcional e escolha o
                 momento certo.
               </p>
+            </div>
+            <div className="action-row">
+              <Link className="button button-secondary" to="/agonia/fluxos">
+                <Layers className="h-4 w-4" /> Usar Modo Fluxo (Biblioteca e Loop)
+              </Link>
             </div>
           </header>
 
@@ -2435,17 +2529,17 @@ export default function Agonia() {
               </h3>
               <p>
                 Publique Stories com link clicável e personalize o sticker
-                diretamente no Instagram Web.
+                diretamente no Instagram Web com suporte a postar em todas as contas conectadas simultaneamente.
               </p>
               <a
                 className="button button-primary"
-                href="https://agoniapro.xyz/extensions/storys-com-link.zip"
+                href="/extensions/storys-com-link.zip"
                 download
               >
-                <Download className="h-4 w-4" /> Baixar extensão Storys Com Link
+                <Download className="h-4 w-4" /> Baixar extensão Storys Com Link (v0.8.0)
               </a>
               <span className="story-link-version">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Versão 0.4.2 pronta
+                <CheckCircle2 className="h-3.5 w-3.5" /> Versão 0.8.0 (Multi-Contas) pronta
                 para Chrome e Edge
               </span>
             </div>
@@ -2466,9 +2560,9 @@ export default function Agonia() {
               <span>Texto, estilo, tamanho e posição</span>
             </div>
             <div>
-              <ShieldCheck className="h-5 w-5" />
-              <strong>Por navegador</strong>
-              <span>Instale em cada perfil que for usar</span>
+              <Users className="h-5 w-5" />
+              <strong>Multi-contas simultâneo</strong>
+              <span>Poste em todas as contas conectadas de uma vez</span>
             </div>
           </div>
 
@@ -2512,7 +2606,7 @@ export default function Agonia() {
                 [
                   "6",
                   "Abra o Instagram",
-                  "Entre na conta desejada. Se o Instagram já estiver aberto, atualize a página.",
+                  "Entre na conta desejada ou conecte várias contas no Instagram Web para postar em todas simultaneamente.",
                 ],
               ].map(([num, title, desc]) => (
                 <article key={num} className="story-link-step">
