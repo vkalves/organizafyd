@@ -1,199 +1,389 @@
+/* ==========================================================================
+   Modo Fluxo - Design Minimalista, Moderno e Produtivo
+   Inspirado em Linear/Vercel: linhas limpas, baixo ruído visual, alta usabilidade
+   ========================================================================== */
+
 .ig-flows {
   display: grid;
-  gap: 20px;
+  gap: 24px;
+  max-width: 100%;
 }
-.ig-flow-intro {
+
+/* Painéis de Etapas (Passos 1, 2 e 3) */
+.ig-flows .ig-panel {
+  background: rgb(255 255 255 / 2.5%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 20px;
+  padding: 24px 28px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.ig-flows .ig-panel:focus-within {
+  border-color: rgb(255 255 255 / 14%);
+}
+
+.ig-panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 8px 0 12px;
+  margin-bottom: 20px;
 }
-.ig-flow-intro h2 {
-  font-size: 22px;
-  letter-spacing: -0.035em;
-}
-.ig-flow-intro p,
-.ig-flow-card p,
-.ig-flow-summary p {
-  font-size: 13px;
-  color: hsl(var(--muted-foreground));
-  margin-top: 8px;
-  line-height: 1.6;
-}
-.ig-flow-intro .ig-pill {
+
+.ig-panel-head h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f3f5fa;
   display: flex;
-  gap: 7px;
-  white-space: normal;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
 }
+
+/* Indicador de Passo (Badge Numérica Minimalista) */
 .ig-step {
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid #ffffff30;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  font:
-    500 12px Inter,
-    sans-serif;
-  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  color: #e9ecf6;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: 700;
 }
+
+/* Opções de Seleção em Pílulas (Pills / Segmented Controls) */
 .ig-flow-options {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
+
 .ig-flow-options button,
 .ig-flow-options label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid #ffffff20;
-  border-radius: 10px;
-  padding: 10px 13px;
-  font-size: 13px;
-  min-height: 44px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(255 255 255 / 3%);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #c8cedd;
+  min-height: 36px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
 }
+
+.ig-flow-options button:hover,
+.ig-flow-options label:hover {
+  background: rgb(255 255 255 / 6%);
+  border-color: rgb(255 255 255 / 18%);
+  color: #fff;
+}
+
 .ig-flow-options button[aria-pressed="true"] {
-  background: #e1e4ed;
-  color: #09090f;
-  border-color: transparent;
+  background: #ffffff;
+  color: #050508;
+  border-color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
 }
-.ig-flow-options button:focus-visible,
-.ig-upload-zone:focus-within {
-  outline: 2px solid #d0d7ef;
-  outline-offset: 3px;
+
+.ig-flow-options input[type="checkbox"] {
+  accent-color: #050508;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
 }
-.ig-flow-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-.ig-flow-grid legend {
-  font-size: 14px;
-  margin-bottom: 8px;
-}
+
+/* Área de Upload (Dropzone Minimalista) */
 .ig-upload-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
-  border: 1px dashed #ffffff35;
+  border: 1px dashed rgb(255 255 255 / 16%);
   border-radius: 16px;
-  padding: 30px 18px;
+  padding: 24px 20px;
   cursor: pointer;
-  background: #ffffff03;
+  background: rgb(255 255 255 / 1.5%);
+  transition: all 0.2s ease;
 }
+
+.ig-upload-zone:hover {
+  border-color: rgb(255 255 255 / 35%);
+  background: rgb(255 255 255 / 3.5%);
+}
+
+.ig-upload-zone strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e9ecf6;
+}
+
 .ig-upload-zone span {
   font-size: 12px;
   color: #9aa1b5;
+  line-height: 1.4;
+  max-width: 440px;
 }
+
 .ig-upload-zone.is-busy {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: wait;
 }
+
+/* Galeria de Mídias (Grid de Thumbnails Minimalista) */
 .ig-library-list {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-.ig-library-item {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
-  border: 1px solid #ffffff15;
-  border-radius: 12px;
-  padding: 10px 14px;
+  margin-top: 14px;
 }
+
+.ig-library-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 2%);
+  padding: 10px;
+  gap: 8px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.ig-library-item:hover {
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 3.5%);
+}
+
 .ig-library-item label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e4e6ed;
+  cursor: pointer;
+  min-width: 0;
 }
+
+.ig-library-item label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ig-library-item select {
-  background: transparent;
-  border: 1px solid #ffffff20;
-  padding: 8px;
+  width: 100%;
+  background: rgb(0 0 0 / 25%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  color: #9aa1b5;
+  font-size: 11px;
   border-radius: 8px;
-  max-width: 170px;
+  padding: 5px 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
-.ig-library-item option {
-  background: #111118;
+
+.ig-library-item select:focus {
+  border-color: rgb(255 255 255 / 30%);
+  color: #fff;
 }
+
+.ig-library-item select option {
+  background: #0e0e14;
+  color: #fff;
+}
+
+/* Grid de Configurações (Passo 2) */
+.ig-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.ig-flow-grid fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.ig-flow-grid legend {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e6ed;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* Card Resumo da Campanha (Live Execution Summary) */
 .ig-flow-summary {
-  padding: 16px;
-  border: 1px solid #ffffff20;
-  border-radius: 12px;
-  background: #ffffff04;
+  padding: 18px 22px;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: radial-gradient(ellipse at 100% 0, rgb(210 218 255 / 8%), rgb(15 15 22 / 70%) 75%);
+  display: grid;
+  gap: 8px;
 }
+
+.ig-flow-summary strong {
+  font-size: 15px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ig-flow-summary p {
+  font-size: 12px;
+  color: #9aa1b5;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Cards de Fluxos Ativos (Passo 3) */
 .ig-flow-card {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px;
-  border: 1px solid #ffffff20;
-  border-radius: 14px;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px 22px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 2%);
+  transition: border-color 0.2s ease;
 }
-.ig-flow-card small {
-  font-size: 11px;
+
+.ig-flow-card:hover {
+  border-color: rgb(255 255 255 / 16%);
+}
+
+.ig-flow-card strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f4f5f8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ig-flow-card p {
+  font-size: 12.5px;
   color: #9aa1b5;
+  margin: 4px 0;
+  line-height: 1.5;
 }
-.ig-flows input[type="checkbox"] {
-  accent-color: #ced3e3;
-  width: 17px;
-  height: 17px;
+
+.ig-flow-card small {
+  display: block;
+  font-size: 11px;
+  color: #72788e;
+  margin-top: 6px;
 }
-.ig-flows input:disabled,
-.ig-flows button:disabled {
-  opacity: 0.5;
+
+/* Tabela de Histórico por Conta */
+.ig-table-scroll {
+  overflow-x: auto;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 1%);
 }
+
+.ig-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.ig-table th {
+  font-weight: 500;
+  color: #9aa1b5;
+  font-size: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 2%);
+}
+
+.ig-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 4%);
+  color: #e4e6ed;
+}
+
+.ig-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Detalhes & Accordions */
+.ig-flows details {
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: rgb(255 255 255 / 1.5%);
+  transition: all 0.15s ease;
+}
+
+.ig-flows details[open] {
+  background: rgb(255 255 255 / 2.5%);
+  border-color: rgb(255 255 255 / 12%);
+}
+
 .ig-flows details summary {
-  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e6ed;
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
 }
-.ig-flows .ig-panel {
-  overflow: hidden;
+
+.ig-flows details summary:hover {
+  color: #fff;
 }
-@media (max-width: 767px) {
+
+/* Estilos de Botões de Presets Rápidos */
+.ig-preset-pill {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(255 255 255 / 4%);
+  font-size: 12px;
+  font-weight: 500;
+  color: #c8cedd;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ig-preset-pill:hover {
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 22%);
+  color: #fff;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
   .ig-flow-grid {
     grid-template-columns: 1fr;
   }
-  .ig-flow-intro,
+  .ig-flows .ig-panel {
+    padding: 18px 16px;
+  }
   .ig-flow-card {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
-  .ig-flow-options button {
-    flex: 1;
-  }
-  .ig-library-item select {
-    max-width: 100%;
-  }
-}
-
-/* The media library keeps previews visible alongside their selection controls. */
-.ig-library-list {
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-}
-.ig-library-item {
-  align-content: start;
-  padding: 10px;
-}
-.ig-library-item > figure {
-  flex-basis: 100%;
-}
-.ig-library-item select {
-  width: 100%;
-  max-width: none;
-}
-@media (max-width: 480px) {
   .ig-library-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .ig-library-item {
-    min-width: 0;
-    gap: 8px;
   }
 }

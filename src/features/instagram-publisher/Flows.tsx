@@ -382,15 +382,17 @@ export default function Flows({
         </DialogContent>
       </Dialog>
       <div className="ig-flow-intro">
-        <div>
-          <h2>Do upload à publicação, em um fluxo.</h2>
-          <p>
-            Organize suas mídias, escolha os perfis e acompanhe os envios
-            confirmados.
-          </p>
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+          <span className="text-xs font-medium text-white/90">
+            Automação de Postagens & Stories Multi-Contas
+          </span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            · Enfileiramento direto, distribuição inteligente e fila autônoma
+          </span>
         </div>
         <span className="ig-pill">
-          <ShieldCheck size={14} /> Limpeza de metadados no upload
+          <ShieldCheck size={14} className="text-emerald-400" /> Metadados EXIF/GPS limpos automaticamente
         </span>
       </div>
       <section
@@ -429,48 +431,53 @@ export default function Flows({
             </button>
           ))}
         </div>
-        <div className="ig-flow-options" aria-label="Pastas">
-          {["*", "", ...(prefs?.folders ?? [])].map((f) => (
-            <button
-              key={f}
-              aria-pressed={folder === f}
-              onClick={() => setFolder(f)}
-            >
-              {f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}
-            </button>
-          ))}
-        </div>
-        <form
-          className="flex flex-wrap gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!prefs || !newFolder.trim()) return;
-            void perform(async () => {
-              await savePrefs({
-                ...prefs,
-                folders: [...new Set([...prefs.folders, newFolder.trim()])],
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="ig-flow-options" aria-label="Pastas">
+            {["*", "", ...(prefs?.folders ?? [])].map((f) => (
+              <button
+                key={f}
+                aria-pressed={folder === f}
+                onClick={() => setFolder(f)}
+              >
+                {f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}
+              </button>
+            ))}
+          </div>
+          <form
+            className="flex items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!prefs || !newFolder.trim()) return;
+              void perform(async () => {
+                await savePrefs({
+                  ...prefs,
+                  folders: [...new Set([...prefs.folders, newFolder.trim()])],
+                });
+                setFolder(newFolder.trim());
+                setNewFolder("");
               });
-              setFolder(newFolder.trim());
-              setNewFolder("");
-            });
-          }}
-        >
-          <Input
-            aria-label="Nome da nova pasta"
-            value={newFolder}
-            maxLength={80}
-            onChange={(e) => setNewFolder(e.target.value)}
-            className="max-w-64"
-          />
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={busy || !newFolder.trim()}
+            }}
           >
-            <FolderPlus size={16} />
-            Nova pasta
-          </Button>
-        </form>
+            <Input
+              aria-label="Nome da nova pasta"
+              placeholder="+ Nova pasta..."
+              value={newFolder}
+              maxLength={80}
+              onChange={(e) => setNewFolder(e.target.value)}
+              className="h-8 text-xs max-w-44 bg-white/[0.03] border-white/10"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              disabled={busy || !newFolder.trim()}
+              className="h-8 px-2.5 text-xs"
+            >
+              <FolderPlus size={14} />
+              Criar
+            </Button>
+          </form>
+        </div>
         <label
           className={`ig-upload-zone ${busy || uploadInProgress ? "is-busy" : ""}`}
           onDragOver={(e) => e.preventDefault()}
@@ -480,9 +487,11 @@ export default function Flows({
               void upload(Array.from(e.dataTransfer.files));
           }}
         >
-          <Upload size={22} />
-          <strong>Clique ou arraste suas mídias</strong>
-          <span>JPG, PNG ou MP4 · até 100 MB por arquivo</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/10 text-muted-foreground transition-colors">
+            <Upload size={18} />
+          </div>
+          <strong>Clique ou arraste suas mídias aqui</strong>
+          <span>JPG, PNG ou MP4 (até 100 MB por arquivo) · Metadados EXIF/GPS limpos antes do envio</span>
           <input
             type="file"
             accept="image/jpeg,image/png,video/mp4"
@@ -494,10 +503,6 @@ export default function Flows({
               e.target.value = "";
             }}
           />
-          <span>
-            Selecione vários arquivos de uma vez e acompanhe cada mídia na fila.
-            Os metadados são removidos antes do envio.
-          </span>
         </label>
         <p
           role="status"
@@ -553,9 +558,10 @@ export default function Flows({
             </div>
           </section>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <Button
             type="button"
+            size="sm"
             variant="outline"
             disabled={busy || !visible.length}
             onClick={() =>
@@ -568,6 +574,7 @@ export default function Flows({
           </Button>
           <Button
             type="button"
+            size="sm"
             variant="outline"
             disabled={busy || !visible.length}
             onClick={() => {
@@ -579,6 +586,7 @@ export default function Flows({
           </Button>
           <Button
             type="button"
+            size="sm"
             variant="outline"
             disabled={busy || !visible.length}
             onClick={() => {
@@ -590,9 +598,11 @@ export default function Flows({
           </Button>
           <Button
             type="button"
+            size="sm"
             variant="ghost"
             onClick={() => setSelected([])}
             disabled={busy || !selected.length}
+            className="text-xs text-muted-foreground hover:text-white"
           >
             Limpar seleção ({selected.length})
           </Button>
@@ -889,75 +899,118 @@ export default function Flows({
         )}
         <fieldset
           disabled={busy || !query.data?.report}
-          className="space-y-4 rounded-xl border border-white/10 p-4"
+          className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.015] p-4 sm:p-5"
         >
-          <legend>Campanha automática</legend>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={repeat === "loop"}
-              disabled={busy}
-              onChange={(e) => setRepeat(e.target.checked ? "loop" : "once")}
-            />
-            Repetir campanha em loop
-          </label>
-          <p className="text-xs text-muted-foreground">
-            {repeat === "loop"
-              ? "Depois que todas as contas concluírem sua lista, um novo ciclo começa. Cada mídia aparece uma vez por conta a cada ciclo, conforme a distribuição escolhida. Continua até você pausar ou encerrar."
-              : "Publicar a seleção uma vez e concluir a campanha."}
-          </p>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={avoidReuse}
-              disabled={busy}
-              onChange={(e) => setAvoidReuse(e.target.checked)}
-            />
-            Evitar mídias já usadas ou reservadas na mesma conta
-          </label>
-          <p className="text-xs text-muted-foreground">
-            A proteção consulta o histórico de cada conta. No loop, a repetição
-            é permitida somente no próximo ciclo da própria campanha.
-          </p>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={batchRest}
-              disabled={busy}
-              onChange={(e) => setBatchRest(e.target.checked)}
-            />
-            Descansar entre lotes
-          </label>
-          {batchRest && (
-            <div className="ig-flow-grid">
-              <div>
-                <Label htmlFor="flow-batch-size">
-                  Publicações por lote, por conta
-                </Label>
-                <Input
-                  id="flow-batch-size"
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={batchSize}
-                  onChange={(e) => setBatchSize(Number(e.target.value))}
+          <div className="flex items-center justify-between mb-1">
+            <legend className="text-sm font-semibold text-white/90">
+              Automação Contínua & Proteções
+            </legend>
+            <span className="text-xs text-muted-foreground">
+              Anti-bloqueio & Ciclos
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div
+              className={`rounded-xl border p-3.5 transition-all ${
+                repeat === "loop"
+                  ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20"
+              }`}
+            >
+              <label className="flex items-center gap-2.5 cursor-pointer font-medium text-sm text-white">
+                <input
+                  type="checkbox"
+                  checked={repeat === "loop"}
+                  disabled={busy}
+                  onChange={(e) => setRepeat(e.target.checked ? "loop" : "once")}
+                  className="rounded border-white/20 text-emerald-500 focus:ring-emerald-500/30 h-4 w-4"
                 />
-              </div>
-              <div>
-                <Label htmlFor="flow-rest">
-                  Descanso extra entre lotes (minutos)
-                </Label>
-                <Input
-                  id="flow-rest"
-                  type="number"
-                  min={0}
-                  max={10080}
-                  value={restMinutes}
-                  onChange={(e) => setRestMinutes(Number(e.target.value))}
-                />
-              </div>
+                Repetir campanha em loop
+              </label>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                {repeat === "loop"
+                  ? "Ciclos contínuos automáticos após cada conta finalizar sua lista."
+                  : "Publica a seleção uma vez e conclui a campanha automaticamente."}
+              </p>
             </div>
-          )}
+
+            <div
+              className={`rounded-xl border p-3.5 transition-all ${
+                avoidReuse
+                  ? "border-cyan-500/30 bg-cyan-500/[0.04]"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20"
+              }`}
+            >
+              <label className="flex items-center gap-2.5 cursor-pointer font-medium text-sm text-white">
+                <input
+                  type="checkbox"
+                  checked={avoidReuse}
+                  disabled={busy}
+                  onChange={(e) => setAvoidReuse(e.target.checked)}
+                  className="rounded border-white/20 text-cyan-500 focus:ring-cyan-500/30 h-4 w-4"
+                />
+                Evitar mídias já usadas ou reservadas na mesma conta
+              </label>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Consulta histórico por conta para prevenir duplicatas e proteger o perfil.
+              </p>
+            </div>
+          </div>
+
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
+              batchRest
+                ? "border-indigo-500/30 bg-indigo-500/[0.04]"
+                : "border-white/10 bg-white/[0.02] hover:border-white/20"
+            }`}
+          >
+            <label className="flex items-center gap-2.5 cursor-pointer font-medium text-sm text-white">
+              <input
+                type="checkbox"
+                checked={batchRest}
+                disabled={busy}
+                onChange={(e) => setBatchRest(e.target.checked)}
+                className="rounded border-white/20 text-indigo-500 focus:ring-indigo-500/30 h-4 w-4"
+              />
+              Descansar entre lotes
+            </label>
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              Pausa estendida a cada bloco de posts para simular comportamento humano.
+            </p>
+            {batchRest && (
+              <div className="ig-flow-grid mt-3 pt-3 border-t border-white/10">
+                <div>
+                  <Label htmlFor="flow-batch-size">
+                    Publicações por lote, por conta
+                  </Label>
+                  <Input
+                    id="flow-batch-size"
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={batchSize}
+                    onChange={(e) => setBatchSize(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="flow-rest">
+                    Descanso extra entre lotes (minutos)
+                  </Label>
+                  <Input
+                    id="flow-rest"
+                    type="number"
+                    min={0}
+                    max={10080}
+                    value={restMinutes}
+                    onChange={(e) => setRestMinutes(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </fieldset>
         {query.data?.report && (
           <details className="space-y-3">

@@ -1252,50 +1252,29 @@ export default function Agonia() {
             </div>
           </header>
 
-          {/* Guia visual em 3 etapas para deixar tudo fácil de entender */}
-          <section
-            className="agonia-flows-guide"
-            aria-label="Como funciona o Modo Fluxo"
+          {/* Navegação e Etapas Minimalistas */}
+          <nav
+            className="agonia-flows-nav-stepper"
+            aria-label="Etapas do Modo Fluxo"
           >
-            <a href="#ig-library-heading" className="agonia-flow-step-card">
-              <div className="agonia-flow-step-head">
-                <span className="agonia-flow-step-num">Passo 1</span>
-                <span className="badge badge-gray">Biblioteca & Pastas</span>
-              </div>
-              <strong>Envie e selecione suas mídias</strong>
-              <p>
-                Suba vários vídeos (Reels) ou fotos (Stories) de uma vez. Os
-                metadados são limpos automaticamente e os arquivos ficam salvos
-                em pastas para você reutilizar.
-              </p>
+            <a href="#ig-library-heading" className="agonia-step-pill">
+              <span className="step-badge">1</span>
+              <span className="step-title">Biblioteca & Mídias</span>
+              <span className="step-desc">Upload e seleção de arquivos</span>
             </a>
-
-            <a href="#ig-new-flow-heading" className="agonia-flow-step-card">
-              <div className="agonia-flow-step-head">
-                <span className="agonia-flow-step-num">Passo 2</span>
-                <span className="badge badge-gray">Regras & Horários</span>
-              </div>
-              <strong>Configure contas, horários e loop</strong>
-              <p>
-                Marque os perfis que vão postar, escolha entre intervalo (GAP)
-                ou horários fixos do dia, ative repetição em loop e proteção
-                contra mídia repetida.
-              </p>
+            <span className="step-arrow">→</span>
+            <a href="#ig-new-flow-heading" className="agonia-step-pill">
+              <span className="step-badge">2</span>
+              <span className="step-title">Regras & Horários</span>
+              <span className="step-desc">Contas, GAP e repetição</span>
             </a>
-
-            <a href="#agonia-flows-active-anchor" className="agonia-flow-step-card">
-              <div className="agonia-flow-step-head">
-                <span className="agonia-flow-step-num">Passo 3</span>
-                <span className="badge badge-green">Campanhas Ativas</span>
-              </div>
-              <strong>Acompanhe, pause ou retome</strong>
-              <p>
-                Veja em tempo real quantos envios já foram confirmados pela
-                Meta, quantos estão na fila e controle cada campanha com 1
-                clique.
-              </p>
+            <span className="step-arrow">→</span>
+            <a href="#agonia-flows-active-anchor" className="agonia-step-pill">
+              <span className="step-badge">3</span>
+              <span className="step-title">Campanhas Ativas</span>
+              <span className="step-desc">Progresso e controle</span>
             </a>
-          </section>
+          </nav>
 
           <div id="agonia-flows-active-anchor" className="agonia-flows-wrapper">
             <Flows
