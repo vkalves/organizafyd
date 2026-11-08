@@ -381,105 +381,50 @@ export default function Flows({
             ))}
         </DialogContent>
       </Dialog>
-      <div className="ig-flow-intro">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-          <span className="text-xs font-medium text-white/90">
-            Automação de Postagens & Stories Multi-Contas
-          </span>
-          <span className="text-xs text-muted-foreground hidden sm:inline">
-            · Enfileiramento direto, distribuição inteligente e fila autônoma
-          </span>
-        </div>
-        <span className="ig-pill">
-          <ShieldCheck size={14} className="text-emerald-400" /> Metadados EXIF/GPS limpos automaticamente
-        </span>
-      </div>
       <section
-        className="operation-panel ig-panel space-y-4"
+        className="operation-panel ig-panel space-y-3.5"
         aria-labelledby="ig-library-heading"
       >
         <div className="ig-panel-head">
-          <h2 id="ig-library-heading">
-            <span className="ig-step">1</span> Biblioteca de mídias
-          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="ig-library-heading" className="m-0">
+              <span className="ig-step">1</span> Biblioteca de mídias
+            </h2>
+            <div className="ig-segmented-tabs" aria-label="Tipo de mídia">
+              {(["posts", "stories"] as const).map((k) => (
+                <button
+                  key={k}
+                  aria-pressed={kind === k}
+                  disabled={busy}
+                  onClick={() => {
+                    setKind(k);
+                    setSelected([]);
+                    setCoverId(null);
+                    setFlowId(crypto.randomUUID());
+                  }}
+                  className={`ig-tab-pill ${kind === k ? "is-active" : ""}`}
+                >
+                  {k === "posts" ? "Reels e posts" : "Stories"} (
+                  {media.filter((m) => m.kind === k).length})
+                </button>
+              ))}
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             disabled={busy}
             onClick={() => void query.refetch()}
             aria-label="Atualizar biblioteca"
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={15} />
           </Button>
         </div>
-        <div className="ig-flow-options" aria-label="Tipo de mídia">
-          {(["posts", "stories"] as const).map((k) => (
-            <button
-              key={k}
-              aria-pressed={kind === k}
-              disabled={busy}
-              onClick={() => {
-                setKind(k);
-                setSelected([]);
-                setCoverId(null);
-                setFlowId(crypto.randomUUID());
-              }}
-            >
-              {k === "posts" ? "Reels e posts" : "Stories"} (
-              {media.filter((m) => m.kind === k).length})
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="ig-flow-options" aria-label="Pastas">
-            {["*", "", ...(prefs?.folders ?? [])].map((f) => (
-              <button
-                key={f}
-                aria-pressed={folder === f}
-                onClick={() => setFolder(f)}
-              >
-                {f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}
-              </button>
-            ))}
-          </div>
-          <form
-            className="flex items-center gap-1.5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!prefs || !newFolder.trim()) return;
-              void perform(async () => {
-                await savePrefs({
-                  ...prefs,
-                  folders: [...new Set([...prefs.folders, newFolder.trim()])],
-                });
-                setFolder(newFolder.trim());
-                setNewFolder("");
-              });
-            }}
-          >
-            <Input
-              aria-label="Nome da nova pasta"
-              placeholder="+ Nova pasta..."
-              value={newFolder}
-              maxLength={80}
-              onChange={(e) => setNewFolder(e.target.value)}
-              className="h-8 text-xs max-w-44 bg-white/[0.03] border-white/10"
-            />
-            <Button
-              type="submit"
-              size="sm"
-              variant="outline"
-              disabled={busy || !newFolder.trim()}
-              className="h-8 px-2.5 text-xs"
-            >
-              <FolderPlus size={14} />
-              Criar
-            </Button>
-          </form>
-        </div>
+
+        {/* Upload strip horizontal e minimalista */}
         <label
-          className={`ig-upload-zone ${busy || uploadInProgress ? "is-busy" : ""}`}
+          className={`ig-upload-strip ${busy || uploadInProgress ? "is-busy" : ""}`}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
@@ -487,11 +432,20 @@ export default function Flows({
               void upload(Array.from(e.dataTransfer.files));
           }}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/10 text-muted-foreground transition-colors">
-            <Upload size={18} />
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 border border-white/10 text-muted-foreground">
+              <Upload size={14} />
+            </div>
+            <strong className="text-xs font-medium text-white/90">
+              Clique ou arraste suas mídias aqui
+            </strong>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              · JPG, PNG ou MP4 (até 100 MB)
+            </span>
           </div>
-          <strong>Clique ou arraste suas mídias aqui</strong>
-          <span>JPG, PNG ou MP4 (até 100 MB por arquivo) · Metadados EXIF/GPS limpos antes do envio</span>
+          <span className="text-[11px] text-muted-foreground hidden md:flex items-center gap-1.5">
+            <ShieldCheck size={12} className="text-emerald-400" /> Metadados limpos automaticamente
+          </span>
           <input
             type="file"
             accept="image/jpeg,image/png,video/mp4"
@@ -504,13 +458,7 @@ export default function Flows({
             }}
           />
         </label>
-        <p
-          role="status"
-          aria-live="polite"
-          className="text-sm text-muted-foreground"
-        >
-          {progress || `${picked.length} mídia(s) selecionada(s) para o fluxo.`}
-        </p>
+
         {!!uploadItems.length && (
           <section
             aria-label="Fila de upload"
@@ -546,8 +494,10 @@ export default function Flows({
             aria-label="Mídias selecionadas para o fluxo"
             className="space-y-3"
           >
-            <h3>Prévia do fluxo · {picked.length} mídia(s)</h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Prévia do fluxo · {picked.length} mídia(s)
+            </h3>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 md:grid-cols-6">
               {picked.map((m, i) => (
                 <MediaPreview
                   key={m.id}
@@ -558,62 +508,123 @@ export default function Flows({
             </div>
           </section>
         )}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={busy || !visible.length}
-            onClick={() =>
-              setSelected((prev) => [
-                ...new Set([...prev, ...visible.map((m) => m.id)]),
-              ])
-            }
-          >
-            Selecionar todas nesta pasta
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={busy || !visible.length}
-            onClick={() => {
-              const last5 = visible.slice(-5).map((m) => m.id);
-              setSelected((prev) => [...new Set([...prev, ...last5])]);
-            }}
-          >
-            + Últimas 5
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={busy || !visible.length}
-            onClick={() => {
-              const last10 = visible.slice(-10).map((m) => m.id);
-              setSelected((prev) => [...new Set([...prev, ...last10])]);
-            }}
-          >
-            + Últimas 10
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelected([])}
-            disabled={busy || !selected.length}
-            className="text-xs text-muted-foreground hover:text-white"
-          >
-            Limpar seleção ({selected.length})
-          </Button>
+
+        {/* Barra de Pastas e Seleção Rápida */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-white/5">
+          <div className="flex items-center gap-1.5 flex-wrap" aria-label="Pastas">
+            {["*", "", ...(prefs?.folders ?? [])].map((f) => (
+              <button
+                key={f}
+                aria-pressed={folder === f}
+                onClick={() => setFolder(f)}
+                className={`ig-folder-tag ${folder === f ? "is-active" : ""}`}
+              >
+                {f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}
+              </button>
+            ))}
+            <form
+              className="inline-flex items-center gap-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!prefs || !newFolder.trim()) return;
+                void perform(async () => {
+                  await savePrefs({
+                    ...prefs,
+                    folders: [...new Set([...prefs.folders, newFolder.trim()])],
+                  });
+                  setFolder(newFolder.trim());
+                  setNewFolder("");
+                });
+              }}
+            >
+              <Input
+                aria-label="Nome da nova pasta"
+                placeholder="+ Pasta..."
+                value={newFolder}
+                maxLength={80}
+                onChange={(e) => setNewFolder(e.target.value)}
+                className="h-7 text-xs w-24 bg-white/[0.03] border-white/10 px-2"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                variant="outline"
+                disabled={busy || !newFolder.trim()}
+                className="h-7 px-2 text-xs"
+              >
+                Criar
+              </Button>
+            </form>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-xs text-muted-foreground mr-1"
+            >
+              {progress || `${picked.length} de ${visible.length} selecionada(s)`}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || !visible.length}
+              className="h-7 px-2 text-xs"
+              onClick={() =>
+                setSelected((prev) => [
+                  ...new Set([...prev, ...visible.map((m) => m.id)]),
+                ])
+              }
+            >
+              Selecionar todas nesta pasta
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || !visible.length}
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                const last5 = visible.slice(-5).map((m) => m.id);
+                setSelected((prev) => [...new Set([...prev, ...last5])]);
+              }}
+            >
+              + Últimas 5
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || !visible.length}
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                const last10 = visible.slice(-10).map((m) => m.id);
+                setSelected((prev) => [...new Set([...prev, ...last10])]);
+              }}
+            >
+              + Últimas 10
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelected([])}
+              disabled={busy || !selected.length}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-white"
+            >
+              Limpar seleção ({selected.length})
+            </Button>
+          </div>
         </div>
-        <details open>
+
+        <details open className="ig-media-details">
           <summary className="cursor-pointer text-sm">
             Ver mídias ({visible.length})
           </summary>
           <div className="ig-library-list">
             {visible.map((m, i) => (
-              <article key={m.id} className="ig-library-item">
+              <article key={m.id} className={`ig-library-item ${selected.includes(m.id) ? "is-selected" : ""}`}>
                 <MediaPreview
                   url={m.url}
                   label={`Prévia de ${m.url.endsWith(".mp4") ? "vídeo" : "foto"} ${i + 1}`}
