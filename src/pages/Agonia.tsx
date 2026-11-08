@@ -55,6 +55,7 @@ import {
   saveAgoniaProfile,
   saveMetaApps,
   saveSettings,
+  setWorkspaceMode,
   type AccountMetaMap,
   type MetaAppConfig,
 } from "@/features/agonia/schedule";

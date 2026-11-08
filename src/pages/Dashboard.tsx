@@ -10,7 +10,8 @@ import {
   Presentation,
   CalendarDays,
   ArrowRight,
-  StickyNote
+  StickyNote,
+  Sparkles,
 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
@@ -18,6 +19,12 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
+import Agonia from "./Agonia";
+import {
+  getWorkspaceMode,
+  setWorkspaceMode,
+  type WorkspaceMode,
+} from "@/features/agonia/schedule";
 
 const ARCHIVED_TAG = "__organizafy_archived__";
 
