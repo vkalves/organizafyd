@@ -553,8 +553,9 @@ export default function Flows({
             </div>
           </section>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
+            type="button"
             variant="outline"
             disabled={busy || !visible.length}
             onClick={() =>
@@ -566,11 +567,34 @@ export default function Flows({
             Selecionar todas nesta pasta
           </Button>
           <Button
+            type="button"
+            variant="outline"
+            disabled={busy || !visible.length}
+            onClick={() => {
+              const last5 = visible.slice(-5).map((m) => m.id);
+              setSelected((prev) => [...new Set([...prev, ...last5])]);
+            }}
+          >
+            + Últimas 5
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || !visible.length}
+            onClick={() => {
+              const last10 = visible.slice(-10).map((m) => m.id);
+              setSelected((prev) => [...new Set([...prev, ...last10])]);
+            }}
+          >
+            + Últimas 10
+          </Button>
+          <Button
+            type="button"
             variant="ghost"
             onClick={() => setSelected([])}
-            disabled={busy}
+            disabled={busy || !selected.length}
           >
-            Limpar seleção
+            Limpar seleção ({selected.length})
           </Button>
         </div>
         <details open>
@@ -665,9 +689,41 @@ export default function Flows({
           />
         </div>
         <fieldset>
-          <legend className="mb-2 text-sm font-medium">
-            Contas que vão postar
-          </legend>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <legend className="text-sm font-medium">
+              Contas que vão postar ({accountIds.length} selecionada{accountIds.length === 1 ? "" : "s"})
+            </legend>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 px-2"
+                disabled={busy || !accounts.length}
+                onClick={() => {
+                  const valid = accounts
+                    .filter((a) => {
+                      const c = connections.find((conn) => conn.account_id === a.id);
+                      return c && !c.paused && !c.reconnect_required;
+                    })
+                    .map((a) => a.id);
+                  setAccounts(valid);
+                }}
+              >
+                Selecionar todas ativas
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 px-2 text-muted-foreground"
+                disabled={busy || !accountIds.length}
+                onClick={() => setAccounts([])}
+              >
+                Limpar
+              </Button>
+            </div>
+          </div>
           <div className="ig-flow-options">
             {accounts.map((a) => {
               const c = connections.find((c) => c.account_id === a.id),
@@ -1032,7 +1088,59 @@ export default function Flows({
                 <option value={1}>minutos</option>
               </select>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+              <span className="text-xs text-muted-foreground mr-1 font-medium">Atalhos:</span>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(15); setUnit(1); }}
+              >
+                15 min
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(30); setUnit(1); }}
+              >
+                30 min
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(1); setUnit(60); }}
+              >
+                1h
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(2); setUnit(60); }}
+              >
+                2h
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(4); setUnit(60); }}
+              >
+                4h
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(6); setUnit(60); }}
+              >
+                6h
+              </button>
+              <button
+                type="button"
+                className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-xs hover:bg-white/10 transition-all"
+                onClick={() => { setGap(12); setUnit(60); }}
+              >
+                12h
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
               Mínimo de 3 minutos por conta. O intervalo não garante ausência de
               restrições do Instagram.
             </p>
@@ -1041,6 +1149,51 @@ export default function Flows({
           {scheduleMode === "slots" && (
             <div className="sm:col-span-2 space-y-2">
               <Label htmlFor="flow-slots">Horários do dia</Label>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-1">
+                <span className="text-xs text-muted-foreground mr-1 font-medium">Presets 1-clique:</span>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs hover:bg-white/10 hover:border-white/20 transition-all font-medium text-emerald-300"
+                  onClick={() => setSlotDraft("09:00\n12:30\n18:00\n21:00")}
+                >
+                  ⚡ Horários de Pico (4x)
+                </button>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs hover:bg-white/10 hover:border-white/20 transition-all font-medium text-cyan-300"
+                  onClick={() => setSlotDraft("08:00\n10:00\n12:00\n14:00\n16:00\n18:00\n20:00\n22:00")}
+                >
+                  🚀 Alto Volume (8x)
+                </button>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs hover:bg-white/10 hover:border-white/20 transition-all font-medium"
+                  onClick={() => setSlotDraft("18:30")}
+                >
+                  🎯 1 Post Diário (18:30)
+                </button>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs hover:bg-white/10 hover:border-white/20 transition-all font-medium"
+                  onClick={() => setSlotDraft("11:30\n19:00")}
+                >
+                  🌤️ Almoço & Noite (2x)
+                </button>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs hover:bg-white/10 hover:border-white/20 transition-all font-medium"
+                  onClick={() => setSlotDraft("19:00\n21:00\n23:00")}
+                >
+                  🌙 Noturno (3x)
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded-lg border border-destructive/20 bg-destructive/10 text-xs text-rose-300 hover:bg-destructive/20 transition-all"
+                  onClick={() => setSlotDraft("")}
+                >
+                  Limpar
+                </button>
+              </div>
               <div className="flex gap-2">
                 <Input
                   type="time"
@@ -1327,6 +1480,20 @@ export default function Flows({
                     ).length}{" "}
                   para revisar
                 </p>
+                <div className="w-full bg-white/10 rounded-full h-2 my-2 overflow-hidden max-w-md">
+                  <div
+                    className="bg-emerald-400 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, Math.round((done / ((done + pending) || 1)) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground max-w-md mb-2">
+                  <span className="font-medium text-emerald-400">
+                    {done} publicado(s) ({Math.min(100, Math.round((done / ((done + pending) || 1)) * 100))}%)
+                  </span>
+                  <span>{pending} agendado(s) restante(s)</span>
+                </div>
                 <small>
                   {summary
                     ? "Histórico completo da campanha."

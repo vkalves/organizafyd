@@ -31,6 +31,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import Flows from "@/features/instagram-publisher/Flows";
+import { AgoniaAlerts } from "@/components/agonia/AgoniaAlerts";
+import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
+import { loadFlowData } from "@/features/instagram-publisher/flows-api";
 import {
   cancelPost,
   connections,
@@ -64,6 +67,7 @@ import "@/features/agonia/agonia.css";
 type Section =
   | "dashboard"
   | "fluxos"
+  | "alertas"
   | "conectar"
   | "instagram"
   | "reels-new"
@@ -78,6 +82,7 @@ type Section =
 const VALID_SECTIONS = new Set<Section>([
   "dashboard",
   "fluxos",
+  "alertas",
   "conectar",
   "instagram",
   "reels-new",
@@ -170,6 +175,49 @@ export default function Agonia() {
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const links = useMemo(() => linksQuery.data ?? [], [linksQuery.data]);
   const posts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
+
+  const monitor = useInstagramMonitor();
+  const flowsQuery = useQuery({
+    queryKey: ["ig-flows", user?.id],
+    queryFn: () => loadFlowData(user!.id),
+    enabled: !!user,
+    refetchInterval: 30_000,
+  });
+
+  const activeAlerts = useMemo(
+    () => monitor.data?.alerts.filter((a) => !a.resolved_at) ?? [],
+    [monitor.data?.alerts],
+  );
+  const unreadAlerts = useMemo(
+    () => monitor.data?.alerts.filter((a) => !a.read_at && !a.resolved_at) ?? [],
+    [monitor.data?.alerts],
+  );
+  const healthList = useMemo(
+    () => monitor.data?.health ?? [],
+    [monitor.data?.health],
+  );
+  const healthMap = useMemo(
+    () => new Map(healthList.map((h) => [h.account_id, h])),
+    [healthList],
+  );
+  const degradedAccounts = useMemo(() => {
+    return accounts.filter((a) => {
+      const h = healthMap.get(a.id);
+      const c = links.find((conn) => conn.account_id === a.id);
+      return (
+        (h && h.state !== "healthy" && h.state !== "unknown") ||
+        c?.reconnect_required
+      );
+    });
+  }, [accounts, healthMap, links]);
+
+  const activeFlows = useMemo(
+    () =>
+      flowsQuery.data?.flows.filter(
+        (f) => !f.state || f.state === "active" || f.state === "paused",
+      ) ?? [],
+    [flowsQuery.data?.flows],
+  );
 
   // Settings & Local Persistence
   const [settings, setSettings] = useState(() => loadSettings(user?.id));
@@ -337,6 +385,12 @@ export default function Agonia() {
       }),
       queryClient.invalidateQueries({
         queryKey: ["instagram-publisher", user?.id],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-monitor", user?.id],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["ig-flows", user?.id],
       }),
     ]);
   }
@@ -847,21 +901,59 @@ export default function Agonia() {
             </div>
           </header>
 
+          {/* Banner de alerta se houver contas degradadas ou alertas pendentes */}
+          {(degradedAccounts.length > 0 || unreadAlerts.length > 0) && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 flex flex-wrap items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-6 w-6 text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white text-base block font-semibold">
+                    {degradedAccounts.length > 0
+                      ? `${degradedAccounts.length} conta(s) com reconexão ou permissão pendente!`
+                      : `${unreadAlerts.length} novo(s) alerta(s) de conta do Instagram!`}
+                  </strong>
+                  <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
+                    Para garantir que suas postagens automáticas e fluxos continuem saindo no horário,
+                    verifique e resolva as pendências na Central de Alertas.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {degradedAccounts.map((a) => (
+                      <span
+                        key={a.id}
+                        className="rounded-md bg-rose-950/70 border border-rose-500/40 px-2 py-0.5 text-xs text-rose-200 font-mono"
+                      >
+                        @{a.username}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link className="button button-primary" to="/agonia/alertas">
+                  Ver Central de Alertas <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           <section className="grid stats-grid">
-            <div className="stat-card">
+            <Link to="/agonia/instagram" className="stat-card hover:border-white/20 transition-all text-inherit">
               <div className="label">Contas conectadas</div>
               <div className="value">{stats.connected}</div>
               <div className="hint">
                 <Instagram className="h-3.5 w-3.5" /> contas profissionais
               </div>
-            </div>
-            <div className="stat-card">
+            </Link>
+            <Link to="/agonia/scheduled" className="stat-card hover:border-white/20 transition-all text-inherit">
               <div className="label">Reels agendados</div>
               <div className="value">{stats.scheduled}</div>
               <div className="hint">
                 <CalendarClock className="h-3.5 w-3.5" /> na fila de publicação
               </div>
-            </div>
+            </Link>
             <div className="stat-card">
               <div className="label">Publicados hoje</div>
               <div className="value">{stats.publishedToday}</div>
@@ -869,13 +961,16 @@ export default function Agonia() {
                 <CheckCircle2 className="h-3.5 w-3.5" /> aceitos pela Meta
               </div>
             </div>
-            <div className="stat-card">
-              <div className="label">Com erro</div>
-              <div className="value">{stats.failed}</div>
-              <div className="hint">
-                <AlertTriangle className="h-3.5 w-3.5" /> precisam de atenção
+            <Link to="/agonia/alertas" className="stat-card hover:border-white/20 transition-all text-inherit">
+              <div className="label">Alertas de Contas</div>
+              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400 font-bold" : ""}`}>
+                {activeAlerts.length || stats.failed}
               </div>
-            </div>
+              <div className="hint">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />{" "}
+                {activeAlerts.length > 0 ? `${activeAlerts.length} alerta(s) ativo(s)` : "precisam de atenção"}
+              </div>
+            </Link>
           </section>
 
           <section className="grid two-col">
@@ -942,6 +1037,95 @@ export default function Agonia() {
               </div>
             </div>
           </section>
+
+          {/* Fluxos em Andamento widget */}
+          {activeFlows.length > 0 && (
+            <section className="panel" aria-label="Fluxos em Andamento">
+              <div className="panel-header">
+                <div>
+                  <h2 className="panel-title flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-indigo-400" /> Fluxos de Publicação em Execução
+                  </h2>
+                  <p className="panel-copy">
+                    Campanhas automáticas ativas rodando em segundo plano nas suas contas.
+                  </p>
+                </div>
+                <Link className="link" to="/agonia/fluxos">
+                  Gerenciar Modo Fluxo <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+
+              <div className="grid gap-3">
+                {activeFlows.slice(0, 3).map((flow) => {
+                  const summary = flowsQuery.data?.report?.flows.find(
+                    (item) => item.id === flow.id,
+                  );
+                  const jobs = posts.filter((p) => p.flow_id === flow.id);
+                  const done =
+                    summary?.published ??
+                    jobs.filter((p) => p.status === "published").length;
+                  const pending =
+                    summary?.pending ??
+                    jobs.filter((p) => p.status === "scheduled").length;
+                  const totalJobs = done + pending || 1;
+                  const pct = Math.min(100, Math.round((done / totalJobs) * 100));
+
+                  return (
+                    <div
+                      key={flow.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong className="text-white text-base">
+                            {flow.name || "Fluxo sem nome"}
+                          </strong>
+                          <span
+                            className={`badge ${flow.state === "paused" ? "badge-yellow" : "badge-green"}`}
+                          >
+                            {flow.state === "paused" ? "Pausada" : "Ativa"}
+                          </span>
+                          {flow.settings.repeat === "loop" && (
+                            <span className="badge badge-gray text-[10px]">
+                              Loop · Ciclo {flow.cycle || 1}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {flow.settings.schedule === "slots"
+                              ? `${flow.settings.slots?.length || 0} horários/dia`
+                              : `GAP: ${flow.settings.gapMinutes || 60}m`}
+                          </span>
+                        </div>
+
+                        <div className="w-full max-w-lg bg-white/10 rounded-full h-2 overflow-hidden mt-2">
+                          <div
+                            className="bg-emerald-400 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="text-emerald-400 font-medium">
+                            {done} post(s) publicado(s) ({pct}%)
+                          </span>
+                          <span>{pending} agendado(s) na fila</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Link
+                          to="/agonia/fluxos"
+                          className="button button-secondary text-xs py-2 px-3"
+                        >
+                          Acompanhar Campanha
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <section className="panel performance-panel">
             <div className="panel-header performance-header">
@@ -1122,6 +1306,15 @@ export default function Agonia() {
             />
           </div>
         </>
+      )}
+
+      {/* 1.6. CENTRAL DE ALERTAS E SAÚDE DAS CONTAS */}
+      {section === "alertas" && (
+        <AgoniaAlerts
+          accounts={accounts}
+          connections={links}
+          onRefresh={refreshAll}
+        />
       )}
 
       {/* 2. CONECTAR */}

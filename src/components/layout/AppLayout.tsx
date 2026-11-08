@@ -25,7 +25,9 @@ import {
   UserRound,
   ArrowLeftRight,
   Layers,
+  AlertTriangle,
 } from "lucide-react";
+import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
@@ -64,6 +66,7 @@ const classicNavItems = [
 const agoniaNavItems = [
   { title: "Dashboard", path: "/agonia", icon: LayoutDashboard, exact: true },
   { title: "Modo Fluxo", path: "/agonia/fluxos", icon: Layers },
+  { title: "Alertas", path: "/agonia/alertas", icon: AlertTriangle },
   { title: "Conectar", path: "/agonia/conectar", icon: PlugZap },
   { title: "Instagram", path: "/agonia/instagram", icon: Instagram },
   { title: "Novo Reel", path: "/agonia/reels-new", icon: PlusCircle },
@@ -107,6 +110,9 @@ function SideNav({
   onNavigate?: () => void;
 }) {
   const location = useLocation();
+  const monitor = useInstagramMonitor();
+  const unreadAlertsCount =
+    monitor.data?.alerts.filter((a) => !a.read_at && !a.resolved_at).length ?? 0;
   const instagramOpen = isInstagramPath(location.pathname);
 
   if (isAgoniaMode) {
@@ -129,10 +135,22 @@ function SideNav({
                 aria-label={item.title}
                 className={cn("shell-nav-link", isActive && "is-active", collapsed && "is-collapsed")}
               >
-                <span className="shell-nav-icon">
+                <span className="shell-nav-icon relative">
                   <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                  {item.path === "/agonia/alertas" && unreadAlertsCount > 0 && collapsed && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+                  )}
                 </span>
-                {!collapsed && <span className="shell-nav-label">{item.title}</span>}
+                {!collapsed && (
+                  <span className="shell-nav-label flex items-center justify-between flex-1">
+                    <span>{item.title}</span>
+                    {item.path === "/agonia/alertas" && unreadAlertsCount > 0 && (
+                      <span className="rounded-full bg-rose-500 px-1.5 py-0.2 text-[10px] font-semibold text-white ml-2">
+                        {unreadAlertsCount}
+                      </span>
+                    )}
+                  </span>
+                )}
               </NavLink>
             </div>
           );
