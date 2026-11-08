@@ -4,6 +4,7 @@ export function parseSlots(slots: string[]) {
   if (!Array.isArray(slots) || slots.length < 1 || slots.length > 24)
     throw new Error("invalid_slots");
   const minutes = slots.map((slot) => {
+    if (typeof slot !== "string") throw new Error("invalid_slots");
     const match = SLOT.exec(slot);
     if (!match) throw new Error("invalid_slots");
     return Number(match[1]) * 60 + Number(match[2]);
@@ -18,7 +19,12 @@ export function parseSlots(slots: string[]) {
 }
 
 export function isValidTimeZone(timeZone: string) {
-  if (typeof timeZone !== "string" || timeZone.length > 80) return false;
+  if (
+    typeof timeZone !== "string" ||
+    timeZone.length > 80 ||
+    !/^[A-Za-z_][A-Za-z0-9._+-]*(?:\/[A-Za-z0-9._+-]+)*$/.test(timeZone)
+  )
+    return false;
   try {
     Intl.DateTimeFormat("en-US", { timeZone });
     return true;
@@ -160,9 +166,12 @@ export function slotInstants(
       index === 0
         ? 0
         : Math.floor((offset + index - 1) / batch) - Math.floor(offset / batch);
-    if (crossed > previous) cursor += restMs;
+    // The queue applies a three-minute confirmed-publication floor. Add that
+    // floor to the planned cursor as well so a short rest cannot select a slot
+    // which the worker will have to skip.
+    if (crossed > previous) cursor += restMs + 2 * 60_000;
     let found: number | null = null;
-    let cursorParts = zonedParts(cursor, timeZone);
+    const cursorParts = zonedParts(cursor, timeZone);
     let year = cursorParts.year,
       month = cursorParts.month,
       day = cursorParts.day;

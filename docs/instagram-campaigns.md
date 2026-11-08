@@ -33,13 +33,14 @@ a proteção usa o endereço da mídia e a conta no histórico armazenado.
 ## Instalação e validação
 
 1. Faça um backup do banco e Storage de produção pelo painel Supabase antes de
-   aplicar migrações. O backup criado nesta tarefa é do código/checkout local;
-   ele não contém uma cópia do banco nem dos arquivos remotos de produção.
-2. Aplique `20261106000000_instagram_campaigns.sql` pelo fluxo de migrações do
-   projeto, depois das migrações existentes.
-3. Publique a Edge Function `instagram-publisher` com os novos arquivos. O cron
+   aplicar migrações, conforme o procedimento de recuperação do projeto.
+2. Aplique `20261106000000_instagram_campaigns.sql` depois das migrações
+   existentes.
+3. Aplique `20261107000000_instagram_slot_claim.sql` e depois
+   `20261107050821_instagram_slot_queue_pacing.sql`.
+4. Publique a Edge Function `instagram-publisher` com os novos arquivos. O cron
    existente continua usando `worker`; não precisa criar outro agendamento.
-4. Publique o frontend. Se o serviço de campanhas ainda não estiver disponível,
+5. Publique o frontend. Se o serviço de campanhas ainda não estiver disponível,
    a interface conserva os fluxos simples e bloqueia as opções avançadas.
 
 Validar sem publicar em contas reais:
@@ -56,38 +57,10 @@ usuário, reserva sem duplicação, pausa, retomada, parada, idempotência de ci
 descanso baseado em confirmações reais e preservação de mídias. Nenhum teste
 acessa o Instagram, o banco remoto ou seus tokens.
 
-## Backup e volta à versão anterior
+## Recuperação
 
-Versão anterior: `66902ecf0d1714b4bf611ad3ac3c078326e38cd2`.
-Branch local de recuperação: `backup/before-instagram-campaigns-66902ec`.
-
-Nesta máquina, o histórico completo está em
-`/workspace/backups/organizafy-before-campaigns/repository.bundle`, verificado
-por `git bundle verify`. O arquivo `checkout.tar.gz` na mesma pasta conserva o
-checkout anterior, incluindo os arquivos locais, exceto dependências e build.
-Esses arquivos têm acesso restrito e não devem ser publicados como assets.
-
-Para recuperar o código em outra pasta:
-
-```sh
-git clone /workspace/backups/organizafy-before-campaigns/repository.bundle /workspace/organizafy-restaurado
-git -C /workspace/organizafy-restaurado checkout backup/before-instagram-campaigns-66902ec
-```
-
-Para voltar o site depois da instalação, pause/encerre as campanhas antes de
-republicar o frontend e a Edge Function da branch de recuperação. Não apague
-colunas ou histórico: a migração é aditiva. Para desativar todos os loops sem
-apagar dados, um administrador pode executar numa transação:
-
-```sql
-begin;
-update public.ig_flows set state='stopped', settings=jsonb_set(settings,'{repeat}','"once"'::jsonb)
-where settings->>'repeat'='loop';
-update public.ig_publication_jobs j set status='cancelled'
-where j.status='scheduled' and exists(select 1 from public.ig_flows f where f.id=j.flow_id and f.state='stopped');
-commit;
-```
-
-Isso não desfaz posts já publicados no Instagram. O código anterior pode voltar
-a remover mídias concluídas automaticamente; mantenha o backup remoto de Storage
-ou preserve a função `ig_retire_flow_media` atual, que não apaga a biblioteca.
+A migração de horários fixos é aditiva e não remove tabelas nem histórico. Para
+reverter uma implantação, suspenda as campanhas afetadas e publique versões
+compatíveis do frontend e da Edge Function. Revise os jobs pendentes antes de
+qualquer operação manual no banco; publicações já confirmadas no Instagram não
+podem ser desfeitas por uma reversão de código.

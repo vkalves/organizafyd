@@ -296,7 +296,8 @@ async function workerSetup(fetcher: typeof fetch) {
       error_code: null,
     },
   ];
-  const records: Record<string, any[]> = {
+  type TestRecord = Record<string, unknown>;
+  const records: Record<string, TestRecord[]> = {
     tiktok_accounts: [a],
     tiktok_posts: posts,
   };
@@ -309,11 +310,11 @@ async function workerSetup(fetcher: typeof fetch) {
       error: null,
     })),
     from: (table: string) => {
-      let filters: Array<(r: any) => boolean> = [],
-        patch: Record<string, unknown> | null = null,
-        max = Infinity;
+      const filters: Array<(r: TestRecord) => boolean> = [];
+      let patch: Record<string, unknown> | null = null;
+      let max = Infinity;
       function run(single = false) {
-        let rows = (records[table] || [])
+        const rows = (records[table] || [])
           .filter((r) => filters.every((f) => f(r)))
           .slice(0, max);
         if (patch) rows.forEach((r) => Object.assign(r, patch));
@@ -326,7 +327,14 @@ async function workerSetup(fetcher: typeof fetch) {
           return q;
         },
         lte: (k: string, v: string) => {
-          filters.push((r) => r[k] <= v);
+          filters.push((r) => {
+            const value = r[k];
+            return typeof value === "string" && typeof v === "string"
+              ? value <= v
+              : typeof value === "number" && typeof v === "number"
+                ? value <= v
+                : false;
+          });
           return q;
         },
         order: () => q,

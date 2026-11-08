@@ -51,9 +51,9 @@ const Config = () => {
   const handleExport = async () => {
     if (!user) return;
     const tables = ["tasks", "notes", "links", "funnels", "transactions", "financial_accounts", "financial_categories", "folders"] as const;
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
     for (const table of tables) {
-      const { data: rows } = await (supabase.from(table) as any).select("*").eq("user_id", user.id);
+      const { data: rows } = await supabase.from(table).select("*").eq("user_id", user.id);
       data[table] = rows || [];
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

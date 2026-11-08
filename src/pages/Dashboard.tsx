@@ -158,19 +158,19 @@ const Dashboard = () => {
       setLoading(true);
 
       const [tasksRes, notesRes, mapsRes, profileRes] = await Promise.all([
-        (supabase.from("tasks") as any)
+        supabase.from("tasks")
           .select("id, title, status, due_date, priority, is_fixed_daily, completed_at, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
-        (supabase.from("notes") as any)
+        supabase.from("notes")
           .select("id, title, updated_at, tags")
           .eq("user_id", user.id)
           .order("updated_at", { ascending: false }),
-        (supabase.from("mind_maps") as any)
+        supabase.from("mind_maps")
           .select("id")
           .or("data->>kind.is.null,data->>kind.neq.slides")
           .eq("user_id", user.id),
-        (supabase.from("profiles") as any)
+        supabase.from("profiles")
           .select("display_name, timezone")
           .eq("user_id", user.id)
           .maybeSingle()

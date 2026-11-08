@@ -50,6 +50,7 @@ try {
   await db.exec(read("20261104114149_instagram_flows.sql"));
   await db.exec(read("20261106000000_instagram_campaigns.sql"));
   await db.exec(read("20261107000000_instagram_slot_claim.sql"));
+  await db.exec(read("20261107050821_instagram_slot_queue_pacing.sql"));
   await db.query("insert into auth.users values ($1),($2)", [user, other]);
   await db.query("insert into public.instagram_accounts values ($1,$2)", [
     account,
@@ -268,7 +269,55 @@ try {
     0,
     "stopped campaigns cannot generate cycles",
   );
-  // Fixed-slot flows ignore a long configured GAP when checking real completion time.
+  // The SQL slot resolver uses real offsets, including non-hour DST changes.
+  const nextSlot = async (after, slots, timeZone) =>
+    (
+      await db.query(
+        "select public.ig_next_slot_at_or_after($1::timestamptz,$2::jsonb,$3) as at",
+        [after, JSON.stringify(slots), timeZone],
+      )
+    ).rows[0].at;
+  assert.equal(
+    Date.parse(
+      await nextSlot(
+        "2026-04-02T10:38:00.000Z",
+        ["10:00", "10:15", "10:30", "10:45"],
+        "UTC",
+      ),
+    ),
+    Date.parse("2026-04-02T10:45:00.000Z"),
+    "slot selection follows actual rest and the three-minute floor",
+  );
+  assert.equal(
+    Date.parse(
+      await nextSlot("2026-11-01T05:15:00.000Z", ["01:30"], "America/New_York"),
+    ),
+    Date.parse("2026-11-01T05:30:00.000Z"),
+    "the first occurrence of an ambiguous wall time is selected",
+  );
+  assert.equal(
+    Date.parse(
+      await nextSlot("2026-11-01T05:45:00.000Z", ["01:30"], "America/New_York"),
+    ),
+    Date.parse("2026-11-01T06:30:00.000Z"),
+    "the second occurrence is selected after the cursor passes the first",
+  );
+  assert.equal(
+    Date.parse(
+      await nextSlot("2026-03-08T06:15:00.000Z", ["02:30"], "America/New_York"),
+    ),
+    Date.parse("2026-03-09T06:30:00.000Z"),
+    "a nonexistent local time is skipped for that day",
+  );
+  assert.equal(
+    Date.parse(
+      await nextSlot("2026-04-04T15:00:00.000Z", ["01:45"], "Australia/Lord_Howe"),
+    ),
+    Date.parse("2026-04-04T15:15:00.000Z"),
+    "a 30-minute DST change is not treated as a one-hour change",
+  );
+
+  // Fixed-slot flows ignore a long configured GAP when pacing from real completion.
   await db.query("insert into public.instagram_accounts values ($1,$2)", [
     slotAccount,
     user,
@@ -287,6 +336,21 @@ try {
     "insert into public.ig_flow_library(id,user_id,url,kind) values($1,$2,$3,$4)",
     [slotMedia, user, slotUrl, "posts"],
   );
+  const utcNow = new Date();
+  const slotBase = new Date(
+    Date.UTC(
+      utcNow.getUTCFullYear(),
+      utcNow.getUTCMonth(),
+      utcNow.getUTCDate(),
+      utcNow.getUTCHours(),
+      utcNow.getUTCMinutes(),
+    ),
+  );
+  const slotLabel = (date) => date.toISOString().slice(11, 16);
+  const currentSlots = [
+    slotLabel(slotBase),
+    slotLabel(new Date(slotBase.getTime() + 3 * 60000)),
+  ].sort();
   const slotFirst = {
     id: crypto.randomUUID(),
     account_id: slotAccount,
@@ -309,17 +373,30 @@ try {
       accountIds: [slotAccount],
       mediaIds: [slotMedia],
       schedule: "slots",
-      slots: ["09:00", "12:00"],
+      slots: currentSlots,
       timeZone: "UTC",
       gapMinutes: 60,
-      batchSize: 500,
-      restMinutes: 0,
+      batchSize: 1,
+      restMinutes: 20,
       avoidReuse: false,
     }),
     JSON.stringify([slotFirst, slotSecond]),
   ]);
   await db.query(
-    "update public.ig_publication_jobs set status='published',published_at=now()-interval '4 minutes' where id=$1",
+    "update public.ig_publication_jobs set status='published',published_at=now()-interval '2 minutes' where id=$1",
+    [slotFirst.id],
+  );
+  assert.equal(
+    (
+      await db.query("select * from public.ig_claim_job($1)", [
+        crypto.randomUUID(),
+      ])
+    ).rows.length,
+    0,
+    "fixed-slot claims wait for actual batch rest and the safety floor",
+  );
+  await db.query(
+    "update public.ig_publication_jobs set published_at=now()-interval '24 minutes' where id=$1",
     [slotFirst.id],
   );
   const slotClaim = await db.query("select * from public.ig_claim_job($1)", [
@@ -328,12 +405,21 @@ try {
   assert.equal(
     slotClaim.rows.length,
     1,
-    "slot queue uses the three-minute floor, not the 60-minute GAP",
+    "slot queue uses actual completion plus batch rest, not the 60-minute GAP",
   );
   assert.equal(
     slotClaim.rows[0].id,
     slotSecond.id,
-    "slot flow claims its due second job",
+    "slot flow claims its next due job",
+  );
+  assert.equal(
+    (
+      await db.query("select * from public.ig_claim_job($1)", [
+        crypto.randomUUID(),
+      ])
+    ).rows.length,
+    0,
+    "an in-progress account publication prevents a second claim",
   );
 
   await db.exec(
@@ -349,9 +435,15 @@ try {
     /permission denied/,
   );
   await assert.rejects(db.query("select * from public.ig_claim_job($1)",[crypto.randomUUID()]),/permission denied/);
+  await assert.rejects(
+    db.query(
+      "select public.ig_next_slot_at_or_after(now(),'[\"09:00\"]'::jsonb,'UTC')",
+    ),
+    /permission denied/,
+  );
   await db.exec("reset role");
   console.log(
-    "PASS: migrations, owner isolation, no duplicate reservations, pause/resume/stop, idempotent recurrence, GAP and fixed-slot queue pacing, actual-time batch rest, uncertain-outcome protection, report and retained media.",
+    "PASS: migrations, owner isolation, no duplicate reservations, pause/resume/stop, idempotent recurrence, GAP and fixed-slot queue pacing, actual-time batch rest, DST resolution, lock protection, uncertain-outcome protection, report and retained media.",
   );
 } finally {
   await db.close();
