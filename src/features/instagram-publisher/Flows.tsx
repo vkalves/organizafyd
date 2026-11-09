@@ -6,6 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,6 +25,9 @@ import {
   Copy,
   AlertTriangle,
   FolderPlus,
+  Folder,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -792,23 +802,105 @@ export default function Flows({
                 </span>
               </div>
 
-              <label
-                className={`ig-upload-btn ${busy || uploadInProgress ? "is-disabled" : ""}`}
-              >
-                <Upload size={13} />
-                <span>Enviar mídias</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,video/mp4"
-                  multiple
-                  disabled={busy || uploadInProgress}
-                  className="sr-only"
-                  onChange={(e) => {
-                    void upload(Array.from(e.target.files ?? []));
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="ig-folder-picker-btn"
+                    aria-label="Selecionar pasta"
+                    title="Selecionar pasta"
+                  >
+                    <Folder size={13} className="text-muted-foreground shrink-0" />
+                    <span className="truncate max-w-[130px]">
+                      {folder === "*"
+                        ? "Todas as pastas"
+                        : folder === ""
+                          ? "Sem pasta"
+                          : folder}
+                    </span>
+                    <ChevronDown size={12} className="opacity-60 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 border-white/10 bg-[#12131a] p-1.5 text-foreground shadow-xl"
+                >
+                  <div className="px-2 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Filtrar por pasta
+                  </div>
+                  <DropdownMenuItem
+                    onClick={() => setFolder("*")}
+                    className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-xs ${folder === "*" ? "bg-white/10 font-semibold text-white" : "text-muted-foreground hover:text-white"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Folder size={13} />
+                      <span>Todas as pastas</span>
+                    </div>
+                    {folder === "*" && <Check size={13} className="text-emerald-400" />}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setFolder("")}
+                    className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-xs ${folder === "" ? "bg-white/10 font-semibold text-white" : "text-muted-foreground hover:text-white"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Folder size={13} />
+                      <span>Sem pasta</span>
+                    </div>
+                    {folder === "" && <Check size={13} className="text-emerald-400" />}
+                  </DropdownMenuItem>
+
+                  {prefs?.folders && prefs.folders.length > 0 && (
+                    <DropdownMenuSeparator className="my-1 bg-white/10" />
+                  )}
+
+                  {prefs?.folders.map((f) => (
+                    <DropdownMenuItem
+                      key={f}
+                      onClick={() => setFolder(f)}
+                      className={`flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-xs ${folder === f ? "bg-white/10 font-semibold text-white" : "text-muted-foreground hover:text-white"}`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Folder size={13} />
+                        <span className="truncate">{f}</span>
+                      </div>
+                      {folder === f && (
+                        <Check size={13} className="shrink-0 text-emerald-400" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+
+                  <DropdownMenuSeparator className="my-1 bg-white/10" />
+
+                  <DropdownMenuItem
+                    onClick={() => setAddingFolder(true)}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-white"
+                  >
+                    <FolderPlus size={13} />
+                    <span>Nova pasta…</span>
+                  </DropdownMenuItem>
+
+                  {customFolderEmpty && prefs && folder !== "*" && folder !== "" && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        void perform(async () => {
+                          await savePrefs({
+                            ...prefs,
+                            folders: prefs.folders.filter((item) => item !== folder),
+                          });
+                          setFolder("*");
+                          toast.success(`Pasta "${folder}" excluída.`);
+                        })
+                      }
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <X size={13} />
+                      <span>Excluir pasta atual</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Fila de upload (dispensável após concluir) */}
@@ -855,43 +947,62 @@ export default function Flows({
 
             <LocalMediaPreviews files={chosenFiles} />
 
-            {/* Barra minimalista de Pastas */}
-            <div className="ig-folder-bar" aria-label="Pastas">
-              {["*", "", ...(prefs?.folders ?? [])].map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  aria-pressed={folder === f}
-                  onClick={() => setFolder(f)}
-                  className={`ig-folder-tag ${folder === f ? "is-active" : ""}`}
-                >
-                  {f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}
-                </button>
-              ))}
+            {/* Espaço das pastas agora ocupado pelo botão amplo de envio com opção de arrastar vídeos */}
+            <label
+              className={`ig-upload-dropzone ${dragOver ? "is-dragover" : ""} ${busy || uploadInProgress ? "is-disabled" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!dragOver) setDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDragOver(false);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (!busy && !uploadInProgress && e.dataTransfer.files.length) {
+                  void upload(Array.from(e.dataTransfer.files));
+                }
+              }}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,video/mp4"
+                multiple
+                disabled={busy || uploadInProgress}
+                className="sr-only"
+                onChange={(e) => {
+                  void upload(Array.from(e.target.files ?? []));
+                  e.target.value = "";
+                }}
+              />
+              <div className="ig-upload-dropzone-inner">
+                <div className="ig-upload-dropzone-icon">
+                  <Upload size={18} />
+                </div>
+                <div className="ig-upload-dropzone-content">
+                  <span className="ig-upload-dropzone-title">
+                    {uploadInProgress
+                      ? "Enviando mídias…"
+                      : dragOver
+                        ? "Solte os vídeos aqui para enviar"
+                        : "Arraste seus vídeos aqui ou clique para enviar"}
+                  </span>
+                  <span className="ig-upload-dropzone-subtitle">
+                    Envie vídeos MP4 ou imagens em lote para a biblioteca
+                  </span>
+                </div>
+              </div>
+            </label>
 
-              {customFolderEmpty && prefs && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  title="Remover pasta vazia"
-                  onClick={() =>
-                    void perform(async () => {
-                      await savePrefs({
-                        ...prefs,
-                        folders: prefs.folders.filter((item) => item !== folder),
-                      });
-                      setFolder("*");
-                    })
-                  }
-                  className="ig-folder-tag text-muted-foreground hover:text-destructive"
-                >
-                  Excluir pasta
-                </button>
-              )}
-
-              {addingFolder ? (
+            <Dialog open={addingFolder} onOpenChange={setAddingFolder}>
+              <DialogContent className="max-w-xs border-white/10 bg-[#12131a] text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-sm font-semibold">Nova pasta</DialogTitle>
+                </DialogHeader>
                 <form
-                  className="inline-flex items-center gap-1"
                   onSubmit={(e) => {
                     e.preventDefault();
                     const trimmed = newFolder.trim();
@@ -907,163 +1018,45 @@ export default function Flows({
                       setFolder(trimmed);
                       setNewFolder("");
                       setAddingFolder(false);
+                      toast.success(`Pasta "${trimmed}" criada!`);
                     });
                   }}
+                  className="space-y-3 pt-2"
                 >
                   <Input
                     autoFocus
                     aria-label="Nome da nova pasta"
-                    placeholder="Nome da pasta"
+                    placeholder="Ex: Ofertas, Bastidores..."
                     value={newFolder}
                     maxLength={80}
                     onChange={(e) => setNewFolder(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
+                    className="h-8 text-xs bg-white/5 border-white/10 text-white"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
                         setAddingFolder(false);
                         setNewFolder("");
-                      }
-                    }}
-                    className="h-7 w-28 px-2 text-xs"
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy || !newFolder.trim()}
-                    className="h-7 px-2 text-xs"
-                  >
-                    Criar
-                  </Button>
-                  <button
-                    type="button"
-                    aria-label="Cancelar nova pasta"
-                    onClick={() => {
-                      setAddingFolder(false);
-                      setNewFolder("");
-                    }}
-                    className="p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X size={12} />
-                  </button>
+                      }}
+                      className="h-7 text-xs text-muted-foreground hover:text-white"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={busy || !newFolder.trim()}
+                      className="h-7 text-xs"
+                    >
+                      Criar pasta
+                    </Button>
+                  </div>
                 </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingFolder(true)}
-                  className="ig-folder-tag ig-folder-add"
-                >
-                  <FolderPlus size={12} />
-                  <span>Pasta</span>
-                </button>
-              )}
-            </div>
-
-            {/* Barra contextual de seleção e organização em lote */}
-            {visible.length > 0 && (
-              <div className="ig-selection-bar">
-                <span
-                  role="status"
-                  aria-live="polite"
-                  className="text-xs tabular-nums text-muted-foreground"
-                >
-                  {progress ||
-                    (picked.length > 0
-                      ? `${picked.length} selecionada(s)`
-                      : "Clique nas mídias para selecionar")}
-                </span>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="ig-ghost-action"
-                    onClick={() =>
-                      setSelected((prev) => [
-                        ...new Set([...prev, ...visible.map((m) => m.id)]),
-                      ])
-                    }
-                  >
-                    Selecionar pasta
-                  </button>
-                  {picked.length === 0 && visible.length > 5 && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        className="ig-ghost-action"
-                        onClick={() => {
-                          const last5 = visible.slice(-5).map((m) => m.id);
-                          setSelected((prev) => [...new Set([...prev, ...last5])]);
-                        }}
-                      >
-                        +5
-                      </button>
-                      {visible.length > 10 && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          className="ig-ghost-action"
-                          onClick={() => {
-                            const last10 = visible.slice(-10).map((m) => m.id);
-                            setSelected((prev) => [
-                              ...new Set([...prev, ...last10]),
-                            ]);
-                          }}
-                        >
-                          +10
-                        </button>
-                      )}
-                    </>
-                  )}
-
-                  {picked.length > 0 && (
-                    <>
-                      <select
-                        aria-label="Mover selecionadas para pasta"
-                        disabled={busy}
-                        value="__placeholder__"
-                        onChange={(e) => {
-                          const targetFolder = e.target.value;
-                          if (targetFolder === "__placeholder__") return;
-                          void perform(async () => {
-                            await Promise.all(
-                              picked.map((m) =>
-                                setMedia(m.id, { folder: targetFolder }),
-                              ),
-                            );
-                            toast.success(
-                              targetFolder
-                                ? `${picked.length} mídia(s) movida(s) para "${targetFolder}".`
-                                : `${picked.length} mídia(s) movida(s) para Sem pasta.`,
-                            );
-                          });
-                        }}
-                        className="ig-batch-select"
-                      >
-                        <option value="__placeholder__" disabled>
-                          Mover para…
-                        </option>
-                        <option value="">Sem pasta</option>
-                        {prefs?.folders.map((f) => (
-                          <option key={f} value={f}>
-                            {f}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setSelected([])}
-                        className="ig-ghost-action text-foreground"
-                      >
-                        Limpar
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+              </DialogContent>
+            </Dialog>
 
             {/* Grade minimalista de miniaturas (borda única, zero dropdown por item) */}
             {visible.length > 0 ? (

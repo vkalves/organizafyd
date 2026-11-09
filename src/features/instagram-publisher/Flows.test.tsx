@@ -150,13 +150,10 @@ describe("Fluxos interface", () => {
     );
   });
 
-  it("move mídias selecionadas em lote para uma pasta em uma única ação", async () => {
+  it("move mídia para uma pasta pelo inspetor individual", async () => {
     mocks.setMedia.mockResolvedValue(undefined);
     mocks.load.mockResolvedValue({
-      media: [
-        media,
-        { ...media, id: "m2", url: "storage://u/b.mp4" },
-      ],
+      media: [media],
       prefs: { user_id: "u", folders: ["Ofertas"], captions: [] },
       flows: [],
       report: { flows: [], usage: [] },
@@ -164,15 +161,14 @@ describe("Fluxos interface", () => {
 
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("button", { name: "Selecionar pasta" }));
+    fireEvent.click(screen.getByRole("button", { name: /Visualizar vídeo 1/i }));
     fireEvent.change(
-      screen.getByLabelText("Mover selecionadas para pasta"),
+      screen.getByLabelText("Pasta"),
       { target: { value: "Ofertas" } },
     );
 
     await waitFor(() => {
       expect(mocks.setMedia).toHaveBeenCalledWith("m", { folder: "Ofertas" });
-      expect(mocks.setMedia).toHaveBeenCalledWith("m2", { folder: "Ofertas" });
     });
   });
 
