@@ -1,86 +1,21 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { listAccounts, publisherRequest } from "./api";
+import { listAccounts } from "./api";
+import { useInstagramAnalytics } from "./useInstagramAnalytics";
 import type { VideoMetric } from "../../../supabase/functions/instagram-publisher/analytics";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-type Report = {
-  accounts: {
-    account_id: string;
-    videos: VideoMetric[];
-    complete: boolean;
-    nextCursor?: string | null;
-    unavailable: boolean;
-  }[];
-  checked_at: string;
-};
 const number = (n: number) => n.toLocaleString("pt-BR");
 export function InstagramAnalytics() {
   const { user } = useAuth();
-  const cache = useQueryClient();
-  const [loadingMore, setLoadingMore] = useState(false);
-  async function loadMore() {
-    if (!report.data || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      for (const current of report.data.accounts.filter((a) => a.nextCursor)) {
-        const next = await publisherRequest<Report>("analytics", {
-          account_id: current.account_id,
-          after: current.nextCursor,
-        });
-        const page = next.accounts.find(
-          (a) => a.account_id === current.account_id,
-        );
-        if (!page || page.unavailable)
-          throw new Error(
-            "Não foi possível carregar mais vídeos. Tente novamente.",
-          );
-        cache.setQueryData<Report>(["ig-analytics", user?.id], (previous) =>
-          previous
-            ? {
-                ...previous,
-                checked_at: next.checked_at,
-                accounts: previous.accounts.map((a) =>
-                  a.account_id === current.account_id
-                    ? {
-                        ...page,
-                        videos: [
-                          ...new Map(
-                            [...a.videos, ...page.videos].map((v) => [v.id, v]),
-                          ).values(),
-                        ],
-                      }
-                    : a,
-                ),
-              }
-            : previous,
-        );
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar mais vídeos.",
-      );
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+  const { report, loadingMore, loadMore } = useInstagramAnalytics(user?.id);
   const [period, setPeriod] = useState("all");
   const [account, setAccount] = useState("all");
   const names = useQuery({
     queryKey: ["instagram-publisher-accounts", user?.id],
     queryFn: () => listAccounts(user!.id),
     enabled: !!user,
-  });
-  const report = useQuery({
-    queryKey: ["ig-analytics", user?.id],
-    queryFn: () => publisherRequest<Report>("analytics"),
-    enabled: !!user,
-    staleTime: 300000,
-    retry: false,
   });
   const accounts =
     report.data?.accounts.filter(

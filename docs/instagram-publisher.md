@@ -113,3 +113,19 @@ o limite de envio, o encoder tenta a compressão anterior. A medição anterior
 de 5,2 s para 1,9 s no primeiro arquivo e 1,5 s com o encoder carregado foi
 feita só com um vídeo sintético 720×1280, 24 fps e 4 segundos; não mede o novo
 remux e os tempos dependem do dispositivo e do vídeo.
+
+### Ranking de visualizações do Dashboard
+
+O ranking e o cartão de visualizações do Dashboard usam o mesmo relatório real
+`analytics` e cache por usuário (`ig-analytics`) da aba Visualizações. Não há
+entrada manual de views nem leitura dos antigos campos fictícios `reels_views`
+ou `views_count` nas contas. Os totais incluem os vídeos consultados (Reels e
+outros vídeos), não são limitados pelo seletor de período dos cartões e podem
+ser parciais enquanto houver páginas ou métricas indisponíveis.
+
+Atualizar métricas consulta novamente a primeira página; Carregar mais vídeos
+mescla as próximas páginas por ID sem duplicá-las. Dados sem permissão ou não
+consultados aparecem como indisponíveis, sem medalhas ou posição de menor
+alcance. Zero só é exibido com métrica conhecida ou biblioteca completa sem
+vídeos. Falhas de atualização preservam os dados anteriores com aviso. Contas
+antigas podem precisar de nova autorização com `instagram_manage_insights`.

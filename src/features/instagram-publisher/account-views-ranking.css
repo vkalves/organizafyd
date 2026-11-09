@@ -1,0 +1,7 @@
+.agonia-root .analytics-ranking .performance-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); }
+.agonia-root .analytics-ranking .performance-account > div { flex: 1; min-width: 0; }
+.agonia-root .analytics-ranking .performance-account > strong { flex-shrink: 0; max-width: 48%; line-height: 1.6; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.agonia-root .analytics-ranking .performance-account > strong > span { display: block; white-space: normal; font-size: 10px; }
+@media (max-width: 800px) {
+  .agonia-root .analytics-ranking .performance-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
