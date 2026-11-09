@@ -4,11 +4,11 @@ import { WelcomeAnimation } from "./WelcomeAnimation";
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-describe("Boas-vindas DISPARO", () => {
+describe("Boas-vindas DISPARA", () => {
   it("exibe a apresentação, fecha automaticamente e não repete durante a navegação", () => {
     vi.useFakeTimers();
     const view = render(<WelcomeAnimation />);
-    expect(screen.getByRole("dialog")).toHaveAccessibleName("Bem-vindo ao DISPARO");
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Bem-vindo ao DISPARA");
     act(() => vi.advanceTimersByTime(5500));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     view.rerender(<WelcomeAnimation />);
@@ -23,7 +23,7 @@ describe("Boas-vindas DISPARO", () => {
 
   it("abre a plataforma pelo botão principal", () => {
     render(<WelcomeAnimation />);
-    fireEvent.click(screen.getByRole("button", { name: "Entrar no DISPARO" }));
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no DISPARA" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

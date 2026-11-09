@@ -9,7 +9,7 @@ import AuthLayout from "@/components/layout/AuthLayout";
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const destination = "/disparo";
+  const destination = "/dispara";
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
@@ -65,8 +65,8 @@ const Auth = () => {
           </Link>
         </div>
       )}
-      <p className="auth-card-eyebrow">{mode === "forgot" ? "Recuperação de senha" : "Acesso à conta"}</p>
-      <h2>{mode === "login" ? "Entrar na sua conta" : mode === "signup" ? "Criar sua conta" : "Recuperar acesso"}</h2>
+      <p className="auth-card-eyebrow">{mode === "forgot" ? "Recuperação de senha" : "ACESSE SUA OPERAÇÃO"}</p>
+      <h2>{mode === "login" ? "Bem-vindo de volta" : mode === "signup" ? "Criar sua conta" : "Recuperar acesso"}</h2>
       <p className="auth-card-description">{mode === "login" ? "Acesse sua central de publicação e fluxos conectados." : mode === "signup" ? "Preencha seus dados para começar." : "Informe seu email para receber o link de redefinição."}</p>
 
       <form onSubmit={handleSubmit} className="auth-form">

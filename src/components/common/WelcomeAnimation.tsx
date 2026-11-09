@@ -20,7 +20,7 @@ export function WelcomeAnimation() {
           <header className="welcome-stage-header">
             <span className="welcome-stage-signature">
               <img src="/branding/favicon.svg" width="32" height="32" alt="" />
-              DISPARO <span>ESTÚDIO DE PUBLICAÇÃO</span>
+              DISPARA <span>ESTÚDIO DE PUBLICAÇÃO</span>
             </span>
             <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">
               <span>Pular</span><X size={18} aria-hidden="true" />
@@ -36,7 +36,7 @@ export function WelcomeAnimation() {
             </div>
             <p className="welcome-stage-kicker">SUA PRÓXIMA FASE COMEÇA AGORA</p>
             <Dialog.Title className="welcome-stage-title">
-              <span>Bem-vindo ao</span> DISPARO
+              <span>Bem-vindo ao</span> DISPARA
             </Dialog.Title>
             <Dialog.Description className="welcome-stage-description">
               Mais controle. Mais alcance. Mais resultados.
@@ -47,7 +47,7 @@ export function WelcomeAnimation() {
               <span><BarChart3 size={16} aria-hidden="true" /> Seus resultados</span>
             </div>
             <Dialog.Close className="welcome-stage-enter">
-              Entrar no DISPARO <ArrowRight size={18} aria-hidden="true" />
+              Entrar no DISPARA <ArrowRight size={18} aria-hidden="true" />
             </Dialog.Close>
           </div>
 

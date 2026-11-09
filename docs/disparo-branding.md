@@ -1,3 +1,5 @@
+> Histórico da versão anterior. A identidade atual passou a ser **DISPARA**, com novo login e tema cromado; veja [DISPARA cromado](dispara-chrome.md).
+
 # Identidade DISPARO e apresentação de abertura
 
 A interface pública passa a usar **DISPARO**. O domínio e o repositório permanecem os mesmos para preservar a hospedagem e as integrações.
