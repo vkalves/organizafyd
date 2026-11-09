@@ -20,16 +20,16 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
     <main className="auth-layout">
       <div className="silver-nebula" aria-hidden="true" />
 
-      <section className="auth-story" aria-label="Organizafy">
+      <section className="auth-story" aria-label="DISPARO">
         <div className="auth-story-topline">
           <div className="auth-logo">
-            <Link to="/auth?welcome=1" aria-label="Organizafy · Voltar à tela inicial">
+            <Link to="/auth?welcome=1" aria-label="DISPARO · Voltar à tela inicial">
               <SilverBrand />
             </Link>
           </div>
           <span className="chip">
             <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-            Organizafy + Agonia
+            DISPARO
           </span>
         </div>
 
@@ -60,7 +60,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
       <section className="auth-form-area" aria-label="Acesso à sua conta">
         <div className="auth-logo auth-mobile-logo">
-          <Link to="/auth?welcome=1" aria-label="Organizafy · Voltar à tela inicial">
+          <Link to="/auth?welcome=1" aria-label="DISPARO · Voltar à tela inicial">
             <SilverBrand />
           </Link>
         </div>

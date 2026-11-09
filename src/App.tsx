@@ -8,6 +8,7 @@ import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { WelcomeAnimation } from "@/components/common/WelcomeAnimation";
+import { LegacyWorkspaceRedirect } from "@/components/common/LegacyWorkspaceRedirect";
 
 const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
@@ -43,11 +44,12 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/instagram/conectar" element={<InstagramConnect />} />
-              <Route path="/" element={<Navigate to="/agonia" replace />} />
-              <Route path="/agonia" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
-              <Route path="/agonia/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/" element={<Navigate to="/disparo" replace />} />
+              <Route path="/disparo" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/disparo/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/agonia/*" element={<LegacyWorkspaceRedirect />} />
               {["/tarefas", "/notas", "/slides", "/mapas", "/config", "/instagram", "/instagram/*", "/tiktok", "/x"].map(path => (
-                <Route key={path} path={path} element={<Navigate to="/agonia" replace />} />
+                <Route key={path} path={path} element={<Navigate to="/disparo" replace />} />
               ))}
               <Route path="*" element={<NotFound />} />
             </Routes>

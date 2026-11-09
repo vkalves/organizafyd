@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 365 300" width="365" height="300" role="img" aria-label="Ícone Dispara"><title>DISPARA</title><defs>
+  <linearGradient id="steel" x1="0" y1="0" x2="0.15" y2="1">
+    <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.12" stop-color="#E6E9EE"/>
+    <stop offset="0.29" stop-color="#89939E"/><stop offset="0.47" stop-color="#F6F8FC"/>
+    <stop offset="0.66" stop-color="#939DA9"/><stop offset="0.85" stop-color="#E4E7EC"/>
+    <stop offset="1" stop-color="#8B929D"/>
+  </linearGradient>
+  <linearGradient id="steelText" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.37" stop-color="#F4F5F7"/>
+    <stop offset="0.56" stop-color="#A9B0B9"/><stop offset="0.8" stop-color="#D7DBE2"/><stop offset="1" stop-color="#858D98"/>
+  </linearGradient>
+  <linearGradient id="trail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#75808E" stop-opacity="0"/><stop offset="0.78" stop-color="#C9D0D8"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>
+</defs>
+<!-- Motion trails -->
+<path d="M12 143 L191 137 L171 148 Z" fill="url(#trail)"/>
+<path d="M0 171 L182 158 L170 173 Z" fill="url(#trail)"/>
+<path d="M44 188 L181 180 L163 192 Z" fill="url(#trail)" opacity=".78"/>
+<!-- Chrome D: fast leading wedge and open-ended lower flange -->
+<path d="M90 57 L257 58 C321 59 357 96 358 150 C359 210 317 250 249 251 L82 251 L135 222 L245 222 C298 221 325 193 325 154 C325 111 298 88 247 87 L138 87 Z" fill="url(#steel)"/>
+<!-- Under-rim highlights -->
+<path d="M136 89 L246 88 C296 89 328 109 334 145" stroke="#FFFFFF" stroke-opacity=".75" stroke-width="3" fill="none"/>
+<path d="M144 222 L245 222 C293 221 318 198 326 167" stroke="#FCFDFF" stroke-opacity=".65" stroke-width="2" fill="none"/>
+<!-- Send / arrow arrowhead -->
+<path d="M171 113 L281 157 L172 201 L212 158 Z" fill="url(#steel)"/>
+<path d="M172 113 L281 157 L213 156 Z" fill="#F4F7FC" opacity=".72"/>
+</svg>

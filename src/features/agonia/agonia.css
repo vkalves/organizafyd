@@ -1,15 +1,13 @@
 /* Agonia Pro interface completa — adaptada ao design Silver/Dark do Organizafy */
 .agonia-root {
-  --ink: #f4f3f0;
-  --muted: #9aa1b5;
-  --line: rgb(255 255 255 / 10%);
-  --cloud: #050508;
-  --paper: rgb(10 10 16 / 68%);
-  --mint: #e9ecf6;
+  --ink: #eef1f5;
+  --workspace-muted-ink: #a5afbc;
+  --line: #2c323b;
+  --cloud: #08090b;
+  --paper: #101216;
+  --mint: #c7cdd6;
   --coral: #dedbd6;
   --violet: #c8cedd;
-  --border: rgb(255 255 255 / 10%);
-  --accent: #e9ecf6;
   color: var(--ink);
   display: grid;
   gap: 20px;
@@ -28,7 +26,7 @@
 }
 
 .agonia-root .muted {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
 }
 
 .agonia-root .form-stack {
@@ -78,7 +76,7 @@
 }
 
 .agonia-root .field-help {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
   line-height: 1.45;
 }
@@ -220,7 +218,7 @@
 
 .agonia-root .page-subtitle {
   max-width: 660px;
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
@@ -248,7 +246,7 @@
 }
 
 .agonia-root .stat-card .label {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 12px;
   font-weight: 700;
 }
@@ -263,7 +261,7 @@
 }
 
 .agonia-root .stat-card .hint {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 6px;
   font-size: 12px;
   display: flex;
@@ -299,7 +297,7 @@
 }
 
 .agonia-root .panel-copy {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 5px 0 0;
   font-size: 13px;
   line-height: 1.5;
@@ -340,7 +338,7 @@
 }
 
 .agonia-root .list-main span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 3px;
   font-size: 12px;
 }
@@ -436,7 +434,7 @@
 }
 
 .agonia-root .performance-highlight-label {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   align-items: center;
@@ -473,7 +471,7 @@
 }
 
 .agonia-root .performance-highlight span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -510,7 +508,7 @@
 
 .agonia-root .performance-account strong {
   min-width: 26px;
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-align: right;
   font-size: 12px;
 }
@@ -533,7 +531,7 @@
 
 .agonia-root .performance-footer {
   border-top: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   justify-content: space-between;
   align-items: center;
   gap: 12px;
@@ -587,7 +585,7 @@
 }
 
 .agonia-root .empty {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-align: center;
   border: 1px dashed rgb(255 255 255 / 16%);
   border-radius: 14px;
@@ -606,7 +604,7 @@
 }
 
 .agonia-root .data-table th {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -657,7 +655,7 @@
 
 .agonia-root .filter-tab {
   border: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 3%);
   border-radius: 999px;
   padding: 8px 13px;
@@ -716,7 +714,7 @@
 .agonia-root .schedule-filter-summary {
   margin: 0 0 14px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
 }
 
 .agonia-root .schedule-app-label {
@@ -790,7 +788,7 @@
 }
 
 .agonia-root .account-option small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 2px;
   font-size: 11px;
 }
@@ -825,7 +823,7 @@
 }
 
 .agonia-root .sequence-file-list small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   flex: none;
   font-size: 11px;
 }
@@ -915,7 +913,7 @@
 
 .agonia-root .icon-button {
   border: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 5%);
   border-radius: 8px;
   flex: none;
@@ -990,7 +988,7 @@
 }
 
 .agonia-root .wizard-step p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 0 0 11px;
   font-size: 12px;
   line-height: 1.5;
@@ -1168,7 +1166,7 @@
 
 .agonia-root .ops-check,
 .agonia-root .ops-select-all {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   cursor: pointer;
   align-items: center;
   gap: 8px;
@@ -1185,7 +1183,7 @@
 }
 
 .agonia-root .ops-filter-label {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.15;
@@ -1218,7 +1216,7 @@
 
 .agonia-root .operations-summary span {
   border: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 3%);
   border-radius: 9px;
   padding: 8px 11px;
@@ -1304,7 +1302,7 @@
 }
 
 .agonia-root .ops-account-name small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 3px;
   font-size: 10px;
 }
@@ -1357,7 +1355,7 @@
 }
 
 .agonia-root .ops-model-row > span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -1427,7 +1425,7 @@
 }
 
 .agonia-root .ops-metrics span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 3px;
   font-size: 10px;
 }
@@ -1455,7 +1453,7 @@
 }
 
 .agonia-root .ops-queue span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -1489,7 +1487,7 @@
 }
 
 .agonia-root .ops-health-detail {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   gap: 3px;
   font-size: 10px;
   line-height: 1.35;
@@ -1539,7 +1537,7 @@
 }
 
 .agonia-root .meta-app-card-main span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 2px;
   font-size: 11px;
   display: block;
@@ -1580,7 +1578,7 @@
 }
 
 .agonia-root .meta-app-redirect {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 3%);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1621,7 +1619,7 @@
 }
 
 .agonia-root .meta-app-form-heading p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 0;
   font-size: 12px;
 }
@@ -1661,7 +1659,7 @@
 }
 
 .agonia-root .meta-app-field small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -1673,7 +1671,7 @@
 }
 
 .agonia-root .meta-app-picker-label {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 10px;
   font-weight: 800;
 }
@@ -1705,7 +1703,7 @@
 }
 
 .agonia-root .reel-summary-item small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 11px;
@@ -1872,7 +1870,7 @@
 }
 
 .agonia-root .stories-stat-grid span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: 4px;
   font-size: 11px;
   display: block;
@@ -1911,7 +1909,7 @@
 }
 
 .agonia-root .stories-history-list span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
@@ -1939,7 +1937,7 @@
 }
 
 .agonia-root .stories-account-heading span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -1969,7 +1967,7 @@
 
 .agonia-root .story-link-top-status {
   border: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 3%);
   border-radius: 10px;
   align-items: center;
@@ -2024,7 +2022,7 @@
 }
 
 .agonia-root .story-link-hero p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 12px 0 22px;
   font-size: 14px;
 }
@@ -2084,7 +2082,7 @@
 }
 
 .agonia-root .story-link-features span {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -2118,7 +2116,7 @@
 }
 
 .agonia-root .story-link-section-heading p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 4px 0 0;
   font-size: 12px;
 }
@@ -2164,7 +2162,7 @@
 }
 
 .agonia-root .story-link-step p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 6px 0 0;
   font-size: 11px;
   line-height: 1.45;
@@ -2187,7 +2185,7 @@
 }
 
 .agonia-root .story-link-footer {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   flex-wrap: wrap;
   align-items: center;
   gap: 17px;
@@ -2242,7 +2240,7 @@
 }
 
 .agonia-root .settings-toggle small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 12px;
   font-weight: 400;
 }
@@ -2291,7 +2289,7 @@
 }
 
 .agonia-root .profile-preview-label {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   font-size: 11px;
 }
 
@@ -2314,7 +2312,7 @@
 }
 
 .agonia-root .profile-form-heading p {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin: 5px 0 0;
   font-size: 13px;
 }
@@ -2347,7 +2345,7 @@
 }
 
 .agonia-root .profile-field small {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   margin-top: -3px;
   font-size: 12px;
   font-weight: 400;
@@ -2365,7 +2363,7 @@
 }
 
 .agonia-root .profile-file-input {
-  color: var(--muted);
+  color: var(--workspace-muted-ink);
   background: rgb(255 255 255 / 2.5%);
   border: 1px dashed rgb(255 255 255 / 22%);
   border-radius: 10px;

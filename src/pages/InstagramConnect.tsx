@@ -94,7 +94,7 @@ export default function InstagramConnect() {
             <>
               <p>
                 Você está conectando seu Instagram à conta de{" "}
-                <strong className="break-all">{manager}</strong> no Organizafy.
+                <strong className="break-all">{manager}</strong> no DISPARO.
               </p>
               <p className="text-sm text-muted-foreground">
                 Ao autorizar, esse responsável poderá agendar e publicar

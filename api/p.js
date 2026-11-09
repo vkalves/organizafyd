@@ -87,7 +87,7 @@ export default async function handler(req, res) {
   </style>
 </head>
 <body>
-  <header>ORGANIZAFY</header>
+  <header>DISPARO</header>
   <main>
     <h1>Referências e Original</h1>
     <p class="sub">Somente visualização</p>
