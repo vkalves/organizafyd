@@ -1,0 +1,25 @@
+DISPARA · Preparar Story com Link · v0.8.0
+
+ATUALIZAÇÃO DA v0.7.0 OU ANTERIOR
+1. Remova a extensão antiga em chrome://extensions ou edge://extensions.
+2. Feche todas as janelas do navegador e abra-o novamente. Remover a extensão
+   antiga elimina suas regras de rede; reiniciar também descarrega as abas antigas.
+3. Extraia este ZIP em uma nova pasta permanente e carregue essa pasta em
+   Carregar sem compactação, com o modo desenvolvedor ativado.
+   Instalar esta versão sem remover a antiga não interrompe a versão antiga.
+
+USO
+Clique no ícone da extensão. O editor abre em uma aba local.
+Escolha uma imagem JPG/PNG/WEBP de até 20 MB e, opcionalmente, escreva um texto.
+Copie o endereço do link e baixe a imagem 1080x1920.
+Abra a imagem ao criar um Story no aplicativo oficial do Instagram.
+Toque em Adesivos > Link, cole o endereço e confirme a publicação.
+A marcação do adesivo na prévia não é incluída na imagem baixada.
+A extensão não publica, agenda ou cria Destaques. Não confirma publicação.
+
+PRIVACIDADE
+Não há acesso aos cookies, às contas, às páginas abertas ou à API do Instagram.
+Não há permissões de host, scripts injetados, chamadas de rede ou alteração
+nas requisições. As imagens são processadas localmente e não são enviadas.
+Fechar a aba descarta a preparação. A nova versão não recupera contas bloqueadas
+nem garante ausência de restrições da Meta; siga os avisos oficiais da sua conta.

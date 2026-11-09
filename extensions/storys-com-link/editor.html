@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preparar Story · DISPARA</title>
+  <link rel="stylesheet" href="editor.css">
+  <script src="editor.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="brand">DISPARA</span><h1>Prepare seu Story com link</h1><p>Prepare aqui. Adicione o adesivo Link e publique no próprio Instagram.</p></header>
+    <div class="workspace">
+      <section class="preview-panel" aria-labelledby="preview-title">
+        <h2 id="preview-title">Prévia 9:16</h2>
+        <div class="preview">
+          <canvas id="canvas" width="1080" height="1920" aria-label="Prévia da imagem do Story"></canvas>
+          <div id="link-guide" class="link-guide"><span id="guide-label">Seu adesivo Link</span><small>Guia visual · adicionar no Instagram</small></div>
+        </div>
+        <p>A marcação do adesivo é só uma referência. Ela não faz parte da imagem baixada.</p>
+      </section>
+      <section class="controls" aria-label="Preparar imagem e link">
+        <div class="step"><span>1</span><h2>Escolha a imagem</h2></div>
+        <label for="image">Imagem do Story</label>
+        <input id="image" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="image-help">
+        <small id="image-help">JPG, PNG ou WEBP · até 20 MB. A imagem será recortada ao centro em 1080 × 1920.</small>
+        <label for="headline">Texto na imagem <small>(opcional)</small></label>
+        <input id="headline" type="text" maxlength="100" placeholder="Ex.: Conheça a novidade">
+        <label for="background">Fundo do texto</label>
+        <select id="background"><option value="dark">Escuro</option><option value="light">Claro</option></select>
+        <div class="step"><span>2</span><h2>Prepare o link</h2></div>
+        <label for="url">Endereço do link</label>
+        <input id="url" type="url" placeholder="https://seusite.com" autocomplete="off" spellcheck="false">
+        <label for="label">Texto do adesivo <small>(opcional)</small></label>
+        <input id="label" type="text" maxlength="60" placeholder="Ex.: Saiba mais">
+        <label for="position">Posição de referência</label>
+        <input id="position" type="range" min="20" max="85" value="74">
+        <div class="actions"><button id="copy-url" type="button">Copiar link</button><button id="copy-label" type="button" class="secondary">Copiar texto</button></div>
+        <div class="step"><span>3</span><h2>Finalize no Instagram</h2></div>
+        <ol><li>Baixe a imagem e abra-a ao criar um Story no Instagram.</li><li>Toque em <strong>Adesivos → Link</strong> e cole o endereço copiado.</li><li>Ajuste o adesivo nativo e confirme a publicação no Instagram.</li></ol>
+        <div class="actions"><button id="download" type="button" disabled>Baixar imagem</button><a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer">Abrir Instagram</a></div>
+        <p id="status" role="status" aria-live="polite">Escolha uma imagem para começar.</p>
+        <p id="error" role="alert" hidden></p>
+      </section>
+    </div>
+    <footer>Editor local · sem acesso à sua conta do Instagram. Ao fechar esta aba, a preparação é descartada.</footer>
+  </main>
+</body>
+</html>
