@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Eye,
   Film,
+  FolderPlus,
   Heart,
   Image as ImageIcon,
   Instagram,
@@ -24,12 +25,14 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Tag,
   Trash2,
   TrendingDown,
   TrendingUp,
   Trophy,
   Upload,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,12 +55,14 @@ import {
   TIMEZONES,
   buildSchedule,
   clampInterval,
+  loadAccountFolders,
   loadAccountMeta,
   loadAgoniaProfile,
   loadMetaApps,
   loadSettings,
   localToUtcIso,
   parseCaptionVariants,
+  saveAccountFolders,
   saveAccountMeta,
   saveAgoniaProfile,
   saveMetaApps,
@@ -231,6 +236,13 @@ export default function Agonia() {
   const [accountMeta, setAccountMeta] = useState<AccountMetaMap>(() =>
     loadAccountMeta(user?.id),
   );
+  const [accountFolders, setAccountFolders] = useState<string[]>(() =>
+    loadAccountFolders(user?.id),
+  );
+  const [selectedAccountFolder, setSelectedAccountFolder] = useState<string>("*");
+  const [addingAccountFolder, setAddingAccountFolder] = useState(false);
+  const [newAccountFolderName, setNewAccountFolderName] = useState("");
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
   const [modelDrafts, setModelDrafts] = useState<Record<string, string>>({});
 
   // Meta App form state
@@ -299,8 +311,43 @@ export default function Agonia() {
     setReelCaption((prev) => prev || loaded.defaultCaption);
     setMetaApps(loadMetaApps(user?.id));
     setAccountMeta(loadAccountMeta(user?.id));
+    setAccountFolders(loadAccountFolders(user?.id));
     setProfile(loadAgoniaProfile(user?.id, fallbackDisplayName));
   }, [user?.id, fallbackDisplayName]);
+
+  // Garante que cada conta tenha um activeSince registrado para o cálculo automático de etiquetas por dias
+  useEffect(() => {
+    if (!user?.id || !accounts.length) return;
+    let changed = false;
+    const next: AccountMetaMap = { ...accountMeta };
+    for (const acc of accounts) {
+      if (!next[acc.id]?.activeSince) {
+        const accPosts = posts.filter((p) => p.account_id === acc.id);
+        const timestamps: number[] = [];
+        if (acc.created_at) {
+          const t = Date.parse(acc.created_at);
+          if (Number.isFinite(t)) timestamps.push(t);
+        }
+        for (const p of accPosts) {
+          const t = Date.parse(p.published_at || p.created_at);
+          if (Number.isFinite(t)) timestamps.push(t);
+        }
+        const earliest =
+          timestamps.length > 0
+            ? new Date(Math.min(...timestamps)).toISOString()
+            : new Date().toISOString();
+        next[acc.id] = {
+          ...next[acc.id],
+          activeSince: earliest,
+        };
+        changed = true;
+      }
+    }
+    if (changed) {
+      setAccountMeta(next);
+      saveAccountMeta(user.id, next);
+    }
+  }, [user?.id, accounts, posts, accountMeta]);
 
   useEffect(() => {
     if (accounts.length) {
@@ -572,6 +619,90 @@ export default function Agonia() {
     setAccountMeta(next);
     saveAccountMeta(user.id, next);
     toast.success(`Modelo salvo para @${username}`);
+  }
+
+  function saveNameForAccount(accountId: string, username: string) {
+    if (!user) return;
+    const value = (
+      nameDrafts[accountId] ??
+      accountMeta[accountId]?.customName ??
+      ""
+    ).trim();
+    const next: AccountMetaMap = {
+      ...accountMeta,
+      [accountId]: {
+        ...accountMeta[accountId],
+        customName: value,
+      },
+    };
+    setAccountMeta(next);
+    saveAccountMeta(user.id, next);
+    toast.success(
+      value
+        ? `Nome "${value}" salvo para @${username}`
+        : `Nome personalizado removido de @${username}`,
+    );
+  }
+
+  function setFolderForAccount(
+    accountId: string,
+    username: string,
+    folderName: string,
+  ) {
+    if (!user) return;
+    const next: AccountMetaMap = {
+      ...accountMeta,
+      [accountId]: {
+        ...accountMeta[accountId],
+        folder: folderName,
+      },
+    };
+    setAccountMeta(next);
+    saveAccountMeta(user.id, next);
+    toast.success(
+      folderName
+        ? `@${username} movida para a pasta "${folderName}".`
+        : `@${username} movida para Sem pasta.`,
+    );
+  }
+
+  function moveSelectedAccountsToFolder(folderName: string) {
+    if (!user || !opsSelectedIds.length) return;
+    const next: AccountMetaMap = { ...accountMeta };
+    for (const id of opsSelectedIds) {
+      next[id] = {
+        ...next[id],
+        folder: folderName,
+      };
+    }
+    setAccountMeta(next);
+    saveAccountMeta(user.id, next);
+    toast.success(
+      folderName
+        ? `${opsSelectedIds.length} conta(s) movida(s) para "${folderName}".`
+        : `${opsSelectedIds.length} conta(s) movida(s) para Sem pasta.`,
+    );
+  }
+
+  function getAccountActiveDays(acc: { id: string; created_at?: string }) {
+    const accPosts = posts.filter((p) => p.account_id === acc.id);
+    const timestamps: number[] = [];
+    const savedSince = accountMeta[acc.id]?.activeSince;
+    if (savedSince) {
+      const t = Date.parse(savedSince);
+      if (Number.isFinite(t)) timestamps.push(t);
+    }
+    if (acc.created_at) {
+      const t = Date.parse(acc.created_at);
+      if (Number.isFinite(t)) timestamps.push(t);
+    }
+    for (const p of accPosts) {
+      const t = Date.parse(p.published_at || p.created_at);
+      if (Number.isFinite(t)) timestamps.push(t);
+    }
+    const startMs = timestamps.length > 0 ? Math.min(...timestamps) : Date.now();
+    const elapsedDays = Math.floor((Date.now() - startMs) / 86_400_000) + 1;
+    return Math.max(1, elapsedDays);
   }
 
   async function verifyAllAccounts() {
@@ -1354,51 +1485,12 @@ export default function Agonia() {
             <ConnectAccount onConnected={refreshAll} />
           </header>
 
-          <div className="notice">
-            <strong>Como funciona:</strong> o AGONIA PRO usa o{" "}
-            <strong>Instagram Login oficial</strong> da Meta para conectar sua
-            conta Business ou Creator. A legenda do Reel é opcional; quando
-            preenchida, a publicação só é concluída depois que a Meta confirma o
-            mesmo texto.
-          </div>
-
-          <div className="success-box">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>
-              Configuração concluída. Clique em <strong>Conectar conta</strong>{" "}
-              para autorizar sua conta na tela oficial.
-            </span>
-          </div>
-
-          {renderMetaAppsPanel()}
-
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Usar mais de um app Meta</h2>
+                <h2 className="panel-title">Como conectar sua conta</h2>
                 <p className="panel-copy">
-                  Cada nova autorização pode ser iniciada com um app Meta
-                  diferente, mantendo as contas antigas vinculadas ao app que as
-                  autorizou.
-                </p>
-              </div>
-            </div>
-            <div className="notice">
-              <strong>Importante:</strong> cada app precisa ser configurado e
-              aprovado separadamente no Meta for Developers. Adicionar apps não
-              garante aumento de limite nem contorna regras da Meta.
-            </div>
-            <Link className="button button-secondary" to="/agonia/instagram">
-              Gerenciar apps Meta e contas
-            </Link>
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">2. Faça em 3 passos</h2>
-                <p className="panel-copy">
-                  Depois de salvar as credenciais, siga esta ordem.
+                  Siga este passo a passo simples para autorizar sua conta ou enviar um convite.
                 </p>
               </div>
             </div>
@@ -1406,149 +1498,37 @@ export default function Agonia() {
               <div className="wizard-step">
                 <span className="step-number">1</span>
                 <div>
-                  <h3>Abra o Meta Developer</h3>
+                  <h3>Conta Profissional</h3>
                   <p>
-                    Entre no Meta Developer e configure o produto Instagram com{" "}
-                    <strong>Instagram Login</strong> e as permissões oficiais de
-                    publicação.
-                  </p>
-                  <a
-                    className="button button-secondary"
-                    href="https://developers.facebook.com/apps/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Abrir Meta
-                    Developer
-                  </a>
-                </div>
-              </div>
-              <div className="wizard-step">
-                <span className="step-number">2</span>
-                <div>
-                  <h3>Prepare a conta</h3>
-                  <p>
-                    A conta precisa ser Business ou Creator. No Instagram Login,
-                    ela não precisa ser vinculada a uma Página do Facebook.
-                  </p>
-                </div>
-              </div>
-              <div className="wizard-step form-full">
-                <span className="step-number">3</span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <h3>Cadastre o retorno e conecte</h3>
-                  <p>
-                    Na Meta, coloque exatamente este endereço em{" "}
-                    <strong>Valid OAuth Redirect URIs</strong>:
-                  </p>
-                  <div className="setup-code">
-                    <code>{redirectUri}</code>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(redirectUri);
-                        toast.success("Endereço copiado!");
-                      }}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid two-col">
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Status atual</h2>
-                  <p className="panel-copy">Nada sensível é exibido aqui.</p>
-                </div>
-              </div>
-              <div className="notice" style={{ marginBottom: 0 }}>
-                Esta área usa somente os Apps Meta cadastrados por você. App
-                ativo: <strong>{activeMetaApp?.name || "Padrão"}</strong>.
-              </div>
-            </section>
-
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Permissões</h2>
-                  <p className="panel-copy">
-                    Estas são as permissões oficiais usadas para conectar e
-                    publicar.
-                  </p>
-                </div>
-              </div>
-              <div className="scope-list">
-                <div className="scope-row">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <code>instagram_business_basic</code>
-                </div>
-                <div className="scope-row">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <code>instagram_business_content_publish</code>
-                </div>
-                <div className="scope-row">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <code>instagram_business_manage_insights</code>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">Depois de conectar: automação</h2>
-                <p className="panel-copy">
-                  O fluxo para publicar é simples e não usa automação de
-                  navegador.
-                </p>
-              </div>
-            </div>
-            <div className="wizard-grid">
-              <div className="wizard-step">
-                <span className="step-number">1</span>
-                <div>
-                  <h3>Conecte a conta</h3>
-                  <p>
-                    Clique em Conectar conta, autorize na tela oficial e
-                    confirme que a conta profissional aparece como conectada.
+                    Certifique-se de que sua conta do Instagram seja do tipo{" "}
+                    <strong>Profissional (Criador de Conteúdo ou Empresa)</strong>.
                   </p>
                 </div>
               </div>
               <div className="wizard-step">
                 <span className="step-number">2</span>
                 <div>
-                  <h3>Crie um Reel</h3>
+                  <h3>Clique em Conectar conta</h3>
                   <p>
-                    Abra Novo Reel, selecione a conta, envie um MP4/MOV, escreva
-                    uma legenda opcional e escolha Publicar agora, Sequência ou
-                    Agendar.
+                    Use o botão <strong>Conectar conta</strong> no topo da página. Você pode entrar direto na sua conta ou clicar em{" "}
+                    <strong>Gerar link de convite</strong> para enviar para outra pessoa autorizar.
                   </p>
                 </div>
               </div>
               <div className="wizard-step">
                 <span className="step-number">3</span>
                 <div>
-                  <h3>A fila trabalha sozinha</h3>
+                  <h3>Autorize na tela oficial</h3>
                   <p>
-                    O worker salva o job no banco, envia o vídeo para a Meta,
-                    aguarda o container ficar pronto e publica automaticamente.
-                  </p>
-                </div>
-              </div>
-              <div className="wizard-step">
-                <span className="step-number">4</span>
-                <div>
-                  <h3>Acompanhe o resultado</h3>
-                  <p>
-                    Veja o histórico em Publicados. Erros temporários têm retry;
-                    autorização expirada pede Reconectar Instagram.
+                    Confirme as permissões na página oficial do Instagram. Assim que concluir, a conta já aparece pronta em{" "}
+                    <Link to="/agonia/instagram" className="underline">
+                      Instagram
+                    </Link>{" "}
+                    e no{" "}
+                    <Link to="/agonia/fluxos" className="underline">
+                      Modo Fluxo
+                    </Link>
+                    .
                   </p>
                 </div>
               </div>
@@ -1557,17 +1537,9 @@ export default function Agonia() {
         </>
       )}
 
-      {/* 3. INSTAGRAM (MAPA DA OPERAÇÃO) */}
+      {/* 3. INSTAGRAM (GERENCIAMENTO DE CONTAS) */}
       {section === "instagram" && (
         <section className="operations-page">
-          <div className="notice" style={{ marginBottom: 0 }}>
-            A conexão usa o <strong>Instagram Login oficial</strong> da Meta. A
-            legenda dos Reels é opcional; quando preenchida, o sistema confirma
-            o texto depois do envio.
-          </div>
-
-          {renderMetaAppsPanel()}
-
           <div className="operations-hero-panel">
             <div className="operations-heading">
               <div>
@@ -1575,50 +1547,31 @@ export default function Agonia() {
                   <Instagram className="h-3.5 w-3.5" /> Central de Contas
                 </div>
                 <div className="flex items-center gap-3 flex-wrap mt-1">
-                  <h1 className="operations-title">Contas conectadas</h1>
+                  <h1 className="operations-title">Gerenciar contas</h1>
                   <span className="rounded-full px-3 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    {accounts.length} {accounts.length === 1 ? "perfil ativo" : "perfis ativos"}
+                    {accounts.length} {accounts.length === 1 ? "perfil conectado" : "perfis conectados"}
                   </span>
                 </div>
                 <p className="page-subtitle">
-                  Gerencie as contas profissionais autorizadas e acompanhe a fila
-                  de publicação.
+                  Organize suas contas em pastas, personalize os nomes e acompanhe a etiqueta automática de dias ativos.
                 </p>
               </div>
               <div className="operations-actions">
-                <div className="meta-app-picker">
-                  <span className="meta-app-picker-label">
-                    App Meta para novas conexões
-                  </span>
-                  <select
-                    className="ops-filter"
-                    value={activeMetaApp?.id || ""}
-                    onChange={(e) => setSelectedAppId(e.target.value)}
-                  >
-                    {metaApps.map((app) => (
-                      <option key={app.id} value={app.id}>
-                        {app.name} ({accounts.length})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <ConnectAccount onConnected={refreshAll} variant="default" className="connect-account-btn-prominent" />
+                <ConnectAccount
+                  onConnected={refreshAll}
+                  variant="default"
+                  className="connect-account-btn-prominent"
+                />
                 <button
                   type="button"
                   onClick={() => {
                     void refreshAll();
-                    toast.success("Sincronizado com a Meta!");
+                    toast.success("Contas atualizadas!");
                   }}
                   className="button button-secondary operation-action"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" /> Sincronizar com Meta
+                  <RefreshCw className="h-3.5 w-3.5" /> Atualizar
                 </button>
-                <Link
-                  className="button button-secondary operation-action"
-                  to="/agonia/conectar"
-                >
-                  Destravar apps OAuth
-                </Link>
                 <button
                   type="button"
                   disabled={opsBusy || !accounts.length}
@@ -1646,7 +1599,7 @@ export default function Agonia() {
               </div>
             </div>
 
-            {/* Status Strip chamativo */}
+            {/* Status Strip */}
             <div className="operations-stats-strip">
               <div className="ops-stat-item">
                 <span className="ops-stat-num">{accounts.length}</span>
@@ -1665,6 +1618,136 @@ export default function Agonia() {
               <div className="ops-stat-item">
                 <span className="ops-stat-num text-purple-400">{stats.scheduled}</span>
                 <span className="ops-stat-desc">Na fila de envio</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Barra de Pastas de Contas (igual à organização do Modo Fluxo) */}
+          <div className="panel" style={{ padding: "14px 18px" }}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="ig-folder-bar" aria-label="Pastas de contas">
+                {["*", "", ...accountFolders].map((f) => {
+                  const count = accounts.filter((acc) => {
+                    const accFolder = accountMeta[acc.id]?.folder || "";
+                    if (f === "*") return true;
+                    return accFolder === f;
+                  }).length;
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      aria-pressed={selectedAccountFolder === f}
+                      onClick={() => setSelectedAccountFolder(f)}
+                      className={`ig-folder-tag ${selectedAccountFolder === f ? "is-active" : ""}`}
+                    >
+                      <span>{f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}</span>
+                      <span className="opacity-60 text-[10px]">({count})</span>
+                    </button>
+                  );
+                })}
+
+                {selectedAccountFolder !== "*" &&
+                  selectedAccountFolder !== "" &&
+                  user && (
+                    <button
+                      type="button"
+                      title="Excluir pasta atual"
+                      onClick={() => {
+                        const folderToRemove = selectedAccountFolder;
+                        const nextFolders = accountFolders.filter(
+                          (item) => item !== folderToRemove,
+                        );
+                        setAccountFolders(nextFolders);
+                        saveAccountFolders(user.id, nextFolders);
+                        const nextMeta: AccountMetaMap = { ...accountMeta };
+                        for (const id of Object.keys(nextMeta)) {
+                          if (nextMeta[id]?.folder === folderToRemove) {
+                            nextMeta[id] = { ...nextMeta[id], folder: "" };
+                          }
+                        }
+                        setAccountMeta(nextMeta);
+                        saveAccountMeta(user.id, nextMeta);
+                        setSelectedAccountFolder("*");
+                        toast.success(`Pasta "${folderToRemove}" excluída.`);
+                      }}
+                      className="ig-folder-tag text-muted-foreground hover:text-destructive"
+                    >
+                      Excluir pasta
+                    </button>
+                  )}
+
+                {addingAccountFolder ? (
+                  <form
+                    className="inline-flex items-center gap-1.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const trimmed = newAccountFolderName.trim();
+                      if (!user || !trimmed) {
+                        setAddingAccountFolder(false);
+                        return;
+                      }
+                      const next = [...new Set([...accountFolders, trimmed])];
+                      setAccountFolders(next);
+                      saveAccountFolders(user.id, next);
+                      setSelectedAccountFolder(trimmed);
+                      setNewAccountFolderName("");
+                      setAddingAccountFolder(false);
+                      toast.success(`Pasta "${trimmed}" criada!`);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      aria-label="Nome da nova pasta de contas"
+                      placeholder="Nome da pasta"
+                      value={newAccountFolderName}
+                      maxLength={60}
+                      onChange={(e) => setNewAccountFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setAddingAccountFolder(false);
+                          setNewAccountFolderName("");
+                        }
+                      }}
+                      className="ops-filter"
+                      style={{ height: 28, width: 140, padding: "0 10px", fontSize: 12 }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newAccountFolderName.trim()}
+                      className="button button-secondary"
+                      style={{ height: 28, padding: "0 10px", fontSize: 11 }}
+                    >
+                      Criar
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Cancelar nova pasta"
+                      onClick={() => {
+                        setAddingAccountFolder(false);
+                        setNewAccountFolderName("");
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAddingAccountFolder(true)}
+                    className="ig-folder-tag ig-folder-add"
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" />
+                    <span>Nova pasta</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Tag className="h-3.5 w-3.5 text-emerald-400" />
+                <span>
+                  Etiquetador automático ativo: atualiza a cada 24h conforme os dias de operação da conta
+                </span>
               </div>
             </div>
           </div>
@@ -1688,7 +1771,7 @@ export default function Agonia() {
 
             <div className="ops-filter-group">
               <label className="ops-filter-label" htmlFor="instagram-filter">
-                Filtrar modelo / status:
+                Filtrar status:
               </label>
               <select
                 id="instagram-filter"
@@ -1705,13 +1788,36 @@ export default function Agonia() {
 
             <div className="ops-batch-actions">
               {opsSelectedIds.length > 0 && (
-                <button
-                  type="button"
-                  className="button button-secondary operation-action text-xs"
-                  onClick={() => setOpsSelectedIds([])}
-                >
-                  Desmarcar ({opsSelectedIds.length})
-                </button>
+                <>
+                  <select
+                    aria-label="Mover contas selecionadas para pasta"
+                    value="__placeholder__"
+                    onChange={(e) => {
+                      const target = e.target.value;
+                      if (target === "__placeholder__") return;
+                      moveSelectedAccountsToFolder(target);
+                    }}
+                    className="ops-filter"
+                  >
+                    <option value="__placeholder__" disabled>
+                      Mover selecionadas para pasta…
+                    </option>
+                    <option value="">Sem pasta</option>
+                    {accountFolders.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    className="button button-secondary operation-action text-xs"
+                    onClick={() => setOpsSelectedIds([])}
+                  >
+                    Desmarcar ({opsSelectedIds.length})
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -1730,30 +1836,6 @@ export default function Agonia() {
             </div>
           </div>
 
-          <div className="operations-summary">
-            <span>
-              <strong>{accounts.length}</strong> conta(s)
-            </span>
-            <span>
-              <strong>{stats.publishedToday}</strong> posts hoje
-            </span>
-            <span>
-              <strong>{stats.scheduled}</strong> na fila
-            </span>
-            <span className="ops-selection-note">
-              {opsSelectedIds.length} selecionada(s) pronta(s) para publicar
-            </span>
-          </div>
-
-          <div className="notice ops-selection-notice">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>
-              As contas conectadas pelo Instagram Login também podem publicar
-              Reels e Stories. A legenda é opcional e enviada pelo endpoint
-              oficial da Meta.
-            </span>
-          </div>
-
           {accounts.length === 0 ? (
             <div className="empty">
               Nenhuma conta conectada ainda. Use o botão “Conectar conta” acima
@@ -1764,11 +1846,16 @@ export default function Agonia() {
               {accounts
                 .filter((acc) => {
                   const link = linkMap.get(acc.id);
-                  if (opsFilter === "CONNECTED")
-                    return !link?.paused && !link?.reconnect_required;
-                  if (opsFilter === "REAUTH_REQUIRED")
-                    return !!link?.reconnect_required;
-                  if (opsFilter === "PAUSED") return !!link?.paused;
+                  if (opsFilter === "CONNECTED" && (link?.paused || link?.reconnect_required))
+                    return false;
+                  if (opsFilter === "REAUTH_REQUIRED" && !link?.reconnect_required)
+                    return false;
+                  if (opsFilter === "PAUSED" && !link?.paused) return false;
+
+                  const accFolder = accountMeta[acc.id]?.folder || "";
+                  if (selectedAccountFolder !== "*" && accFolder !== selectedAccountFolder)
+                    return false;
+
                   return true;
                 })
                 .map((acc) => {
@@ -1795,10 +1882,15 @@ export default function Agonia() {
                   const lastPublished = accPosts.find(
                     (p) => p.status === "published",
                   );
-                  const currentModel =
-                    modelDrafts[acc.id] ??
-                    accountMeta[acc.id]?.modelName ??
-                    "Sem modelo";
+                  const customName =
+                    nameDrafts[acc.id] ??
+                    accountMeta[acc.id]?.customName ??
+                    "";
+                  const savedCustomName = accountMeta[acc.id]?.customName?.trim();
+                  const currentFolder = accountMeta[acc.id]?.folder || "";
+                  const activeDays = getAccountActiveDays(acc);
+                  const dayLabel =
+                    activeDays === 1 ? "1 dia" : `${activeDays} dias`;
                   const checkedAt = accountMeta[acc.id]?.lastCheckedAt;
 
                   return (
@@ -1822,11 +1914,15 @@ export default function Agonia() {
                           <span />
                         </label>
                         <div className="ops-avatar">
-                          {acc.username.slice(0, 2).toUpperCase()}
+                          {(savedCustomName || acc.username).slice(0, 2).toUpperCase()}
                         </div>
                         <div className="ops-account-name">
-                          <strong>@{acc.username}</strong>
-                          <small>account_{acc.id.slice(0, 12)}</small>
+                          <strong>
+                            {savedCustomName
+                              ? `${savedCustomName} (@${acc.username})`
+                              : `@${acc.username}`}
+                          </strong>
+                          <small>@{acc.username}</small>
                         </div>
                       </div>
 
@@ -1840,31 +1936,43 @@ export default function Agonia() {
                             Pausada
                           </span>
                         ) : (
-                          <>
-                            <span className="ops-status ops-status-green">
-                              Conectada
-                            </span>
-                            <span className="ops-status ops-status-green">
-                              Saudável
-                            </span>
-                          </>
+                          <span className="ops-status ops-status-green">
+                            Ativa
+                          </span>
                         )}
-                        <span className="ops-auth-badge">
-                          Instagram Login oficial
+
+                        {/* Etiqueta automática por dias de conta ativa */}
+                        <span
+                          className="ops-status ops-status-green"
+                          title={`Etiqueta automática: conta ativa há ${dayLabel} na ferramenta`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Tag className="h-3 w-3" />
+                          {dayLabel}
                         </span>
-                        <span className="ops-auth-badge">
-                          {activeMetaApp?.name || "App 01"}
-                        </span>
+
+                        {currentFolder && (
+                          <span className="ops-auth-badge">
+                            Pasta: {currentFolder}
+                          </span>
+                        )}
                       </div>
 
+                      {/* Nomear conta */}
                       <div className="ops-model-row">
-                        <span>MODELO</span>
+                        <span>NOME DA CONTA</span>
                         <div>
                           <input
-                            aria-label={`Modelo da conta @${acc.username}`}
-                            value={currentModel}
+                            aria-label={`Nome personalizado da conta @${acc.username}`}
+                            placeholder={`Ex.: Conta Principal (@${acc.username})`}
+                            value={customName}
                             onChange={(e) =>
-                              setModelDrafts((prev) => ({
+                              setNameDrafts((prev) => ({
                                 ...prev,
                                 [acc.id]: e.target.value,
                               }))
@@ -1874,11 +1982,38 @@ export default function Agonia() {
                             className="button button-secondary"
                             type="button"
                             onClick={() =>
-                              saveModelForAccount(acc.id, acc.username)
+                              saveNameForAccount(acc.id, acc.username)
                             }
                           >
                             Salvar
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Pasta da conta */}
+                      <div className="ops-model-row">
+                        <span>PASTA</span>
+                        <div>
+                          <select
+                            aria-label={`Pasta da conta @${acc.username}`}
+                            value={currentFolder}
+                            onChange={(e) =>
+                              setFolderForAccount(
+                                acc.id,
+                                acc.username,
+                                e.target.value,
+                              )
+                            }
+                            className="ops-filter"
+                            style={{ width: "100%" }}
+                          >
+                            <option value="">Sem pasta</option>
+                            {accountFolders.map((f) => (
+                              <option key={f} value={f}>
+                                {f}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
 
@@ -1898,12 +2033,6 @@ export default function Agonia() {
                         <div>
                           <strong>{failedCount}</strong>
                           <span>falhas</span>
-                        </div>
-                        <div className="ops-metric-views">
-                          <strong>{days30Count}</strong>
-                          <span>
-                            publicações acumuladas · monitoradas pelo painel
-                          </span>
                         </div>
                       </div>
 
@@ -1927,15 +2056,14 @@ export default function Agonia() {
                         </span>
                       </div>
 
-                      <div className="ops-health-detail">
-                        <span>Token ativo via Meta OAuth</span>
-                        <span>
-                          Checado{" "}
-                          {checkedAt
-                            ? new Date(checkedAt).toLocaleString("pt-BR")
-                            : "automaticamente"}
-                        </span>
-                      </div>
+                      {checkedAt && (
+                        <div className="ops-health-detail">
+                          <span>Saúde verificada</span>
+                          <span>
+                            {new Date(checkedAt).toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="ops-card-footer">
                         <span className="ops-mini-badge">
@@ -1949,7 +2077,7 @@ export default function Agonia() {
                             navigate("/agonia/reels-new");
                           }}
                         >
-                          Gerenciar
+                          Publicar Reel
                         </button>
                         <button
                           type="button"

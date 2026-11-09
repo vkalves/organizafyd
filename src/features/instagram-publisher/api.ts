@@ -2,7 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
 import { cleanMedia } from "@/features/x/clean-media";
-type PublisherAccount = { id: string; user_id: string; username: string };
+export type PublisherAccount = {
+  id: string;
+  user_id: string;
+  username: string;
+  created_at?: string;
+};
 type Schema = {
   public: {
     Tables: {
@@ -175,7 +180,7 @@ export async function listAccounts(
   if (!links.length) return [];
   const { data, error } = await db
     .from("instagram_accounts")
-    .select("id,user_id,username")
+    .select("id,user_id,username,created_at")
     .eq("user_id", userId)
     .in(
       "id",

@@ -34,6 +34,9 @@ export type MetaAppConfig = {
 export type AccountMetaMap = Record<
   string,
   {
+    customName?: string;
+    folder?: string;
+    activeSince?: string;
     modelName?: string;
     metaAppId?: string;
     lastCheckedAt?: string;
@@ -50,6 +53,7 @@ export type WorkspaceMode = "agonia";
 const storageKey = (userId: string) => `agonia:settings:${userId}`;
 const appsKey = (userId: string) => `agonia:meta-apps:${userId}`;
 const accountMetaKey = (userId: string) => `agonia:account-meta:${userId}`;
+const accountFoldersKey = (userId: string) => `agonia:account-folders:${userId}`;
 const profileKey = (userId: string) => `agonia:profile:${userId}`;
 
 export function getWorkspaceMode(): WorkspaceMode {
@@ -145,6 +149,33 @@ export function loadAccountMeta(userId: string | undefined): AccountMetaMap {
 
 export function saveAccountMeta(userId: string, meta: AccountMetaMap) {
   localStorage.setItem(accountMetaKey(userId), JSON.stringify(meta));
+}
+
+export function loadAccountFolders(userId: string | undefined): string[] {
+  if (!userId || typeof localStorage === "undefined") return [];
+  try {
+    const raw = JSON.parse(
+      localStorage.getItem(accountFoldersKey(userId)) || "[]",
+    );
+    if (!Array.isArray(raw)) return [];
+    return [
+      ...new Set(
+        raw
+          .filter((item): item is string => typeof item === "string")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAccountFolders(userId: string, folders: string[]) {
+  localStorage.setItem(
+    accountFoldersKey(userId),
+    JSON.stringify([...new Set(folders.map((s) => s.trim()).filter(Boolean))]),
+  );
 }
 
 export function loadAgoniaProfile(
