@@ -229,6 +229,61 @@ describe("Campanhas recorrentes", () => {
 });
 
 describe("Horários fixos", () => {
+  const savedSlots = ["09:00", "12:24", "16:19", "18:22", "20:47", "22:31"];
+
+  it("respeita os horários salvos em São Paulo em vez do GAP de três minutos", () => {
+    const now = Date.parse("2026-11-09T14:15:47.420Z");
+    const jobs = buildFlow(
+      {
+        ...input,
+        schedule: "slots",
+        slots: savedSlots,
+        timeZone: "America/Sao_Paulo",
+        repeat: "loop",
+      },
+      library,
+      user,
+      now,
+    );
+    for (const [index, account] of accounts.entries()) {
+      expect(
+        jobs.filter((job) => job.account_id === account).map((job) =>
+          new Date(Date.parse(job.scheduled_at!) - index * 5000).toISOString(),
+        ),
+      ).toEqual([
+        "2026-11-09T15:24:00.000Z",
+        "2026-11-09T19:19:00.000Z",
+        "2026-11-09T21:22:00.000Z",
+        "2026-11-09T23:47:00.000Z",
+      ]);
+    }
+  });
+
+  it("um ciclo atrasado começa no próximo horário futuro sem recuperar horários passados em sequência", () => {
+    const now = Date.parse("2026-11-10T02:50:00.000Z");
+    const jobs = buildFlow(
+      {
+        ...input,
+        accountIds: [accounts[0]],
+        schedule: "slots",
+        slots: savedSlots,
+        timeZone: "America/Sao_Paulo",
+        repeat: "loop",
+      },
+      library,
+      user,
+      now,
+      () => 0,
+      { offsets: { [accounts[0]]: 4 }, starts: { [accounts[0]]: now + 60000 } },
+    );
+    expect(jobs.map((job) => job.scheduled_at)).toEqual([
+      "2026-11-10T12:00:00.000Z",
+      "2026-11-10T15:24:00.000Z",
+      "2026-11-10T19:19:00.000Z",
+      "2026-11-10T21:22:00.000Z",
+    ]);
+  });
+
   const zoned = (iso: string, timeZone: string) => {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone,
