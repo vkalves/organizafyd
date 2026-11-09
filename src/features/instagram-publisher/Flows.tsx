@@ -1466,11 +1466,21 @@ export default function Flows({
               ) : (
                 <div className="space-y-2.5">
                   {/* Presets rápidos + alternância de edição em texto */}
-                  <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <span className="text-xs text-muted-foreground">
-                      Horários do dia ({parsedSlotTags.length})
-                    </span>
-                    <div className="flex flex-wrap items-center gap-1">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Horários do dia ({parsedSlotTags.length})
+                      </span>
+                      <button
+                        type="button"
+                        className="ig-ghost-action"
+                        onClick={() => setEditingRawSlots((v) => !v)}
+                      >
+                        {editingRawSlots ? "Ver chips" : "Editar texto"}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         className="ig-preset-pill"
@@ -1495,13 +1505,6 @@ export default function Flows({
                         onClick={() => setSlotDraft("11:30\n19:00")}
                       >
                         2x/dia
-                      </button>
-                      <button
-                        type="button"
-                        className="ig-ghost-action ml-1"
-                        onClick={() => setEditingRawSlots((v) => !v)}
-                      >
-                        {editingRawSlots ? "Ver chips" : "Editar texto"}
                       </button>
                     </div>
                   </div>
