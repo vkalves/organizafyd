@@ -12,7 +12,7 @@
 
 A nova função valida o JWT com `auth.getUser` e usa o ID desse usuário, ignorando proprietários enviados pelo navegador. Fotos e conexões são consultadas com filtro de proprietário. A chave de serviço e os tokens da Meta não são enviados ao cliente.
 
-A migração `20261109143036_instagram_account_profiles_and_disconnect.sql` prepara uma remoção atômica, restrita à função no servidor:
+A migração `20261109151648_instagram_account_profiles_and_disconnect.sql` prepara uma remoção atômica, restrita à função no servidor:
 
 1. Confere propriedade e obtém os locks de grafo e proprietário.
 2. Bloqueia a remoção se houver publicação em processamento.
@@ -29,4 +29,4 @@ Um trigger valida novas inserções na fila sob o mesmo lock do proprietário, p
 - Navegador em 360 e 1280 px com APIs e autenticação simuladas: foto carregada, imagem quebrada com iniciais, filtro de acesso, cancelamento, bloqueio por publicação em andamento, remoção confirmada, limpeza da seleção e atualização manual de fotos.
 - O teste SQL `supabase/tests/instagram_account_disconnect.sql` passou em PostgreSQL 17 isolado, com as interfaces do Vault simuladas e privilégios de serviço. Verificou proprietário errado, processamento em andamento, cancelamento da fila, preservação do histórico, isolamento de outra conta, limpeza da credencial, fluxos e reconexão. As fixtures foram revertidas por rollback.
 - Uma tentativa de validar a migração com fixtures em uma transação de produção foi rejeitada pela revisão automática. A consulta posterior confirmou que a tabela e a função de remoção **não foram aplicadas** em produção. Não foram removidas contas reais.
-- A ativação em produção depende de aprovação explícita para aplicar a migração e publicar a nova Edge Function. O teste de produção não deve recriar fixtures em Auth/Vault; depois da aprovação, valide metadados, permissões e rejeição de chamadas não autenticadas antes de liberar a interface.
+- Após aprovação explícita do usuário, a migração foi aplicada como `20261109151648` e a Edge Function `instagram-accounts` foi publicada. Em produção foram verificadas a existência dos objetos, RLS, permissões exclusivas do servidor e rejeição HTTP 401 de chamadas sem sessão. Nenhuma fixture de Auth/Vault foi criada em produção e nenhuma conta real foi removida na implantação.
