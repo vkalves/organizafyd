@@ -603,8 +603,41 @@
   transform: scale(1.08);
 }
 
+.ig-thumb-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 38px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.18s ease;
+}
+
+.ig-media-tile:hover .ig-thumb-delete-btn,
+.ig-thumb-delete-btn:focus-visible {
+  opacity: 1;
+}
+
+.ig-thumb-delete-btn:hover {
+  color: #ffffff;
+  background: rgba(127, 29, 29, 0.92);
+  border-color: rgba(248, 113, 113, 0.7);
+  transform: scale(1.08);
+}
+
 @media (hover: none) {
-  .ig-thumb-inspect-btn {
+  .ig-thumb-inspect-btn,
+  .ig-thumb-delete-btn {
     opacity: 1;
   }
 }

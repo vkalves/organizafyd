@@ -43,12 +43,20 @@ type Table<T> = {
   Update: Partial<T>;
   Relationships: [];
 };
+type MediaReference = {
+  id: string;
+  user_id: string;
+  media_urls: string[];
+  status: string;
+};
 type Schema = {
   public: {
     Tables: {
       ig_flow_library: Table<Media>;
       ig_flow_preferences: Table<Prefs>;
       ig_flows: Table<Flow>;
+      ig_publication_jobs: Table<MediaReference>;
+      instagram_publication_drafts: Table<MediaReference>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -157,6 +165,66 @@ export async function setMedia(
     .update(changes)
     .eq("id", id);
   if (error) throw new Error("Não foi possível salvar a mídia.");
+}
+export async function deleteMedia(id: string, url: string, userId: string) {
+  const prefix = `storage://${userId}/`;
+  if (!url.startsWith(prefix) || url.includes(".."))
+    throw new Error("Não foi possível validar o arquivo desta mídia.");
+
+  const [activeFlows, pendingJobs, pendingDrafts] = await Promise.all([
+    db
+      .from("ig_flows")
+      .select("settings")
+      .eq("user_id", userId)
+      .in("state", ["active", "paused"]),
+    db
+      .from("ig_publication_jobs")
+      .select("id")
+      .eq("user_id", userId)
+      .contains("media_urls", [url])
+      .in("status", ["scheduled", "processing", "failed", "uncertain"])
+      .limit(1),
+    db
+      .from("instagram_publication_drafts")
+      .select("id")
+      .eq("user_id", userId)
+      .contains("media_urls", [url])
+      .neq("status", "cancelled")
+      .limit(1),
+  ]);
+
+  if (activeFlows.error || pendingJobs.error || pendingDrafts.error)
+    throw new Error("Não foi possível verificar se esta mídia está em uso.");
+  if (
+    activeFlows.data?.some(
+      (flow) =>
+        flow.settings?.mediaIds?.includes(id) || flow.settings?.coverId === id,
+    ) ||
+    pendingJobs.data?.length ||
+    pendingDrafts.data?.length
+  )
+    throw new Error(
+      "Conclua ou cancele os fluxos, postagens e rascunhos que usam esta mídia antes de excluí-la.",
+    );
+
+  const path = url.slice("storage://".length);
+  const { error: storageError } = await supabase.storage
+    .from("instagram-publisher")
+    .remove([path]);
+  if (storageError)
+    throw new Error("Não foi possível excluir o arquivo da mídia.");
+
+  const { data, error } = await db
+    .from("ig_flow_library")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data)
+    throw new Error(
+      "O arquivo foi excluído, mas não foi possível remover o registro da biblioteca.",
+    );
 }
 export async function savePrefs(prefs: Prefs) {
   const { error } = await db.from("ig_flow_preferences").upsert(prefs);

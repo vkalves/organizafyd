@@ -28,6 +28,7 @@ import {
   Folder,
   ChevronDown,
   Check,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ import {
   cancelFlow,
   controlFlow,
   previewMedia,
+  deleteMedia,
   type Flow,
   type Media,
   type UploadItemState,
@@ -104,6 +106,7 @@ export default function Flows({
     video: boolean;
     captionDraft: string;
   } | null>(null);
+  const [mediaToDelete, setMediaToDelete] = useState<Media | null>(null);
 
   // Estado de upload e biblioteca
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
@@ -271,6 +274,18 @@ export default function Flows({
       setBusy(false);
       setProgress("");
     }
+  }
+
+  function confirmDeleteMedia() {
+    const target = mediaToDelete;
+    if (!user || !target) return;
+    void perform(async () => {
+      await deleteMedia(target.id, target.url, user.id);
+      setSelected((current) => current.filter((id) => id !== target.id));
+      if (inspector?.mediaId === target.id) setInspector(null);
+      setMediaToDelete(null);
+      toast.success("Mídia excluída.");
+    });
   }
 
   async function upload(files: File[], target: Media["kind"] = kind) {
@@ -666,6 +681,46 @@ export default function Flows({
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!mediaToDelete}
+        onOpenChange={(open) => {
+          if (!open && !busy) setMediaToDelete(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">
+              Excluir mídia?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            O arquivo será removido permanentemente. Se um fluxo, uma postagem
+            ou um rascunho ainda usar esta mídia, a exclusão será bloqueada até
+            que ele seja concluído ou cancelado.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setMediaToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={busy}
+              onClick={confirmDeleteMedia}
+            >
+              {busy ? "Excluindo…" : "Excluir mídia"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1133,6 +1188,17 @@ export default function Flows({
                         }
                       >
                         <Eye size={12} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ig-thumb-delete-btn"
+                        disabled={busy}
+                        title="Excluir mídia"
+                        aria-label={`Excluir ${isVideo ? "vídeo" : "foto"} ${i + 1}`}
+                        onClick={() => setMediaToDelete(m)}
+                      >
+                        <Trash2 size={12} />
                       </button>
                     </article>
                   );
