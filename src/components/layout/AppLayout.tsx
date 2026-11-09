@@ -3,19 +3,13 @@ import { InstagramAlerts, useInstagramMonitor } from "@/features/instagram-publi
 import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard,
-  CheckSquare,
-  StickyNote,
   Settings,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
   Instagram,
-  Music2,
-  Network,
-  Presentation,
   X,
-  Sparkles,
   PlugZap,
   PlusCircle,
   Image,
@@ -29,28 +23,14 @@ import {
   ExternalLink,
   type LucideIcon,
 } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState, type SVGProps } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayoutContext } from "@/contexts/AppLayoutContext";
-import { SilverBrand } from "./SilverBrand";
-import {
-  getWorkspaceMode,
-  loadAgoniaProfile,
-  setWorkspaceMode,
-  type WorkspaceMode,
-} from "@/features/agonia/schedule";
+import { loadAgoniaProfile } from "@/features/agonia/schedule";
 import agoniaMask from "@/assets/agonia-mask.webp";
 import "./app-shell.css";
-
-function XLogoIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" {...props}>
-      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.47l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
-    </svg>
-  );
-}
 
 type NavIcon = LucideIcon | ((props: SVGProps<SVGSVGElement>) => JSX.Element);
 
@@ -67,34 +47,6 @@ interface NavSection {
   label?: string;
   items: NavItem[];
 }
-
-const classicSections: NavSection[] = [
-  {
-    items: [
-      { title: "Dashboard", path: "/", icon: LayoutDashboard, exact: true },
-      { title: "Tarefas", path: "/tarefas", icon: CheckSquare },
-      { title: "Notas", path: "/notas", icon: StickyNote },
-    ],
-  },
-  {
-    label: "Criação",
-    items: [
-      { title: "Mapas", path: "/mapas", icon: Network },
-      { title: "Slides", path: "/slides", icon: Presentation },
-    ],
-  },
-  {
-    label: "Canais",
-    items: [
-      { title: "Instagram", path: "/instagram", icon: Instagram },
-      { title: "TikTok", path: "/tiktok", icon: Music2, externalTab: true },
-      { title: "X", path: "/x", icon: XLogoIcon, externalTab: true },
-    ],
-  },
-  {
-    items: [{ title: "Configurações", path: "/config", icon: Settings }],
-  },
-];
 
 const agoniaSections: NavSection[] = [
   {
@@ -125,7 +77,6 @@ const agoniaSections: NavSection[] = [
   },
 ];
 
-const classicNavItems = classicSections.flatMap((s) => s.items);
 const agoniaNavItems = agoniaSections.flatMap((s) => s.items);
 
 function AgoniaBrand({ compact = false }: { compact?: boolean }) {
@@ -148,26 +99,19 @@ function AgoniaBrand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function isItemActive(item: NavItem, pathname: string, isAgoniaMode: boolean) {
-  if (isAgoniaMode) {
-    if (item.exact) {
-      return pathname === "/" || pathname === "/agonia" || pathname === "/agonia/";
-    }
-    if (item.matchPaths) return item.matchPaths.includes(pathname);
-    return pathname === item.path;
+function isItemActive(item: NavItem, pathname: string) {
+  if (item.exact) {
+    return pathname === "/" || pathname === "/agonia" || pathname === "/agonia/";
   }
-  if (item.path === "/") return pathname === "/";
-  if (item.path === "/instagram") return pathname.startsWith("/instagram");
-  return pathname.startsWith(item.path);
+  if (item.matchPaths) return item.matchPaths.includes(pathname);
+  return pathname === item.path;
 }
 
 function SideNav({
   collapsed,
-  isAgoniaMode,
   onNavigate,
 }: {
   collapsed?: boolean;
-  isAgoniaMode: boolean;
   onNavigate?: () => void;
 }) {
   const location = useLocation();
@@ -175,11 +119,9 @@ function SideNav({
   const unreadAlertsCount =
     monitor.data?.alerts.filter((a) => !a.read_at && !a.resolved_at).length ?? 0;
 
-  const sections = isAgoniaMode ? agoniaSections : classicSections;
-
   return (
     <>
-      {sections.map((section, sectionIdx) => (
+      {agoniaSections.map((section, sectionIdx) => (
         <div key={section.label || sectionIdx} className="shell-nav-section">
           {section.label && !collapsed && (
             <p className="shell-nav-section-label">{section.label}</p>
@@ -188,7 +130,7 @@ function SideNav({
             <span className="shell-nav-section-rule" aria-hidden="true" />
           )}
           {section.items.map((item) => {
-            const isActive = isItemActive(item, location.pathname, isAgoniaMode);
+            const isActive = isItemActive(item, location.pathname);
             const showAlertBadge = item.path === "/agonia/alertas" && unreadAlertsCount > 0;
             return (
               <NavLink
@@ -231,85 +173,18 @@ function SideNav({
   );
 }
 
-function ModeSwitcher({
-  isAgoniaMode,
-  collapsed,
-  onSwitch,
-}: {
-  isAgoniaMode: boolean;
-  collapsed?: boolean;
-  onSwitch: (targetAgonia: boolean) => void;
-}) {
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={() => onSwitch(!isAgoniaMode)}
-        className="shell-mode-compact"
-        title={isAgoniaMode ? "Alternar para modo Padrão" : "Alternar para modo Agonia"}
-        aria-label={isAgoniaMode ? "Alternar para modo Padrão" : "Alternar para modo Agonia"}
-      >
-        <Sparkles className="h-4 w-4 shrink-0" />
-      </button>
-    );
-  }
-
-  return (
-    <div className="shell-mode-switcher" role="group" aria-label="Modo de operação">
-      <button
-        type="button"
-        onClick={() => onSwitch(false)}
-        aria-pressed={!isAgoniaMode}
-        className={cn("shell-mode-pill", !isAgoniaMode && "is-active")}
-      >
-        Padrão
-      </button>
-      <button
-        type="button"
-        onClick={() => onSwitch(true)}
-        aria-pressed={isAgoniaMode}
-        className={cn("shell-mode-pill", isAgoniaMode && "is-active")}
-      >
-        <Sparkles className="h-3.5 w-3.5 shrink-0" />
-        <span>Agonia</span>
-      </button>
-    </div>
-  );
-}
-
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFocusMode, setMobileFocusMode] = useState(false);
   const [profileTick, setProfileTick] = useState(0);
-  const [workspaceMode, setWorkspaceModeState] = useState<WorkspaceMode>(() =>
-    getWorkspaceMode(),
-  );
   const mobileMenuRef = useRef<HTMLElement>(null);
   const location = useLocation();
-  const navigate = useNavigate();
   const { signOut, user } = useAuth();
-
-  const isAgoniaMode =
-    workspaceMode === "agonia" || location.pathname.startsWith("/agonia");
 
   useEffect(() => {
     setMobileMenuOpen(false);
-    if (location.pathname.startsWith("/agonia") && workspaceMode !== "agonia") {
-      setWorkspaceMode("agonia");
-      setWorkspaceModeState("agonia");
-    }
-  }, [location.pathname, workspaceMode]);
-
-  useEffect(() => {
-    const onModeChange = (event: Event) => {
-      const custom = event as CustomEvent<WorkspaceMode>;
-      setWorkspaceModeState(custom.detail || getWorkspaceMode());
-    };
-    window.addEventListener("organizafy-mode-changed", onModeChange);
-    return () =>
-      window.removeEventListener("organizafy-mode-changed", onModeChange);
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     const onProfileUpdate = () => setProfileTick((n) => n + 1);
@@ -371,55 +246,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
-    if (isAgoniaMode) {
-      if (location.pathname === "/agonia/reels-test") return "Diagnóstico de Publicação";
-      const match = agoniaNavItems.find((item) =>
-        isItemActive(item, location.pathname, true),
-      );
-      return match?.title || "Dashboard";
-    }
-    return (
-      classicNavItems.find((item) => item.path !== "/" && location.pathname.startsWith(item.path))?.title ||
-      "Dashboard"
+    if (location.pathname === "/agonia/reels-test") return "Diagnóstico de Publicação";
+    const match = agoniaNavItems.find((item) =>
+      isItemActive(item, location.pathname),
     );
-  }, [isAgoniaMode, location.pathname]);
-
-  const switchMode = useCallback(
-    (targetAgonia: boolean) => {
-      const nextMode: WorkspaceMode = targetAgonia ? "agonia" : "classic";
-      setWorkspaceMode(nextMode);
-      setWorkspaceModeState(nextMode);
-      navigate(targetAgonia ? "/agonia" : "/");
-    },
-    [navigate],
-  );
+    return match?.title || "Dashboard";
+  }, [location.pathname]);
 
   // Mobile bottom bar: 4 primary destinations + "Mais" drawer trigger
-  const mobilePrimaryItems = useMemo(() => {
-    if (isAgoniaMode) {
-      return [
-        agoniaNavItems[0], // Dashboard
-        agoniaNavItems[1], // Modo Fluxo
-        agoniaNavItems[5], // Novo Reel
-        agoniaNavItems[8], // Agendamentos
-      ];
-    }
-    return [
-      classicNavItems[0], // Dashboard
-      classicNavItems[1], // Tarefas
-      classicNavItems[2], // Notas
-      classicNavItems[5], // Instagram
-    ];
-  }, [isAgoniaMode]);
+  const mobilePrimaryItems = useMemo(
+    () => [
+      agoniaNavItems[0], // Dashboard
+      agoniaNavItems[1], // Modo Fluxo
+      agoniaNavItems[5], // Novo Reel
+      agoniaNavItems[8], // Agendamentos
+    ],
+    [],
+  );
 
   return (
     <AppLayoutContext.Provider value={layoutContext}>
       <div
         className={cn(
-          "workspace-shell min-h-[100dvh] min-w-0",
+          "workspace-shell min-h-[100dvh] min-w-0 shell-agonia-mode",
           desktopSidebarOpen && "shell-expanded",
           mobileFocusMode && "shell-mobile-focus",
-          isAgoniaMode && "shell-agonia-mode",
         )}
       >
         <a href="#workspace-content" className="shell-skip-link">
@@ -434,16 +285,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="shell-rail-top">
             <NavLink
-              to={isAgoniaMode ? "/agonia" : "/"}
+              to="/agonia"
               className="shell-brand"
-              title={isAgoniaMode ? "Agonia · Dashboard" : "Organizafy · Dashboard"}
-              aria-label={isAgoniaMode ? "Agonia · Dashboard" : "Organizafy · Dashboard"}
+              title="Agonia · Dashboard"
+              aria-label="Agonia · Dashboard"
             >
-              {isAgoniaMode ? (
-                <AgoniaBrand compact={!desktopSidebarOpen} />
-              ) : (
-                <SilverBrand compact={!desktopSidebarOpen} />
-              )}
+              <AgoniaBrand compact={!desktopSidebarOpen} />
             </NavLink>
             <button
               type="button"
@@ -462,19 +309,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          <ModeSwitcher
-            isAgoniaMode={isAgoniaMode}
-            collapsed={!desktopSidebarOpen}
-            onSwitch={switchMode}
-          />
-
           <nav className="shell-rail-nav" aria-label="Menu principal">
-            <SideNav collapsed={!desktopSidebarOpen} isAgoniaMode={isAgoniaMode} />
+            <SideNav collapsed={!desktopSidebarOpen} />
           </nav>
 
           <div className="shell-rail-footer">
             <NavLink
-              to={isAgoniaMode ? "/agonia/profile" : "/config"}
+              to="/agonia/profile"
               className={cn("shell-rail-account", !desktopSidebarOpen && "is-collapsed")}
               title={`${displayName} · Configurações`}
               aria-label="Perfil e configurações"
@@ -523,7 +364,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           <div className="shell-header-title">
-            {isAgoniaMode && <span className="shell-eyebrow">Agonia</span>}
+            <span className="shell-eyebrow">Agonia</span>
             <span className="shell-current-page">{currentPage}</span>
           </div>
 
@@ -556,11 +397,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="shell-mobile-brand">
                 <NavLink
-                  to={isAgoniaMode ? "/agonia" : "/"}
+                  to="/agonia"
                   onClick={() => setMobileMenuOpen(false)}
-                  aria-label={isAgoniaMode ? "Agonia" : "Organizafy"}
+                  aria-label="Agonia"
                 >
-                  {isAgoniaMode ? <AgoniaBrand /> : <SilverBrand />}
+                  <AgoniaBrand />
                 </NavLink>
                 <button
                   type="button"
@@ -572,23 +413,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              <div className="px-3.5 pb-3">
-                <ModeSwitcher
-                  isAgoniaMode={isAgoniaMode}
-                  onSwitch={(target) => {
-                    switchMode(target);
-                    setMobileMenuOpen(false);
-                  }}
-                />
-              </div>
-
               <nav className="shell-mobile-nav px-3" aria-label="Menu principal">
-                <SideNav isAgoniaMode={isAgoniaMode} onNavigate={() => setMobileMenuOpen(false)} />
+                <SideNav onNavigate={() => setMobileMenuOpen(false)} />
               </nav>
 
               <div className="shell-mobile-account">
                 <NavLink
-                  to={isAgoniaMode ? "/agonia/profile" : "/config"}
+                  to="/agonia/profile"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex min-w-0 flex-1 items-center gap-2.5"
                 >
@@ -644,7 +475,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           aria-label="Navegação rápida"
         >
           {mobilePrimaryItems.map((item) => {
-            const isActive = isItemActive(item, location.pathname, isAgoniaMode);
+            const isActive = isItemActive(item, location.pathname);
             return (
               <NavLink
                 key={item.path}

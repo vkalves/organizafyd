@@ -45,35 +45,19 @@ export type AgoniaProfile = {
   avatarDataUrl: string;
 };
 
-export type WorkspaceMode = "agonia" | "classic";
+export type WorkspaceMode = "agonia";
 
 const storageKey = (userId: string) => `agonia:settings:${userId}`;
 const appsKey = (userId: string) => `agonia:meta-apps:${userId}`;
 const accountMetaKey = (userId: string) => `agonia:account-meta:${userId}`;
 const profileKey = (userId: string) => `agonia:profile:${userId}`;
-const WORKSPACE_MODE_KEY = "organizafy:workspace-mode";
 
 export function getWorkspaceMode(): WorkspaceMode {
-  if (typeof localStorage === "undefined") return "classic";
-  try {
-    return localStorage.getItem(WORKSPACE_MODE_KEY) === "agonia"
-      ? "agonia"
-      : "classic";
-  } catch {
-    return "classic";
-  }
+  return "agonia";
 }
 
-export function setWorkspaceMode(mode: WorkspaceMode) {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(WORKSPACE_MODE_KEY, mode);
-    window.dispatchEvent(
-      new CustomEvent("organizafy-mode-changed", { detail: mode }),
-    );
-  } catch {
-    /* ignore storage quota errors */
-  }
+export function setWorkspaceMode(_mode?: WorkspaceMode) {
+  /* Single-mode Agonia workspace */
 }
 
 export function loadSettings(userId: string | undefined): AgoniaSettings {

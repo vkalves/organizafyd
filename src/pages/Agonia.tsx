@@ -58,7 +58,6 @@ import {
   saveAgoniaProfile,
   saveMetaApps,
   saveSettings,
-  setWorkspaceMode,
   type AccountMetaMap,
   type MetaAppConfig,
 } from "@/features/agonia/schedule";
@@ -882,16 +881,6 @@ export default function Agonia() {
               </p>
             </div>
             <div className="action-row">
-              <button
-                type="button"
-                className="button button-secondary"
-                onClick={() => {
-                  setWorkspaceMode("classic");
-                  navigate("/");
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" /> Modelo Antigo
-              </button>
               <Link className="button button-secondary" to="/agonia/fluxos">
                 <Layers className="h-4 w-4" /> Modo Fluxo
               </Link>

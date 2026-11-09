@@ -149,53 +149,6 @@
   overflow: hidden;
 }
 
-/* Mode switcher (single location: inside sidebar / mobile drawer) */
-.shell-mode-switcher {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  padding: 3px;
-  margin-bottom: 12px;
-  border: 1px solid var(--shell-line);
-  border-radius: 9px;
-  background: hsl(var(--background));
-}
-.shell-mode-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  transition: color 150ms, background-color 150ms;
-}
-.shell-mode-pill:hover { color: hsl(var(--foreground)); }
-.shell-mode-pill.is-active {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
-}
-.shell-mode-compact {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 32px;
-  margin: 0 auto 10px;
-  border: 1px solid var(--shell-line);
-  border-radius: 8px;
-  background: hsl(var(--background));
-  color: hsl(var(--muted-foreground));
-  transition: color 150ms, border-color 150ms;
-}
-.shell-mode-compact:hover {
-  color: hsl(var(--foreground));
-  border-color: hsl(var(--foreground) / 0.25);
-}
-
 /* Navigation items & sections */
 .shell-rail-nav {
   flex: 1;

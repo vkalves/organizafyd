@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { PublicLinks } from "./PublicInfo";
 import AuthLayout from "@/components/layout/AuthLayout";
 
 const Auth = () => {
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const destination = searchParams.get("next") === "tiktok" ? `/tiktok${location.hash}` : searchParams.get("next") === "x" ? `/x${location.hash}` : "/";
+  const destination = "/agonia";
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
@@ -64,18 +63,11 @@ const Auth = () => {
           >
             Continuar na minha conta <ArrowRight size={16} />
           </Link>
-          <Link
-            to="/agonia"
-            className="auth-submit"
-            style={{ background: "transparent", color: "hsl(var(--foreground))", borderColor: "hsl(var(--border))" }}
-          >
-            <Sparkles size={15} /> Abrir Modo Agonia
-          </Link>
         </div>
       )}
       <p className="auth-card-eyebrow">{mode === "forgot" ? "Recuperação de senha" : "Acesso à conta"}</p>
       <h2>{mode === "login" ? "Entrar na sua conta" : mode === "signup" ? "Criar sua conta" : "Recuperar acesso"}</h2>
-      <p className="auth-card-description">{mode === "login" ? "Acesse suas tarefas, notas e canais conectados." : mode === "signup" ? "Preencha seus dados para começar." : "Informe seu email para receber o link de redefinição."}</p>
+      <p className="auth-card-description">{mode === "login" ? "Acesse sua central de publicação e fluxos conectados." : mode === "signup" ? "Preencha seus dados para começar." : "Informe seu email para receber o link de redefinição."}</p>
 
       <form onSubmit={handleSubmit} className="auth-form">
         {mode === "signup" && (
