@@ -1519,49 +1519,47 @@ export default function Flows({
                   </div>
                 </fieldset>
 
-                <div className="ig-flow-grid">
-                  <fieldset>
-                    <legend>Ordem</legend>
+                <fieldset className="border-0 p-0 m-0">
+                  <legend className="ig-section-label mb-1.5">Ordem</legend>
+                  <div className="ig-segmented-full">
+                    <button
+                      type="button"
+                      aria-pressed={random}
+                      onClick={() => setRandom(true)}
+                    >
+                      Randomizar por conta
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={!random}
+                      onClick={() => setRandom(false)}
+                    >
+                      Manter ordem
+                    </button>
+                  </div>
+                </fieldset>
+
+                {kind === "posts" && (
+                  <fieldset className="border-0 p-0 m-0">
+                    <legend className="ig-section-label mb-1.5">Formato</legend>
                     <div className="ig-segmented-full">
-                      <button
-                        type="button"
-                        aria-pressed={random}
-                        onClick={() => setRandom(true)}
-                      >
-                        Randomizar por conta
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={!random}
-                        onClick={() => setRandom(false)}
-                      >
-                        Manter ordem
-                      </button>
+                      {(["auto", "Reel", "Feed"] as const).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          aria-pressed={format === f}
+                          onClick={() => setFormat(f)}
+                        >
+                          {f === "auto"
+                            ? "Automático"
+                            : f === "Feed"
+                              ? "Post"
+                              : f}
+                        </button>
+                      ))}
                     </div>
                   </fieldset>
-
-                  {kind === "posts" && (
-                    <fieldset>
-                      <legend>Formato</legend>
-                      <div className="ig-segmented-full">
-                        {(["auto", "Reel", "Feed"] as const).map((f) => (
-                          <button
-                            key={f}
-                            type="button"
-                            aria-pressed={format === f}
-                            onClick={() => setFormat(f)}
-                          >
-                            {f === "auto"
-                              ? "Automático"
-                              : f === "Feed"
-                                ? "Post"
-                                : f}
-                          </button>
-                        ))}
-                      </div>
-                    </fieldset>
-                  )}
-                </div>
+                )}
               </div>
 
               {!report && (
