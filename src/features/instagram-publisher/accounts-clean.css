@@ -89,3 +89,17 @@
 
 .ig-account-remove-confirm.silver-button { background: #b73535; color: #fff; border-color: #d34f4f; }
 .ig-account-remove-confirm.silver-button:hover:not(:disabled) { background: #c63d3d; border-color: #e16b6b; }
+
+.ig-account-notes { display: grid; gap: 8px; border-top: 1px solid #2c323b; padding-top: 18px; }
+.ig-account-notes > label { display: flex; align-items: center; gap: 7px; color: #c7cdd6; font-size: 12px; }
+.ig-account-notes > p { font-size: 11px; line-height: 1.7; color: #8d99a8; }
+.ig-account-notes textarea { width: 100%; min-height: 106px; max-height: 420px; resize: vertical; padding: 12px; border: 1px solid #343d49; border-radius: 7px; background: #11151a; color: #eef1f5; font-size: 12px !important; line-height: 1.8; }
+.ig-account-notes textarea:focus-visible { outline: 2px solid #aebdce; outline-offset: 2px; }
+.ig-account-notes textarea::placeholder { color: #687689; }
+.ig-account-notes-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ig-account-notes-footer > span { color: #8d99a8; font-size: 10px; line-height: 1.7; }
+.ig-account-notes .ig-account-notes-error { color: #f0a7a7; }
+@media (max-width: 620px) {
+  .ig-account-notes textarea { font-size: 16px !important; }
+  .ig-account-notes-footer { flex-wrap: wrap; }
+}

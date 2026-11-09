@@ -8,6 +8,7 @@ export type PublisherAccount = {
   username: string;
   avatar_url?: string | null;
   created_at?: string;
+  notes?: string | null;
 };
 type Schema = {
   public: {
@@ -181,7 +182,7 @@ export async function listAccounts(
   if (!links.length) return [];
   const { data, error } = await db
     .from("instagram_accounts")
-    .select("id,user_id,username,avatar_url,created_at")
+    .select("id,user_id,username,avatar_url,created_at,notes")
     .eq("user_id", userId)
     .in(
       "id",
@@ -191,6 +192,24 @@ export async function listAccounts(
   if (error) throw new Error("Não foi possível carregar as contas.");
   return data;
 }
+export async function saveAccountNotes(
+  userId: string,
+  accountId: string,
+  notes: string,
+): Promise<string> {
+  if (!userId || !accountId || typeof notes !== "string" || notes.length > 20000)
+    throw new Error("Revise as anotações antes de salvar.");
+  const { data, error } = await db
+    .from("instagram_accounts")
+    .update({ notes })
+    .eq("id", accountId)
+    .eq("user_id", userId)
+    .select("notes")
+    .single();
+  if (error || !data) throw new Error("Não foi possível salvar as anotações.");
+  return data.notes ?? "";
+}
+
 export async function uploadMedia(
   files: File[],
   userId: string,

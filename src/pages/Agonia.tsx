@@ -44,6 +44,7 @@ import "@/features/instagram-publisher/accounts-clean.css";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadAccountPhotos } from "@/features/instagram-publisher/account-api";
 import { InstagramAccountAvatar } from "@/features/instagram-publisher/InstagramAccountAvatar";
+import { AccountNotes } from "@/features/instagram-publisher/AccountNotes";
 import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
 import type { PublisherAccount } from "@/features/instagram-publisher/api";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
@@ -62,6 +63,7 @@ import {
   listPosts,
   publisherRequest,
   savePost,
+  saveAccountNotes,
   uploadMedia,
 } from "@/features/instagram-publisher/api";
 import type { Post } from "@/features/instagram-publisher/model";
@@ -275,6 +277,7 @@ export default function Agonia() {
   const [addingAccountFolder, setAddingAccountFolder] = useState(false);
   const [newAccountFolderName, setNewAccountFolderName] = useState("");
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [modelDrafts, setModelDrafts] = useState<Record<string, string>>({});
 
   // Meta App form state
@@ -1807,6 +1810,17 @@ export default function Agonia() {
                           <div className="ig-account-edit-field"><label htmlFor={`ig-account-name-${acc.id}`}>Nome da conta</label><div><input id={`ig-account-name-${acc.id}`} aria-label={`Nome personalizado da conta @${acc.username}`} placeholder="Adicionar nome" value={customName} onChange={(e) => setNameDrafts((current) => ({ ...current, [acc.id]: e.target.value }))} /><button type="button" className="button button-secondary" onClick={() => saveNameForAccount(acc.id, acc.username)}>Salvar</button></div></div>
                           <div className="ig-account-edit-field"><label htmlFor={`ig-account-folder-${acc.id}`}>Pasta</label><select id={`ig-account-folder-${acc.id}`} aria-label={`Pasta da conta @${acc.username}`} value={currentFolder} onChange={(e) => setFolderForAccount(acc.id, acc.username, e.target.value)} className="ops-filter"><option value="">Sem pasta</option>{accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select></div>
                         </div>
+                        <AccountNotes
+                          username={acc.username}
+                          value={noteDrafts[acc.id] ?? acc.notes ?? ""}
+                          savedValue={acc.notes ?? ""}
+                          onChange={(value) => setNoteDrafts((current) => ({ ...current, [acc.id]: value }))}
+                          onSave={async (value) => {
+                            if (!user) throw new Error("Sessão expirada.");
+                            const notes = await saveAccountNotes(user.id, acc.id, value);
+                            queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user.id], (current) => current?.map((account) => account.id === acc.id ? { ...account, notes } : account));
+                          }}
+                        />
                         <div className="ig-account-detail-stats">
                           <span><strong>{todayCount}</strong> publicados hoje</span>
                           <span><strong>{days30Count}</strong> nos últimos 30 dias</span>
