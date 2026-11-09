@@ -376,6 +376,18 @@
   font-size: 11px;
 }
 
+.agonia-root .performance-summary-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agonia-root .performance-total-warning {
+  border-color: rgb(239 68 68 / 30%);
+  background: rgb(239 68 68 / 8%);
+}
+
 .agonia-root .performance-highlights {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;

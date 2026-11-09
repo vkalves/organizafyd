@@ -353,24 +353,49 @@ export default function Agonia() {
     };
   }, [accounts.length, posts]);
 
-  const perAccountToday = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const acc of accounts) counts.set(acc.id, 0);
-    for (const p of posts) {
-      if (p.status === "published" && isToday(p.published_at || p.created_at)) {
-        counts.set(p.account_id, (counts.get(p.account_id) || 0) + 1);
-      }
-    }
-    const rows = accounts.map((acc) => ({
-      id: acc.id,
-      username: acc.username,
-      count: counts.get(acc.id) || 0,
-    }));
-    const maxCount = Math.max(1, ...rows.map((r) => r.count));
-    const best = [...rows].sort((a, b) => b.count - a.count)[0];
-    const zeroAccounts = rows.filter((r) => r.count === 0);
-    return { rows, maxCount, best, zeroAccounts };
-  }, [accounts, posts]);
+  // Métricas de visualização de Reels & alertas das contas conectadas
+  const accountViewsMetrics = useMemo(() => {
+    // Preparado para receber views_count/reels_views das contas conectadas quando a API fornecer
+    const rows = accounts.map((acc) => {
+      const rawViews = (acc as any).reels_views ?? (acc as any).views_count ?? 0;
+      const h = healthMap.get(acc.id);
+      const conn = links.find((c) => c.account_id === acc.id);
+      const hasWarning =
+        (h && h.state !== "healthy" && h.state !== "unknown") ||
+        conn?.reconnect_required ||
+        activeAlerts.some((alert) => alert.account_id === acc.id);
+
+      return {
+        id: acc.id,
+        username: acc.username,
+        views: Number(rawViews) || 0,
+        hasWarning: Boolean(hasWarning),
+      };
+    });
+
+    const totalViews = rows.reduce((acc, r) => acc + r.views, 0);
+    const maxViews = Math.max(1, ...rows.map((r) => r.views));
+    const accountsWithWarning = rows.filter((r) => r.hasWarning);
+
+    // Ordenação por visualizações para encontrar maior e menor volume
+    const sorted = [...rows].sort((a, b) => b.views - a.views);
+    const best = sorted[0];
+    const lowest = sorted[sorted.length - 1];
+    const lowestAccounts = rows.filter(
+      (r) => r.views === (lowest?.views ?? 0),
+    );
+
+    return {
+      rows,
+      totalViews,
+      maxViews,
+      accountsWithWarning,
+      accountsWithWarningCount: accountsWithWarning.length,
+      best,
+      lowest,
+      lowestAccounts,
+    };
+  }, [accounts, healthMap, links, activeAlerts]);
 
   const redirectUri = `${window.location.origin}/instagram/conectar`;
 
@@ -928,6 +953,140 @@ export default function Agonia() {
             </div>
           )}
 
+          {/* Módulo de Performance & Visualizações dos Perfis Conectados */}
+          <section className="panel performance-panel">
+            <div className="panel-header performance-header">
+              <div>
+                <div className="eyebrow">Performance por conta</div>
+                <h2 className="performance-title">Desempenho dos perfis conectados</h2>
+                <p className="panel-copy">
+                  Acompanhe as visualizações de Reels e a saúde de cada conta do Instagram conectada.
+                </p>
+              </div>
+              <div className="performance-summary-group">
+                <div className="performance-total" title="Total de visualizações de Reels em todos os perfis">
+                  <Play className="h-4 w-4 text-emerald-400" />
+                  <strong>{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</strong>
+                  <span>visualizações de Reels</span>
+                </div>
+                <Link
+                  to="/agonia/alertas"
+                  className={`performance-total hover:border-white/20 transition-all text-inherit ${
+                    accountViewsMetrics.accountsWithWarningCount > 0 ? "performance-total-warning" : ""
+                  }`}
+                  title="Total de contas com aviso ou pendência"
+                >
+                  <AlertTriangle
+                    className={`h-4 w-4 ${
+                      accountViewsMetrics.accountsWithWarningCount > 0 ? "text-rose-400" : "text-muted-foreground"
+                    }`}
+                  />
+                  <strong className={accountViewsMetrics.accountsWithWarningCount > 0 ? "text-rose-400" : ""}>
+                    {accountViewsMetrics.accountsWithWarningCount}
+                  </strong>
+                  <span>
+                    {accountViewsMetrics.accountsWithWarningCount === 1 ? "conta com aviso" : "contas com aviso"}
+                  </span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="performance-highlights">
+              <div className="performance-highlight performance-highlight-best">
+                <div className="performance-highlight-label">
+                  <TrendingUp className="h-3.5 w-3.5" /> Mais visualizações
+                </div>
+                <strong>
+                  {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
+                    ? `@${accountViewsMetrics.best.username}`
+                    : accountViewsMetrics.best
+                      ? `@${accountViewsMetrics.best.username}`
+                      : "Nenhuma conta"}
+                </strong>
+                <span>
+                  {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
+                    ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações`
+                    : "0 visualizações de Reels"}
+                </span>
+              </div>
+              <div className="performance-highlight performance-highlight-low">
+                <div className="performance-highlight-label">
+                  <TrendingDown className="h-3.5 w-3.5" /> Menos visualizações
+                </div>
+                <strong>
+                  {accountViewsMetrics.lowestAccounts.length > 0
+                    ? accountViewsMetrics.lowestAccounts
+                        .slice(0, 3)
+                        .map((a) => `@${a.username}`)
+                        .join(", ") +
+                      (accountViewsMetrics.lowestAccounts.length > 3
+                        ? ` +${accountViewsMetrics.lowestAccounts.length - 3}`
+                        : "")
+                    : "Todas com mesmo alcance"}
+                </strong>
+                <span>
+                  {accountViewsMetrics.lowest && accountViewsMetrics.lowest.views > 0
+                    ? `${accountViewsMetrics.lowest.views.toLocaleString("pt-BR")} visualizações`
+                    : "0 visualizações"}
+                </span>
+              </div>
+            </div>
+
+            {accountViewsMetrics.rows.length === 0 ? (
+              <div className="empty">
+                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar as visualizações e métricas.
+              </div>
+            ) : (
+              <div
+                className="performance-list"
+                role="list"
+                aria-label="Visualizações de Reels por conta"
+              >
+                {accountViewsMetrics.rows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="performance-row"
+                    role="listitem"
+                  >
+                    <div className="performance-account">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate">@{row.username}</span>
+                        {row.hasWarning && (
+                          <span className="rounded-md bg-rose-950/70 border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300 font-mono shrink-0 flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5 text-rose-400" /> Aviso
+                          </span>
+                        )}
+                      </div>
+                      <strong>{row.views.toLocaleString("pt-BR")}</strong>
+                    </div>
+                    <div className="performance-track" aria-hidden="true">
+                      <span
+                        style={{
+                          width: `${
+                            row.views > 0
+                              ? Math.max(5, Math.round(
+                                  (row.views / accountViewsMetrics.maxViews) * 100,
+                                ))
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="performance-footer">
+              <span>
+                <CheckCircle2 className="h-3.5 w-3.5" /> Módulo preparado para receber os dados de visualização da Meta
+              </span>
+              <span>
+                {accounts.length} conta(s) conectada(s) · {accountViewsMetrics.accountsWithWarningCount} com aviso
+              </span>
+            </div>
+          </section>
+
           <section className="grid stats-grid">
             <Link to="/agonia/instagram" className="stat-card hover:border-white/20 transition-all text-inherit">
               <div className="label">Contas conectadas</div>
@@ -1075,106 +1234,6 @@ export default function Agonia() {
               </div>
             </section>
           )}
-
-          <section className="panel performance-panel">
-            <div className="panel-header performance-header">
-              <div>
-                <div className="eyebrow">Performance por conta</div>
-                <h2 className="performance-title">Posts publicados hoje</h2>
-                <p className="panel-copy">
-                  Acompanhe todas as contas conectadas no seu timezone. Contas
-                  sem publicação continuam visíveis.
-                </p>
-              </div>
-              <div className="performance-total">
-                <Sparkles className="h-4 w-4" />
-                <strong>{stats.publishedToday}</strong>
-                <span>publicações hoje</span>
-              </div>
-            </div>
-
-            <div className="performance-highlights">
-              <div className="performance-highlight performance-highlight-best">
-                <div className="performance-highlight-label">
-                  <TrendingUp className="h-3.5 w-3.5" /> Mais publicou
-                </div>
-                <strong>
-                  {perAccountToday.best && perAccountToday.best.count > 0
-                    ? `@${perAccountToday.best.username}`
-                    : "Nenhuma conta"}
-                </strong>
-                <span>
-                  {perAccountToday.best && perAccountToday.best.count > 0
-                    ? `${perAccountToday.best.count} post(s) hoje`
-                    : "Nenhum post confirmado hoje"}
-                </span>
-              </div>
-              <div className="performance-highlight performance-highlight-low">
-                <div className="performance-highlight-label">
-                  <TrendingDown className="h-3.5 w-3.5" /> Menos publicou
-                </div>
-                <strong>
-                  {perAccountToday.zeroAccounts.length > 0
-                    ? perAccountToday.zeroAccounts
-                        .slice(0, 3)
-                        .map((a) => `@${a.username}`)
-                        .join(", ") +
-                      (perAccountToday.zeroAccounts.length > 3
-                        ? ` +${perAccountToday.zeroAccounts.length - 3}`
-                        : "")
-                    : "Todas publicaram"}
-                </strong>
-                <span>0 posts hoje</span>
-              </div>
-            </div>
-
-            {perAccountToday.rows.length === 0 ? (
-              <div className="empty">
-                Nenhuma conta conectada ainda. Conecte seu Instagram para
-                acompanhar a performance diária.
-              </div>
-            ) : (
-              <div
-                className="performance-list"
-                role="list"
-                aria-label="Posts publicados hoje por conta"
-              >
-                {perAccountToday.rows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="performance-row"
-                    role="listitem"
-                  >
-                    <div className="performance-account">
-                      <span>@{row.username}</span>
-                      <strong>{row.count}</strong>
-                    </div>
-                    <div className="performance-track" aria-hidden="true">
-                      <span
-                        style={{
-                          width: `${
-                            row.count > 0
-                              ? Math.round(
-                                  (row.count / perAccountToday.maxCount) * 100,
-                                )
-                              : 0
-                          }%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="performance-footer">
-              <span>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Dados baseados nas
-                publicações confirmadas pela Meta hoje
-              </span>
-              <span>{accounts.length} conta(s) acompanhada(s)</span>
-            </div>
-          </section>
         </>
       )}
 
