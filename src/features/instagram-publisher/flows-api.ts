@@ -156,6 +156,7 @@ export type UploadItemState = {
   status: "pending" | "processing" | "done" | "error";
   message: string;
 };
+const MEDIA_UPLOAD_CONCURRENCY = 3;
 export async function addMedia(
   files: File[],
   userId: string,
@@ -167,9 +168,14 @@ export async function addMedia(
     onItem?: (item: UploadItemState) => void;
   },
 ) {
-  const ids: string[] = [];
-  const errors: { name: string; message: string }[] = [];
-  for (const [index, file] of files.entries()) {
+  const savedMedia: (Media | undefined)[] = Array(files.length);
+  const errors: ({ name: string; message: string } | undefined)[] = Array(
+    files.length,
+  );
+  let nextIndex = 0;
+
+  async function uploadOne(index: number) {
+    const file = files[index];
     const notify = (
       message: string,
       status: UploadItemState["status"] = "processing",
@@ -195,7 +201,7 @@ export async function addMedia(
       const saved = data as unknown as Media;
       if (!saved?.id)
         throw new Error("A biblioteca não confirmou o registro desta mídia.");
-      ids.push(saved.id);
+      savedMedia[index] = saved;
       callbacks?.onSaved?.(saved);
       notify("Pronta para publicar", "done");
     } catch (error) {
@@ -203,12 +209,33 @@ export async function addMedia(
         error instanceof Error
           ? error.message
           : "Não foi possível processar o arquivo.";
-      errors.push({ name: file.name, message });
+      errors[index] = { name: file.name, message };
       notify(message, "error");
       // A malformed file must not discard completed uploads or skip the rest.
     }
   }
-  return { ids, errors };
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= files.length) return;
+      await uploadOne(index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(MEDIA_UPLOAD_CONCURRENCY, files.length) },
+      () => worker(),
+    ),
+  );
+
+  return {
+    ids: savedMedia.flatMap((media) => (media ? [media.id] : [])),
+    errors: errors.filter(
+      (error): error is { name: string; message: string } => Boolean(error),
+    ),
+  };
 }
 export async function setMedia(
   id: string,

@@ -53,6 +53,41 @@ describe("Flow batch uploads", () => {
       expect.objectContaining({ index: 2, status: "done" }),
     );
   });
+  it("processes up to three files concurrently and returns ids in selection order", async () => {
+    const files = ["slow.mp4", "fast.mp4", "middle.mp4", "last.mp4"].map(
+      (name) => new File(["video"], name, { type: "video/mp4" }),
+    );
+    let activeUploads = 0;
+    let maxActiveUploads = 0;
+    mocks.upload.mockImplementation(async ([file]) => {
+      activeUploads += 1;
+      maxActiveUploads = Math.max(maxActiveUploads, activeUploads);
+      await new Promise((resolve) =>
+        setTimeout(resolve, file.name === "slow.mp4" ? 30 : 5),
+      );
+      activeUploads -= 1;
+      return [`storage://u/${file.name}`];
+    });
+    mocks.insert.mockImplementation(({ url }) => ({
+      select: () => ({
+        single: async () => ({
+          data: { id: url.split("/").pop(), url },
+          error: null,
+        }),
+      }),
+    }));
+
+    const result = await addMedia(files, "u", "posts", "", vi.fn());
+
+    expect(maxActiveUploads).toBe(3);
+    expect(result.ids).toEqual([
+      "slow.mp4",
+      "fast.mp4",
+      "middle.mp4",
+      "last.mp4",
+    ]);
+    expect(result.errors).toEqual([]);
+  });
   it("continues if storage registration fails without reporting that file as ready", async () => {
     mocks.upload.mockResolvedValue(["storage://u/video.mp4"]);
     mocks.single

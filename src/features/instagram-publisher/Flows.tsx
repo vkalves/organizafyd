@@ -340,8 +340,6 @@ export default function Flows({
                   : previous,
             );
             if (target === "cover") setCoverId(saved.id);
-            else
-              setSelected((previous) => [...new Set([...previous, saved.id])]);
           },
         },
       );
@@ -1098,11 +1096,11 @@ export default function Flows({
                     {uploadInProgress
                       ? "Enviando mídias…"
                       : dragOver
-                        ? "Solte os vídeos aqui para enviar"
-                        : "Arraste seus vídeos aqui ou clique para enviar"}
+                        ? "Solte as mídias aqui para enviar"
+                        : "Arraste arquivos ou clique para selecionar vários"}
                   </span>
                   <span className="ig-upload-dropzone-subtitle">
-                    Envie vídeos MP4 ou imagens em lote para a biblioteca
+                    Fotos JPG/PNG e vídeos MP4 · até 3 arquivos processados juntos
                   </span>
                 </div>
               </div>
