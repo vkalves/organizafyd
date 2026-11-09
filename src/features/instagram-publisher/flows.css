@@ -1,10 +1,11 @@
 /* ==========================================================================
-   Modo Fluxo — Estúdio Minimalista Organizafy Silver (Zero Poluição Visual)
+   Modo Fluxo — Estúdio Minimalista & Realista Organizafy Silver
+   Interface limpa, moderna e tátil (zero poluição visual, alta fidelidade)
    ========================================================================== */
 
 .ig-flows {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   max-width: 100%;
 }
 
@@ -14,7 +15,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 2px 0 4px;
 }
 
 .ig-attention-banner {
@@ -23,51 +25,56 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  border: 1px solid hsl(var(--warning) / 0.35);
-  background: hsl(var(--warning) / 0.06);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+  backdrop-filter: blur(8px);
 }
 
 .ig-attention-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: hsl(var(--warning));
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #f59e0b;
   display: inline-block;
   margin-left: 6px;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
 }
 
 /* Workspace 2 colunas para criação */
 .ig-flows-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(340px, 0.94fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(350px, 0.88fr);
+  gap: 18px;
   align-items: start;
 }
 
 .ig-flows .ig-panel {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  padding: 18px;
+  background: linear-gradient(180deg, rgba(20, 21, 26, 0.95) 0%, rgba(13, 14, 18, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 22px;
   min-width: 0;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
 }
 
 .ig-library-panel {
   display: grid;
-  gap: 12px;
-  transition: border-color 150ms, background-color 150ms;
+  gap: 14px;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ig-library-panel.is-dragover {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--card-hover));
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.04);
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.15);
 }
 
 .ig-flow-composer {
   position: sticky;
-  top: 72px;
+  top: 76px;
 }
 
 .ig-panel-head {
@@ -79,66 +86,75 @@
 
 .ig-panel-head h2 {
   font-family: "Sora", sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.015em;
-  color: hsl(var(--foreground));
+  letter-spacing: -0.02em;
+  color: #ffffff;
   margin: 0;
 }
 
-/* Seções divisórias flat dentro do configurador (substitui caixas aninhadas) */
+/* Seções divisórias flat dentro do configurador */
 .ig-composer-section {
-  border-top: 1px solid hsl(var(--border));
-  padding-top: 14px;
-  margin-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 16px;
+  margin-top: 16px;
 }
 
 .ig-composer-section:first-of-type {
   margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .ig-section-label {
   font-size: 11px;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
   display: block;
 }
 
-/* Abas segmentadas minimalistas */
+/* Abas segmentadas minimalistas e táteis */
 .ig-segmented-tabs {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 9px;
-  padding: 2px;
-  gap: 2px;
+  background: rgba(10, 11, 15, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+  backdrop-filter: blur(12px);
 }
 
 .ig-tab-pill {
   display: inline-flex;
   align-items: center;
-  padding: 5px 11px;
-  border-radius: 7px;
+  padding: 6px 13px;
+  border-radius: 9px;
   font-size: 12px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.6);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: color 150ms, background-color 150ms;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .ig-tab-pill:hover:not(:disabled) {
-  color: hsl(var(--foreground));
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .ig-tab-pill[aria-pressed="true"],
 .ig-tab-pill.is-active {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Controle segmentado de largura total dentro dos formulários */
@@ -146,110 +162,119 @@
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 6, 9, 0.6);
 }
 
 .ig-segmented-full button {
-  padding: 5px 8px;
-  border-radius: 6px;
-  border: none;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
   background: transparent;
   font-size: 11.5px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
-  transition: color 150ms, background-color 150ms;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ig-segmented-full button:hover:not(:disabled) {
-  color: hsl(var(--foreground));
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .ig-segmented-full button[aria-pressed="true"] {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Botão discreto de upload no topo da biblioteca */
+/* Botão discreto e realista de upload */
 .ig-upload-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 11px;
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--secondary));
-  color: hsl(var(--foreground));
+  gap: 7px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  color: #ffffff;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 150ms, background-color 150ms;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.18s ease;
 }
 
 .ig-upload-btn:hover {
-  border-color: hsl(var(--foreground) / 0.28);
-  background: hsl(var(--accent));
+  border-color: rgba(255, 255, 255, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+  transform: translateY(-1px);
 }
 
 .ig-upload-btn.is-disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   pointer-events: none;
 }
 
 .ig-upload-queue {
-  border: 1px solid hsl(var(--border));
-  border-radius: 9px;
-  background: hsl(var(--background));
-  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(8, 9, 12, 0.6);
+  padding: 10px 14px;
 }
 
-/* Barra de pastas e ações de lote */
+/* Barra de pastas com tags estilo pill arredondadas */
 .ig-folder-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .ig-folder-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 6px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 9999px;
   font-size: 11.5px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  background: transparent;
-  border: 1px solid hsl(var(--border));
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition: color 150ms, border-color 150ms, background-color 150ms;
+  transition: all 0.18s ease;
 }
 
 .ig-folder-tag:hover:not(:disabled) {
-  color: hsl(var(--foreground));
-  border-color: hsl(var(--foreground) / 0.22);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ig-folder-tag[aria-pressed="true"],
 .ig-folder-tag.is-active {
-  background: hsl(var(--accent));
-  border-color: hsl(var(--foreground) / 0.28);
-  color: hsl(var(--foreground));
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .ig-folder-add {
   border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .ig-selection-bar {
@@ -258,23 +283,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid hsl(var(--border) / 0.7);
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ig-ghost-action {
-  background: transparent;
-  border: none;
-  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 4px 10px;
   font-size: 11.5px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
-  transition: color 150ms;
+  transition: all 0.18s ease;
 }
 
 .ig-ghost-action:hover:not(:disabled) {
-  color: hsl(var(--foreground));
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .ig-ghost-action:disabled {
@@ -283,44 +312,47 @@
 }
 
 .ig-batch-select {
-  height: 25px;
-  border-radius: 6px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  height: 27px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 11, 15, 0.8);
+  color: #ffffff;
   font-size: 11px;
-  padding: 0 7px;
+  padding: 0 9px;
   outline: none;
   cursor: pointer;
 }
 
-/* Grade de mídias limpa (1 borda por card, proporção 4:5, zero ruído) */
+/* Grade de mídias estilo galeria profissional (foco no visual, sem poluição) */
 .ig-library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
-  gap: 8px;
-  max-height: 520px;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 10px;
+  max-height: 560px;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 4px;
 }
 
 .ig-media-tile {
   position: relative;
   aspect-ratio: 4 / 5;
-  border-radius: 9px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0d0e12;
   overflow: hidden;
-  transition: border-color 150ms, box-shadow 150ms;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .ig-media-tile:hover {
-  border-color: hsl(var(--foreground) / 0.28);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .ig-media-tile.is-selected {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 1px hsl(var(--primary));
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.45), 0 8px 24px rgba(16, 185, 129, 0.2);
 }
 
 .ig-media-tile-hit {
@@ -334,9 +366,9 @@
 
 .ig-media-badges {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 32px;
+  top: 8px;
+  left: 8px;
+  right: 36px;
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
@@ -345,22 +377,24 @@
 }
 
 .ig-media-tag {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: hsl(var(--background) / 0.82);
-  border: 1px solid hsl(var(--border) / 0.8);
-  color: hsl(var(--foreground));
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.4;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.3;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .ig-media-tag.is-folder {
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .ig-media-tile-bar {
@@ -370,49 +404,60 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 16px 7px 6px;
+  padding: 24px 8px 8px;
   background: linear-gradient(
     to top,
-    hsl(var(--background) / 0.92) 0%,
-    hsl(var(--background) / 0.65) 58%,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.45) 60%,
     transparent 100%
   );
   font-size: 11px;
   font-weight: 500;
-  color: hsl(var(--foreground));
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .ig-media-tile-bar input[type="checkbox"] {
-  accent-color: hsl(var(--primary));
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  margin: 0;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
 }
 
-.ig-media-tile-bar span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ig-media-tile-bar input[type="checkbox"]:checked {
+  border-color: #10b981;
+  background-color: #10b981;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
 }
 
 .ig-thumb-inspect-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   z-index: 2;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--background) / 0.84);
-  border: 1px solid hsl(var(--border));
-  color: hsl(var(--muted-foreground));
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 150ms, color 150ms, background-color 150ms;
+  transition: all 0.18s ease;
 }
 
 .ig-media-tile:hover .ig-thumb-inspect-btn,
@@ -421,8 +466,10 @@
 }
 
 .ig-thumb-inspect-btn:hover {
-  color: hsl(var(--foreground));
-  background: hsl(var(--card));
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.08);
 }
 
 @media (hover: none) {
@@ -436,68 +483,87 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 36px 16px;
-  border: 1px dashed hsl(var(--border));
-  border-radius: 10px;
+  gap: 8px;
+  padding: 42px 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 150ms, background-color 150ms;
+  background: rgba(255, 255, 255, 0.015);
+  transition: all 0.18s ease;
 }
 
 .ig-empty-dropzone:hover {
-  border-color: hsl(var(--foreground) / 0.28);
-  background: hsl(var(--background) / 0.45);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.035);
 }
 
-/* Pills de contas */
+/* Pills de contas estilizadas com feedback de seleção */
 .ig-flow-options {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .ig-flow-options label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  border-radius: 7px;
-  padding: 4px 9px;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  min-height: 28px;
+  color: rgba(255, 255, 255, 0.75);
+  min-height: 30px;
   cursor: pointer;
-  transition: color 150ms, border-color 150ms, background-color 150ms;
+  transition: all 0.18s ease;
   user-select: none;
 }
 
 .ig-flow-options label:hover {
-  border-color: hsl(var(--foreground) / 0.25);
-  color: hsl(var(--foreground));
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ig-flow-options label.is-checked {
-  border-color: hsl(var(--foreground) / 0.35);
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.12);
+  color: #ffffff;
+  box-shadow: 0 0 12px -2px rgba(16, 185, 129, 0.25);
 }
 
 .ig-flow-options input[type="checkbox"] {
-  accent-color: hsl(var(--primary));
-  width: 13px;
-  height: 13px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  margin: 0;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.ig-flow-options input[type="checkbox"]:checked {
+  border-color: #10b981;
+  background-color: #10b981;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 11px;
 }
 
 /* Grid compacto para campos lado a lado */
 .ig-flow-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .ig-flow-grid fieldset {
@@ -508,10 +574,12 @@
 }
 
 .ig-flow-grid legend {
-  font-size: 11px;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 6px;
   display: block;
 }
 
@@ -519,14 +587,15 @@
 .ig-slot-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-size: 11.5px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 12px;
+  font-family: monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -536,63 +605,91 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   padding: 0;
+  transition: color 0.15s ease;
 }
 
 .ig-slot-chip button:hover {
-  color: hsl(var(--destructive));
+  color: #ef4444;
 }
 
-/* Checkboxes limpos de regras */
+/* Checkboxes limpos e modernos de regras */
 .ig-check-list {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ig-check-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
-  color: hsl(var(--foreground));
-  padding: 4px 2px;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   cursor: pointer;
   user-select: none;
+  transition: all 0.18s ease;
+}
+
+.ig-check-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .ig-check-row input[type="checkbox"] {
-  accent-color: hsl(var(--primary));
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.3);
+  margin: 0;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.ig-check-row input[type="checkbox"]:checked {
+  border-color: #10b981;
+  background-color: #10b981;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
 }
 
 /* Pills secundários e subpainel leve sob demanda */
 .ig-preset-pill {
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid hsl(var(--border));
-  background: transparent;
-  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11.5px;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  transition: color 150ms, border-color 150ms, background-color 150ms;
+  transition: all 0.18s ease;
 }
 
 .ig-preset-pill:hover:not(:disabled) {
-  border-color: hsl(var(--foreground) / 0.25);
-  color: hsl(var(--foreground));
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ig-preset-pill.is-active,
 .ig-preset-pill[aria-pressed="true"] {
-  background: hsl(var(--accent));
-  border-color: hsl(var(--foreground) / 0.3);
-  color: hsl(var(--foreground));
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .ig-preset-pill:disabled {
@@ -601,16 +698,18 @@
 }
 
 .ig-tool-drawer {
-  padding-top: 8px;
-  border-top: 1px dashed hsl(var(--border));
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* Tabela enxuta de ineditismo */
 .ig-table-scroll {
   overflow-x: auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--background));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(8, 9, 12, 0.6);
 }
 
 .ig-table {
@@ -621,17 +720,19 @@
 }
 
 .ig-table th {
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  padding: 6px 10px;
-  border-bottom: 1px solid hsl(var(--border));
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .ig-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
-  color: hsl(var(--foreground));
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.9);
   font-variant-numeric: tabular-nums;
 }
 
@@ -639,29 +740,69 @@
   border-bottom: none;
 }
 
-/* Linhas de Campanhas (sem cards pesados dentro de cards) */
+/* Linhas de Campanhas (estilo cards refinados e leves) */
 .ig-campaign-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 4px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 10px;
+  transition: all 0.18s ease;
+}
+
+.ig-campaign-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .ig-state-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
   flex-shrink: 0;
-  background: hsl(var(--muted-foreground));
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .ig-state-dot.is-active {
-  background: hsl(var(--success));
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
 }
 
 .ig-state-dot.is-paused {
-  background: hsl(var(--warning));
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+
+/* Botão principal de ação do configurador */
+.ig-flow-composer .ig-composer-section:last-of-type button:not(.ig-ghost-action) {
+  height: 44px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #022013;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ig-flow-composer .ig-composer-section:last-of-type button:not(.ig-ghost-action):hover:not(:disabled) {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+}
+
+.ig-flow-composer .ig-composer-section:last-of-type button:not(.ig-ghost-action):disabled {
+  opacity: 0.4;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+  transform: none;
 }
 
 @media (max-width: 1024px) {
@@ -678,7 +819,8 @@
     grid-template-columns: 1fr;
   }
   .ig-flows .ig-panel {
-    padding: 14px;
+    padding: 16px;
+    border-radius: 16px;
   }
   .ig-campaign-row {
     flex-direction: column;
@@ -686,6 +828,7 @@
   }
   .ig-library-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 }
 
