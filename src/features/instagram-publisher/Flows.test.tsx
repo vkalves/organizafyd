@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   add: vi.fn(),
   setMedia: vi.fn(),
   control: vi.fn(),
+  cancel: vi.fn(),
+  remove: vi.fn(),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u" } }),
@@ -19,8 +21,10 @@ vi.mock("./flows-api", () => ({
   addMedia: mocks.add,
   setMedia: mocks.setMedia,
   previewMedia: vi.fn().mockResolvedValue(null),
-  cancelFlow: vi.fn(),
+  deleteMedia: vi.fn().mockResolvedValue(undefined),
+  cancelFlow: mocks.cancel,
   controlFlow: mocks.control,
+  deleteFlow: mocks.remove,
 }));
 vi.mock("./sound", () => ({
   playConfirmation: vi.fn(),
@@ -161,9 +165,9 @@ describe("Fluxos interface", () => {
 
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("button", { name: /Visualizar vídeo 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Visualizar (vídeo|foto) 1/i }));
     fireEvent.change(
-      screen.getByLabelText("Pasta"),
+      await screen.findByLabelText(/Pasta desta mídia/i),
       { target: { value: "Ofertas" } },
     );
 
@@ -172,7 +176,9 @@ describe("Fluxos interface", () => {
     });
   });
 
-  it("separa a gestão de campanhas e permite reutilizar configurações com 1 clique", async () => {
+  it("separa a gestão de campanhas e permite reutilizar, cancelar e apagar fluxos", async () => {
+    mocks.cancel.mockResolvedValue({ ok: true });
+    mocks.remove.mockResolvedValue(undefined);
     mocks.load.mockResolvedValue({
       media: [media],
       prefs: { user_id: "u", folders: [], captions: [] },
@@ -214,19 +220,14 @@ describe("Fluxos interface", () => {
     expect(screen.getByText("Reels Diários")).toBeInTheDocument();
     expect(screen.getByText("4 publicado(s)")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Reusar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar fluxo/i }));
+    await waitFor(() => {
+      expect(mocks.cancel).toHaveBeenCalledWith("f1");
+    });
 
-    expect(
-      await screen.findByRole("heading", { name: /Configurar fluxo/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Nome do fluxo (opcional)")).toHaveValue(
-      "Reels Diários",
-    );
-    expect(screen.getByLabelText("Legenda automática")).toHaveValue(
-      "Legenda reaproveitada",
-    );
-    expect(
-      screen.getByRole("button", { name: "Criar fluxo e iniciar" }),
-    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Apagar fluxo/i }));
+    await waitFor(() => {
+      expect(mocks.remove).toHaveBeenCalledWith("f1", "u");
+    });
   });
 });

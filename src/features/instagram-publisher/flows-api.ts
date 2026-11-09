@@ -63,6 +63,46 @@ type Schema = {
   };
 };
 const db = supabase as unknown as SupabaseClient<Schema>;
+const DELETED_FLOWS_FIELD = "__deleted_flows__";
+
+function deletedFlowsStorageKey(userId: string): string {
+  return `organizafy:deleted_flows:${userId}`;
+}
+
+function readLocalDeletedFlowIds(userId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(deletedFlowsStorageKey(userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalDeletedFlowIds(userId: string, ids: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      deletedFlowsStorageKey(userId),
+      JSON.stringify([...new Set(ids)]),
+    );
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function getDeletedFlowIdsSet(userId: string, prefs?: Prefs | null): Set<string> {
+  const fromPrefs = Array.isArray(prefs?.folder_captions?.[DELETED_FLOWS_FIELD])
+    ? (prefs!.folder_captions![DELETED_FLOWS_FIELD] as string[])
+    : [];
+  const fromLocal = readLocalDeletedFlowIds(userId);
+  return new Set([...fromPrefs, ...fromLocal]);
+}
+
 export async function loadFlowData(userId: string) {
   const [media, prefs, flows, report] = await Promise.all([
     db
@@ -85,15 +125,29 @@ export async function loadFlowData(userId: string) {
   ]);
   if (media.error || prefs.error || flows.error)
     throw new Error("Não foi possível carregar os Fluxos. Tente atualizar.");
+  const loadedPrefs = (prefs.data as unknown as Prefs | null) ?? {
+    user_id: userId,
+    folders: [],
+    captions: [],
+  };
+  const deletedIds = getDeletedFlowIdsSet(userId, loadedPrefs);
+  if (deletedIds.size > 0) {
+    writeLocalDeletedFlowIds(userId, [...deletedIds]);
+  }
+  const visibleFlows = ((flows.data as unknown as Flow[]) ?? []).filter(
+    (flow) => !deletedIds.has(flow.id),
+  );
+  const filteredReport = report
+    ? {
+        ...report,
+        flows: (report.flows ?? []).filter((f) => !deletedIds.has(f.id)),
+      }
+    : null;
   return {
     media: media.data as unknown as Media[],
-    prefs: (prefs.data as unknown as Prefs | null) ?? {
-      user_id: userId,
-      folders: [],
-      captions: [],
-    },
-    flows: flows.data as unknown as Flow[],
-    report,
+    prefs: loadedPrefs,
+    flows: visibleFlows,
+    report: filteredReport,
   };
 }
 export type UploadItemState = {
@@ -227,7 +281,20 @@ export async function deleteMedia(id: string, url: string, userId: string) {
     );
 }
 export async function savePrefs(prefs: Prefs) {
-  const { error } = await db.from("ig_flow_preferences").upsert(prefs);
+  const deletedIds = [...getDeletedFlowIdsSet(prefs.user_id, prefs)];
+  const mergedPrefs: Prefs =
+    deletedIds.length > 0 || prefs.folder_captions
+      ? {
+          ...prefs,
+          folder_captions: {
+            ...(prefs.folder_captions ?? {}),
+            ...(deletedIds.length > 0
+              ? { [DELETED_FLOWS_FIELD]: deletedIds }
+              : {}),
+          },
+        }
+      : prefs;
+  const { error } = await db.from("ig_flow_preferences").upsert(mergedPrefs);
   if (error) throw new Error("Não foi possível salvar suas preferências.");
 }
 export const createFlow = (input: FlowInput) =>
@@ -236,6 +303,61 @@ export const controlFlow = (id: string, control: "pause" | "resume" | "stop") =>
   publisherRequest("control_flow", { id, control });
 export const cancelFlow = (id: string) =>
   publisherRequest("cancel_flow", { id });
+
+export async function deleteFlow(id: string, userId?: string) {
+  await cancelFlow(id).catch(() => null);
+  await publisherRequest("delete_flow", { id }).catch(() => null);
+  await db
+    .from("ig_flows")
+    .delete()
+    .eq("id", id)
+    .then(
+      () => null,
+      () => null,
+    );
+
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    const { data } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+    resolvedUserId = data.user?.id;
+  }
+
+  if (resolvedUserId) {
+    const existingLocal = readLocalDeletedFlowIds(resolvedUserId);
+    const updatedLocal = [...new Set([...existingLocal, id])];
+    writeLocalDeletedFlowIds(resolvedUserId, updatedLocal);
+
+    const { data: currentPrefs } = await db
+      .from("ig_flow_preferences")
+      .select("*")
+      .eq("user_id", resolvedUserId)
+      .maybeSingle();
+
+    const basePrefs = (currentPrefs as unknown as Prefs | null) ?? {
+      user_id: resolvedUserId,
+      folders: [],
+      captions: [],
+    };
+    const allDeleted = [...getDeletedFlowIdsSet(resolvedUserId, basePrefs), id];
+    const uniqueDeleted = [...new Set(allDeleted)];
+    writeLocalDeletedFlowIds(resolvedUserId, uniqueDeleted);
+
+    await db
+      .from("ig_flow_preferences")
+      .upsert({
+        ...basePrefs,
+        folder_captions: {
+          ...(basePrefs.folder_captions ?? {}),
+          [DELETED_FLOWS_FIELD]: uniqueDeleted,
+        },
+      })
+      .then(
+        () => null,
+        () => null,
+      );
+  }
+}
+
 export async function previewMedia(url: string) {
   const { data, error } = await supabase.storage
     .from("instagram-publisher")

@@ -487,6 +487,12 @@ Deno.serve(async (req) => {
       checked(await db.rpc('ig_control_flow',{p_user:user.id,p_id:body.id,p_action:'stop'}));
       return reply({ok:true});
     }
+    if (body.action === 'delete_flow') {
+      await db.rpc('ig_control_flow',{p_user:user.id,p_id:body.id,p_action:'stop'}).catch(()=>null);
+      await db.from('ig_publication_jobs').update({flow_id:null}).eq('flow_id',body.id).eq('user_id',user.id);
+      checked(await db.from('ig_flows').delete().eq('id',body.id).eq('user_id',user.id));
+      return reply({ok:true});
+    }
     if (body.action === "control_flow") {
       checked(await db.rpc("ig_control_flow",{p_user:user.id,p_id:body.id,p_action:body.control}));
       return reply({ok:true});

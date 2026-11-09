@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Ban,
   BarChart3,
   CalendarClock,
   CheckCircle2,
@@ -40,7 +41,11 @@ import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import Flows from "@/features/instagram-publisher/Flows";
 import { AgoniaAlerts } from "@/components/agonia/AgoniaAlerts";
 import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
-import { loadFlowData } from "@/features/instagram-publisher/flows-api";
+import {
+  cancelFlow,
+  deleteFlow,
+  loadFlowData,
+} from "@/features/instagram-publisher/flows-api";
 import {
   cancelPost,
   connections,
@@ -1421,13 +1426,55 @@ export default function Agonia() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
                         <Link
                           to="/agonia/fluxos"
                           className="button button-secondary text-xs py-2 px-3"
                         >
                           Acompanhar Campanha
                         </Link>
+                        <button
+                          type="button"
+                          className="button button-secondary text-xs py-2 px-3 flex items-center gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                          onClick={async () => {
+                            try {
+                              await cancelFlow(flow.id);
+                              await refreshAll();
+                              await flowsQuery.refetch();
+                              toast.success(
+                                "Fluxo cancelado e envios pendentes interrompidos.",
+                              );
+                            } catch (err) {
+                              toast.error(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Não foi possível cancelar o fluxo.",
+                              );
+                            }
+                          }}
+                        >
+                          <Ban className="h-3.5 w-3.5" /> Cancelar fluxo
+                        </button>
+                        <button
+                          type="button"
+                          className="button button-secondary text-xs py-2 px-3 flex items-center gap-1.5 text-red-400 border-red-500/30 hover:bg-red-500/10"
+                          onClick={async () => {
+                            try {
+                              await deleteFlow(flow.id, user?.id);
+                              await refreshAll();
+                              await flowsQuery.refetch();
+                              toast.success("Fluxo apagado com sucesso.");
+                            } catch (err) {
+                              toast.error(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Não foi possível apagar o fluxo.",
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Apagar fluxo
+                        </button>
                       </div>
                     </div>
                   );

@@ -28,6 +28,7 @@ import {
   Folder,
   ChevronDown,
   Check,
+  Ban,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import {
   createFlow,
   cancelFlow,
   controlFlow,
+  deleteFlow,
   previewMedia,
   deleteMedia,
   type Flow,
@@ -541,6 +543,60 @@ export default function Flows({
 
   function toggleCaptionTool(tool: Exclude<CaptionTool, "none">) {
     setActiveTool((current) => (current === tool ? "none" : tool));
+  }
+
+  function handleCancelFlow(flowIdToCancel: string) {
+    void perform(async () => {
+      cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(
+        key,
+        (previous) =>
+          previous
+            ? {
+                ...previous,
+                flows: previous.flows.map((f) =>
+                  f.id === flowIdToCancel ? { ...f, state: "stopped" } : f,
+                ),
+                report: previous.report
+                  ? {
+                      ...previous.report,
+                      flows: previous.report.flows.map((rf) =>
+                        rf.id === flowIdToCancel ? { ...rf, pending: 0 } : rf,
+                      ),
+                    }
+                  : null,
+              }
+            : previous,
+      );
+      await cancelFlow(flowIdToCancel);
+      await onCreated();
+      toast.success("Fluxo cancelado e envios pendentes interrompidos.");
+    });
+  }
+
+  function handleDeleteFlow(flowIdToDelete: string) {
+    void perform(async () => {
+      cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(
+        key,
+        (previous) =>
+          previous
+            ? {
+                ...previous,
+                flows: previous.flows.filter((f) => f.id !== flowIdToDelete),
+                report: previous.report
+                  ? {
+                      ...previous.report,
+                      flows: previous.report.flows.filter(
+                        (rf) => rf.id !== flowIdToDelete,
+                      ),
+                    }
+                  : null,
+              }
+            : previous,
+      );
+      await deleteFlow(flowIdToDelete, user?.id);
+      await onCreated();
+      toast.success("Fluxo apagado com sucesso.");
+    });
   }
 
   if (query.isLoading)
@@ -2108,6 +2164,102 @@ export default function Flows({
         </div>
       )}
 
+      {/* LISTA DIRETA DE FLUXOS NO MODO COMPOSER (Cancelar / Apagar sem precisar trocar de aba) */}
+      {workspace === "composer" && flows.length > 0 && (
+        <section
+          className="operation-panel ig-panel space-y-3"
+          aria-label="Fluxos criados"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">
+                Fluxos criados ({flows.length})
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                · {campaignStats.totalPending} envio(s) na fila
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWorkspace("campaigns")}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              Ver painel completo de campanhas
+            </button>
+          </div>
+
+          <div className="divide-y divide-border border-t border-border">
+            {flows.map((flow) => {
+              const summary = report?.flows.find((item) => item.id === flow.id);
+              const jobs = posts.filter((p) => p.flow_id === flow.id);
+              const done =
+                summary?.published ??
+                jobs.filter((p) => p.status === "published").length;
+              const pending =
+                summary?.pending ??
+                jobs.filter((p) => p.status === "scheduled").length;
+              const state = flow.state || "active";
+              const stateLabel = {
+                active: "Ativa",
+                paused: "Pausada",
+                stopped: "Cancelada",
+                completed: "Concluída",
+              }[state];
+              const canCancel =
+                pending > 0 || state === "active" || state === "paused";
+
+              return (
+                <div
+                  key={flow.id}
+                  className="ig-campaign-row"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`ig-state-dot is-${state}`}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {flow.name || "Campanha sem nome"}
+                      </span>
+                      <span className="chip">{stateLabel}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {done} publicado(s) · {pending} na fila
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    {canCancel && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        className="h-8 text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-300"
+                        onClick={() => handleCancelFlow(flow.id)}
+                      >
+                        <Ban size={13} className="mr-1.5" />
+                        Cancelar fluxo
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => handleDeleteFlow(flow.id)}
+                    >
+                      <Trash2 size={13} className="mr-1.5" />
+                      Apagar fluxo
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ====================================================================
           WORKSPACE 2: CAMPANHAS (Gestão linear, limpa e orientada a ações)
           ==================================================================== */}
@@ -2137,6 +2289,60 @@ export default function Flows({
                   onChange={(e) => setCampaignSearch(e.target.value)}
                   className="h-8 w-48 text-xs"
                 />
+              )}
+              {(campaignStats.active > 0 ||
+                campaignStats.paused > 0 ||
+                campaignStats.totalPending > 0) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  className="h-8 text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                  onClick={() =>
+                    void perform(async () => {
+                      const activeTargets = flows.filter(
+                        (f) =>
+                          !f.state ||
+                          f.state === "active" ||
+                          f.state === "paused",
+                      );
+                      await Promise.all(
+                        activeTargets.map((f) =>
+                          cancelFlow(f.id).catch(() => null),
+                        ),
+                      );
+                      await onCreated();
+                      toast.success("Todos os fluxos ativos foram cancelados.");
+                    })
+                  }
+                >
+                  <Ban size={13} className="mr-1.5" />
+                  Cancelar todos ativos
+                </Button>
+              )}
+              {campaignStats.done > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() =>
+                    void perform(async () => {
+                      const doneTargets = flows.filter(
+                        (f) =>
+                          f.state === "stopped" || f.state === "completed",
+                      );
+                      for (const f of doneTargets) {
+                        await deleteFlow(f.id, user?.id);
+                      }
+                      await onCreated();
+                      toast.success("Fluxos encerrados apagados.");
+                    })
+                  }
+                >
+                  <Trash2 size={13} className="mr-1.5" />
+                  Apagar encerrados
+                </Button>
               )}
               <Button
                 size="sm"
@@ -2190,7 +2396,7 @@ export default function Flows({
                 const stateLabel = {
                   active: "Ativa",
                   paused: "Pausada",
-                  stopped: "Encerrada",
+                  stopped: "Cancelada",
                   completed: "Concluída",
                 }[state];
 
@@ -2292,20 +2498,26 @@ export default function Flows({
                         state === "paused") && (
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           disabled={busy}
-                          className="h-8 text-xs text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            void perform(async () => {
-                              await cancelFlow(flow.id);
-                              await onCreated();
-                              toast.success("Envios pendentes cancelados.");
-                            })
-                          }
+                          className="h-8 text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-300"
+                          onClick={() => handleCancelFlow(flow.id)}
                         >
-                          {report ? "Encerrar campanha" : "Cancelar pendentes"}
+                          <Ban size={13} className="mr-1.5" />
+                          Cancelar fluxo
                         </Button>
                       )}
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDeleteFlow(flow.id)}
+                      >
+                        <Trash2 size={13} className="mr-1.5" />
+                        Apagar fluxo
+                      </Button>
                     </div>
                   </article>
                 );
