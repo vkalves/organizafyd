@@ -80,3 +80,12 @@
   .ig-accounts-bulk .ops-filter { max-width: none; flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .ig-accounts-manage svg { transition: none; } }
+
+.ig-account-avatar { overflow: hidden; }
+.ig-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ig-accounts-remove { color: #f0a7a7; }
+.ig-accounts-remove:hover { color: #ffcaca; background: #ef53500d; }
+.ig-account-details-footer { flex-wrap: wrap; }
+
+.ig-account-remove-confirm.silver-button { background: #b73535; color: #fff; border-color: #d34f4f; }
+.ig-account-remove-confirm.silver-button:hover:not(:disabled) { background: #c63d3d; border-color: #e16b6b; }

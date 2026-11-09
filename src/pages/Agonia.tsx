@@ -42,6 +42,10 @@ import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import "@/features/instagram-publisher/accounts-clean.css";
 import { useAuth } from "@/contexts/AuthContext";
+import { loadAccountPhotos } from "@/features/instagram-publisher/account-api";
+import { InstagramAccountAvatar } from "@/features/instagram-publisher/InstagramAccountAvatar";
+import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
+import type { PublisherAccount } from "@/features/instagram-publisher/api";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import Flows from "@/features/instagram-publisher/Flows";
 import { AgoniaAlerts } from "@/components/agonia/AgoniaAlerts";
@@ -197,6 +201,17 @@ export default function Agonia() {
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const links = useMemo(() => linksQuery.data ?? [], [linksQuery.data]);
   const posts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
+
+  const photoQueryKey = ["instagram-account-photos", user?.id, accounts.map((a) => a.id).join(",")];
+  const [photoRefreshBusy, setPhotoRefreshBusy] = useState(false);
+  const photosQuery = useQuery({
+    queryKey: photoQueryKey,
+    queryFn: () => loadAccountPhotos(accounts.map((a) => a.id)),
+    enabled: section === "instagram" && !!user && accounts.length > 0,
+    staleTime: 30 * 60_000,
+    retry: false,
+  });
+  const photoMap = useMemo(() => new Map((photosQuery.data || []).map((photo) => [photo.account_id, photo.avatar_url])), [photosQuery.data]);
 
   const monitor = useInstagramMonitor();
   const flowsQuery = useQuery({
@@ -402,11 +417,14 @@ export default function Agonia() {
       if (opsFilter === "CONNECTED" && (link?.paused || link?.reconnect_required)) return false;
       if (opsFilter === "REAUTH_REQUIRED" && !link?.reconnect_required) return false;
       if (opsFilter === "PAUSED" && !link?.paused) return false;
+      const health = healthMap.get(acc.id);
+      const hasAccessIssue = link?.reconnect_required || (health && health.state !== "healthy" && health.state !== "unknown") || activeAlerts.some((alert) => alert.account_id === acc.id);
+      if (opsFilter === "ATTENTION" && !hasAccessIssue) return false;
       const meta = accountMeta[acc.id];
       if (selectedAccountFolder !== "*" && (meta?.folder || "") !== selectedAccountFolder) return false;
       return !search || `${acc.username} ${meta?.customName || ""}`.toLocaleLowerCase("pt-BR").includes(search);
     });
-  }, [accounts, linkMap, opsFilter, opsSearch, accountMeta, selectedAccountFolder]);
+  }, [accounts, linkMap, opsFilter, opsSearch, accountMeta, selectedAccountFolder, healthMap, activeAlerts]);
 
   const stats = useMemo(() => {
     const scheduled = posts.filter(
@@ -1631,6 +1649,13 @@ export default function Agonia() {
                   <button type="button" className="ig-accounts-icon-button" aria-label="Mais ações das contas"><MoreHorizontal size={18} /></button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled={photoRefreshBusy || !accounts.length} onSelect={() => {
+                    setPhotoRefreshBusy(true);
+                    void loadAccountPhotos(accounts.map((a) => a.id), true).then((photos) => {
+                      queryClient.setQueryData(photoQueryKey, photos);
+                      toast.success("Fotos de perfil atualizadas.");
+                    }).catch((error) => toast.error(error instanceof Error ? error.message : "Não foi possível atualizar as fotos.")).finally(() => setPhotoRefreshBusy(false));
+                  }}>{photoRefreshBusy ? "Atualizando fotos…" : "Atualizar fotos de perfil"}</DropdownMenuItem>
                   <DropdownMenuItem disabled={opsBusy || !accounts.length} onSelect={() => void verifyAllAccounts()}><ShieldCheck className="mr-2 h-4 w-4" /> Verificar saúde das contas</DropdownMenuItem>
                   {links.some((l) => l.paused) && <DropdownMenuItem disabled={opsBusy} onSelect={() => void resumePausedAccounts()}>Verificar e reativar pausadas</DropdownMenuItem>}
                 </DropdownMenuContent>
@@ -1652,6 +1677,7 @@ export default function Agonia() {
               <option value="ALL">Status: todos</option>
               <option value="CONNECTED">Conectadas</option>
               <option value="REAUTH_REQUIRED">Reconexão necessária</option>
+              <option value="ATTENTION">Com problemas de acesso</option>
               <option value="PAUSED">Pausadas</option>
             </select>
             <button type="button" className="ig-accounts-text-button" onClick={() => setAddingAccountFolder((value) => !value)}><FolderPlus size={15} /> Nova pasta</button>
@@ -1745,7 +1771,7 @@ export default function Agonia() {
                     <div className="ig-account-main">
                       <input type="checkbox" aria-label={`Selecionar @${acc.username}`} checked={isSelected} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, acc.id])] : current.filter((id) => id !== acc.id))} />
                       <div className="ig-account-identity">
-                        <span className="ig-account-avatar" aria-hidden="true">{(savedCustomName || acc.username).slice(0, 2).toUpperCase()}</span>
+                        <InstagramAccountAvatar username={acc.username} name={savedCustomName} url={photoMap.get(acc.id) || acc.avatar_url} />
                         <div><strong>{savedCustomName || `@${acc.username}`}</strong><small>{savedCustomName ? `@${acc.username}` : currentFolder || "Sem pasta"}</small></div>
                       </div>
                       <div className="ig-account-state">
@@ -1778,6 +1804,16 @@ export default function Agonia() {
                               toast.success(link?.paused ? `Conta @${acc.username} retomada.` : `Conta @${acc.username} pausada.`);
                             } catch (error) { toast.error(error instanceof Error ? error.message : "Erro ao alterar pausa."); }
                           }}>{link?.paused ? "Retomar publicações" : "Pausar publicações"}</button>
+                          <RemoveInstagramAccount account={acc} onRemoved={async (id) => {
+                            setOpsSelectedIds((current) => current.filter((value) => value !== id));
+                            setReelAccountIds((current) => current.filter((value) => value !== id));
+                            setStoryAccountIds((current) => current.filter((value) => value !== id));
+                            setDiagAccountId((current) => current === id ? "" : current);
+                            setOpsExpandedAccountId(null);
+                            queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user?.id], (current) => current?.filter((item) => item.id !== id));
+                            await refreshAll();
+                            toast.success("Conta removida do DISPARA.");
+                          }} />
                         </div>
                         {link?.reconnect_required && <Link className="ig-accounts-text-button" to="/dispara/conectar">Reconectar esta conta <ArrowRight size={14} /></Link>}
                       </div>

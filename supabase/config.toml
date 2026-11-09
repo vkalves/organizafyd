@@ -23,3 +23,7 @@ verify_jwt = false
 # User POSTs validate auth.getUser; cron validates the existing Vault worker secret.
 [functions.instagram-monitor]
 verify_jwt = false
+
+# Every account-management action validates its JWT with auth.getUser.
+[functions.instagram-accounts]
+verify_jwt = false

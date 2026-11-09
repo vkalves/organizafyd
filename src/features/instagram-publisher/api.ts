@@ -6,6 +6,7 @@ export type PublisherAccount = {
   id: string;
   user_id: string;
   username: string;
+  avatar_url?: string | null;
   created_at?: string;
 };
 type Schema = {
@@ -180,7 +181,7 @@ export async function listAccounts(
   if (!links.length) return [];
   const { data, error } = await db
     .from("instagram_accounts")
-    .select("id,user_id,username,created_at")
+    .select("id,user_id,username,avatar_url,created_at")
     .eq("user_id", userId)
     .in(
       "id",
