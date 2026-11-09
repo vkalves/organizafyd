@@ -1342,64 +1342,27 @@ export default function Flows({
               </fieldset>
             </div>
 
-            {/* SEÇÃO 2: Programação (Quando + Cadência) */}
+            {/* SEÇÃO 2: Programação (Cadência) */}
             <div className="ig-composer-section space-y-3">
-              <div className="ig-flow-grid">
-                <fieldset>
-                  <legend>Quando publicar</legend>
-                  <div className="ig-segmented-full">
-                    <button
-                      type="button"
-                      aria-pressed={when === "now"}
-                      onClick={() => setWhen("now")}
-                    >
-                      Publicar agora
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={when === "schedule"}
-                      onClick={() => setWhen("schedule")}
-                    >
-                      Agendar
-                    </button>
-                  </div>
-                </fieldset>
-
-                <fieldset>
-                  <legend>Cadência</legend>
-                  <div className="ig-segmented-full">
-                    <button
-                      type="button"
-                      aria-pressed={scheduleMode === "gap"}
-                      onClick={() => setScheduleMode("gap")}
-                    >
-                      Intervalo (GAP)
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={scheduleMode === "slots"}
-                      onClick={() => setScheduleMode("slots")}
-                    >
-                      Horários fixos
-                    </button>
-                  </div>
-                </fieldset>
-              </div>
-
-              {when === "schedule" && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label htmlFor="flow-start" className="text-xs text-muted-foreground">
-                    Início do fluxo
-                  </Label>
-                  <Input
-                    id="flow-start"
-                    type="datetime-local"
-                    value={start}
-                    onChange={(e) => setStart(e.target.value)}
-                    className="h-8 w-auto text-xs"
-                  />
+              <fieldset className="border-0 p-0 m-0">
+                <legend className="ig-section-label mb-1.5">Cadência</legend>
+                <div className="ig-segmented-full">
+                  <button
+                    type="button"
+                    aria-pressed={scheduleMode === "gap"}
+                    onClick={() => setScheduleMode("gap")}
+                  >
+                    Intervalo (GAP)
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={scheduleMode === "slots"}
+                    onClick={() => setScheduleMode("slots")}
+                  >
+                    Horários fixos
+                  </button>
                 </div>
-              )}
+              </fieldset>
 
               {scheduleMode === "gap" ? (
                 <div className="space-y-2">
@@ -1996,6 +1959,44 @@ export default function Flows({
                 )}
               </div>
             )}
+
+            {/* SEÇÃO: Quando publicar (última opção antes do resumo) */}
+            <div className="ig-composer-section space-y-3">
+              <fieldset className="border-0 p-0 m-0">
+                <legend className="ig-section-label mb-1.5">Quando publicar</legend>
+                <div className="ig-segmented-full">
+                  <button
+                    type="button"
+                    aria-pressed={when === "now"}
+                    onClick={() => setWhen("now")}
+                  >
+                    Publicar agora
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={when === "schedule"}
+                    onClick={() => setWhen("schedule")}
+                  >
+                    Agendar
+                  </button>
+                </div>
+              </fieldset>
+
+              {when === "schedule" && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label htmlFor="flow-start" className="text-xs text-muted-foreground">
+                    Início do fluxo
+                  </Label>
+                  <Input
+                    id="flow-start"
+                    type="datetime-local"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    className="h-8 w-auto text-xs"
+                  />
+                </div>
+              )}
+            </div>
 
             {/* SEÇÃO 5: Resumo Enxuto + Ação Principal Única */}
             <div className="ig-composer-section space-y-2.5 pt-3">
