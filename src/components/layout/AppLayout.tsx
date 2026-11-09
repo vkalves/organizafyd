@@ -3,6 +3,7 @@ import { InstagramAlerts, useInstagramMonitor } from "@/features/instagram-publi
 import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
   LayoutDashboard,
+  BarChart3,
   Settings,
   Menu,
   PanelLeftClose,
@@ -71,6 +72,7 @@ const agoniaSections: NavSection[] = [
   {
     label: "Conta",
     items: [
+      { title: "Visualizações", path: "/agonia/visualizacoes", icon: BarChart3 },
       { title: "Configurações", path: "/agonia/settings", icon: Settings },
       { title: "Meu Perfil", path: "/agonia/profile", icon: UserRound },
     ],
