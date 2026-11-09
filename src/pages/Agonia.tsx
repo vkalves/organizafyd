@@ -2966,17 +2966,17 @@ export default function Agonia() {
               </h3>
               <p>
                 Publique Stories com link clicável e personalize o sticker
-                diretamente no Instagram Web com suporte a postar em todas as contas conectadas simultaneamente.
+                diretamente no Instagram Web.
               </p>
               <a
                 className="button button-primary"
-                href="/extensions/storys-com-link.zip"
-                download
+                href="/extensions/storys-com-link.zip?v=0.7.0-0c2d8c90"
+                download="storys-com-link.zip"
               >
-                <Download className="h-4 w-4" /> Baixar extensão Storys Com Link (v0.8.0)
+                <Download className="h-4 w-4" /> Baixar extensão Storys Com Link (v0.7.0)
               </a>
               <span className="story-link-version">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Versão 0.8.0 (Multi-Contas) pronta
+                <CheckCircle2 className="h-3.5 w-3.5" /> Versão 0.7.0 pronta
                 para Chrome e Edge
               </span>
             </div>
@@ -2998,8 +2998,8 @@ export default function Agonia() {
             </div>
             <div>
               <Users className="h-5 w-5" />
-              <strong>Multi-contas simultâneo</strong>
-              <span>Poste em todas as contas conectadas de uma vez</span>
+              <strong>Instagram Web</strong>
+              <span>Publique na conta aberta no navegador</span>
             </div>
           </div>
 
@@ -3043,7 +3043,7 @@ export default function Agonia() {
                 [
                   "6",
                   "Abra o Instagram",
-                  "Entre na conta desejada ou conecte várias contas no Instagram Web para postar em todas simultaneamente.",
+                  "Entre na conta do Instagram em que deseja publicar.",
                 ],
               ].map(([num, title, desc]) => (
                 <article key={num} className="story-link-step">
