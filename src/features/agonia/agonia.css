@@ -2936,14 +2936,18 @@
     flex: 1;
     justify-content: center;
   }
+  .agonia-root .performance-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
   .agonia-root .performance-summary-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     width: 100%;
   }
   .agonia-root .performance-total {
     min-width: 0;
-    width: 100%;
+    width: auto;
   }
   .agonia-root .performance-highlights {
     grid-template-columns: 1fr;

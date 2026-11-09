@@ -1054,41 +1054,24 @@ export default function Agonia() {
             </Link>
           </section>
 
-          {/* 2. RANKING DE CONTAS POR VISUALIZAÇÕES DE VÍDEOS */}
+          {/* 2. RANKING DE CONTAS POR VISUALIZAÇÃO TOTAL DE REELS */}
           <section className="panel performance-panel">
             <div className="panel-header performance-header">
               <div>
                 <div className="eyebrow">
                   <Trophy className="h-3.5 w-3.5 text-amber-400" /> Ranking de Contas
                 </div>
-                <h2 className="performance-title">Ranking por visualizações de vídeos</h2>
+                <h2 className="performance-title">Ranking por visualização total de reels</h2>
                 <p className="panel-copy">
-                  Classificação das contas conectadas ordenada pelo total de visualizações de vídeos.
+                  Classificação das contas conectadas ordenada pela visualização total de reels.
                 </p>
               </div>
               <div className="performance-summary-group">
-                <div className="performance-total" title="Total de visualizações de vídeos da seleção">
+                <div className="performance-total" title="Visualização total de reels">
                   <Play className="h-3.5 w-3.5 text-emerald-400" />
                   <strong>{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</strong>
-                  <span>views</span>
+                  <span>visualização total de reels</span>
                 </div>
-                <Link
-                  to="/agonia/alertas"
-                  className={`performance-total hover:border-white/20 transition-all text-inherit ${
-                    accountViewsMetrics.accountsWithWarningCount > 0 ? "performance-total-warning" : ""
-                  }`}
-                  title="Total de contas com aviso ou pendência"
-                >
-                  <AlertTriangle
-                    className={`h-3.5 w-3.5 ${
-                      accountViewsMetrics.accountsWithWarningCount > 0 ? "text-rose-400" : "text-muted-foreground"
-                    }`}
-                  />
-                  <strong>{accountViewsMetrics.accountsWithWarningCount}</strong>
-                  <span>
-                    {accountViewsMetrics.accountsWithWarningCount === 1 ? "aviso" : "avisos"}
-                  </span>
-                </Link>
               </div>
             </div>
 
@@ -1122,7 +1105,7 @@ export default function Agonia() {
                   </strong>
                   <span>
                     {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
-                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de vídeos`
+                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de Reels`
                       : "0 visualizações"}
                   </span>
                 </div>
@@ -1152,7 +1135,7 @@ export default function Agonia() {
 
             {accounts.length === 0 ? (
               <div className="empty">
-                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar o ranking por visualizações.
+                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar o ranking por visualização total de reels.
               </div>
             ) : accountViewsMetrics.rows.length === 0 ? (
               <div className="empty">
@@ -1165,7 +1148,7 @@ export default function Agonia() {
               <div
                 className="performance-list"
                 role="list"
-                aria-label="Ranking de contas por visualizações de vídeos"
+                aria-label="Ranking de contas por visualização total de reels"
               >
                 {accountViewsMetrics.rows.map((row, index) => (
                   <div
@@ -1177,15 +1160,10 @@ export default function Agonia() {
                       <div className="flex items-center gap-2 min-w-0">
                         {getRankBadge(index + 1)}
                         <span className="truncate">@{row.username}</span>
-                        {row.hasWarning && (
-                          <span className="rounded-md bg-rose-950/70 border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300 font-mono shrink-0 flex items-center gap-1">
-                            <AlertTriangle className="h-2.5 w-2.5 text-rose-400" /> Aviso
-                          </span>
-                        )}
                       </div>
                       <strong>
                         {row.views.toLocaleString("pt-BR")}{" "}
-                        <span className="text-[10px] font-normal text-muted-foreground">views</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">reels</span>
                       </strong>
                     </div>
                     <div className="performance-track" aria-hidden="true">
@@ -1208,7 +1186,7 @@ export default function Agonia() {
 
             <div className="performance-footer">
               <span>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Critério de ordenação: visualizações de Reels e vídeos
+                <CheckCircle2 className="h-3.5 w-3.5" /> Critério de ordenação: visualização total de reels
               </span>
               <span>
                 {accountViewsMetrics.rows.length} conta(s) no ranking · Filtro: {selectedModelLabel}
