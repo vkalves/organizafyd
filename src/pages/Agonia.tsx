@@ -5,12 +5,15 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   CalendarClock,
   CheckCircle2,
   Copy,
   Download,
   ExternalLink,
+  Eye,
   Film,
+  Heart,
   Image as ImageIcon,
   Instagram,
   Layers,
@@ -354,6 +357,15 @@ export default function Agonia() {
   }, [accounts.length, posts]);
 
   // Métricas de visualização de Reels & alertas das contas conectadas
+  // Período do dashboard (apenas layout; dados de métricas serão ligados depois)
+  const [dashPeriod, setDashPeriod] = useState<"today" | "yesterday" | "7d">("today");
+  const dashPeriodLabel = { today: "Hoje", yesterday: "Ontem", "7d": "7 dias" }[dashPeriod];
+  const dashHour = new Date().getHours();
+  const dashGreeting = dashHour < 12 ? "Bom dia" : dashHour < 18 ? "Boa tarde" : "Boa noite";
+  const dashDate = new Date()
+    .toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    .toUpperCase();
+
   const accountViewsMetrics = useMemo(() => {
     // Preparado para receber views_count/reels_views das contas conectadas quando a API fornecer
     const rows = accounts.map((acc) => {
@@ -899,11 +911,10 @@ export default function Agonia() {
           <header className="topbar">
             <div>
               <div className="eyebrow">Visão geral</div>
-              <h1 className="page-title">Olá, {profile.username}.</h1>
-              <p className="page-subtitle">
-                Seu centro de publicação oficial, organizado para você pensar no
-                conteúdo.
-              </p>
+              <h1 className="page-title">
+                {dashGreeting}, <span className="dash-accent">{profile.username}</span>
+              </h1>
+              <p className="dash-date">{dashDate}</p>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/agonia/fluxos">
@@ -1087,36 +1098,58 @@ export default function Agonia() {
             </div>
           </section>
 
+          <div className="dash-metrics-head">
+            <div className="dash-metrics-label">
+              <BarChart3 className="h-3.5 w-3.5" /> Métricas
+              <span className="dash-accent">· {dashPeriodLabel}</span>
+            </div>
+            <div className="period-tabs" role="tablist" aria-label="Período">
+              {([["today", "Hoje"], ["yesterday", "Ontem"], ["7d", "7 dias"]] as const).map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={dashPeriod === k}
+                  className={dashPeriod === k ? "is-active" : ""}
+                  onClick={() => setDashPeriod(k)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <section className="grid stats-grid">
-            <Link to="/agonia/instagram" className="stat-card hover:border-white/20 transition-all text-inherit">
+            <Link to="/agonia/instagram" className="stat-card tone-purple">
+              <span className="stat-icon"><Instagram className="h-4 w-4" /></span>
               <div className="label">Contas conectadas</div>
               <div className="value">{stats.connected}</div>
-              <div className="hint">
-                <Instagram className="h-3.5 w-3.5" /> contas profissionais
-              </div>
             </Link>
-            <Link to="/agonia/scheduled" className="stat-card hover:border-white/20 transition-all text-inherit">
+            <Link to="/agonia/scheduled" className="stat-card tone-blue">
+              <span className="stat-icon"><CalendarClock className="h-4 w-4" /></span>
               <div className="label">Reels agendados</div>
               <div className="value">{stats.scheduled}</div>
-              <div className="hint">
-                <CalendarClock className="h-3.5 w-3.5" /> na fila de publicação
-              </div>
             </Link>
-            <div className="stat-card">
+            <div className="stat-card tone-purple">
+              <span className="stat-icon"><Eye className="h-4 w-4" /></span>
+              <div className="label">Views Reels</div>
+              <div className="value">{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="stat-card tone-blue">
+              <span className="stat-icon"><Heart className="h-4 w-4" /></span>
+              <div className="label">Curtidas Reels</div>
+              <div className="value">0</div>
+            </div>
+            <div className="stat-card tone-green">
+              <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>
               <div className="label">Publicados hoje</div>
               <div className="value">{stats.publishedToday}</div>
-              <div className="hint">
-                <CheckCircle2 className="h-3.5 w-3.5" /> aceitos pela Meta
-              </div>
             </div>
-            <Link to="/agonia/alertas" className="stat-card hover:border-white/20 transition-all text-inherit">
-              <div className="label">Alertas de Contas</div>
-              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400 font-bold" : ""}`}>
+            <Link to="/agonia/alertas" className="stat-card tone-red">
+              <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
+              <div className="label">Alertas de contas</div>
+              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400" : ""}`}>
                 {activeAlerts.length || stats.failed}
-              </div>
-              <div className="hint">
-                <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />{" "}
-                {activeAlerts.length > 0 ? `${activeAlerts.length} alerta(s) ativo(s)` : "precisam de atenção"}
               </div>
             </Link>
           </section>
