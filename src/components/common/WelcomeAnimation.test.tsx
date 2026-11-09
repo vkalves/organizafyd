@@ -9,7 +9,7 @@ describe("Boas-vindas DISPARA", () => {
     vi.useFakeTimers();
     const view = render(<WelcomeAnimation />);
     expect(screen.getByRole("dialog")).toHaveAccessibleName("Bem-vindo ao DISPARA");
-    act(() => vi.advanceTimersByTime(5500));
+    act(() => vi.advanceTimersByTime(1800));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     view.rerender(<WelcomeAnimation />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
