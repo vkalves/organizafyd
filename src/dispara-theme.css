@@ -57,8 +57,7 @@ body .workspace-shell .ig-stat,
 body .workspace-shell .agonia-root .button-primary,
 body .workspace-shell .agonia-root .button-mint,
 body .workspace-shell .silver-button,
-.tt-public .tt-public-button,
-.welcome-stage-enter {
+.tt-public .tt-public-button {
   background: var(--chrome-fill);
   color: #111419;
   border: 1px solid #d4dce7;
