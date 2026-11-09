@@ -1,0 +1,35 @@
+.welcome-animation {
+  position: fixed;
+  z-index: 60;
+  top: max(1rem, env(safe-area-inset-top));
+  left: 50%;
+  width: min(420px, calc(100% - 2rem));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 8px 32px #0003;
+  animation: welcome-enter 450ms ease-out both;
+}
+.welcome-animation-icon { flex-shrink: 0; color: hsl(var(--primary)); }
+.welcome-animation strong { font-size: 0.95rem; }
+.welcome-animation p { margin: 0.25rem 0 0; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.welcome-animation button { margin-left: auto; flex-shrink: 0; display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 0.5rem; }
+.welcome-animation button:hover { background: hsl(var(--muted)); }
+.welcome-animation button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
+.welcome-animation-progress { position: absolute; inset: auto 0 0; height: 2px; background: hsl(var(--primary)); transform-origin: left; animation: welcome-countdown 4s linear both; }
+@keyframes welcome-enter {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes welcome-countdown { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-animation { animation: none; }
+  .welcome-animation-progress { display: none; }
+}

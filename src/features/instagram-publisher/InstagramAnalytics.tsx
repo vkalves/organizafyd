@@ -86,24 +86,30 @@ export function InstagramAnalytics() {
     report.data?.accounts.filter(
       (a) => account === "all" || a.account_id === account,
     ) ?? [];
-  const cutoff = period === "all" ? 0 : Date.now() - Number(period) * 86400000;
+  const cutoff = period === "all" ? -Infinity : Date.now() - Number(period) * 86400000;
+  const now = Date.now();
   const videos = accounts
     .flatMap((a) => a.videos)
-    .filter((v) => Date.parse(v.timestamp) >= cutoff);
+    .filter((v) => Date.parse(v.timestamp) >= cutoff && Date.parse(v.timestamp) <= now);
   const measured = videos
     .filter((v): v is VideoMetric & { views: number } => v.views !== null)
     .sort((a, b) => b.views - a.views);
   const total = measured.reduce((sum, v) => sum + v.views, 0);
+  const accountTotals = accounts.map((a) => {
+    const rows = measured.filter((v) => v.account_id === a.account_id);
+    return { ...a, count: rows.length, total: rows.reduce((sum, v) => sum + v.views, 0) };
+  }).sort((a, b) => b.total - a.total);
+  const maxAccountViews = Math.max(1, ...accountTotals.map((a) => a.total));
   const name = (id: string) =>
     "@" +
     (names.data?.find((a) => a.id === id)?.username.replace(/^@/, "") ||
-      "perfil");
+      id);
   return (
     <section
       className="operation-panel ig-panel space-y-6"
       aria-label="Analytics do Instagram"
     >
-      <div className="ig-panel-head">
+      <div className="ig-panel-head flex-wrap">
         <div>
           <p className="ig-eyebrow">Performance · todas as contas</p>
           <h2>Visualizações dos seus vídeos</h2>
@@ -114,16 +120,16 @@ export function InstagramAnalytics() {
         <Button
           variant="outline"
           disabled={report.isFetching || loadingMore}
-          onClick={() => void report.refetch()}
+          onClick={() => { void names.refetch(); void report.refetch(); }}
         >
           {report.isFetching ? "Atualizando…" : "Atualizar métricas"}
         </Button>
       </div>
       <div className="flex flex-wrap gap-4">
-        <label className="text-sm">
+        <label className="min-w-0 max-w-full text-sm">
           Vídeos publicados
           <select
-            className="block rounded-md border bg-background p-2"
+            className="block max-w-full rounded-md border bg-background p-2"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           >
@@ -132,10 +138,10 @@ export function InstagramAnalytics() {
             <option value="30">Últimos 30 dias</option>
           </select>
         </label>
-        <label className="text-sm">
+        <label className="min-w-0 max-w-full text-sm">
           Conta
           <select
-            className="block rounded-md border bg-background p-2"
+            className="block max-w-full rounded-md border bg-background p-2"
             value={account}
             onChange={(e) => setAccount(e.target.value)}
           >
@@ -148,12 +154,20 @@ export function InstagramAnalytics() {
           </select>
         </label>
       </div>
+      {names.isError && (
+        <p role="alert">Não foi possível carregar os nomes das contas. Atualize as métricas para tentar novamente.</p>
+      )}
       {report.isPending ? (
         <p role="status">Consultando visualizações no Instagram…</p>
       ) : report.isError ? (
         <p role="alert">
           Não foi possível carregar as métricas. Tente atualizar novamente.
         </p>
+      ) : !report.data?.accounts.length ? (
+        <div className="rounded-xl border p-6 text-sm space-y-3">
+          <p>Nenhuma conta do Instagram conectada para analisar.</p>
+          <a className="underline" href="/agonia/conectar">Conectar conta do Instagram</a>
+        </div>
       ) : (
         <>
           {!!accounts.some((a) => !a.complete || a.unavailable) && (
@@ -224,7 +238,7 @@ export function InstagramAnalytics() {
                     />
                   )}
                   <div className="min-w-0 flex-1">
-                    <strong>{name(v.account_id)}</strong>
+                    <strong className="block truncate">{name(v.account_id)}</strong>
                     <p className="truncate text-sm text-muted-foreground">
                       {v.caption}
                     </p>
@@ -250,6 +264,19 @@ export function InstagramAnalytics() {
             </ol>
           )}
           <h3 className="font-medium">Relatório por conta</h3>
+          <div className="space-y-4" role="img" aria-label="Comparação das visualizações acumuladas por conta; valores detalhados na tabela abaixo">
+            {accountTotals.filter((a) => a.count > 0).map((a) => (
+              <div key={a.account_id} className="space-y-1">
+                <div className="flex min-w-0 justify-between gap-3 text-sm">
+                  <span className="truncate">{name(a.account_id)}</span>
+                  <span>{number(a.total)}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${a.total / maxAccountViews * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="ig-table-scroll">
             <table className="ig-table">
               <thead>
@@ -257,22 +284,21 @@ export function InstagramAnalytics() {
                   <th>Conta</th>
                   <th>Visualizações acumuladas</th>
                   <th>Vídeos com métricas</th>
+                  <th>Consulta</th>
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((a) => {
-                  const rows = measured.filter(
-                    (v) => v.account_id === a.account_id,
-                  );
+                {accountTotals.map((a) => {
                   return (
                     <tr key={a.account_id}>
                       <td>{name(a.account_id)}</td>
                       <td>
-                        {rows.length
-                          ? number(rows.reduce((sum, v) => sum + v.views, 0))
+                        {a.count
+                          ? number(a.total)
                           : "Indisponível"}
                       </td>
-                      <td>{rows.length}</td>
+                      <td>{a.count}</td>
+                      <td>{a.unavailable ? "Conta indisponível" : !a.complete ? "Consulta parcial" : "Consulta concluída"}</td>
                     </tr>
                   );
                 })}

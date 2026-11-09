@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { WelcomeAnimation } from "@/components/common/WelcomeAnimation";
 
 const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
@@ -35,6 +36,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <WelcomeAnimation />
           <Suspense fallback={<AppLoading />}>
             <Routes>
               {["/sobre", "/privacidade", "/termos", "/exclusao-de-dados", "/contato"].map(path => <Route key={path} path={path} element={<PublicInfo />} />)}

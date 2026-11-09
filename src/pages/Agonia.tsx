@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -77,7 +77,10 @@ import {
 } from "@/features/agonia/schedule";
 import "@/features/agonia/agonia.css";
 
+const AccountViews = lazy(() => import("@/features/instagram-publisher/AccountViews"));
+
 type Section =
+  | "visualizacoes"
   | "dashboard"
   | "fluxos"
   | "alertas"
@@ -93,6 +96,7 @@ type Section =
   | "profile";
 
 const VALID_SECTIONS = new Set<Section>([
+  "visualizacoes",
   "dashboard",
   "fluxos",
   "alertas",
@@ -1116,6 +1120,11 @@ export default function Agonia() {
 
   return (
     <div className="agonia-root">
+      {section === "visualizacoes" && (
+        <Suspense fallback={<p role="status">Carregando análise de visualizações…</p>}>
+          <AccountViews />
+        </Suspense>
+      )}
       {/* 1. DASHBOARD */}
       {section === "dashboard" && (
         <>
