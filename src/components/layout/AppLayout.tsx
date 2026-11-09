@@ -52,29 +52,29 @@ interface NavSection {
 const agoniaSections: NavSection[] = [
   {
     items: [
-      { title: "Dashboard", path: "/disparo", icon: LayoutDashboard, exact: true },
-      { title: "Modo Fluxo", path: "/disparo/fluxos", icon: Layers },
-      { title: "Alertas", path: "/disparo/alertas", icon: AlertTriangle },
-      { title: "Conectar", path: "/disparo/conectar", icon: PlugZap },
+      { title: "Dashboard", path: "/dispara", icon: LayoutDashboard, exact: true },
+      { title: "Modo Fluxo", path: "/dispara/fluxos", icon: Layers },
+      { title: "Alertas", path: "/dispara/alertas", icon: AlertTriangle },
+      { title: "Conectar", path: "/dispara/conectar", icon: PlugZap },
     ],
   },
   {
     label: "Publicação",
     items: [
-      { title: "Instagram", path: "/disparo/instagram", icon: Instagram },
-      { title: "Novo Reel", path: "/disparo/reels-new", icon: PlusCircle },
-      { title: "Stories", path: "/disparo/stories", icon: Image },
-      { title: "Stories c/ Link", path: "/disparo/stories-link", icon: Link2 },
-      { title: "Agendamentos", path: "/disparo/scheduled", icon: CalendarClock },
-      { title: "Publicados", path: "/disparo/reels", icon: Film, matchPaths: ["/disparo/reels", "/disparo/reels-test"] },
+      { title: "Instagram", path: "/dispara/instagram", icon: Instagram },
+      { title: "Novo Reel", path: "/dispara/reels-new", icon: PlusCircle },
+      { title: "Stories", path: "/dispara/stories", icon: Image },
+      { title: "Stories c/ Link", path: "/dispara/stories-link", icon: Link2 },
+      { title: "Agendamentos", path: "/dispara/scheduled", icon: CalendarClock },
+      { title: "Publicados", path: "/dispara/reels", icon: Film, matchPaths: ["/dispara/reels", "/dispara/reels-test"] },
     ],
   },
   {
     label: "Conta",
     items: [
-      { title: "Visualizações", path: "/disparo/visualizacoes", icon: BarChart3 },
-      { title: "Configurações", path: "/disparo/settings", icon: Settings },
-      { title: "Meu Perfil", path: "/disparo/profile", icon: UserRound },
+      { title: "Visualizações", path: "/dispara/visualizacoes", icon: BarChart3 },
+      { title: "Configurações", path: "/dispara/settings", icon: Settings },
+      { title: "Meu Perfil", path: "/dispara/profile", icon: UserRound },
     ],
   },
 ];
@@ -87,7 +87,7 @@ function AgoniaBrand({ compact = false }: { compact?: boolean }) {
 
 function isItemActive(item: NavItem, pathname: string) {
   if (item.exact) {
-    return pathname === "/" || pathname === "/disparo" || pathname === "/disparo/";
+    return pathname === "/" || pathname === "/dispara" || pathname === "/dispara/";
   }
   if (item.matchPaths) return item.matchPaths.includes(pathname);
   return pathname === item.path;
@@ -117,7 +117,7 @@ function SideNav({
           )}
           {section.items.map((item) => {
             const isActive = isItemActive(item, location.pathname);
-            const showAlertBadge = item.path === "/disparo/alertas" && unreadAlertsCount > 0;
+            const showAlertBadge = item.path === "/dispara/alertas" && unreadAlertsCount > 0;
             return (
               <NavLink
                 key={item.path}
@@ -232,7 +232,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
-    if (location.pathname === "/disparo/reels-test") return "Diagnóstico de Publicação";
+    if (location.pathname === "/dispara/reels-test") return "Diagnóstico de Publicação";
     const match = agoniaNavItems.find((item) =>
       isItemActive(item, location.pathname),
     );
@@ -271,10 +271,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="shell-rail-top">
             <NavLink
-              to="/disparo"
+              to="/dispara"
               className="shell-brand"
-              title="DISPARO · Dashboard"
-              aria-label="DISPARO · Dashboard"
+              title="DISPARA · Dashboard"
+              aria-label="DISPARA · Dashboard"
             >
               <AgoniaBrand compact={!desktopSidebarOpen} />
             </NavLink>
@@ -301,7 +301,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="shell-rail-footer">
             <NavLink
-              to="/disparo/profile"
+              to="/dispara/profile"
               className={cn("shell-rail-account", !desktopSidebarOpen && "is-collapsed")}
               title={`${displayName} · Configurações`}
               aria-label="Perfil e configurações"
@@ -350,7 +350,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           <div className="shell-header-title">
-            <span className="shell-eyebrow">DISPARO</span>
+            <span className="shell-eyebrow">DISPARA</span>
             <span className="shell-current-page">{currentPage}</span>
           </div>
 
@@ -383,9 +383,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="shell-mobile-brand">
                 <NavLink
-                  to="/disparo"
+                  to="/dispara"
                   onClick={() => setMobileMenuOpen(false)}
-                  aria-label="DISPARO"
+                  aria-label="DISPARA"
                 >
                   <AgoniaBrand />
                 </NavLink>
@@ -405,7 +405,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
               <div className="shell-mobile-account">
                 <NavLink
-                  to="/disparo/profile"
+                  to="/dispara/profile"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex min-w-0 flex-1 items-center gap-2.5"
                 >

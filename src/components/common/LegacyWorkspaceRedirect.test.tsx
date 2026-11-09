@@ -9,14 +9,16 @@ function Destination() {
   return <p>{pathname}{search}{hash}</p>;
 }
 for (const [from, to] of [
-  ["/agonia", "/disparo"],
-  ["/agonia/visualizacoes?conta=1#ranking", "/disparo/visualizacoes?conta=1#ranking"],
-  ["/agonia/fluxos", "/disparo/fluxos"],
+  ["/agonia", "/dispara"],
+  ["/agonia/visualizacoes?conta=1#ranking", "/dispara/visualizacoes?conta=1#ranking"],
+  ["/agonia/fluxos", "/dispara/fluxos"],
+  ["/disparo/visualizacoes?conta=1#ranking", "/dispara/visualizacoes?conta=1#ranking"],
 ]) {
   it(`preserva o acesso antigo ${from}`, () => {
     render(<MemoryRouter initialEntries={[from]}><Routes>
       <Route path="/agonia/*" element={<LegacyWorkspaceRedirect />} />
-      <Route path="/disparo/*" element={<Destination />} />
+      <Route path="/disparo/*" element={<LegacyWorkspaceRedirect />} />
+      <Route path="/dispara/*" element={<Destination />} />
     </Routes></MemoryRouter>);
     expect(screen.getByText(to)).toBeInTheDocument();
   });

@@ -68,14 +68,14 @@ export default async function handler(req, res) {
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: Inter, system-ui, sans-serif; background:#0b0b0b; color:#fff; }
-    header { border-bottom:1px solid #292929; padding:16px 24px; font-weight:700; letter-spacing:.04em; }
+    body { margin:0; font-family: Inter, system-ui, sans-serif; background:#08090b; color:#eef1f5; }
+    header { background:linear-gradient(120deg,#232a34,#101318); border-bottom:1px solid #667386; padding:16px 24px; font-weight:700; letter-spacing:.04em; }
     main { max-width:72rem; margin:0 auto; padding:24px; }
     h1 { font-size:1.5rem; margin:0; }
     .sub { color:#888; font-size:.875rem; margin:8px 0 24px; }
     .cards { display:grid; grid-template-columns:1fr; gap:16px; }
     @media (min-width:1024px) { .cards { grid-template-columns:1fr 1fr; } }
-    .card { background:#111; border:1px solid #292929; border-radius:10px; padding:20px; }
+    .card { background:linear-gradient(145deg,#242a33,#101318); box-shadow:inset 0 1px 0 #ffffff16; border:1px solid #454f5e; border-radius:10px; padding:20px; }
     h2 { font-size:.875rem; margin:0 0 16px; }
     .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
     @media (min-width:640px) { .grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
   </style>
 </head>
 <body>
-  <header>DISPARO</header>
+  <header>DISPARA</header>
   <main>
     <h1>Referências e Original</h1>
     <p class="sub">Somente visualização</p>

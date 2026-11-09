@@ -44,12 +44,13 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/instagram/conectar" element={<InstagramConnect />} />
-              <Route path="/" element={<Navigate to="/disparo" replace />} />
-              <Route path="/disparo" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
-              <Route path="/disparo/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/" element={<Navigate to="/dispara" replace />} />
+              <Route path="/dispara" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/dispara/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
               <Route path="/agonia/*" element={<LegacyWorkspaceRedirect />} />
+              <Route path="/disparo/*" element={<LegacyWorkspaceRedirect />} />
               {["/tarefas", "/notas", "/slides", "/mapas", "/config", "/instagram", "/instagram/*", "/tiktok", "/x"].map(path => (
-                <Route key={path} path={path} element={<Navigate to="/disparo" replace />} />
+                <Route key={path} path={path} element={<Navigate to="/dispara" replace />} />
               ))}
               <Route path="*" element={<NotFound />} />
             </Routes>
