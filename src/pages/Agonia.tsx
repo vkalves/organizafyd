@@ -87,8 +87,10 @@ import {
 import "@/features/agonia/agonia.css";
 
 const AccountViews = lazy(() => import("@/features/instagram-publisher/AccountViews"));
+const MetaDeveloper = lazy(() => import("@/features/meta-developer/MetaDeveloper"));
 
 type Section =
+  | "meta-developer"
   | "visualizacoes"
   | "dashboard"
   | "fluxos"
@@ -105,6 +107,7 @@ type Section =
   | "profile";
 
 const VALID_SECTIONS = new Set<Section>([
+  "meta-developer",
   "visualizacoes",
   "dashboard",
   "fluxos",
@@ -1158,6 +1161,11 @@ export default function Agonia() {
 
   return (
     <div className="agonia-root">
+      {section === "meta-developer" && (
+        <Suspense fallback={<p role="status">Carregando guia de integração…</p>}>
+          <MetaDeveloper onConnected={refreshAll} />
+        </Suspense>
+      )}
       {section === "visualizacoes" && (
         <Suspense fallback={<p role="status">Carregando análise de visualizações…</p>}>
           <AccountViews />
@@ -1179,6 +1187,11 @@ export default function Agonia() {
               </Link>
             </div>
           </header>
+
+          <Link to="/dispara/meta-developer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "17px 21px" }}>
+            <div><strong>Primeiro acesso? Conecte seu Instagram</strong><p className="panel-copy">Abra o guia Meta Developer e siga um passo de cada vez.</p></div>
+            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+          </Link>
 
           {/* 1. MÉTRICAS NO TOPO */}
           <div className="dash-metrics-head">
@@ -1578,6 +1591,11 @@ export default function Agonia() {
             </div>
             <ConnectAccount onConnected={refreshAll} />
           </header>
+
+          <Link to="/dispara/meta-developer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "17px 21px" }}>
+            <div><strong>Precisa de ajuda com a Meta?</strong><p className="panel-copy">Guia com exemplos para conectar sua conta ou configurar um app.</p></div>
+            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+          </Link>
 
           <section className="panel">
             <div className="panel-header">
