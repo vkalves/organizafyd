@@ -19,6 +19,7 @@ import {
   Film,
   UserRound,
   Layers,
+  Code2,
   AlertTriangle,
   MoreHorizontal,
   ExternalLink,
@@ -56,6 +57,7 @@ const agoniaSections: NavSection[] = [
       { title: "Modo Fluxo", path: "/dispara/fluxos", icon: Layers },
       { title: "Alertas", path: "/dispara/alertas", icon: AlertTriangle },
       { title: "Conectar", path: "/dispara/conectar", icon: PlugZap },
+      { title: "Meta Developer", path: "/dispara/meta-developer", icon: Code2 },
     ],
   },
   {
