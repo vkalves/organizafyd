@@ -45,6 +45,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loadAccountPhotos } from "@/features/instagram-publisher/account-api";
 import { InstagramAccountAvatar } from "@/features/instagram-publisher/InstagramAccountAvatar";
 import { AccountNotes } from "@/features/instagram-publisher/AccountNotes";
+import { useInstagramAnalytics } from "@/features/instagram-publisher/useInstagramAnalytics";
+import { accountViewsRanking } from "@/features/instagram-publisher/account-views-ranking";
+import "@/features/instagram-publisher/account-views-ranking.css";
 import { StoryLinkExtension } from "@/features/instagram-publisher/StoryLinkExtension";
 import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
 import type { PublisherAccount } from "@/features/instagram-publisher/api";
@@ -521,69 +524,14 @@ export default function Agonia() {
     return "Olá! Seu espaço está pronto.";
   }, [dashHour]);
 
+  const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews } = useInstagramAnalytics(user?.id, section === "dashboard");
   const accountViewsMetrics = useMemo(() => {
-    // Preparado para receber views_count/reels_views das contas conectadas quando a API fornecer
-    const rows = accounts.map((acc) => {
-      const rawViews = (acc as any).reels_views ?? (acc as any).views_count ?? 0;
-      const h = healthMap.get(acc.id);
-      const conn = links.find((c) => c.account_id === acc.id);
-      const hasWarning =
-        (h && h.state !== "healthy" && h.state !== "unknown") ||
-        conn?.reconnect_required ||
-        activeAlerts.some((alert) => alert.account_id === acc.id);
-
-      const modelVal =
-        (acc as any).model ??
-        (acc as any).model_name ??
-        (acc as any).model_id ??
-        null;
-
-      return {
-        id: acc.id,
-        username: acc.username,
-        model: modelVal,
-        views: Number(rawViews) || 0,
-        hasWarning: Boolean(hasWarning),
-      };
-    });
-
-    const allAccountsTotalViews = rows.reduce((acc, r) => acc + r.views, 0);
-
-    // Filtragem por modelo (se selecionada uma modelo específica)
-    const filtered =
-      selectedModel === "all"
-        ? rows
-        : rows.filter((r) => {
-            if (!r.model) return false;
-            const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
-            const current = String(r.model).toLowerCase();
-            return current === selectedModel.toLowerCase() || (target && current === target);
-          });
-
-    // Ordenação do ranking por critérios de visualizações de vídeos (maior para menor)
-    const sorted = [...filtered].sort((a, b) => b.views - a.views);
-    const totalViews = sorted.reduce((acc, r) => acc + r.views, 0);
-    const maxViews = Math.max(1, ...sorted.map((r) => r.views));
-    const accountsWithWarning = sorted.filter((r) => r.hasWarning);
-
-    const best = sorted[0];
-    const lowest = sorted[sorted.length - 1];
-    const lowestAccounts = sorted.filter(
-      (r) => r.views === (lowest?.views ?? 0),
-    );
-
-    return {
-      rows: sorted,
-      totalViews,
-      allAccountsTotalViews,
-      maxViews,
-      accountsWithWarning,
-      accountsWithWarningCount: accountsWithWarning.length,
-      best,
-      lowest,
-      lowestAccounts,
-    };
-  }, [accounts, healthMap, links, activeAlerts, selectedModel]);
+    const rankedAccounts = accounts.map((acc) => ({ id: acc.id, username: acc.username, model: accountMeta[acc.id]?.modelName ?? null }));
+    const all = accountViewsRanking(rankedAccounts, viewsReport.data);
+    const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
+    const filtered = selectedModel === "all" ? rankedAccounts : rankedAccounts.filter((acc) => acc.model?.toLowerCase() === selectedModel || acc.model?.toLowerCase() === target);
+    return { ...accountViewsRanking(filtered, viewsReport.data), allAccountsTotalViews: all.totalViews };
+  }, [accounts, accountMeta, viewsReport.data, selectedModel]);
 
   const redirectUri = `${window.location.origin}/instagram/conectar`;
 
@@ -1232,8 +1180,8 @@ export default function Agonia() {
             </Link>
             <div className="stat-card tone-purple">
               <span className="stat-icon"><Eye className="h-4 w-4" /></span>
-              <div className="label">Views Reels</div>
-              <div className="value">{accountViewsMetrics.allAccountsTotalViews.toLocaleString("pt-BR")}</div>
+              <div className="label">Visualizações de vídeos</div>
+              <div className="value">{accountViewsMetrics.allAccountsTotalViews?.toLocaleString("pt-BR") ?? "—"}</div>
             </div>
             <div className="stat-card tone-blue">
               <span className="stat-icon"><Heart className="h-4 w-4" /></span>
@@ -1255,25 +1203,35 @@ export default function Agonia() {
           </section>
 
           {/* 2. RANKING DE CONTAS POR VISUALIZAÇÃO TOTAL DE REELS */}
-          <section className="panel performance-panel">
+          <section className="panel performance-panel analytics-ranking">
             <div className="panel-header performance-header">
               <div>
                 <div className="eyebrow">
                   <Trophy className="h-3.5 w-3.5 text-amber-400" /> Ranking de Contas
                 </div>
-                <h2 className="performance-title">Ranking por visualização total de reels</h2>
+                <h2 className="performance-title">Ranking por visualizações de vídeos</h2>
                 <p className="panel-copy">
-                  Classificação das contas conectadas ordenada pela visualização total de reels.
+                  Totais acumulados dos vídeos consultados na Meta, incluindo Reels.
                 </p>
               </div>
               <div className="performance-summary-group">
-                <div className="performance-total" title="Visualização total de reels">
+                <div className="performance-total" title="Visualizações dos vídeos consultados">
                   <Play className="h-3.5 w-3.5 text-emerald-400" />
-                  <strong>{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</strong>
-                  <span>visualização total de reels</span>
+                  <strong>{accountViewsMetrics.totalViews?.toLocaleString("pt-BR") ?? "—"}</strong>
+                  <span>visualizações consultadas</span>
                 </div>
               </div>
             </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void viewsReport.refetch()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
+              {accountViewsMetrics.hasMore && <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore} onClick={() => void loadMoreViews()}>{viewsLoadingMore ? "Carregando vídeos…" : "Carregar mais vídeos"}</button>}
+              <Link to="/dispara/visualizacoes" className="underline">Ver análise de visualizações</Link>
+            </div>
+            {viewsReport.isFetching && <p role="status" className="text-xs text-muted-foreground">Consultando visualizações na Meta…</p>}
+            {viewsReport.isError && <p role="alert" className="text-xs text-rose-300">Não foi possível atualizar as métricas. Tente novamente; os dados já consultados são mantidos.</p>}
+            {viewsReport.data && accountViewsMetrics.partial && <p className="text-xs text-muted-foreground">Consulta parcial: há mais vídeos ou métricas indisponíveis. Carregue mais vídeos; se o acesso estiver indisponível, confira a permissão de insights e reconecte a conta.</p>}
+            {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. Estes totais não são limitados ao período dos cartões acima.</p>}
 
             {/* Filtro de Ranking por Modelo */}
             <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
@@ -1294,7 +1252,7 @@ export default function Agonia() {
               </div>
             </div>
 
-            {accountViewsMetrics.rows.length > 0 && (
+            {accountViewsMetrics.best && (
               <div className="performance-highlights">
                 <div className="performance-highlight performance-highlight-best">
                   <div className="performance-highlight-label">
@@ -1305,7 +1263,7 @@ export default function Agonia() {
                   </strong>
                   <span>
                     {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
-                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de Reels`
+                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de vídeos`
                       : "0 visualizações"}
                   </span>
                 </div>
@@ -1335,20 +1293,20 @@ export default function Agonia() {
 
             {accounts.length === 0 ? (
               <div className="empty">
-                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar o ranking por visualização total de reels.
+                Conecte uma conta do Instagram para consultar as visualizações dos seus vídeos.
               </div>
             ) : accountViewsMetrics.rows.length === 0 ? (
               <div className="empty">
                 Nenhuma conta vinculada à modelo <strong>{selectedModelLabel}</strong> ainda.
                 <p className="text-xs text-muted-foreground mt-1">
-                  A categorização por modelos será ativada no site em breve.
+                  Confira a classificação das contas ou selecione Todas as contas.
                 </p>
               </div>
             ) : (
               <div
                 className="performance-list"
                 role="list"
-                aria-label="Ranking de contas por visualização total de reels"
+                aria-label="Ranking de contas por visualizações de vídeos"
               >
                 {accountViewsMetrics.rows.map((row, index) => (
                   <div
@@ -1358,19 +1316,19 @@ export default function Agonia() {
                   >
                     <div className="performance-account">
                       <div className="flex items-center gap-2 min-w-0">
-                        {getRankBadge(index + 1)}
-                        <span className="truncate">@{row.username}</span>
+                        {row.views !== null ? getRankBadge(index + 1) : <span className="text-xs text-muted-foreground">—</span>}
+                        <span className="truncate" title={`@${row.username}`}>@{row.username}</span>
                       </div>
                       <strong>
-                        {row.views.toLocaleString("pt-BR")}{" "}
-                        <span className="text-[10px] font-normal text-muted-foreground">reels</span>
+                        {row.views?.toLocaleString("pt-BR") ?? (viewsReport.isPending ? "Aguardando" : "Indisponível")}{" "}
+                        <span className="text-[10px] font-normal text-muted-foreground">{row.views !== null ? (row.partial ? "visualizações · parcial" : "visualizações") : ""}</span>
                       </strong>
                     </div>
                     <div className="performance-track" aria-hidden="true">
                       <span
                         style={{
                           width: `${
-                            row.views > 0
+                            row.views !== null && row.views > 0
                               ? Math.max(5, Math.round(
                                   (row.views / accountViewsMetrics.maxViews) * 100,
                                 ))
@@ -1386,7 +1344,7 @@ export default function Agonia() {
 
             <div className="performance-footer">
               <span>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Critério de ordenação: visualização total de reels
+                <CheckCircle2 className="h-3.5 w-3.5" /> Ordenação pelas visualizações disponíveis na consulta
               </span>
               <span>
                 {accountViewsMetrics.rows.length} conta(s) no ranking · Filtro: {selectedModelLabel}
