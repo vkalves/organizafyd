@@ -962,68 +962,28 @@ export default function Agonia() {
             </Link>
           </section>
 
-          <section className="grid two-col">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Próxima publicação</h2>
-                  <p className="panel-copy">O que está a caminho.</p>
-                </div>
-                <Link className="link" to="/agonia/scheduled">
-                  Ver agenda <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">Pronto para publicar?</h2>
+                <p className="panel-copy">
+                  Configure a Meta, conecte uma conta profissional e comece.
+                </p>
               </div>
-              {stats.nextPosts.length === 0 ? (
-                <div className="empty">
-                  Nenhum Reel agendado. Crie seu próximo conteúdo e escolha uma
-                  data.
-                </div>
-              ) : (
-                <div className="list">
-                  {stats.nextPosts.map((post) => (
-                    <div key={post.id} className="list-row">
-                      <div className="list-main">
-                        <strong>
-                          @{accountNames.get(post.account_id) || "conta"} ·{" "}
-                          {post.format}
-                        </strong>
-                        <span>
-                          {post.caption || "Sem legenda"} ·{" "}
-                          {post.scheduled_at
-                            ? new Date(post.scheduled_at).toLocaleString("pt-BR")
-                            : "Agora"}
-                        </span>
-                      </div>
-                      {statusBadge(post.status)}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Pronto para publicar?</h2>
-                  <p className="panel-copy">
-                    Configure a Meta, conecte uma conta profissional e comece.
-                  </p>
-                </div>
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                <Link className="button button-mint" to="/agonia/fluxos">
-                  <Layers className="h-4 w-4" /> Abrir Modo Fluxo Automático
-                </Link>
-                <Link className="button button-secondary" to="/agonia/conectar">
-                  Conectar Instagram
-                </Link>
-                <Link
-                  className="button button-secondary"
-                  to="/agonia/reels-new"
-                >
-                  Enviar um Reel
-                </Link>
-              </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <Link className="button button-mint" to="/agonia/fluxos">
+                <Layers className="h-4 w-4" /> Abrir Modo Fluxo Automático
+              </Link>
+              <Link className="button button-secondary" to="/agonia/conectar">
+                Conectar Instagram
+              </Link>
+              <Link
+                className="button button-secondary"
+                to="/agonia/reels-new"
+              >
+                Enviar um Reel
+              </Link>
             </div>
           </section>
 
