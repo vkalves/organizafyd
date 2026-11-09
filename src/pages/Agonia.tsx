@@ -1634,75 +1634,104 @@ export default function Agonia() {
 
           {renderMetaAppsPanel()}
 
-          <div className="operations-heading">
-            <div>
-              <div className="eyebrow">Mapa da operação</div>
-              <h1 className="operations-title">Contas conectadas</h1>
-              <p className="page-subtitle">
-                Gerencie as contas profissionais autorizadas e acompanhe a fila
-                de publicação.
-              </p>
-            </div>
-            <div className="operations-actions">
-              <div className="meta-app-picker">
-                <span className="meta-app-picker-label">
-                  App Meta para novas conexões
-                </span>
-                <select
-                  className="ops-filter"
-                  value={activeMetaApp?.id || ""}
-                  onChange={(e) => setSelectedAppId(e.target.value)}
-                >
-                  {metaApps.map((app) => (
-                    <option key={app.id} value={app.id}>
-                      {app.name} ({accounts.length})
-                    </option>
-                  ))}
-                </select>
+          <div className="operations-hero-panel">
+            <div className="operations-heading">
+              <div>
+                <div className="eyebrow flex items-center gap-2 text-purple-400">
+                  <Instagram className="h-3.5 w-3.5" /> Central de Contas
+                </div>
+                <div className="flex items-center gap-3 flex-wrap mt-1">
+                  <h1 className="operations-title">Contas conectadas</h1>
+                  <span className="rounded-full px-3 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    {accounts.length} {accounts.length === 1 ? "perfil ativo" : "perfis ativos"}
+                  </span>
+                </div>
+                <p className="page-subtitle">
+                  Gerencie as contas profissionais autorizadas e acompanhe a fila
+                  de publicação.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void refreshAll();
-                  toast.success("Sincronizado com a Meta!");
-                }}
-                className="button button-secondary operation-action"
-              >
-                <RefreshCw className="h-3.5 w-3.5" /> Sincronizar com Meta
-              </button>
-              <Link
-                className="button button-secondary operation-action"
-                to="/agonia/conectar"
-              >
-                Destravar apps OAuth
-              </Link>
-              <ConnectAccount onConnected={refreshAll} />
-              <button
-                type="button"
-                disabled={opsBusy || !accounts.length}
-                onClick={() => void verifyAllAccounts()}
-                className="button button-secondary operation-action"
-              >
-                {opsBusy ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ShieldCheck className="h-3.5 w-3.5" />
+              <div className="operations-actions">
+                <div className="meta-app-picker">
+                  <span className="meta-app-picker-label">
+                    App Meta para novas conexões
+                  </span>
+                  <select
+                    className="ops-filter"
+                    value={activeMetaApp?.id || ""}
+                    onChange={(e) => setSelectedAppId(e.target.value)}
+                  >
+                    {metaApps.map((app) => (
+                      <option key={app.id} value={app.id}>
+                        {app.name} ({accounts.length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <ConnectAccount onConnected={refreshAll} variant="default" className="connect-account-btn-prominent" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    void refreshAll();
+                    toast.success("Sincronizado com a Meta!");
+                  }}
+                  className="button button-secondary operation-action"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Sincronizar com Meta
+                </button>
+                <Link
+                  className="button button-secondary operation-action"
+                  to="/agonia/conectar"
+                >
+                  Destravar apps OAuth
+                </Link>
+                <button
+                  type="button"
+                  disabled={opsBusy || !accounts.length}
+                  onClick={() => void verifyAllAccounts()}
+                  className="button button-secondary operation-action"
+                >
+                  {opsBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  )}
+                  Verificar saúde
+                </button>
+                {links.some((l) => l.paused) && (
+                  <button
+                    type="button"
+                    disabled={opsBusy}
+                    onClick={() => void resumePausedAccounts()}
+                    className="button button-secondary operation-action"
+                    title="Reativar contas pausadas"
+                  >
+                    Verificar e reativar pausadas
+                  </button>
                 )}
-                Verificar saúde
-              </button>
-              <button
-                type="button"
-                disabled={opsBusy || !links.some((l) => l.paused)}
-                onClick={() => void resumePausedAccounts()}
-                className="button button-secondary operation-action"
-                title={
-                  links.some((l) => l.paused)
-                    ? "Reativar contas pausadas"
-                    : "Não há contas pausadas para verificar."
-                }
-              >
-                Verificar e reativar pausadas
-              </button>
+              </div>
+            </div>
+
+            {/* Status Strip chamativo */}
+            <div className="operations-stats-strip">
+              <div className="ops-stat-item">
+                <span className="ops-stat-num">{accounts.length}</span>
+                <span className="ops-stat-desc">Contas conectadas</span>
+              </div>
+              <div className="ops-stat-item">
+                <span className="ops-stat-num text-emerald-400">
+                  {accounts.filter((a) => !activeAlerts.some((al) => al.account_id === a.id)).length}
+                </span>
+                <span className="ops-stat-desc">Prontas para publicar</span>
+              </div>
+              <div className="ops-stat-item">
+                <span className="ops-stat-num text-blue-400">{stats.publishedToday}</span>
+                <span className="ops-stat-desc">Posts hoje</span>
+              </div>
+              <div className="ops-stat-item">
+                <span className="ops-stat-num text-purple-400">{stats.scheduled}</span>
+                <span className="ops-stat-desc">Na fila de envio</span>
+              </div>
             </div>
           </div>
 
@@ -1720,43 +1749,51 @@ export default function Agonia() {
                   )
                 }
               />
-              <span>Selecionar todas</span>
+              <span>Selecionar todas ({accounts.length})</span>
             </label>
-            <label className="ops-filter-label" htmlFor="instagram-filter">
-              Filtrar
-              <br />
-              modelo
-            </label>
-            <select
-              id="instagram-filter"
-              className="ops-filter"
-              value={opsFilter}
-              onChange={(e) => setOpsFilter(e.target.value)}
-            >
-              <option value="ALL">Todas as contas</option>
-              <option value="CONNECTED">Prontas para publicar</option>
-              <option value="REAUTH_REQUIRED">Reconexão necessária</option>
-              <option value="PAUSED">Pausadas</option>
-            </select>
-            <button
-              type="button"
-              className="button button-secondary operation-action"
-              disabled={opsSelectedIds.length === 0}
-              onClick={() => setOpsSelectedIds([])}
-            >
-              Desmarcar selecionadas
-            </button>
-            <button
-              type="button"
-              className="button button-secondary operation-action"
-              disabled={opsSelectedIds.length === 0}
-              onClick={() => {
-                setReelAccountIds(opsSelectedIds);
-                navigate("/agonia/reels-new");
-              }}
-            >
-              Publicar nas selecionadas ({opsSelectedIds.length})
-            </button>
+
+            <div className="ops-filter-group">
+              <label className="ops-filter-label" htmlFor="instagram-filter">
+                Filtrar modelo / status:
+              </label>
+              <select
+                id="instagram-filter"
+                className="ops-filter"
+                value={opsFilter}
+                onChange={(e) => setOpsFilter(e.target.value)}
+              >
+                <option value="ALL">Todas as contas</option>
+                <option value="CONNECTED">Prontas para publicar</option>
+                <option value="REAUTH_REQUIRED">Reconexão necessária</option>
+                <option value="PAUSED">Pausadas</option>
+              </select>
+            </div>
+
+            <div className="ops-batch-actions">
+              {opsSelectedIds.length > 0 && (
+                <button
+                  type="button"
+                  className="button button-secondary operation-action text-xs"
+                  onClick={() => setOpsSelectedIds([])}
+                >
+                  Desmarcar ({opsSelectedIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                className={`button operation-action ${
+                  opsSelectedIds.length > 0 ? "button-primary" : "button-secondary opacity-60"
+                }`}
+                disabled={opsSelectedIds.length === 0}
+                onClick={() => {
+                  setReelAccountIds(opsSelectedIds);
+                  navigate("/agonia/reels-new");
+                }}
+              >
+                <Film className="h-3.5 w-3.5" />
+                Publicar nas selecionadas ({opsSelectedIds.length})
+              </button>
+            </div>
           </div>
 
           <div className="operations-summary">

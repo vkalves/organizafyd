@@ -979,31 +979,122 @@
   display: grid;
 }
 
+.agonia-root .operations-hero-panel {
+  position: relative;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgba(168, 85, 247, 0.12) 0%, transparent 70%),
+    radial-gradient(70% 100% at 100% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 65%),
+    hsl(var(--card));
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .agonia-root .operations-heading {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 24px;
-  padding-bottom: 22px;
+  gap: 20px;
+  padding-bottom: 0;
   display: flex;
   flex-wrap: wrap;
 }
 
 .agonia-root .operations-title {
   font-family: Sora, Inter, sans-serif;
-  letter-spacing: -0.05em;
-  margin: 7px 0 5px;
-  font-size: clamp(28px, 3.6vw, 40px);
-  font-weight: 400;
-  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin: 6px 0 0;
+  font-size: clamp(26px, 3.2vw, 36px);
+  font-weight: 500;
+  line-height: 1.1;
+  color: hsl(var(--foreground));
 }
 
 .agonia-root .operations-actions {
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   display: flex;
+}
+
+@media (min-width: 1024px) {
+  .agonia-root .operations-actions {
+    justify-content: flex-end;
+  }
+}
+
+.agonia-root .connect-account-btn-prominent {
+  background: #ffffff !important;
+  color: #09090b !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  border-radius: 10px !important;
+  padding: 10px 18px !important;
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid #ffffff !important;
+  transition: all 0.15s ease !important;
+}
+
+.agonia-root .connect-account-btn-prominent:hover {
+  background: #f4f4f5 !important;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 32px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.agonia-root .operations-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 640px) {
+  .agonia-root .operations-stats-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.agonia-root .ops-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border));
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.15s ease;
+}
+
+.agonia-root .ops-stat-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.agonia-root .ops-stat-num {
+  font-family: Sora, Inter, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: hsl(var(--foreground));
+  font-variant-numeric: tabular-nums;
+}
+
+.agonia-root .ops-stat-desc {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.agonia-root .ops-stat-warning {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .agonia-root .operation-action {
@@ -1012,20 +1103,44 @@
   justify-content: center;
   align-items: center;
   gap: 7px;
-  padding: 10px 13px;
+  padding: 10px 14px;
   font-size: 12px;
   display: inline-flex;
 }
 
 .agonia-root .operations-toolbar {
-  border: 1px solid var(--line);
-  background: rgb(10 10 16 / 75%);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   border-radius: 14px;
-  grid-template-columns: auto auto minmax(180px, 1fr) auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 12px 15px;
-  display: grid;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.agonia-root .ops-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.agonia-root .ops-filter-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.agonia-root .ops-batch-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .agonia-root .ops-check,

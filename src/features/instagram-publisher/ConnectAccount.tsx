@@ -15,13 +15,19 @@ import {
 type Profile = { id: string; username: string };
 export function ConnectAccount({
   onConnected,
+  className,
+  variant = "outline",
+  size = "sm",
 }: {
   onConnected: (id: string) => Promise<void>;
+  className?: string;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
         <Plus className="mr-1.5 h-3.5 w-3.5" />
         Conectar conta
       </Button>
