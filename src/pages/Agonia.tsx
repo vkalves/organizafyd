@@ -912,9 +912,12 @@ export default function Agonia() {
             <div>
               <div className="eyebrow">Visão geral</div>
               <h1 className="page-title">
-                {dashGreeting}, <span className="dash-accent">{profile.username}</span>
+                {dashGreeting}, {profile.username}.
               </h1>
-              <p className="dash-date">{dashDate}</p>
+              <p className="page-subtitle">
+                Seu centro de publicação oficial, organizado para você pensar no
+                conteúdo.
+              </p>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/agonia/fluxos">
@@ -926,8 +929,64 @@ export default function Agonia() {
             </div>
           </header>
 
+          {/* 1. MÉTRICAS NO TOPO */}
+          <div className="dash-metrics-head">
+            <div className="dash-metrics-label">
+              <BarChart3 className="h-3.5 w-3.5" /> Métricas
+              <span className="font-normal opacity-70">· {dashPeriodLabel}</span>
+            </div>
+            <div className="period-tabs" role="tablist" aria-label="Período">
+              {([["today", "Hoje"], ["yesterday", "Ontem"], ["7d", "7 dias"]] as const).map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={dashPeriod === k}
+                  className={dashPeriod === k ? "is-active" : ""}
+                  onClick={() => setDashPeriod(k)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {/* Módulo de Performance & Visualizações dos Perfis Conectados */}
+          <section className="grid stats-grid">
+            <Link to="/agonia/instagram" className="stat-card tone-purple">
+              <span className="stat-icon"><Instagram className="h-4 w-4" /></span>
+              <div className="label">Contas conectadas</div>
+              <div className="value">{stats.connected}</div>
+            </Link>
+            <Link to="/agonia/scheduled" className="stat-card tone-blue">
+              <span className="stat-icon"><CalendarClock className="h-4 w-4" /></span>
+              <div className="label">Reels agendados</div>
+              <div className="value">{stats.scheduled}</div>
+            </Link>
+            <div className="stat-card tone-purple">
+              <span className="stat-icon"><Eye className="h-4 w-4" /></span>
+              <div className="label">Views Reels</div>
+              <div className="value">{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="stat-card tone-blue">
+              <span className="stat-icon"><Heart className="h-4 w-4" /></span>
+              <div className="label">Curtidas Reels</div>
+              <div className="value">0</div>
+            </div>
+            <div className="stat-card tone-green">
+              <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>
+              <div className="label">Publicados hoje</div>
+              <div className="value">{stats.publishedToday}</div>
+            </div>
+            <Link to="/agonia/alertas" className="stat-card tone-red">
+              <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
+              <div className="label">Alertas de contas</div>
+              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400 font-semibold" : ""}`}>
+                {activeAlerts.length || stats.failed}
+              </div>
+            </Link>
+          </section>
+
+          {/* 2. MÓDULO DE PERFORMANCE & VISUALIZAÇÕES DOS PERFIS */}
           <section className="panel performance-panel">
             <div className="panel-header performance-header">
               <div>
@@ -1061,83 +1120,58 @@ export default function Agonia() {
             </div>
           </section>
 
-          <div className="dash-metrics-head">
-            <div className="dash-metrics-label">
-              <BarChart3 className="h-3.5 w-3.5" /> Métricas
-              <span className="dash-accent">· {dashPeriodLabel}</span>
-            </div>
-            <div className="period-tabs" role="tablist" aria-label="Período">
-              {([["today", "Hoje"], ["yesterday", "Ontem"], ["7d", "7 dias"]] as const).map(([k, l]) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  aria-selected={dashPeriod === k}
-                  className={dashPeriod === k ? "is-active" : ""}
-                  onClick={() => setDashPeriod(k)}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <section className="grid stats-grid">
-            <Link to="/agonia/instagram" className="stat-card tone-purple">
-              <span className="stat-icon"><Instagram className="h-4 w-4" /></span>
-              <div className="label">Contas conectadas</div>
-              <div className="value">{stats.connected}</div>
-            </Link>
-            <Link to="/agonia/scheduled" className="stat-card tone-blue">
-              <span className="stat-icon"><CalendarClock className="h-4 w-4" /></span>
-              <div className="label">Reels agendados</div>
-              <div className="value">{stats.scheduled}</div>
-            </Link>
-            <div className="stat-card tone-purple">
-              <span className="stat-icon"><Eye className="h-4 w-4" /></span>
-              <div className="label">Views Reels</div>
-              <div className="value">{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</div>
-            </div>
-            <div className="stat-card tone-blue">
-              <span className="stat-icon"><Heart className="h-4 w-4" /></span>
-              <div className="label">Curtidas Reels</div>
-              <div className="value">0</div>
-            </div>
-            <div className="stat-card tone-green">
-              <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>
-              <div className="label">Publicados hoje</div>
-              <div className="value">{stats.publishedToday}</div>
-            </div>
-            <Link to="/agonia/alertas" className="stat-card tone-red">
-              <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
-              <div className="label">Alertas de contas</div>
-              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400" : ""}`}>
-                {activeAlerts.length || stats.failed}
-              </div>
-            </Link>
-          </section>
-
+          {/* 3. AÇÕES RÁPIDAS */}
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Pronto para publicar?</h2>
+                <h2 className="panel-title">Ações Rápidas</h2>
                 <p className="panel-copy">
-                  Configure a Meta, conecte uma conta profissional e comece.
+                  Atalhos diretos para gerenciar publicações, fluxos e conexões.
                 </p>
               </div>
             </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              <Link className="button button-mint" to="/agonia/fluxos">
-                <Layers className="h-4 w-4" /> Abrir Modo Fluxo Automático
+            <div className="quick-actions-grid">
+              <Link className="quick-action-card group" to="/agonia/fluxos">
+                <div className="quick-action-icon text-emerald-400 group-hover:scale-105 transition-transform">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div className="quick-action-content">
+                  <div className="quick-action-title">
+                    <span>Modo Fluxo Automático</span>
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="quick-action-desc">
+                    Dispare publicações contínuas e agendamentos inteligentes em lote.
+                  </p>
+                </div>
               </Link>
-              <Link className="button button-secondary" to="/agonia/conectar">
-                Conectar Instagram
+              <Link className="quick-action-card group" to="/agonia/reels-new">
+                <div className="quick-action-icon text-blue-400 group-hover:scale-105 transition-transform">
+                  <Film className="h-5 w-5" />
+                </div>
+                <div className="quick-action-content">
+                  <div className="quick-action-title">
+                    <span>Publicar Novo Reel</span>
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="quick-action-desc">
+                    Envio direto com vídeo, legenda e capa personalizada.
+                  </p>
+                </div>
               </Link>
-              <Link
-                className="button button-secondary"
-                to="/agonia/reels-new"
-              >
-                Enviar um Reel
+              <Link className="quick-action-card group" to="/agonia/conectar">
+                <div className="quick-action-icon text-purple-400 group-hover:scale-105 transition-transform">
+                  <Instagram className="h-5 w-5" />
+                </div>
+                <div className="quick-action-content">
+                  <div className="quick-action-title">
+                    <span>Conectar Instagram</span>
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="quick-action-desc">
+                    Vincule novas contas profissionais ou renove permissões.
+                  </p>
+                </div>
               </Link>
             </div>
           </section>
