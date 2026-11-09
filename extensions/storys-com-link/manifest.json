@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "DISPARA — Preparar Story com Link",
+  "version": "0.8.0",
+  "description": "Prepare uma imagem 9:16 e copie o link. Adicione o adesivo Link e publique no próprio Instagram.",
+  "permissions": [],
+  "action": { "default_title": "Preparar Story · DISPARA" },
+  "background": { "service_worker": "background.js" },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+  }
+}
