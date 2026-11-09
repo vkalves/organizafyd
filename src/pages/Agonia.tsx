@@ -1068,9 +1068,9 @@ export default function Agonia() {
               </div>
               <div className="performance-summary-group">
                 <div className="performance-total" title="Total de visualizações de vídeos da seleção">
-                  <Play className="h-4 w-4 text-emerald-400" />
+                  <Play className="h-3.5 w-3.5 text-emerald-400" />
                   <strong>{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</strong>
-                  <span>visualizações de vídeos</span>
+                  <span>views</span>
                 </div>
                 <Link
                   to="/agonia/alertas"
@@ -1080,15 +1080,13 @@ export default function Agonia() {
                   title="Total de contas com aviso ou pendência"
                 >
                   <AlertTriangle
-                    className={`h-4 w-4 ${
+                    className={`h-3.5 w-3.5 ${
                       accountViewsMetrics.accountsWithWarningCount > 0 ? "text-rose-400" : "text-muted-foreground"
                     }`}
                   />
-                  <strong className={accountViewsMetrics.accountsWithWarningCount > 0 ? "text-rose-400" : ""}>
-                    {accountViewsMetrics.accountsWithWarningCount}
-                  </strong>
+                  <strong>{accountViewsMetrics.accountsWithWarningCount}</strong>
                   <span>
-                    {accountViewsMetrics.accountsWithWarningCount === 1 ? "conta com aviso" : "contas com aviso"}
+                    {accountViewsMetrics.accountsWithWarningCount === 1 ? "aviso" : "avisos"}
                   </span>
                 </Link>
               </div>
@@ -1218,58 +1216,24 @@ export default function Agonia() {
             </div>
           </section>
 
-          {/* 3. AÇÕES RÁPIDAS */}
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">Ações Rápidas</h2>
-                <p className="panel-copy">
-                  Atalhos diretos para gerenciar publicações, fluxos e conexões.
-                </p>
-              </div>
-            </div>
-            <div className="quick-actions-grid">
-              <Link className="quick-action-card group" to="/agonia/fluxos">
-                <div className="quick-action-icon text-emerald-400 group-hover:scale-105 transition-transform">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <div className="quick-action-content">
-                  <div className="quick-action-title">
-                    <span>Modo Fluxo Automático</span>
-                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="quick-action-desc">
-                    Dispare publicações contínuas e agendamentos inteligentes em lote.
-                  </p>
-                </div>
+          {/* 3. AÇÕES RÁPIDAS (Minimalista) */}
+          <section className="quick-actions-minimal">
+            <span className="quick-actions-minimal-label">Ações rápidas</span>
+            <div className="quick-actions-minimal-row">
+              <Link className="quick-action-mini-btn" to="/agonia/fluxos">
+                <Layers className="h-4 w-4 text-emerald-400" />
+                <span>Modo Fluxo Automático</span>
+                <ArrowRight className="h-3 w-3 opacity-60" />
               </Link>
-              <Link className="quick-action-card group" to="/agonia/reels-new">
-                <div className="quick-action-icon text-blue-400 group-hover:scale-105 transition-transform">
-                  <Film className="h-5 w-5" />
-                </div>
-                <div className="quick-action-content">
-                  <div className="quick-action-title">
-                    <span>Publicar Novo Reel</span>
-                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="quick-action-desc">
-                    Envio direto com vídeo, legenda e capa personalizada.
-                  </p>
-                </div>
+              <Link className="quick-action-mini-btn" to="/agonia/reels-new">
+                <Film className="h-4 w-4 text-blue-400" />
+                <span>Publicar Novo Reel</span>
+                <ArrowRight className="h-3 w-3 opacity-60" />
               </Link>
-              <Link className="quick-action-card group" to="/agonia/conectar">
-                <div className="quick-action-icon text-purple-400 group-hover:scale-105 transition-transform">
-                  <Instagram className="h-5 w-5" />
-                </div>
-                <div className="quick-action-content">
-                  <div className="quick-action-title">
-                    <span>Conectar Instagram</span>
-                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="quick-action-desc">
-                    Vincule novas contas profissionais ou renove permissões.
-                  </p>
-                </div>
+              <Link className="quick-action-mini-btn" to="/agonia/conectar">
+                <Instagram className="h-4 w-4 text-purple-400" />
+                <span>Conectar Instagram</span>
+                <ArrowRight className="h-3 w-3 opacity-60" />
               </Link>
             </div>
           </section>
