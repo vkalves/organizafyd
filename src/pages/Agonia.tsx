@@ -361,10 +361,22 @@ export default function Agonia() {
   const [dashPeriod, setDashPeriod] = useState<"today" | "yesterday" | "7d">("today");
   const dashPeriodLabel = { today: "Hoje", yesterday: "Ontem", "7d": "7 dias" }[dashPeriod];
   const dashHour = new Date().getHours();
-  const dashGreeting = dashHour < 12 ? "Bom dia" : dashHour < 18 ? "Boa tarde" : "Boa noite";
-  const dashDate = new Date()
-    .toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
-    .toUpperCase();
+  const dashGreeting = useMemo(() => {
+    // ☀️ Manhã: das 5h às 12h
+    if (dashHour >= 5 && dashHour < 12) {
+      return "Olá! Acordou agora ou está indo dormir?";
+    }
+    // 🌤️ Tarde: das 12h às 18h
+    if (dashHour >= 12 && dashHour < 18) {
+      return "Boa tarde! Já fez o L hoje?";
+    }
+    // 🌙 Noite: das 18h à 0h
+    if (dashHour >= 18 && dashHour < 24) {
+      return "Boa noite! Já fez dinheiro por LULA hoje?";
+    }
+    // 🦉 Madrugada: da 0h às 5h
+    return "Olá, coruja! Dormir não dá ROI, né?";
+  }, [dashHour]);
 
   const accountViewsMetrics = useMemo(() => {
     // Preparado para receber views_count/reels_views das contas conectadas quando a API fornecer
@@ -910,14 +922,7 @@ export default function Agonia() {
         <>
           <header className="topbar">
             <div>
-              <div className="eyebrow">Visão geral</div>
-              <h1 className="page-title">
-                {dashGreeting}, {profile.username}.
-              </h1>
-              <p className="page-subtitle">
-                Seu centro de publicação oficial, organizado para você pensar no
-                conteúdo.
-              </p>
+              <h1 className="page-title">{dashGreeting}</h1>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/agonia/fluxos">

@@ -211,6 +211,13 @@
   line-height: 1.06;
 }
 
+.agonia-root .topbar .page-title {
+  font-size: clamp(20px, 2.8vw, 32px);
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+  max-width: 720px;
+}
+
 .agonia-root .page-subtitle {
   max-width: 660px;
   color: var(--muted);
