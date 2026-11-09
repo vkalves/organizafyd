@@ -116,7 +116,6 @@ export default function Flows({
   const [unit, setUnit] = useState(60);
   const [slotDraft, setSlotDraft] = useState("09:00\n12:30\n18:00\n21:00");
   const [slotTime, setSlotTime] = useState("");
-  const [editingRawSlots, setEditingRawSlots] = useState(false);
   const [timeZone, setTimeZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
@@ -1465,66 +1464,13 @@ export default function Flows({
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {/* Presets rápidos + alternância de edição em texto */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        Horários do dia ({parsedSlotTags.length})
-                      </span>
-                      <button
-                        type="button"
-                        className="ig-ghost-action"
-                        onClick={() => setEditingRawSlots((v) => !v)}
-                      >
-                        {editingRawSlots ? "Ver chips" : "Editar texto"}
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        className="ig-preset-pill"
-                        onClick={() => setSlotDraft("09:00\n12:30\n18:00\n21:00")}
-                      >
-                        Pico 4x
-                      </button>
-                      <button
-                        type="button"
-                        className="ig-preset-pill"
-                        onClick={() =>
-                          setSlotDraft(
-                            "08:00\n10:00\n12:00\n14:00\n16:00\n18:00\n20:00\n22:00",
-                          )
-                        }
-                      >
-                        8x/dia
-                      </button>
-                      <button
-                        type="button"
-                        className="ig-preset-pill"
-                        onClick={() => setSlotDraft("11:30\n19:00")}
-                      >
-                        2x/dia
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Horários do dia ({parsedSlotTags.length})
+                    </span>
                   </div>
 
-                  {editingRawSlots ? (
-                    <div>
-                      <Label htmlFor="flow-slots" className="sr-only">
-                        Horários do dia
-                      </Label>
-                      <Textarea
-                        id="flow-slots"
-                        rows={3}
-                        value={slotDraft}
-                        onChange={(e) => setSlotDraft(e.target.value)}
-                        placeholder="09:00&#10;12:30&#10;18:00"
-                        className="text-xs tabular-nums"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
+                  <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {parsedSlotTags.map((slot) => (
                           <span key={slot} className="ig-slot-chip">
@@ -1558,7 +1504,6 @@ export default function Flows({
                         </div>
                       </div>
                     </div>
-                  )}
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                     <div className="flex items-center gap-2">
