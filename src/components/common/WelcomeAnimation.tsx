@@ -8,7 +8,7 @@ export function WelcomeAnimation() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setVisible(false), 5500);
+    const timer = window.setTimeout(() => setVisible(false), 1800);
     return () => window.clearTimeout(timer);
   }, []);
 

@@ -1,0 +1,82 @@
+.agonia-root .ig-accounts-page { display: grid; gap: 20px; min-width: 0; }
+.ig-accounts-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.ig-accounts-header .page-subtitle { margin-top: 7px; }
+.ig-accounts-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ig-accounts-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-height: 40px; border: 1px solid transparent; border-radius: 8px; color: #a5afbc; }
+.ig-accounts-icon-button:hover { background: #c7cdd60b; color: #eef1f5; }
+.ig-accounts-icon-button:disabled { opacity: .5; }
+.ig-accounts-filters { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(130px, .45fr) minmax(150px, .5fr) auto; align-items: center; gap: 10px; }
+.ig-accounts-search { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 42px; padding: 0 12px; border: 1px solid #2c323b; border-radius: 8px; background: #101318; color: #8f9aa9; }
+.ig-accounts-search:focus-within { border-color: #8f9aa9; }
+.ig-accounts-search input { min-width: 0; width: 100%; border: 0; background: transparent; color: #eef1f5; outline: 0; font-size: 13px !important; }
+.ig-accounts-search input::placeholder { color: #8f9aa9; }
+.ig-accounts-filters .ops-filter, .ig-accounts-bulk .ops-filter { width: 100%; min-width: 0; min-height: 42px; border: 1px solid #2c323b; border-radius: 8px; background: #101318; color: #c7cdd6; font-size: 12px; }
+.ig-accounts-text-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 8px; color: #c7cdd6; font-size: 12px !important; white-space: nowrap; border-radius: 7px; }
+.ig-accounts-text-button:hover { color: #fff; background: #c7cdd60b; }
+.ig-accounts-folder-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px; border: 1px solid #2c323b; border-radius: 8px; }
+.ig-accounts-folder-form input { flex: 1; min-width: 120px; }
+.ig-accounts-list-toolbar { display: flex; align-items: center; gap: 14px; min-height: 34px; margin-bottom: -12px; }
+.ig-accounts-select-all { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; color: #a5afbc; font-size: 12px; }
+.ig-accounts-page input[type="checkbox"] { width: 16px; height: 16px; accent-color: #c7cdd6; cursor: pointer; }
+.ig-accounts-result-count { color: #798594; font-size: 11px; }
+.ig-accounts-delete-folder { margin-left: auto; }
+.ig-accounts-delete-folder:hover { color: #f5a6a6; }
+.ig-accounts-bulk { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; border: 1px solid #606c7e66; border-radius: 9px; background: #c7cdd609; }
+.ig-accounts-bulk > span { font-size: 12px; color: #c7cdd6; margin-right: auto; }
+.ig-accounts-bulk .ops-filter { width: auto; max-width: 230px; }
+.ig-account-list { border: 1px solid #2c323b; border-radius: 10px; background: #101216; overflow: hidden; }
+.ig-account-item + .ig-account-item { border-top: 1px solid #2c323b; }
+.ig-account-item.is-selected { background: #c7cdd607; }
+.ig-account-main { display: grid; grid-template-columns: 20px minmax(120px, 1fr) minmax(100px, .4fr) auto; align-items: center; gap: 16px; padding: 18px; }
+.ig-account-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ig-account-avatar { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; background: #1e242d; border: 1px solid #343d49; border-radius: 50%; color: #c7cdd6; font-size: 12px; font-weight: 500; }
+.ig-account-identity > div { min-width: 0; }
+.ig-account-identity strong, .ig-account-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ig-account-identity strong { color: #eef1f5; font-size: 13px; font-weight: 500; }
+.ig-account-identity small { margin-top: 4px; color: #8d99a8; font-size: 11px; }
+.ig-account-state { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.ig-account-status { color: #c7cdd6; font-size: 11px; }
+.ig-account-status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 6px; border-radius: 50%; background: #8f9eaf; vertical-align: middle; }
+.ig-account-status.needs-attention { color: #efb8a5; }
+.ig-account-status.needs-attention::before { background: #efb8a5; }
+.ig-account-queue { color: #8d99a8; font-size: 11px; }
+.ig-account-actions { display: flex; align-items: center; gap: 10px; }
+.ig-accounts-manage { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #343d49; border-radius: 7px; color: #c7cdd6; font-size: 12px !important; }
+.ig-accounts-manage:hover { border-color: #738093; }
+.ig-accounts-manage svg { transition: transform 180ms ease; }
+.ig-accounts-manage svg.is-expanded { transform: rotate(180deg); }
+.ig-account-details { display: grid; gap: 20px; padding: 20px 24px 20px 54px; border-top: 1px solid #2c323b; background: #0c0f13; }
+.ig-account-edit-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.ig-account-edit-field { display: grid; gap: 8px; min-width: 0; }
+.ig-account-edit-field > label { color: #a5afbc; font-size: 12px; }
+.ig-account-edit-field > div { display: flex; gap: 8px; min-width: 0; }
+.ig-account-edit-fields input, .ig-account-edit-fields select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #343d49; border-radius: 7px; background: #11151a; color: #eef1f5; font-size: 12px !important; }
+.ig-account-edit-fields input { flex: 1; }
+.ig-account-detail-stats { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.ig-account-detail-stats span { color: #8d99a8; font-size: 11px; }
+.ig-account-detail-stats strong { color: #c7cdd6; margin-right: 3px; font-weight: 500; }
+.ig-account-details-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #2c323b; padding-top: 12px; }
+.ig-account-details-footer > span { color: #8d99a8; font-size: 10px; line-height: 1.7; }
+.ig-accounts-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; border: 1px dashed #343d49; border-radius: 10px; text-align: center; color: #a5afbc; font-size: 13px; }
+.ig-accounts-empty h2 { color: #eef1f5; font-size: 16px; font-weight: 500; }
+.ig-accounts-empty > svg { color: #8d99a8; }
+@media (max-width: 900px) {
+  .ig-accounts-filters { grid-template-columns: 1fr 1fr; }
+  .ig-accounts-search { grid-column: 1 / -1; }
+  .ig-accounts-filters > button { justify-self: start; }
+}
+@media (max-width: 620px) {
+  .ig-accounts-search input, .ig-account-edit-fields input, .ig-account-edit-fields select { font-size: 16px !important; }
+  .ig-accounts-header { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .ig-accounts-header-actions { width: 100%; }
+  .ig-accounts-header-actions > button:first-child { margin-right: auto; }
+  .ig-account-main { grid-template-columns: 18px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .ig-account-main > input { align-self: start; margin-top: 11px; }
+  .ig-account-state { grid-column: 2; flex-direction: row; gap: 16px; }
+  .ig-account-actions { grid-column: 2; justify-content: space-between; }
+  .ig-account-details { padding: 18px 16px; }
+  .ig-account-edit-fields { grid-template-columns: 1fr; gap: 16px; }
+  .ig-account-details-footer { align-items: flex-start; flex-direction: column; }
+  .ig-accounts-bulk .ops-filter { max-width: none; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .ig-accounts-manage svg { transition: none; } }

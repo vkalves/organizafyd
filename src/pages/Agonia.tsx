@@ -8,6 +8,7 @@ import {
   Ban,
   BarChart3,
   CalendarClock,
+  ChevronDown,
   CheckCircle2,
   Copy,
   Download,
@@ -21,6 +22,8 @@ import {
   Layers,
   Link2,
   Loader2,
+  MoreHorizontal,
+  Search,
   Play,
   Plus,
   RefreshCw,
@@ -36,6 +39,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import "@/features/instagram-publisher/accounts-clean.css";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import Flows from "@/features/instagram-publisher/Flows";
@@ -261,6 +266,8 @@ export default function Agonia() {
 
   // Instagram Operations Map state
   const [opsFilter, setOpsFilter] = useState("ALL");
+  const [opsSearch, setOpsSearch] = useState("");
+  const [opsExpandedAccountId, setOpsExpandedAccountId] = useState<string | null>(null);
   const [opsSelectedIds, setOpsSelectedIds] = useState<string[]>([]);
   const [opsBusy, setOpsBusy] = useState(false);
 
@@ -387,6 +394,19 @@ export default function Agonia() {
     () => new Map(links.map((l) => [l.account_id, l])),
     [links],
   );
+
+  const filteredOpsAccounts = useMemo(() => {
+    const search = opsSearch.trim().toLocaleLowerCase("pt-BR");
+    return accounts.filter((acc) => {
+      const link = linkMap.get(acc.id);
+      if (opsFilter === "CONNECTED" && (link?.paused || link?.reconnect_required)) return false;
+      if (opsFilter === "REAUTH_REQUIRED" && !link?.reconnect_required) return false;
+      if (opsFilter === "PAUSED" && !link?.paused) return false;
+      const meta = accountMeta[acc.id];
+      if (selectedAccountFolder !== "*" && (meta?.folder || "") !== selectedAccountFolder) return false;
+      return !search || `${acc.username} ${meta?.customName || ""}`.toLocaleLowerCase("pt-BR").includes(search);
+    });
+  }, [accounts, linkMap, opsFilter, opsSearch, accountMeta, selectedAccountFolder]);
 
   const stats = useMemo(() => {
     const scheduled = posts.filter(
@@ -1595,577 +1615,176 @@ export default function Agonia() {
 
       {/* 3. INSTAGRAM (GERENCIAMENTO DE CONTAS) */}
       {section === "instagram" && (
-        <section className="operations-page">
-          <div className="operations-hero-panel">
-            <div className="operations-heading">
-              <div>
-                <div className="eyebrow flex items-center gap-2 text-purple-400">
-                  <Instagram className="h-3.5 w-3.5" /> Central de Contas
-                </div>
-                <div className="flex items-center gap-3 flex-wrap mt-1">
-                  <h1 className="operations-title">Gerenciar contas</h1>
-                  <span className="rounded-full px-3 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    {accounts.length} {accounts.length === 1 ? "perfil conectado" : "perfis conectados"}
-                  </span>
-                </div>
-                <p className="page-subtitle">
-                  Organize suas contas em pastas, personalize os nomes e acompanhe a etiqueta automática de dias ativos.
-                </p>
-              </div>
-              <div className="operations-actions">
-                <ConnectAccount
-                  onConnected={refreshAll}
-                  variant="default"
-                  className="connect-account-btn-prominent"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    void refreshAll();
-                    toast.success("Contas atualizadas!");
-                  }}
-                  className="button button-secondary operation-action"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-                </button>
-                <button
-                  type="button"
-                  disabled={opsBusy || !accounts.length}
-                  onClick={() => void verifyAllAccounts()}
-                  className="button button-secondary operation-action"
-                >
-                  {opsBusy ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                  )}
-                  Verificar saúde
-                </button>
-                {links.some((l) => l.paused) && (
-                  <button
-                    type="button"
-                    disabled={opsBusy}
-                    onClick={() => void resumePausedAccounts()}
-                    className="button button-secondary operation-action"
-                    title="Reativar contas pausadas"
-                  >
-                    Verificar e reativar pausadas
-                  </button>
-                )}
-              </div>
+        <section className="ig-accounts-page" aria-label="Contas do Instagram">
+          <header className="ig-accounts-header">
+            <div>
+              <h1 className="page-title">Instagram</h1>
+              <p className="page-subtitle">{accounts.length} {accounts.length === 1 ? "conta conectada" : "contas conectadas"} · Organize e publique em um só lugar.</p>
             </div>
-
-            {/* Status Strip */}
-            <div className="operations-stats-strip">
-              <div className="ops-stat-item">
-                <span className="ops-stat-num">{accounts.length}</span>
-                <span className="ops-stat-desc">Contas conectadas</span>
-              </div>
-              <div className="ops-stat-item">
-                <span className="ops-stat-num text-emerald-400">
-                  {accounts.filter((a) => !activeAlerts.some((al) => al.account_id === a.id)).length}
-                </span>
-                <span className="ops-stat-desc">Prontas para publicar</span>
-              </div>
-              <div className="ops-stat-item">
-                <span className="ops-stat-num text-blue-400">{stats.publishedToday}</span>
-                <span className="ops-stat-desc">Posts hoje</span>
-              </div>
-              <div className="ops-stat-item">
-                <span className="ops-stat-num text-purple-400">{stats.scheduled}</span>
-                <span className="ops-stat-desc">Na fila de envio</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Barra de Pastas de Contas (igual à organização do Modo Fluxo) */}
-          <div className="panel" style={{ padding: "14px 18px" }}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="ig-folder-bar" aria-label="Pastas de contas">
-                {["*", "", ...accountFolders].map((f) => {
-                  const count = accounts.filter((acc) => {
-                    const accFolder = accountMeta[acc.id]?.folder || "";
-                    if (f === "*") return true;
-                    return accFolder === f;
-                  }).length;
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      aria-pressed={selectedAccountFolder === f}
-                      onClick={() => setSelectedAccountFolder(f)}
-                      className={`ig-folder-tag ${selectedAccountFolder === f ? "is-active" : ""}`}
-                    >
-                      <span>{f === "*" ? "Todas" : f === "" ? "Sem pasta" : f}</span>
-                      <span className="opacity-60 text-[10px]">({count})</span>
-                    </button>
-                  );
-                })}
-
-                {selectedAccountFolder !== "*" &&
-                  selectedAccountFolder !== "" &&
-                  user && (
-                    <button
-                      type="button"
-                      title="Excluir pasta atual"
-                      onClick={() => {
-                        const folderToRemove = selectedAccountFolder;
-                        const nextFolders = accountFolders.filter(
-                          (item) => item !== folderToRemove,
-                        );
-                        setAccountFolders(nextFolders);
-                        saveAccountFolders(user.id, nextFolders);
-                        const nextMeta: AccountMetaMap = { ...accountMeta };
-                        for (const id of Object.keys(nextMeta)) {
-                          if (nextMeta[id]?.folder === folderToRemove) {
-                            nextMeta[id] = { ...nextMeta[id], folder: "" };
-                          }
-                        }
-                        setAccountMeta(nextMeta);
-                        saveAccountMeta(user.id, nextMeta);
-                        setSelectedAccountFolder("*");
-                        toast.success(`Pasta "${folderToRemove}" excluída.`);
-                      }}
-                      className="ig-folder-tag text-muted-foreground hover:text-destructive"
-                    >
-                      Excluir pasta
-                    </button>
-                  )}
-
-                {addingAccountFolder ? (
-                  <form
-                    className="inline-flex items-center gap-1.5"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const trimmed = newAccountFolderName.trim();
-                      if (!user || !trimmed) {
-                        setAddingAccountFolder(false);
-                        return;
-                      }
-                      const next = [...new Set([...accountFolders, trimmed])];
-                      setAccountFolders(next);
-                      saveAccountFolders(user.id, next);
-                      setSelectedAccountFolder(trimmed);
-                      setNewAccountFolderName("");
-                      setAddingAccountFolder(false);
-                      toast.success(`Pasta "${trimmed}" criada!`);
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      aria-label="Nome da nova pasta de contas"
-                      placeholder="Nome da pasta"
-                      value={newAccountFolderName}
-                      maxLength={60}
-                      onChange={(e) => setNewAccountFolderName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          setAddingAccountFolder(false);
-                          setNewAccountFolderName("");
-                        }
-                      }}
-                      className="ops-filter"
-                      style={{ height: 28, width: 140, padding: "0 10px", fontSize: 12 }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!newAccountFolderName.trim()}
-                      className="button button-secondary"
-                      style={{ height: 28, padding: "0 10px", fontSize: 11 }}
-                    >
-                      Criar
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Cancelar nova pasta"
-                      onClick={() => {
-                        setAddingAccountFolder(false);
-                        setNewAccountFolderName("");
-                      }}
-                      className="p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAddingAccountFolder(true)}
-                    className="ig-folder-tag ig-folder-add"
-                  >
-                    <FolderPlus className="h-3.5 w-3.5" />
-                    <span>Nova pasta</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Tag className="h-3.5 w-3.5 text-emerald-400" />
-                <span>
-                  Etiquetador automático ativo: atualiza a cada 24h conforme os dias de operação da conta
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="operations-toolbar">
-            <label className="ops-select-all">
-              <input
-                type="checkbox"
-                checked={
-                  accounts.length > 0 &&
-                  opsSelectedIds.length === accounts.length
-                }
-                onChange={(e) =>
-                  setOpsSelectedIds(
-                    e.target.checked ? accounts.map((a) => a.id) : [],
-                  )
-                }
-              />
-              <span>Selecionar todas ({accounts.length})</span>
-            </label>
-
-            <div className="ops-filter-group">
-              <label className="ops-filter-label" htmlFor="instagram-filter">
-                Filtrar status:
-              </label>
-              <select
-                id="instagram-filter"
-                className="ops-filter"
-                value={opsFilter}
-                onChange={(e) => setOpsFilter(e.target.value)}
-              >
-                <option value="ALL">Todas as contas</option>
-                <option value="CONNECTED">Prontas para publicar</option>
-                <option value="REAUTH_REQUIRED">Reconexão necessária</option>
-                <option value="PAUSED">Pausadas</option>
-              </select>
-            </div>
-
-            <div className="ops-batch-actions">
-              {opsSelectedIds.length > 0 && (
-                <>
-                  <select
-                    aria-label="Mover contas selecionadas para pasta"
-                    value="__placeholder__"
-                    onChange={(e) => {
-                      const target = e.target.value;
-                      if (target === "__placeholder__") return;
-                      moveSelectedAccountsToFolder(target);
-                    }}
-                    className="ops-filter"
-                  >
-                    <option value="__placeholder__" disabled>
-                      Mover selecionadas para pasta…
-                    </option>
-                    <option value="">Sem pasta</option>
-                    {accountFolders.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    className="button button-secondary operation-action text-xs"
-                    onClick={() => setOpsSelectedIds([])}
-                  >
-                    Desmarcar ({opsSelectedIds.length})
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                className={`button operation-action ${
-                  opsSelectedIds.length > 0 ? "button-primary" : "button-secondary opacity-60"
-                }`}
-                disabled={opsSelectedIds.length === 0}
-                onClick={() => {
-                  setReelAccountIds(opsSelectedIds);
-                  navigate("/dispara/reels-new");
-                }}
-              >
-                <Film className="h-3.5 w-3.5" />
-                Publicar nas selecionadas ({opsSelectedIds.length})
+            <div className="ig-accounts-header-actions">
+              <ConnectAccount onConnected={refreshAll} variant="default" size="default" />
+              <button type="button" className="ig-accounts-icon-button" aria-label="Atualizar contas" title="Atualizar contas" disabled={accountsQuery.isFetching} onClick={() => void refreshAll()}>
+                <RefreshCw size={16} className={accountsQuery.isFetching ? "animate-spin" : ""} />
               </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="ig-accounts-icon-button" aria-label="Mais ações das contas"><MoreHorizontal size={18} /></button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled={opsBusy || !accounts.length} onSelect={() => void verifyAllAccounts()}><ShieldCheck className="mr-2 h-4 w-4" /> Verificar saúde das contas</DropdownMenuItem>
+                  {links.some((l) => l.paused) && <DropdownMenuItem disabled={opsBusy} onSelect={() => void resumePausedAccounts()}>Verificar e reativar pausadas</DropdownMenuItem>}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </header>
+
+          <div className="ig-accounts-filters">
+            <label className="ig-accounts-search">
+              <Search size={16} aria-hidden="true" />
+              <input aria-label="Buscar conta" placeholder="Buscar conta" value={opsSearch} onChange={(e) => setOpsSearch(e.target.value)} />
+            </label>
+            <select aria-label="Filtrar por pasta" className="ops-filter" value={selectedAccountFolder} onChange={(e) => setSelectedAccountFolder(e.target.value)}>
+              <option value="*">Pastas: todas</option>
+              <option value="">Sem pasta</option>
+              {accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+            </select>
+            <select aria-label="Filtrar por status" className="ops-filter" value={opsFilter} onChange={(e) => setOpsFilter(e.target.value)}>
+              <option value="ALL">Status: todos</option>
+              <option value="CONNECTED">Conectadas</option>
+              <option value="REAUTH_REQUIRED">Reconexão necessária</option>
+              <option value="PAUSED">Pausadas</option>
+            </select>
+            <button type="button" className="ig-accounts-text-button" onClick={() => setAddingAccountFolder((value) => !value)}><FolderPlus size={15} /> Nova pasta</button>
           </div>
 
-          {accounts.length === 0 ? (
-            <div className="empty">
-              Nenhuma conta conectada ainda. Use o botão “Conectar conta” acima
-              para autorizar seu primeiro perfil.
+          {addingAccountFolder && (
+            <form className="ig-accounts-folder-form" onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = newAccountFolderName.trim();
+              if (!user || !trimmed) return;
+              const next = [...new Set([...accountFolders, trimmed])];
+              setAccountFolders(next);
+              saveAccountFolders(user.id, next);
+              setSelectedAccountFolder(trimmed);
+              setNewAccountFolderName("");
+              setAddingAccountFolder(false);
+              toast.success(`Pasta "${trimmed}" criada!`);
+            }}>
+              <input autoFocus aria-label="Nome da nova pasta de contas" placeholder="Nome da pasta" value={newAccountFolderName} maxLength={60} onChange={(e) => setNewAccountFolderName(e.target.value)} onKeyDown={(e) => {
+                if (e.key === "Escape") { setAddingAccountFolder(false); setNewAccountFolderName(""); }
+              }} className="ops-filter" />
+              <button type="submit" disabled={!newAccountFolderName.trim()} className="button button-secondary">Criar pasta</button>
+              <button type="button" className="ig-accounts-icon-button" aria-label="Cancelar nova pasta" onClick={() => { setAddingAccountFolder(false); setNewAccountFolderName(""); }}><X size={16} /></button>
+            </form>
+          )}
+
+          <div className="ig-accounts-list-toolbar">
+            <label className="ig-accounts-select-all">
+              <input type="checkbox" aria-label="Selecionar contas visíveis" disabled={!filteredOpsAccounts.length} checked={filteredOpsAccounts.length > 0 && filteredOpsAccounts.every((a) => opsSelectedIds.includes(a.id))} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, ...filteredOpsAccounts.map((a) => a.id)])] : current.filter((id) => !filteredOpsAccounts.some((a) => a.id === id)))} />
+              Selecionar
+            </label>
+            <span className="ig-accounts-result-count">{filteredOpsAccounts.length} {filteredOpsAccounts.length === 1 ? "conta" : "contas"}</span>
+            {selectedAccountFolder !== "*" && selectedAccountFolder !== "" && user && (
+              <button type="button" className="ig-accounts-text-button ig-accounts-delete-folder" onClick={() => {
+                const folderToRemove = selectedAccountFolder;
+                const nextFolders = accountFolders.filter((item) => item !== folderToRemove);
+                setAccountFolders(nextFolders);
+                saveAccountFolders(user.id, nextFolders);
+                const nextMeta: AccountMetaMap = { ...accountMeta };
+                for (const id of Object.keys(nextMeta)) {
+                  if (nextMeta[id]?.folder === folderToRemove) nextMeta[id] = { ...nextMeta[id], folder: "" };
+                }
+                setAccountMeta(nextMeta);
+                saveAccountMeta(user.id, nextMeta);
+                setSelectedAccountFolder("*");
+                toast.success(`Pasta "${folderToRemove}" excluída.`);
+              }}><Trash2 size={13} /> Excluir pasta</button>
+            )}
+          </div>
+
+          {opsSelectedIds.length > 0 && (
+            <div className="ig-accounts-bulk" aria-label="Ações das contas selecionadas">
+              <span>{opsSelectedIds.length} {opsSelectedIds.length === 1 ? "selecionada" : "selecionadas"}</span>
+              <select aria-label="Mover contas selecionadas para pasta" className="ops-filter" value="__placeholder__" onChange={(e) => { if (e.target.value !== "__placeholder__") moveSelectedAccountsToFolder(e.target.value); }}>
+                <option value="__placeholder__" disabled>Mover para pasta…</option>
+                <option value="">Sem pasta</option>
+                {accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+              </select>
+              <button type="button" className="button button-primary" onClick={() => { setReelAccountIds(opsSelectedIds); navigate("/dispara/reels-new"); }}><Film size={14} /> Publicar nas selecionadas</button>
+              <button type="button" className="ig-accounts-text-button" onClick={() => setOpsSelectedIds([])}>Limpar seleção</button>
             </div>
+          )}
+
+          {accountsQuery.isPending ? (
+            <p role="status" className="ig-accounts-empty">Carregando contas…</p>
+          ) : accountsQuery.isError ? (
+            <div role="alert" className="ig-accounts-empty">Não foi possível carregar suas contas. <button type="button" className="ig-accounts-text-button" onClick={() => void accountsQuery.refetch()}>Tentar novamente</button></div>
+          ) : accounts.length === 0 ? (
+            <div className="ig-accounts-empty"><Instagram size={24} aria-hidden="true" /><h2>Sua primeira conta começa aqui</h2><p>Use “Conectar conta” para adicionar seu perfil do Instagram.</p></div>
+          ) : filteredOpsAccounts.length === 0 ? (
+            <div className="ig-accounts-empty"><p>Nenhuma conta encontrada com esses filtros.</p><button type="button" className="ig-accounts-text-button" onClick={() => { setOpsSearch(""); setOpsFilter("ALL"); setSelectedAccountFolder("*"); }}>Limpar filtros</button></div>
           ) : (
-            <div className="operations-grid">
-              {accounts
-                .filter((acc) => {
-                  const link = linkMap.get(acc.id);
-                  if (opsFilter === "CONNECTED" && (link?.paused || link?.reconnect_required))
-                    return false;
-                  if (opsFilter === "REAUTH_REQUIRED" && !link?.reconnect_required)
-                    return false;
-                  if (opsFilter === "PAUSED" && !link?.paused) return false;
-
-                  const accFolder = accountMeta[acc.id]?.folder || "";
-                  if (selectedAccountFolder !== "*" && accFolder !== selectedAccountFolder)
-                    return false;
-
-                  return true;
-                })
-                .map((acc) => {
-                  const link = linkMap.get(acc.id);
-                  const isSelected = opsSelectedIds.includes(acc.id);
-                  const accPosts = posts.filter((p) => p.account_id === acc.id);
-                  const todayCount = accPosts.filter(
-                    (p) =>
-                      p.status === "published" &&
-                      isToday(p.published_at || p.created_at),
-                  ).length;
-                  const queueCount = accPosts.filter(
-                    (p) =>
-                      p.status === "scheduled" || p.status === "processing",
-                  ).length;
-                  const days30Count = accPosts.filter(
-                    (p) =>
-                      p.status === "published" &&
-                      isWithinDays(p.published_at || p.created_at, 30),
-                  ).length;
-                  const failedCount = accPosts.filter(
-                    (p) => p.status === "failed" || p.status === "uncertain",
-                  ).length;
-                  const lastPublished = accPosts.find(
-                    (p) => p.status === "published",
-                  );
-                  const customName =
-                    nameDrafts[acc.id] ??
-                    accountMeta[acc.id]?.customName ??
-                    "";
-                  const savedCustomName = accountMeta[acc.id]?.customName?.trim();
-                  const currentFolder = accountMeta[acc.id]?.folder || "";
-                  const activeDays = getAccountActiveDays(acc);
-                  const dayLabel =
-                    activeDays === 1 ? "1 dia" : `${activeDays} dias`;
-                  const checkedAt = accountMeta[acc.id]?.lastCheckedAt;
-
-                  return (
-                    <article
-                      key={acc.id}
-                      className={`ops-account-card ${isSelected ? "ops-account-card-selected" : ""}`}
-                    >
-                      <div className="ops-account-head">
-                        <label className="ops-check">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) =>
-                              setOpsSelectedIds((prev) =>
-                                e.target.checked
-                                  ? [...prev, acc.id]
-                                  : prev.filter((id) => id !== acc.id),
-                              )
-                            }
-                          />
-                          <span />
-                        </label>
-                        <div className="ops-avatar">
-                          {(savedCustomName || acc.username).slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="ops-account-name">
-                          <strong>
-                            {savedCustomName
-                              ? `${savedCustomName} (@${acc.username})`
-                              : `@${acc.username}`}
-                          </strong>
-                          <small>@{acc.username}</small>
-                        </div>
+            <div className="ig-account-list">
+              {filteredOpsAccounts.map((acc) => {
+                const link = linkMap.get(acc.id);
+                const isSelected = opsSelectedIds.includes(acc.id);
+                const expanded = opsExpandedAccountId === acc.id;
+                const accPosts = posts.filter((p) => p.account_id === acc.id);
+                const todayCount = accPosts.filter((p) => p.status === "published" && isToday(p.published_at || p.created_at)).length;
+                const queueCount = accPosts.filter((p) => p.status === "scheduled" || p.status === "processing").length;
+                const days30Count = accPosts.filter((p) => p.status === "published" && isWithinDays(p.published_at || p.created_at, 30)).length;
+                const failedCount = accPosts.filter((p) => p.status === "failed" || p.status === "uncertain").length;
+                const lastPublished = accPosts.find((p) => p.status === "published");
+                const customName = nameDrafts[acc.id] ?? accountMeta[acc.id]?.customName ?? "";
+                const savedCustomName = accountMeta[acc.id]?.customName?.trim();
+                const currentFolder = accountMeta[acc.id]?.folder || "";
+                const activeDays = getAccountActiveDays(acc);
+                const checkedAt = accountMeta[acc.id]?.lastCheckedAt;
+                return (
+                  <article key={acc.id} className={`ig-account-item ${isSelected ? "is-selected" : ""}`}>
+                    <div className="ig-account-main">
+                      <input type="checkbox" aria-label={`Selecionar @${acc.username}`} checked={isSelected} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, acc.id])] : current.filter((id) => id !== acc.id))} />
+                      <div className="ig-account-identity">
+                        <span className="ig-account-avatar" aria-hidden="true">{(savedCustomName || acc.username).slice(0, 2).toUpperCase()}</span>
+                        <div><strong>{savedCustomName || `@${acc.username}`}</strong><small>{savedCustomName ? `@${acc.username}` : currentFolder || "Sem pasta"}</small></div>
                       </div>
-
-                      <div className="ops-account-status">
-                        {link?.reconnect_required ? (
-                          <span className="ops-status ops-status-red">
-                            Reconexão necessária
-                          </span>
-                        ) : link?.paused ? (
-                          <span className="ops-status ops-status-yellow">
-                            Pausada
-                          </span>
-                        ) : (
-                          <span className="ops-status ops-status-green">
-                            Ativa
-                          </span>
-                        )}
-
-                        {/* Etiqueta automática por dias de conta ativa */}
-                        <span
-                          className="ops-status ops-status-green"
-                          title={`Etiqueta automática: conta ativa há ${dayLabel} na ferramenta`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontWeight: 600,
-                          }}
-                        >
-                          <Tag className="h-3 w-3" />
-                          {dayLabel}
-                        </span>
-
-                        {currentFolder && (
-                          <span className="ops-auth-badge">
-                            Pasta: {currentFolder}
-                          </span>
-                        )}
+                      <div className="ig-account-state">
+                        <span className={`ig-account-status ${link?.reconnect_required ? "needs-attention" : ""}`}>{link?.reconnect_required ? "Reconectar" : link?.paused ? "Pausada" : "Conectada"}</span>
+                        <span className="ig-account-queue">{queueCount} na fila</span>
                       </div>
-
-                      {/* Nomear conta */}
-                      <div className="ops-model-row">
-                        <span>NOME DA CONTA</span>
-                        <div>
-                          <input
-                            aria-label={`Nome personalizado da conta @${acc.username}`}
-                            placeholder={`Ex.: Conta Principal (@${acc.username})`}
-                            value={customName}
-                            onChange={(e) =>
-                              setNameDrafts((prev) => ({
-                                ...prev,
-                                [acc.id]: e.target.value,
-                              }))
-                            }
-                          />
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={() =>
-                              saveNameForAccount(acc.id, acc.username)
-                            }
-                          >
-                            Salvar
-                          </button>
-                        </div>
+                      <div className="ig-account-actions">
+                        <button type="button" className="ig-accounts-text-button" onClick={() => { setReelAccountIds([acc.id]); navigate("/dispara/reels-new"); }}>Publicar</button>
+                        <button type="button" className="ig-accounts-manage" aria-label={`Gerenciar @${acc.username}`} aria-expanded={expanded} aria-controls={`ig-account-${acc.id}`} onClick={() => setOpsExpandedAccountId(expanded ? null : acc.id)}>Gerenciar <ChevronDown size={14} className={expanded ? "is-expanded" : ""} /></button>
                       </div>
-
-                      {/* Pasta da conta */}
-                      <div className="ops-model-row">
-                        <span>PASTA</span>
-                        <div>
-                          <select
-                            aria-label={`Pasta da conta @${acc.username}`}
-                            value={currentFolder}
-                            onChange={(e) =>
-                              setFolderForAccount(
-                                acc.id,
-                                acc.username,
-                                e.target.value,
-                              )
-                            }
-                            className="ops-filter"
-                            style={{ width: "100%" }}
-                          >
-                            <option value="">Sem pasta</option>
-                            {accountFolders.map((f) => (
-                              <option key={f} value={f}>
-                                {f}
-                              </option>
-                            ))}
-                          </select>
+                    </div>
+                    {expanded && (
+                      <div id={`ig-account-${acc.id}`} role="region" aria-label={`Gerenciar @${acc.username}`} className="ig-account-details">
+                        <div className="ig-account-edit-fields">
+                          <div className="ig-account-edit-field"><label htmlFor={`ig-account-name-${acc.id}`}>Nome da conta</label><div><input id={`ig-account-name-${acc.id}`} aria-label={`Nome personalizado da conta @${acc.username}`} placeholder="Adicionar nome" value={customName} onChange={(e) => setNameDrafts((current) => ({ ...current, [acc.id]: e.target.value }))} /><button type="button" className="button button-secondary" onClick={() => saveNameForAccount(acc.id, acc.username)}>Salvar</button></div></div>
+                          <div className="ig-account-edit-field"><label htmlFor={`ig-account-folder-${acc.id}`}>Pasta</label><select id={`ig-account-folder-${acc.id}`} aria-label={`Pasta da conta @${acc.username}`} value={currentFolder} onChange={(e) => setFolderForAccount(acc.id, acc.username, e.target.value)} className="ops-filter"><option value="">Sem pasta</option>{accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select></div>
                         </div>
-                      </div>
-
-                      <div className="ops-metrics">
-                        <div>
-                          <strong>{todayCount}</strong>
-                          <span>hoje</span>
+                        <div className="ig-account-detail-stats">
+                          <span><strong>{todayCount}</strong> publicados hoje</span>
+                          <span><strong>{days30Count}</strong> nos últimos 30 dias</span>
+                          <span><strong>{failedCount}</strong> falhas</span>
+                          <span title="Dias de operação da conta na ferramenta"><strong>{activeDays}</strong> {activeDays === 1 ? "dia de operação" : "dias de operação"}</span>
                         </div>
-                        <div>
-                          <strong>{queueCount}</strong>
-                          <span>fila</span>
-                        </div>
-                        <div>
-                          <strong>{days30Count}</strong>
-                          <span>posts 30d</span>
-                        </div>
-                        <div>
-                          <strong>{failedCount}</strong>
-                          <span>falhas</span>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`ops-queue ${
-                          link?.paused ? "ops-queue-paused" : "ops-queue-ready"
-                        }`}
-                      >
-                        <strong>
-                          {link?.paused ? "Fila pausada" : "Fila pronta"}
-                        </strong>
-                        <span>
-                          Próximo post:{" "}
-                          {queueCount > 0 ? `${queueCount} na fila` : "aguardando"}
-                          . Último publicado:{" "}
-                          {lastPublished?.published_at
-                            ? new Date(
-                                lastPublished.published_at,
-                              ).toLocaleDateString("pt-BR")
-                            : "nunca"}
-                        </span>
-                      </div>
-
-                      {checkedAt && (
-                        <div className="ops-health-detail">
-                          <span>Saúde verificada</span>
-                          <span>
-                            {new Date(checkedAt).toLocaleString("pt-BR")}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="ops-card-footer">
-                        <span className="ops-mini-badge">
-                          {link?.paused ? "pausada" : "conectada"}
-                        </span>
-                        <button
-                          type="button"
-                          className="button button-secondary ops-small-button"
-                          onClick={() => {
-                            setReelAccountIds([acc.id]);
-                            navigate("/dispara/reels-new");
-                          }}
-                        >
-                          Publicar Reel
-                        </button>
-                        <button
-                          type="button"
-                          className="button button-secondary ops-small-button"
-                          style={{ marginLeft: "auto" }}
-                          onClick={async () => {
+                        <div className="ig-account-details-footer">
+                          <span>Última publicação: {lastPublished?.published_at ? new Date(lastPublished.published_at).toLocaleDateString("pt-BR") : "nenhuma"}{checkedAt ? ` · Verificação: ${new Date(checkedAt).toLocaleString("pt-BR")}` : ""}</span>
+                          <button type="button" className="ig-accounts-text-button" onClick={async () => {
                             try {
-                              await publisherRequest("pause", {
-                                account_id: acc.id,
-                                paused: !link?.paused,
-                              });
+                              await publisherRequest("pause", { account_id: acc.id, paused: !link?.paused });
                               await refreshAll();
-                              toast.success(
-                                link?.paused
-                                  ? `Conta @${acc.username} retomada.`
-                                  : `Conta @${acc.username} pausada.`,
-                              );
-                            } catch (err) {
-                              toast.error(
-                                err instanceof Error
-                                  ? err.message
-                                  : "Erro ao alterar pausa.",
-                              );
-                            }
-                          }}
-                        >
-                          {link?.paused ? "Retomar" : "Pausar"}
-                        </button>
+                              toast.success(link?.paused ? `Conta @${acc.username} retomada.` : `Conta @${acc.username} pausada.`);
+                            } catch (error) { toast.error(error instanceof Error ? error.message : "Erro ao alterar pausa."); }
+                          }}>{link?.paused ? "Retomar publicações" : "Pausar publicações"}</button>
+                        </div>
+                        {link?.reconnect_required && <Link className="ig-accounts-text-button" to="/dispara/conectar">Reconectar esta conta <ArrowRight size={14} /></Link>}
                       </div>
-                    </article>
-                  );
-                })}
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
