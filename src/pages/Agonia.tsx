@@ -27,6 +27,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Trophy,
   Upload,
   Users,
 } from "lucide-react";
@@ -360,6 +361,47 @@ export default function Agonia() {
   // Período do dashboard (apenas layout; dados de métricas serão ligados depois)
   const [dashPeriod, setDashPeriod] = useState<"today" | "yesterday" | "7d">("today");
   const dashPeriodLabel = { today: "Hoje", yesterday: "Ontem", "7d": "7 dias" }[dashPeriod];
+
+  // Filtro por modelo no Ranking de Contas
+  const MODEL_OPTIONS = [
+    { id: "all", label: "Todas as contas" },
+    { id: "bianca-rossi", label: "Bianca Rossi" },
+    { id: "sara-isabel", label: "Sara Isabel" },
+    { id: "leticia-torres", label: "Letícia Torres" },
+  ] as const;
+  const [selectedModel, setSelectedModel] = useState<string>("all");
+  const selectedModelLabel =
+    MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label ?? "Todas as contas";
+
+  const getRankBadge = (pos: number) => {
+    if (pos === 1) {
+      return (
+        <span className="rank-pos-badge rank-pos-1" title="1º Lugar no ranking">
+          🥇 1º
+        </span>
+      );
+    }
+    if (pos === 2) {
+      return (
+        <span className="rank-pos-badge rank-pos-2" title="2º Lugar no ranking">
+          🥈 2º
+        </span>
+      );
+    }
+    if (pos === 3) {
+      return (
+        <span className="rank-pos-badge rank-pos-3" title="3º Lugar no ranking">
+          🥉 3º
+        </span>
+      );
+    }
+    return (
+      <span className="rank-pos-badge rank-pos-other">
+        {pos}º
+      </span>
+    );
+  };
+
   const dashHour = new Date().getHours();
   const dashGreeting = useMemo(() => {
     // ☀️ Manhã: das 5h às 12h
@@ -389,29 +431,50 @@ export default function Agonia() {
         conn?.reconnect_required ||
         activeAlerts.some((alert) => alert.account_id === acc.id);
 
+      const modelVal =
+        (acc as any).model ??
+        (acc as any).model_name ??
+        (acc as any).model_id ??
+        null;
+
       return {
         id: acc.id,
         username: acc.username,
+        model: modelVal,
         views: Number(rawViews) || 0,
         hasWarning: Boolean(hasWarning),
       };
     });
 
-    const totalViews = rows.reduce((acc, r) => acc + r.views, 0);
-    const maxViews = Math.max(1, ...rows.map((r) => r.views));
-    const accountsWithWarning = rows.filter((r) => r.hasWarning);
+    const allAccountsTotalViews = rows.reduce((acc, r) => acc + r.views, 0);
 
-    // Ordenação por visualizações para encontrar maior e menor volume
-    const sorted = [...rows].sort((a, b) => b.views - a.views);
+    // Filtragem por modelo (se selecionada uma modelo específica)
+    const filtered =
+      selectedModel === "all"
+        ? rows
+        : rows.filter((r) => {
+            if (!r.model) return false;
+            const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
+            const current = String(r.model).toLowerCase();
+            return current === selectedModel.toLowerCase() || (target && current === target);
+          });
+
+    // Ordenação do ranking por critérios de visualizações de vídeos (maior para menor)
+    const sorted = [...filtered].sort((a, b) => b.views - a.views);
+    const totalViews = sorted.reduce((acc, r) => acc + r.views, 0);
+    const maxViews = Math.max(1, ...sorted.map((r) => r.views));
+    const accountsWithWarning = sorted.filter((r) => r.hasWarning);
+
     const best = sorted[0];
     const lowest = sorted[sorted.length - 1];
-    const lowestAccounts = rows.filter(
+    const lowestAccounts = sorted.filter(
       (r) => r.views === (lowest?.views ?? 0),
     );
 
     return {
-      rows,
+      rows: sorted,
       totalViews,
+      allAccountsTotalViews,
       maxViews,
       accountsWithWarning,
       accountsWithWarningCount: accountsWithWarning.length,
@@ -419,7 +482,7 @@ export default function Agonia() {
       lowest,
       lowestAccounts,
     };
-  }, [accounts, healthMap, links, activeAlerts]);
+  }, [accounts, healthMap, links, activeAlerts, selectedModel]);
 
   const redirectUri = `${window.location.origin}/instagram/conectar`;
 
@@ -970,7 +1033,7 @@ export default function Agonia() {
             <div className="stat-card tone-purple">
               <span className="stat-icon"><Eye className="h-4 w-4" /></span>
               <div className="label">Views Reels</div>
-              <div className="value">{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</div>
+              <div className="value">{accountViewsMetrics.allAccountsTotalViews.toLocaleString("pt-BR")}</div>
             </div>
             <div className="stat-card tone-blue">
               <span className="stat-icon"><Heart className="h-4 w-4" /></span>
@@ -991,21 +1054,23 @@ export default function Agonia() {
             </Link>
           </section>
 
-          {/* 2. MÓDULO DE PERFORMANCE & VISUALIZAÇÕES DOS PERFIS */}
+          {/* 2. RANKING DE CONTAS POR VISUALIZAÇÕES DE VÍDEOS */}
           <section className="panel performance-panel">
             <div className="panel-header performance-header">
               <div>
-                <div className="eyebrow">Performance por conta</div>
-                <h2 className="performance-title">Desempenho dos perfis conectados</h2>
+                <div className="eyebrow">
+                  <Trophy className="h-3.5 w-3.5 text-amber-400" /> Ranking de Contas
+                </div>
+                <h2 className="performance-title">Ranking por visualizações de vídeos</h2>
                 <p className="panel-copy">
-                  Acompanhe as visualizações de Reels e a saúde de cada conta do Instagram conectada.
+                  Classificação das contas conectadas ordenada pelo total de visualizações de vídeos.
                 </p>
               </div>
               <div className="performance-summary-group">
-                <div className="performance-total" title="Total de visualizações de Reels em todos os perfis">
+                <div className="performance-total" title="Total de visualizações de vídeos da seleção">
                   <Play className="h-4 w-4 text-emerald-400" />
                   <strong>{accountViewsMetrics.totalViews.toLocaleString("pt-BR")}</strong>
-                  <span>visualizações de Reels</span>
+                  <span>visualizações de vídeos</span>
                 </div>
                 <Link
                   to="/agonia/alertas"
@@ -1029,58 +1094,82 @@ export default function Agonia() {
               </div>
             </div>
 
-            <div className="performance-highlights">
-              <div className="performance-highlight performance-highlight-best">
-                <div className="performance-highlight-label">
-                  <TrendingUp className="h-3.5 w-3.5" /> Mais visualizações
-                </div>
-                <strong>
-                  {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
-                    ? `@${accountViewsMetrics.best.username}`
-                    : accountViewsMetrics.best
-                      ? `@${accountViewsMetrics.best.username}`
-                      : "Nenhuma conta"}
-                </strong>
-                <span>
-                  {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
-                    ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações`
-                    : "0 visualizações de Reels"}
-                </span>
-              </div>
-              <div className="performance-highlight performance-highlight-low">
-                <div className="performance-highlight-label">
-                  <TrendingDown className="h-3.5 w-3.5" /> Menos visualizações
-                </div>
-                <strong>
-                  {accountViewsMetrics.lowestAccounts.length > 0
-                    ? accountViewsMetrics.lowestAccounts
-                        .slice(0, 3)
-                        .map((a) => `@${a.username}`)
-                        .join(", ") +
-                      (accountViewsMetrics.lowestAccounts.length > 3
-                        ? ` +${accountViewsMetrics.lowestAccounts.length - 3}`
-                        : "")
-                    : "Todas com mesmo alcance"}
-                </strong>
-                <span>
-                  {accountViewsMetrics.lowest && accountViewsMetrics.lowest.views > 0
-                    ? `${accountViewsMetrics.lowest.views.toLocaleString("pt-BR")} visualizações`
-                    : "0 visualizações"}
-                </span>
+            {/* Filtro de Ranking por Modelo */}
+            <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
+              <span className="ranking-filter-label">Filtrar por modelo:</span>
+              <div className="ranking-filter-tabs">
+                {MODEL_OPTIONS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedModel === m.id}
+                    className={`ranking-filter-tab ${selectedModel === m.id ? "is-active" : ""}`}
+                    onClick={() => setSelectedModel(m.id)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {accountViewsMetrics.rows.length === 0 ? (
+            {accountViewsMetrics.rows.length > 0 && (
+              <div className="performance-highlights">
+                <div className="performance-highlight performance-highlight-best">
+                  <div className="performance-highlight-label">
+                    <Trophy className="h-3.5 w-3.5 text-amber-400" /> 1º Lugar · Mais visualizações
+                  </div>
+                  <strong>
+                    {accountViewsMetrics.best ? `@${accountViewsMetrics.best.username}` : "Nenhuma conta"}
+                  </strong>
+                  <span>
+                    {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
+                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de vídeos`
+                      : "0 visualizações"}
+                  </span>
+                </div>
+                <div className="performance-highlight performance-highlight-low">
+                  <div className="performance-highlight-label">
+                    <TrendingDown className="h-3.5 w-3.5" /> Menos visualizações
+                  </div>
+                  <strong>
+                    {accountViewsMetrics.lowestAccounts.length > 0
+                      ? accountViewsMetrics.lowestAccounts
+                          .slice(0, 3)
+                          .map((a) => `@${a.username}`)
+                          .join(", ") +
+                        (accountViewsMetrics.lowestAccounts.length > 3
+                          ? ` +${accountViewsMetrics.lowestAccounts.length - 3}`
+                          : "")
+                      : "Todas com mesmo alcance"}
+                  </strong>
+                  <span>
+                    {accountViewsMetrics.lowest && accountViewsMetrics.lowest.views > 0
+                      ? `${accountViewsMetrics.lowest.views.toLocaleString("pt-BR")} visualizações`
+                      : "0 visualizações"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {accounts.length === 0 ? (
               <div className="empty">
-                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar as visualizações e métricas.
+                Nenhuma conta conectada ainda. Conecte contas do Instagram para acompanhar o ranking por visualizações.
+              </div>
+            ) : accountViewsMetrics.rows.length === 0 ? (
+              <div className="empty">
+                Nenhuma conta vinculada à modelo <strong>{selectedModelLabel}</strong> ainda.
+                <p className="text-xs text-muted-foreground mt-1">
+                  A categorização por modelos será ativada no site em breve.
+                </p>
               </div>
             ) : (
               <div
                 className="performance-list"
                 role="list"
-                aria-label="Visualizações de Reels por conta"
+                aria-label="Ranking de contas por visualizações de vídeos"
               >
-                {accountViewsMetrics.rows.map((row) => (
+                {accountViewsMetrics.rows.map((row, index) => (
                   <div
                     key={row.id}
                     className="performance-row"
@@ -1088,6 +1177,7 @@ export default function Agonia() {
                   >
                     <div className="performance-account">
                       <div className="flex items-center gap-2 min-w-0">
+                        {getRankBadge(index + 1)}
                         <span className="truncate">@{row.username}</span>
                         {row.hasWarning && (
                           <span className="rounded-md bg-rose-950/70 border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300 font-mono shrink-0 flex items-center gap-1">
@@ -1095,7 +1185,10 @@ export default function Agonia() {
                           </span>
                         )}
                       </div>
-                      <strong>{row.views.toLocaleString("pt-BR")}</strong>
+                      <strong>
+                        {row.views.toLocaleString("pt-BR")}{" "}
+                        <span className="text-[10px] font-normal text-muted-foreground">views</span>
+                      </strong>
                     </div>
                     <div className="performance-track" aria-hidden="true">
                       <span
@@ -1117,10 +1210,10 @@ export default function Agonia() {
 
             <div className="performance-footer">
               <span>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Módulo preparado para receber os dados de visualização da Meta
+                <CheckCircle2 className="h-3.5 w-3.5" /> Critério de ordenação: visualizações de Reels e vídeos
               </span>
               <span>
-                {accounts.length} conta(s) conectada(s) · {accountViewsMetrics.accountsWithWarningCount} com aviso
+                {accountViewsMetrics.rows.length} conta(s) no ranking · Filtro: {selectedModelLabel}
               </span>
             </div>
           </section>
