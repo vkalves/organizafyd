@@ -926,43 +926,6 @@ export default function Agonia() {
             </div>
           </header>
 
-          {/* Banner de alerta se houver contas degradadas ou alertas pendentes */}
-          {(degradedAccounts.length > 0 || unreadAlerts.length > 0) && (
-            <div
-              role="alert"
-              className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 flex flex-wrap items-center justify-between gap-4"
-            >
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-6 w-6 text-rose-400 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-white text-base block font-semibold">
-                    {degradedAccounts.length > 0
-                      ? `${degradedAccounts.length} conta(s) com reconexão ou permissão pendente!`
-                      : `${unreadAlerts.length} novo(s) alerta(s) de conta do Instagram!`}
-                  </strong>
-                  <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-                    Para garantir que suas postagens automáticas e fluxos continuem saindo no horário,
-                    verifique e resolva as pendências na Central de Alertas.
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {degradedAccounts.map((a) => (
-                      <span
-                        key={a.id}
-                        className="rounded-md bg-rose-950/70 border border-rose-500/40 px-2 py-0.5 text-xs text-rose-200 font-mono"
-                      >
-                        @{a.username}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link className="button button-primary" to="/agonia/alertas">
-                  Ver Central de Alertas <ArrowRight className="h-4 w-4 ml-1" />
-                </Link>
-              </div>
-            </div>
-          )}
 
           {/* Módulo de Performance & Visualizações dos Perfis Conectados */}
           <section className="panel performance-panel">
