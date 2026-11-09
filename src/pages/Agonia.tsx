@@ -462,18 +462,18 @@ export default function Agonia() {
   const dashGreeting = useMemo(() => {
     // ☀️ Manhã: das 5h às 12h
     if (dashHour >= 5 && dashHour < 12) {
-      return "Olá! Acordou agora ou está indo dormir?";
+      return "Bom dia! Vamos aos resultados.";
     }
     // 🌤️ Tarde: das 12h às 18h
     if (dashHour >= 12 && dashHour < 18) {
-      return "Boa tarde! Já fez o L hoje?";
+      return "Boa tarde! Sua operação em movimento.";
     }
     // 🌙 Noite: das 18h à 0h
     if (dashHour >= 18 && dashHour < 24) {
-      return "Boa noite! Já fez dinheiro por LULA hoje?";
+      return "Boa noite! Acompanhe seus resultados.";
     }
     // 🦉 Madrugada: da 0h às 5h
-    return "Olá, coruja! Dormir não dá ROI, né?";
+    return "Olá! Seu espaço está pronto.";
   }, [dashHour]);
 
   const accountViewsMetrics = useMemo(() => {
@@ -827,7 +827,7 @@ export default function Agonia() {
       toast.success(
         `${jobIndex} Reel(s) enviado(s) para a fila de publicação oficial!`,
       );
-      navigate("/agonia/scheduled");
+      navigate("/disparo/scheduled");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Não foi possível agendar o Reel.",
@@ -878,7 +878,7 @@ export default function Agonia() {
       await refreshAll();
       setStoryFile(null);
       toast.success(`Story enviado para ${schedule.length} conta(s)!`);
-      navigate("/agonia/scheduled");
+      navigate("/disparo/scheduled");
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -1133,10 +1133,10 @@ export default function Agonia() {
               <h1 className="page-title">{dashGreeting}</h1>
             </div>
             <div className="action-row">
-              <Link className="button button-secondary" to="/agonia/fluxos">
+              <Link className="button button-secondary" to="/disparo/fluxos">
                 <Layers className="h-4 w-4" /> Modo Fluxo
               </Link>
-              <Link className="button button-primary" to="/agonia/reels-new">
+              <Link className="button button-primary" to="/disparo/reels-new">
                 <Plus className="h-4 w-4" /> Novo Reel
               </Link>
             </div>
@@ -1165,12 +1165,12 @@ export default function Agonia() {
           </div>
 
           <section className="grid stats-grid">
-            <Link to="/agonia/instagram" className="stat-card tone-purple">
+            <Link to="/disparo/instagram" className="stat-card tone-purple">
               <span className="stat-icon"><Instagram className="h-4 w-4" /></span>
               <div className="label">Contas conectadas</div>
               <div className="value">{stats.connected}</div>
             </Link>
-            <Link to="/agonia/scheduled" className="stat-card tone-blue">
+            <Link to="/disparo/scheduled" className="stat-card tone-blue">
               <span className="stat-icon"><CalendarClock className="h-4 w-4" /></span>
               <div className="label">Reels agendados</div>
               <div className="value">{stats.scheduled}</div>
@@ -1190,7 +1190,7 @@ export default function Agonia() {
               <div className="label">Publicados hoje</div>
               <div className="value">{stats.publishedToday}</div>
             </div>
-            <Link to="/agonia/alertas" className="stat-card tone-red">
+            <Link to="/disparo/alertas" className="stat-card tone-red">
               <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
               <div className="label">Alertas de contas</div>
               <div className={`value ${activeAlerts.length > 0 ? "text-rose-400 font-semibold" : ""}`}>
@@ -1343,17 +1343,17 @@ export default function Agonia() {
           <section className="quick-actions-minimal">
             <span className="quick-actions-minimal-label">Ações rápidas</span>
             <div className="quick-actions-minimal-row">
-              <Link className="quick-action-mini-btn" to="/agonia/fluxos">
+              <Link className="quick-action-mini-btn" to="/disparo/fluxos">
                 <Layers className="h-4 w-4 text-emerald-400" />
                 <span>Modo Fluxo Automático</span>
                 <ArrowRight className="h-3 w-3 opacity-60" />
               </Link>
-              <Link className="quick-action-mini-btn" to="/agonia/reels-new">
+              <Link className="quick-action-mini-btn" to="/disparo/reels-new">
                 <Film className="h-4 w-4 text-blue-400" />
                 <span>Publicar Novo Reel</span>
                 <ArrowRight className="h-3 w-3 opacity-60" />
               </Link>
-              <Link className="quick-action-mini-btn" to="/agonia/conectar">
+              <Link className="quick-action-mini-btn" to="/disparo/conectar">
                 <Instagram className="h-4 w-4 text-purple-400" />
                 <span>Conectar Instagram</span>
                 <ArrowRight className="h-3 w-3 opacity-60" />
@@ -1373,7 +1373,7 @@ export default function Agonia() {
                     Campanhas automáticas ativas rodando em segundo plano nas suas contas.
                   </p>
                 </div>
-                <Link className="link" to="/agonia/fluxos">
+                <Link className="link" to="/disparo/fluxos">
                   Gerenciar Modo Fluxo <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
@@ -1437,7 +1437,7 @@ export default function Agonia() {
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
                         <Link
-                          to="/agonia/fluxos"
+                          to="/disparo/fluxos"
                           className="button button-secondary text-xs py-2 px-3"
                         >
                           Acompanhar Campanha
@@ -1577,11 +1577,11 @@ export default function Agonia() {
                   <h3>Autorize na tela oficial</h3>
                   <p>
                     Confirme as permissões na página oficial do Instagram. Assim que concluir, a conta já aparece pronta em{" "}
-                    <Link to="/agonia/instagram" className="underline">
+                    <Link to="/disparo/instagram" className="underline">
                       Instagram
                     </Link>{" "}
                     e no{" "}
-                    <Link to="/agonia/fluxos" className="underline">
+                    <Link to="/disparo/fluxos" className="underline">
                       Modo Fluxo
                     </Link>
                     .
@@ -1883,7 +1883,7 @@ export default function Agonia() {
                 disabled={opsSelectedIds.length === 0}
                 onClick={() => {
                   setReelAccountIds(opsSelectedIds);
-                  navigate("/agonia/reels-new");
+                  navigate("/disparo/reels-new");
                 }}
               >
                 <Film className="h-3.5 w-3.5" />
@@ -2130,7 +2130,7 @@ export default function Agonia() {
                           className="button button-secondary ops-small-button"
                           onClick={() => {
                             setReelAccountIds([acc.id]);
-                            navigate("/agonia/reels-new");
+                            navigate("/disparo/reels-new");
                           }}
                         >
                           Publicar Reel
@@ -2176,7 +2176,7 @@ export default function Agonia() {
         <>
           <header className="topbar">
             <div>
-              <Link className="link" to="/agonia/reels">
+              <Link className="link" to="/disparo/reels">
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar para Reels
               </Link>
               <h1 className="page-title" style={{ marginTop: 12 }}>
@@ -2188,7 +2188,7 @@ export default function Agonia() {
               </p>
             </div>
             <div className="action-row">
-              <Link className="button button-secondary" to="/agonia/fluxos">
+              <Link className="button button-secondary" to="/disparo/fluxos">
                 <Layers className="h-4 w-4" /> Usar Modo Fluxo (Biblioteca e Loop)
               </Link>
             </div>
@@ -2603,7 +2603,7 @@ export default function Agonia() {
                   <button
                     type="button"
                     className="button button-secondary"
-                    onClick={() => navigate("/agonia")}
+                    onClick={() => navigate("/disparo")}
                   >
                     Cancelar
                   </button>
@@ -2619,7 +2619,7 @@ export default function Agonia() {
         <>
           <header className="topbar stories-topbar">
             <div>
-              <Link className="link" to="/agonia">
+              <Link className="link" to="/disparo">
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar para Dashboard
               </Link>
               <div className="eyebrow" style={{ marginTop: 14 }}>
@@ -2634,7 +2634,7 @@ export default function Agonia() {
             </div>
             <div className="stories-top-status">
               <span>● Instagram conectado</span>
-              <Link className="button button-secondary" to="/agonia/instagram">
+              <Link className="button button-secondary" to="/disparo/instagram">
                 Gerenciar contas
               </Link>
             </div>
@@ -2781,7 +2781,7 @@ export default function Agonia() {
                       <div className="notice" style={{ marginBottom: 0 }}>
                         Stories não têm legenda de publicação neste fluxo. Para
                         Stories com sticker de link clicável, acesse{" "}
-                        <Link className="link" to="/agonia/stories-link">
+                        <Link className="link" to="/disparo/stories-link">
                           Storys Com Link
                         </Link>
                         .
@@ -2890,7 +2890,7 @@ export default function Agonia() {
                 <Link
                   className="button button-secondary"
                   style={{ width: "100%" }}
-                  to="/agonia/reels"
+                  to="/disparo/reels"
                 >
                   Ver publicações
                 </Link>
@@ -3119,7 +3119,7 @@ export default function Agonia() {
           </div>
 
           <div className="story-link-footer">
-            <Link className="link" to="/agonia/stories">
+            <Link className="link" to="/disparo/stories">
               Voltar para Stories
             </Link>
             <span>
@@ -3150,10 +3150,10 @@ export default function Agonia() {
               </p>
             </div>
             <div className="actions">
-              <Link className="button button-secondary" to="/agonia/stories">
+              <Link className="button button-secondary" to="/disparo/stories">
                 Novo Story
               </Link>
-              <Link className="button button-primary" to="/agonia/reels-new">
+              <Link className="button button-primary" to="/disparo/reels-new">
                 Novo Reel
               </Link>
               <button
@@ -3331,13 +3331,13 @@ export default function Agonia() {
               </p>
             </div>
             <div className="actions">
-              <Link className="button button-secondary" to="/agonia/reels-test">
+              <Link className="button button-secondary" to="/disparo/reels-test">
                 Publicar Reel de teste
               </Link>
-              <Link className="button button-secondary" to="/agonia/stories">
+              <Link className="button button-secondary" to="/disparo/stories">
                 Novo Story
               </Link>
-              <Link className="button button-primary" to="/agonia/reels-new">
+              <Link className="button button-primary" to="/disparo/reels-new">
                 Novo Reel
               </Link>
             </div>
@@ -3526,7 +3526,7 @@ export default function Agonia() {
         <>
           <header className="topbar">
             <div>
-              <Link className="link" to="/agonia/reels">
+              <Link className="link" to="/disparo/reels">
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar para Publicações
               </Link>
               <h1 className="page-title" style={{ marginTop: 12 }}>
@@ -3833,7 +3833,7 @@ export default function Agonia() {
               <div className="eyebrow">Conta</div>
               <h1 className="page-title">Meu Perfil</h1>
               <p className="page-subtitle">
-                Personalize seu nome e sua foto no AGONIA PRO.
+                Personalize seu nome e sua foto no DISPARO.
               </p>
             </div>
           </header>

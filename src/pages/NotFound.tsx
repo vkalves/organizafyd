@@ -18,7 +18,7 @@ const NotFound = () => {
           O endereço acessado não existe ou foi movido.
         </p>
         <Link
-          to="/agonia"
+          to="/disparo"
           className="silver-button mt-5 inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-xs font-medium"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao início

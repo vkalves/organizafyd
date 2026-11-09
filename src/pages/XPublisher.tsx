@@ -107,7 +107,7 @@ export default function XPublisher() {
   }, [files]);
   useEffect(() => {
     const previous = document.title;
-    document.title = "X Studio · Organizafy";
+    document.title = "X Studio · DISPARO";
     return () => {
       document.title = previous;
     };
@@ -234,11 +234,11 @@ export default function XPublisher() {
         <a href="/x" className="x-studio-brand">
           <span className="x-brand-mark">𝕏</span>
           <span>
-            X Studio<small>por Organizafy</small>
+            X Studio<small>por DISPARO</small>
           </span>
         </a>
         <a href="/" className="x-back-link">
-          <ArrowLeft size={15} /> Voltar ao Organizafy
+          <ArrowLeft size={15} /> Voltar ao DISPARO
         </a>
       </header>
       <main className="x-studio-main">

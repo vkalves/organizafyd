@@ -1,29 +1,63 @@
 import { useEffect, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ArrowRight, BarChart3, Layers, Users, X } from "lucide-react";
 import "./welcome-animation.css";
 
-/** Mounted above the routes so navigating between modules does not replay it. */
+/** One presentation per page load, above routes so navigation never replays it. */
 export function WelcomeAnimation() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setVisible(false), 4000);
+    const timer = window.setTimeout(() => setVisible(false), 5500);
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (!visible) return null;
-
   return (
-    <aside className="welcome-animation" aria-label="Boas-vindas">
-      <span className="welcome-animation-icon" aria-hidden="true"><Sparkles size={22} /></span>
-      <div role="status">
-        <strong>Bem-vindo à Organizafy!</strong>
-        <p>Seu próximo resultado começa aqui.</p>
-      </div>
-      <button type="button" onClick={() => setVisible(false)} aria-label="Fechar boas-vindas">
-        <X size={18} aria-hidden="true" />
-      </button>
-      <span className="welcome-animation-progress" aria-hidden="true" />
-    </aside>
+    <Dialog.Root open={visible} onOpenChange={setVisible}>
+      <Dialog.Portal>
+        <Dialog.Content className="welcome-stage">
+          <div className="welcome-stage-grid" aria-hidden="true" />
+          <header className="welcome-stage-header">
+            <span className="welcome-stage-signature">
+              <img src="/branding/favicon.svg" width="32" height="32" alt="" />
+              DISPARO <span>ESTÚDIO DE PUBLICAÇÃO</span>
+            </span>
+            <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">
+              <span>Pular</span><X size={18} aria-hidden="true" />
+            </Dialog.Close>
+          </header>
+
+          <div className="welcome-stage-content">
+            <div className="welcome-stage-emblem" aria-hidden="true">
+              <span className="welcome-stage-orbit" />
+              <span className="welcome-stage-orbit welcome-stage-orbit-outer" />
+              <img src="/branding/dispara-simbolo-cromo.svg" width="240" height="198" alt="" />
+              <span className="welcome-stage-flare" />
+            </div>
+            <p className="welcome-stage-kicker">SUA PRÓXIMA FASE COMEÇA AGORA</p>
+            <Dialog.Title className="welcome-stage-title">
+              <span>Bem-vindo ao</span> DISPARO
+            </Dialog.Title>
+            <Dialog.Description className="welcome-stage-description">
+              Mais controle. Mais alcance. Mais resultados.
+            </Dialog.Description>
+            <div className="welcome-stage-features" aria-label="Recursos da plataforma">
+              <span><Users size={16} aria-hidden="true" /> Suas contas</span>
+              <span><Layers size={16} aria-hidden="true" /> Seus conteúdos</span>
+              <span><BarChart3 size={16} aria-hidden="true" /> Seus resultados</span>
+            </div>
+            <Dialog.Close className="welcome-stage-enter">
+              Entrar no DISPARO <ArrowRight size={18} aria-hidden="true" />
+            </Dialog.Close>
+          </div>
+
+          <footer className="welcome-stage-footer">
+            <span>DA ESTRATÉGIA AO RESULTADO.</span>
+            <span>A apresentação fecha automaticamente.</span>
+          </footer>
+          <span className="welcome-stage-progress" aria-hidden="true" />
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

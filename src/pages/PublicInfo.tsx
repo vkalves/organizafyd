@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CalendarClock, Images, ShieldCheck } from "lucide-react";
+import { SilverBrand } from "@/components/layout/SilverBrand";
 import "./tiktok-publisher.css";
 const operator = import.meta.env.VITE_LEGAL_OPERATOR?.trim() || "";
 const email = import.meta.env.VITE_SUPPORT_EMAIL?.trim() || "";
@@ -15,7 +16,7 @@ const titles: Record<string, string> = {
 export function PublicLinks() {
   return (
     <nav aria-label="Informações públicas">
-      <Link to="/sobre">Sobre o Organizafy</Link>
+      <Link to="/sobre">Sobre o DISPARO</Link>
       <Link to="/privacidade">Privacidade</Link>
       <Link to="/termos">Termos de Uso</Link>
       <Link to="/exclusao-de-dados">Excluir dados</Link>
@@ -28,14 +29,14 @@ export default function PublicInfo() {
   const about = pathname === "/sobre";
   useEffect(() => {
     const previous = document.title;
-    document.title = `${about ? "Sobre" : titles[pathname]} · Organizafy`;
+    document.title = `${about ? "Sobre" : titles[pathname]} · DISPARO`;
     return () => { document.title = previous; };
   }, [pathname, about]);
   return (
     <div className="tt-public">
       <header>
         <Link to="/sobre">
-          <strong>Organizafy</strong>
+          <SilverBrand />
         </Link>
         <Link to="/auth" className="tt-public-button">
           Acessar minha conta
@@ -85,7 +86,7 @@ export default function PublicInfo() {
           <section>
             <h2>Como funciona</h2>
             <ol>
-              <li>Crie ou acesse sua conta Organizafy.</li>
+              <li>Crie ou acesse sua conta DISPARO.</li>
               <li>
                 Conecte sua própria conta do TikTok e conceda a permissão de
                 publicação.
@@ -118,10 +119,10 @@ export default function PublicInfo() {
             <>
               <h2>Responsável e alcance</h2>
               <p>
-                Esta política descreve o uso de dados da conta Organizafy e do
+                Esta política descreve o uso de dados da conta DISPARO e do
                 módulo TikTok Fotos. Responsável:{" "}
                 {operator ||
-                  "administração do Organizafy (identificação em configuração)"}
+                  "administração do DISPARO (identificação em configuração)"}
                 . O canal de atendimento está em{" "}
                 <Link to="/contato">Contato</Link>.
               </p>
@@ -190,7 +191,7 @@ export default function PublicInfo() {
             <>
               <h2>Uso do serviço</h2>
               <p>
-                O Organizafy oferece ferramentas de organização e preparação de
+                O DISPARO oferece ferramentas de organização e preparação de
                 conteúdo para seus clientes. Ao usar o módulo TikTok Fotos, você
                 autoriza apenas ações sobre contas que lhe pertencem ou que tem
                 permissão para administrar.
@@ -242,7 +243,7 @@ export default function PublicInfo() {
                 condições específicas da sua contratação nem afastam direitos
                 obrigatórios previstos em lei. Responsável:{" "}
                 {operator ||
-                  "administração do Organizafy (identificação em configuração)"}
+                  "administração do DISPARO (identificação em configuração)"}
                 . Atendimento em <Link to="/contato">Contato</Link>.
               </p>
             </>
@@ -251,7 +252,7 @@ export default function PublicInfo() {
             <>
               <h2>Excluir pelo painel</h2>
               <ol>
-                <li>Acesse sua conta Organizafy.</li>
+                <li>Acesse sua conta DISPARO.</li>
                 <li>Abra TikTok Fotos e entre em Contas.</li>
                 <li>Abra “Excluir meus dados do TikTok”.</li>
                 <li>Leia o aviso, digite EXCLUIR e confirme.</li>
@@ -264,17 +265,17 @@ export default function PublicInfo() {
               </p>
               <h2>O que permanece fora deste módulo</h2>
               <p>
-                Isso não apaga sua conta Organizafy, dados de outras ferramentas
+                Isso não apaga sua conta DISPARO, dados de outras ferramentas
                 ou posts já recebidos pelo TikTok. Para apagar esses posts, use
                 o próprio TikTok. Envios em andamento podem terminar. Cópias
                 técnicas de segurança seguem o ciclo de retenção dos provedores.
               </p>
               <h2>Revogar acesso no TikTok</h2>
               <p>
-                Você também pode remover o Organizafy das permissões de
+                Você também pode remover o DISPARO das permissões de
                 aplicativos conectados nas configurações do TikTok. Apenas
                 revogar a permissão no TikTok não exclui o histórico e os
-                arquivos no Organizafy.
+                arquivos no DISPARO.
               </p>
               <h2>Se não conseguir entrar</h2>
               <p>
@@ -290,7 +291,7 @@ export default function PublicInfo() {
           )}
           {pathname === "/contato" && (
             <>
-              <h2>Administração do Organizafy</h2>
+              <h2>Administração do DISPARO</h2>
               <p>
                 {operator ||
                   "Identificação do responsável ainda em configuração."}
