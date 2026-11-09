@@ -689,27 +689,6 @@ export default function Flows({
 
         {workspace === "composer" ? (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="ig-segmented-tabs" aria-label="Tipo de mídia">
-              {(["posts", "stories"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={kind === k}
-                  disabled={busy}
-                  onClick={() => {
-                    setKind(k);
-                    setSelected([]);
-                    setCoverId(null);
-                    setActiveTool("none");
-                    setFlowId(crypto.randomUUID());
-                  }}
-                  className={`ig-tab-pill ${kind === k ? "is-active" : ""}`}
-                >
-                  {k === "posts" ? "Reels e posts" : "Stories"} (
-                  {media.filter((m) => m.kind === k).length})
-                </button>
-              ))}
-            </div>
             <Button
               variant="ghost"
               size="sm"

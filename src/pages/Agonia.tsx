@@ -1317,14 +1317,6 @@ export default function Agonia() {
                 Selecione mídias da biblioteca, escolha as contas e programe o envio contínuo.
               </p>
             </div>
-            <div className="action-row">
-              <Link className="button button-secondary" to="/agonia/reels-new">
-                <Plus className="h-4 w-4" /> Publicação direta
-              </Link>
-              <Link className="button button-secondary" to="/agonia/scheduled">
-                <CalendarClock className="h-4 w-4" /> Fila ({stats.scheduled})
-              </Link>
-            </div>
           </header>
 
           <div className="agonia-flows-wrapper">

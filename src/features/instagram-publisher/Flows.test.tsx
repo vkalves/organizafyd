@@ -115,18 +115,6 @@ describe("Fluxos interface", () => {
       ),
     );
   });
-  it("troca para Stories e exige nova seleção", async () => {
-    show();
-    await screen.findByText("Foto 1");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
-    fireEvent.click(screen.getByRole("button", { name: "Stories (0)" }));
-    expect(
-      screen.getByRole("heading", { name: /Story em várias contas/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Criar fluxo de Stories" }),
-    ).toBeDisabled();
-  });
   it("envia loop, descanso e legendas da pasta na criação da campanha", async () => {
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
