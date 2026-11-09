@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, BarChart3, Layers, Users, X } from "lucide-react";
+import { BarChart3, Layers, Users, X } from "lucide-react";
 import "./welcome-animation.css";
 
 /** One presentation per page load, above routes so navigation never replays it. */
@@ -46,9 +46,6 @@ export function WelcomeAnimation() {
               <span><Layers size={16} aria-hidden="true" /> Seus conteúdos</span>
               <span><BarChart3 size={16} aria-hidden="true" /> Seus resultados</span>
             </div>
-            <Dialog.Close className="welcome-stage-enter">
-              Entrar no DISPARA <ArrowRight size={18} aria-hidden="true" />
-            </Dialog.Close>
           </div>
 
           <footer className="welcome-stage-footer">

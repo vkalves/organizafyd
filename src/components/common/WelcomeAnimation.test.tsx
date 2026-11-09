@@ -21,12 +21,6 @@ describe("Boas-vindas DISPARA", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("abre a plataforma pelo botão principal", () => {
-    render(<WelcomeAnimation />);
-    fireEvent.click(screen.getByRole("button", { name: "Entrar no DISPARA" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
   it("permite fechar pelo teclado", () => {
     render(<WelcomeAnimation />);
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });

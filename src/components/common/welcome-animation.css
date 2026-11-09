@@ -46,8 +46,6 @@
 .welcome-stage-features { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin: 28px 0 32px; animation: welcome-copy 800ms 450ms both; }
 .welcome-stage-features span { display: inline-flex; align-items: center; gap: 7px; color: #c7cdd6; font-size: 11px; }
 .welcome-stage-features svg { color: #89939e; }
-.welcome-stage-enter { display: inline-flex; align-items: center; gap: 24px; min-height: 48px; padding: 0 24px; border: 1px solid #eef1f5; border-radius: 8px; background: linear-gradient(120deg, #eef1f5, #c7cdd6); color: #08090b; font-weight: 600; font-size: 13px; animation: welcome-copy 800ms 550ms both; }
-.welcome-stage-enter:hover { background: #fff; }
 .welcome-stage-skip:hover { border-color: #c7cdd6; color: #fff; }
 .welcome-stage button:focus-visible { outline: 2px solid #eef1f5; outline-offset: 5px; }
 .welcome-stage-footer { color: #78828f; font-size: 9px; letter-spacing: 0.12em; border-top: 1px solid #c7cdd60f; padding-bottom: max(24px, env(safe-area-inset-bottom)); }

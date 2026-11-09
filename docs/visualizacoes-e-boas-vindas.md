@@ -14,7 +14,7 @@ Os números representam visualizações acumuladas dos vídeos consultados, incl
 
 ## Boas-vindas
 
-A apresentação de boas-vindas ocupa a tela e usa o símbolo cromado oficial, com a marca DISPARA. Fecha após 5,5 segundos, pelo botão de pular, pelo botão de entrada ou por Escape. Não reaparece durante a navegação interna e respeita `prefers-reduced-motion`. O login segue a nova composição cromada inspirada nos estilos do site enviado. Veja os detalhes em [Identidade DISPARA](dispara-chrome.md).
+A apresentação de boas-vindas ocupa a tela e usa o símbolo cromado oficial, com a marca DISPARA. Fecha após 5,5 segundos, pelo botão de pular ou por Escape. Não reaparece durante a navegação interna e respeita `prefers-reduced-motion`. O login segue a nova composição cromada inspirada nos estilos do site enviado. Veja os detalhes em [Identidade DISPARA](dispara-chrome.md).
 
 ## Arquivos
 
