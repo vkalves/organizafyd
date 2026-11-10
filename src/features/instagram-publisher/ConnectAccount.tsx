@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { loginRequest } from "./login";
+import { openBrowserLogin } from "./browser-login";
 
 export function ConnectAccount({
   onConnected: _onConnected,
@@ -86,7 +87,7 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
     return data.url;
   }
 
-  // 1. Continuar neste navegador (Abre popup)
+  // Continue in the same tab on mobile; reserve the desktop popup on the click.
   async function handleOpenPopup() {
     if (ready === false) {
       toast.error("Conexão aguardando ativação no servidor.");
@@ -95,24 +96,11 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
     setBusyAction("popup");
     setError("");
     try {
-      const inviteUrl = await generateInviteUrl();
-      const width = 600;
-      const height = 750;
-      const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
-      const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
-      const popup = window.open(
-        inviteUrl,
-        "instagram_oauth",
-        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
-      );
-
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        // Se popup foi bloqueado pelo navegador, redireciona na mesma aba
-        window.location.assign(inviteUrl);
-      } else {
-        toast.success("Janela de login aberta. Conclua a autorização no Instagram.");
-        onClose();
+      const target = await openBrowserLogin(generateInviteUrl);
+      if (target === "popup") {
+        toast.success("Janela de login aberta. Conclua a autorização na Meta.");
       }
+      onClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Falha ao gerar link";
       setError(msg);
@@ -250,7 +238,7 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
                   Continuar neste navegador
                 </div>
                 <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                  Abre popup com login do Instagram. Use se a conta IG é sua ou está logada aqui.
+                  No celular, a autorização continua nesta mesma aba. Na Meta, escolha o perfil que deseja conectar.
                 </p>
               </div>
             </button>

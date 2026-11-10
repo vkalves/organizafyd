@@ -129,3 +129,18 @@ consultados aparecem como indisponíveis, sem medalhas ou posição de menor
 alcance. Zero só é exibido com métrica conhecida ou biblioteca completa sem
 vídeos. Falhas de atualização preservam os dados anteriores com aviso. Contas
 antigas podem precisar de nova autorização com `instagram_manage_insights`.
+
+### Abertura da conexão no celular
+
+Continuar neste navegador mantém a autorização na mesma aba em telas pequenas
+ou dispositivos com ponteiro de toque. Em desktop, a janela é reservada durante
+o clique, antes da consulta assíncrona do convite, para reduzir bloqueios de
+pop-up. Janela bloqueada ou fechada usa a mesma aba; falha ao criar convite fecha
+a janela vazia. Após uma autorização concluída, Voltar ao DISPARA leva à lista
+de contas sem reutilizar o histórico de códigos da Meta.
+
+O protocolo de autorização, a configuração Meta e o consumo único do verificador
+permanecem os mesmos. Testes com redirecionamento Meta simulado verificam a
+preservação de sessionStorage na aba e o consumo único no callback. Eles não
+comprovam a causa nem a resolução de mensagens internas de OpenID/acesso negado
+nas páginas da Meta; isso exige uma nova autorização real pelo titular no celular.

@@ -85,9 +85,9 @@ export default function InstagramConnect() {
           <div role="status">
             <h2 className="font-semibold">@{success} conectado!</h2>
             <p>
-              O responsável já pode agendar publicações autorizadas. Você pode
-              fechar esta janela.
+              O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.
             </p>
+            <a href="/dispara/instagram" className="button button-primary mt-4">Voltar ao DISPARA</a>
           </div>
         ) : (
           manager && (
