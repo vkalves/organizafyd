@@ -13,7 +13,7 @@ export function authorizeUrl(config: Config, callback: string, state: string) {
   return url.toString();
 }
 type Json = (url: string, init?: RequestInit) => Promise<any>;
-export async function authorizedAccount(
+export async function authorizedAccounts(
   config: Config,
   callback: string,
   code: string,
@@ -53,6 +53,37 @@ export async function authorizedAccount(
     throw new Error("missing_permission");
   if (data.expires_at && data.expires_at * 1000 <= Date.now())
     throw new Error("invalid_token");
+  const read = await graphReader(config, token, json);
+  const business = await read("me", "client_business_id");
+  if (!business.client_business_id) throw new Error("business_missing");
+  const profiles = new Map<string, Profile>();
+  const cursors = new Set<string>();
+  let after = "";
+  for (let page = 0; page < 10; page++) {
+    const accounts = await read("me/assigned_instagram_accounts", "id,username", { limit: "100", ...(after ? { after } : {}) });
+    if (!Array.isArray(accounts.data)) throw new Error("meta_authorization_failed");
+    for (const profile of accounts.data) {
+      if (!/^\d{5,30}$/.test(String(profile.id)) || typeof profile.username !== "string" || !/^[a-zA-Z0-9._]{1,30}$/.test(profile.username)) throw new Error("meta_authorization_failed");
+      profiles.set(String(profile.id), { id: String(profile.id), username: profile.username });
+    }
+    if (profiles.size > 500) throw new Error("meta_authorization_failed");
+    if (!accounts.paging?.next) break;
+    const cursor = accounts.paging?.cursors?.after;
+    if (page === 9 || typeof cursor !== "string" || !cursor || cursor.length > 2000 || cursors.has(cursor)) throw new Error("meta_authorization_failed");
+    cursors.add(cursor);
+    after = cursor;
+  }
+  if (!profiles.size) throw new Error("no_instagram_accounts");
+  return {
+    token,
+    accounts: [...profiles.values()],
+    businessId: String(business.client_business_id),
+    expiresAt: data.expires_at ? new Date(data.expires_at * 1000).toISOString() : null,
+  };
+}
+export type Profile = { id: string; username: string };
+export type Grant = { token: string; accounts: Profile[]; businessId: string; expiresAt: string | null };
+async function graphReader(config: Config, token: string, json: Json) {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(config.secret),
@@ -67,35 +98,26 @@ export async function authorizedAccount(
   )
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("");
-  const read = (path: string, fields: string) =>
+  const read = (path: string, fields: string, extra: Record<string, string> = {}) =>
     json(
       "https://graph.facebook.com/v24.0/" +
         path +
         "?" +
-        new URLSearchParams({ fields, appsecret_proof: proof }),
+        new URLSearchParams({ ...extra, fields, appsecret_proof: proof }),
       { headers: { Authorization: "Bearer " + token } },
     );
-  const business = await read("me", "client_business_id");
-  if (!business.client_business_id) throw new Error("business_missing");
-  const accounts = await read("me/assigned_instagram_accounts", "id,username");
-  if (!accounts.data?.length) throw new Error("no_instagram_accounts");
-  if (accounts.data.length !== 1 || accounts.paging?.next)
-    throw new Error("multiple_instagram_accounts");
-  const profile = accounts.data[0];
-  if (
-    !/^\d{5,30}$/.test(String(profile.id)) ||
-    typeof profile.username !== "string" ||
-    !profile.username
-  )
-    throw new Error("meta_authorization_failed");
-  await read(profile.id + "/content_publishing_limit", "quota_usage");
-  return {
-    token,
-    id: String(profile.id),
-    username: profile.username,
-    businessId: String(business.client_business_id),
-    expiresAt: data.expires_at
-      ? new Date(data.expires_at * 1000).toISOString()
-      : null,
-  };
+  return read;
+}
+export async function verifyPublishingAccess(config: Config, grant: Grant, accountId: string, json: Json) {
+  if (!grant.accounts.some(a => a.id === accountId)) throw new Error("invalid_selection");
+  const read = await graphReader(config, grant.token, json);
+  await read(accountId + "/content_publishing_limit", "quota_usage");
+}
+// Strict compatibility helper for callers that have not implemented profile selection.
+export async function authorizedAccount(config: Config, callback: string, code: string, json: Json) {
+  const grant = await authorizedAccounts(config, callback, code, json);
+  if (grant.accounts.length !== 1) throw new Error("multiple_instagram_accounts");
+  const profile = grant.accounts[0];
+  await verifyPublishingAccess(config, grant, profile.id, json);
+  return { token: grant.token, ...profile, businessId: grant.businessId, expiresAt: grant.expiresAt };
 }

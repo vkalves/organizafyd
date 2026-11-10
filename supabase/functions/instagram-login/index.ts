@@ -1,4 +1,5 @@
-import { authorizeUrl, authorizedAccount } from "./unified.ts";
+import { createAccountSelection, consumeAccountSelection, type SelectionStore } from "./account-selection.ts";
+import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,6 +22,30 @@ const random = () => crypto.randomUUID() + crypto.randomUUID();
 function checked({ data, error }: any) {
   if (error) throw new Error("database_error");
   return data;
+}
+const selectionStore: SelectionStore = {
+  async insert(row) { checked(await db.from("ig_login_states").insert(row)); },
+  async find(hash, proof, now) {
+    return checked(await db.from("ig_login_states").select("state_hash,verifier_hash,user_id,expires_at,pending_grant")
+      .eq("state_hash", hash).eq("verifier_hash", proof).gt("expires_at", now).not("pending_grant", "is", null).maybeSingle());
+  },
+  async consume(row, now) {
+    const result = checked(await db.from("ig_login_states").delete().eq("state_hash", row.state_hash)
+      .eq("verifier_hash", row.verifier_hash).eq("user_id", row.user_id).not("pending_grant", "is", null)
+      .gt("expires_at", now).select("user_id"));
+    return result.length === 1;
+  },
+};
+async function saveAccount(userId: string, grant: Grant, profile: Profile) {
+  const saved = await db.rpc("ig_connect_unified", {
+    p_user: userId, p_graph: profile.id, p_username: profile.username,
+    p_token: grant.token, p_business: grant.businessId, p_expires: grant.expiresAt,
+  });
+  if (saved.error) {
+    if (["account_already_connected", "provider_conflict"].includes(saved.error.message)) throw new Error(saved.error.message);
+    throw new Error("database_error");
+  }
+  return { username: profile.username };
 }
 async function json(url: string, init?: RequestInit) {
   const r = await fetch(url, { ...init, signal: AbortSignal.timeout(20000) });
@@ -135,6 +160,11 @@ Deno.serve(async (req) => {
       );
       return reply({ url: authorizeUrl(loginConfig, callback, state), state });
     }
+    if (b.action === "select_account") {
+      const { userId, grant, profile } = await consumeAccountSelection(b.selection, b.verifier, b.account_id, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, selectionStore);
+      await verifyPublishingAccess(loginConfig, grant, profile.id, json);
+      return reply(await saveAccount(userId, grant, profile));
+    }
     if (b.action === "finish") {
       if (
         typeof b.state !== "string" ||
@@ -150,35 +180,21 @@ Deno.serve(async (req) => {
           .from("ig_login_states")
           .delete()
           .eq("state_hash", await hash(b.state))
+          .is("pending_grant", null)
           .eq("verifier_hash", await hash(b.verifier))
           .gt("expires_at", new Date().toISOString())
           .select("user_id"),
       );
       if (states.length !== 1) throw new Error("invalid_state");
-      const account = await authorizedAccount(
-        loginConfig,
-        callback,
-        b.code,
-        json,
-      );
-      const saved = await db.rpc("ig_connect_unified", {
-        p_user: states[0].user_id,
-        p_graph: account.id,
-        p_username: account.username,
-        p_token: account.token,
-        p_business: account.businessId,
-        p_expires: account.expiresAt,
-      });
-      if (saved.error) {
-        if (
-          ["account_already_connected", "provider_conflict"].includes(
-            saved.error.message,
-          )
-        )
-          throw new Error(saved.error.message);
-        throw new Error("database_error");
+      const grant = await authorizedAccounts(loginConfig, callback, b.code, json);
+      if (grant.accounts.length > 1) {
+        // Cached clients retain their existing behavior until the new chooser is loaded.
+        if (b.allow_selection !== true) throw new Error("multiple_instagram_accounts");
+        return reply(await createAccountSelection(grant, states[0].user_id, b.verifier, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, selectionStore));
       }
-      return reply({ username: account.username });
+      const profile = grant.accounts[0];
+      await verifyPublishingAccess(loginConfig, grant, profile.id, json);
+      return reply(await saveAccount(states[0].user_id, grant, profile));
     }
     return reply({ error: "unknown_action" }, 400);
   } catch (e) {
@@ -189,6 +205,7 @@ Deno.serve(async (req) => {
       "multiple_instagram_accounts",
       "invalid_invite",
       "invalid_state",
+      "invalid_selection",
       "meta_authorization_failed",
       "missing_permission",
       "account_already_connected",
