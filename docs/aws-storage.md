@@ -1,6 +1,6 @@
 # S3 files with the Supabase backend
 
-Status: prepared, NOT activated in production. AWS credentials have NOT been transferred to Supabase. The automatic approval review requires explicit permission for that credential transfer.
+Status: credential transfer explicitly authorized by the user and completed in Supabase Vault. Gateway deployed and historical file copy in progress. Frontend production activation follows verification.
 
 ## Design
 
@@ -18,14 +18,14 @@ Reads fall back to the original Supabase object when the corresponding S3 key is
 - Versioning enabled; this protects overwritten/deleted objects and also consumes storage for old versions. No automatic retention/deletion policy was applied.
 - Bucket policy denies HTTP transport; CORS accepts only the five known app origins.
 - Dedicated machine identity `avanca-supabase-storage`, with List/Get/Put/Delete restricted to the four prefixes of this bucket. No user administration permissions.
-- New `aws_storage_config()` RPC is executable only by `service_role`; its guarded SECURITY DEFINER body reads one named Vault entry. No secret was inserted because approval was blocked.
-- New `s3-storage` Edge Function exists but is not configured for S3 access. No existing publisher function or frontend deployment was replaced.
+- New `aws_storage_config()` RPC is executable only by `service_role`; its guarded SECURITY DEFINER body reads one named Vault entry. The user-authorized, bucket-scoped secret is stored encrypted in Vault.
+- New `s3-storage` Edge Function is configured for S3 access. No existing publisher function or frontend deployment was replaced.
 
 The standalone gateway performs its own authentication, so platform `verify_jwt` is disabled. This is necessary for the existing public media links and does not authorize private reads or uploads. Anonymous private reads return 404 and anonymous uploads return 401.
 
 ## Required authorization and credentials
 
-Before activation, obtain explicit permission to store the AWS machine identity's access key and secret key in the encrypted Vault of Supabase project `csaplfphtvufxjhbpstl`. The keys are restricted to this bucket. They are long-lived service credentials and require rotation. The Vault RPC is never executable by browser roles. Do not commit keys, put them in `VITE_*` variables, include them in logs, or ask the user to paste them into chat.
+Explicit permission was obtained before storing the AWS machine identity's access key and secret key in the encrypted Vault of Supabase project `csaplfphtvufxjhbpstl`. The keys are restricted to this bucket. They are long-lived service credentials and require rotation. The Vault RPC is never executable by browser roles. Do not commit keys, put them in `VITE_*` variables, include them in logs, or ask the user to paste them into chat.
 
 After authorization, store the configuration server-side with `bucket`, `region`, `accessKeyId`, `secretAccessKey`. Migration additionally uses a separate random `migrationToken` and `migrationExpires` timestamp, expiring within two hours. The migration token only signs reads from Supabase; it cannot authorize mutations, read private database rows, or obtain AWS credentials. Remove its fields immediately after the copy, then redeploy/restart or allow the gateway's 60-second cache to expire.
 
