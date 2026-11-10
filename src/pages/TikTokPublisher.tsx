@@ -372,7 +372,7 @@ export default function TikTokPublisher() {
                   />
                 </label>
                 <p className="tt-muted">
-                  As fotos são preparadas em JPG, com até 2160 px no lado maior
+                  As fotos são preparadas em JPG, com até 1080 px no lado maior
                   e 4 MB. Transparência recebe fundo branco. Confira a prévia
                   antes de enviar.
                 </p>
