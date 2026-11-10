@@ -171,7 +171,7 @@ export function GoogleCalendarSettings() {
         )}
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">
-        Envie suas tarefas do DISPARA para o Google Agenda. Tarefas com data aparecem como eventos de dia inteiro;
+        Envie suas tarefas da Avança para o Google Agenda. Tarefas com data aparecem como eventos de dia inteiro;
         tarefas sem data não são enviadas. Edições, conclusões e exclusões feitas aqui também são sincronizadas.
         Alterações feitas no Google Agenda não atualizam suas tarefas no site.
       </p>
@@ -237,7 +237,7 @@ export function GoogleCalendarSettings() {
                           <option key={calendar.id} value={calendar.id}>{calendar.summary}{calendar.primary ? " (principal)" : ""}</option>
                         ))}
                       </select>
-                      <p className="text-xs leading-relaxed text-muted-foreground">Ao trocar de agenda, os eventos sincronizados pelo DISPARA serão movidos para a agenda escolhida.</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">Ao trocar de agenda, os eventos sincronizados pela Avança serão movidos para a agenda escolhida.</p>
                       <button
                         type="button"
                         className={buttonClass}

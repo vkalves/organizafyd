@@ -8,7 +8,7 @@ const account = { id: "account", username: "alfa" };
 it("requires confirmation and cancellation never removes the account", () => {
   render(<RemoveInstagramAccount account={account} onRemoved={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Remover conta" }));
-  expect(screen.getByRole("alertdialog")).toHaveAccessibleName("Remover @alfa do DISPARA?");
+  expect(screen.getByRole("alertdialog")).toHaveAccessibleName("Remover @alfa da Avança?");
   fireEvent.click(screen.getByRole("button", { name: "Cancelar" })); expect(remove).not.toHaveBeenCalled();
 });
 it("updates the list only after server confirmation", async () => {

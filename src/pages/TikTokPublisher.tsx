@@ -97,7 +97,7 @@ export default function TikTokPublisher() {
   });
   useEffect(() => {
     const previous = document.title;
-    document.title = "TikTok Fotos · DISPARA";
+    document.title = "TikTok Fotos · AVANÇA";
     return () => {
       document.title = previous;
     };
@@ -270,7 +270,7 @@ export default function TikTokPublisher() {
         <Link to="/" className="tt-back">
           <ArrowLeft size={17} /> Voltar ao painel
         </Link>
-        <Link to="/sobre">DISPARA</Link>
+        <Link to="/sobre">AVANÇA</Link>
         <Button
           disabled={busy || !data?.configured}
           onClick={() => action("connect")}
@@ -752,7 +752,7 @@ export default function TikTokPublisher() {
               <p>
                 Remove deste módulo todas as contas, fotos, filas e histórico.
                 Não apaga posts que já chegaram ao TikTok, nem sua conta
-                DISPARA. Envios em andamento podem terminar. Digite EXCLUIR
+                AVANÇA. Envios em andamento podem terminar. Digite EXCLUIR
                 para confirmar.
               </p>
               <Input

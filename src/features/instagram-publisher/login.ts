@@ -14,7 +14,7 @@ const messages: Record<string, string> = {
   invalid_state:
     "Esta autorização expirou ou foi aberta em outro navegador. Solicite um novo link.",
   invalid_selection:
-    "Esta escolha expirou ou já foi usada. Volte ao DISPARA e gere um novo link para conectar o perfil.",
+    "Esta escolha expirou ou já foi usada. Volte à Avança e gere um novo link para conectar o perfil.",
   missing_permission: "Autorize o acesso ao perfil e à publicação de conteúdo.",
   provider_conflict:
     "Este perfil já usa outra conexão. Entre em contato com o administrador para migrar o acesso.",

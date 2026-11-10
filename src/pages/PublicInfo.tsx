@@ -16,7 +16,7 @@ const titles: Record<string, string> = {
 export function PublicLinks() {
   return (
     <nav aria-label="Informações públicas">
-      <Link to="/sobre">Sobre o DISPARA</Link>
+      <Link to="/sobre">Sobre a Avança</Link>
       <Link to="/privacidade">Privacidade</Link>
       <Link to="/termos">Termos de Uso</Link>
       <Link to="/exclusao-de-dados">Excluir dados</Link>
@@ -29,7 +29,7 @@ export default function PublicInfo() {
   const about = pathname === "/sobre";
   useEffect(() => {
     const previous = document.title;
-    document.title = `${about ? "Sobre" : titles[pathname]} · DISPARA`;
+    document.title = `${about ? "Sobre" : titles[pathname]} · AVANÇA`;
     return () => { document.title = previous; };
   }, [pathname, about]);
   return (
@@ -86,7 +86,7 @@ export default function PublicInfo() {
           <section>
             <h2>Como funciona</h2>
             <ol>
-              <li>Crie ou acesse sua conta DISPARA.</li>
+              <li>Crie ou acesse sua conta AVANÇA.</li>
               <li>
                 Conecte sua própria conta do TikTok e conceda a permissão de
                 publicação.
@@ -119,10 +119,10 @@ export default function PublicInfo() {
             <>
               <h2>Responsável e alcance</h2>
               <p>
-                Esta política descreve o uso de dados da conta DISPARA e do
+                Esta política descreve o uso de dados da conta AVANÇA e do
                 módulo TikTok Fotos. Responsável:{" "}
                 {operator ||
-                  "administração do DISPARA (identificação em configuração)"}
+                  "administração da Avança (identificação em configuração)"}
                 . O canal de atendimento está em{" "}
                 <Link to="/contato">Contato</Link>.
               </p>
@@ -191,7 +191,7 @@ export default function PublicInfo() {
             <>
               <h2>Uso do serviço</h2>
               <p>
-                O DISPARA oferece ferramentas de organização e preparação de
+                A Avança oferece ferramentas de organização e preparação de
                 conteúdo para seus clientes. Ao usar o módulo TikTok Fotos, você
                 autoriza apenas ações sobre contas que lhe pertencem ou que tem
                 permissão para administrar.
@@ -243,7 +243,7 @@ export default function PublicInfo() {
                 condições específicas da sua contratação nem afastam direitos
                 obrigatórios previstos em lei. Responsável:{" "}
                 {operator ||
-                  "administração do DISPARA (identificação em configuração)"}
+                  "administração da Avança (identificação em configuração)"}
                 . Atendimento em <Link to="/contato">Contato</Link>.
               </p>
             </>
@@ -252,7 +252,7 @@ export default function PublicInfo() {
             <>
               <h2>Excluir pelo painel</h2>
               <ol>
-                <li>Acesse sua conta DISPARA.</li>
+                <li>Acesse sua conta AVANÇA.</li>
                 <li>Abra TikTok Fotos e entre em Contas.</li>
                 <li>Abra “Excluir meus dados do TikTok”.</li>
                 <li>Leia o aviso, digite EXCLUIR e confirme.</li>
@@ -265,17 +265,17 @@ export default function PublicInfo() {
               </p>
               <h2>O que permanece fora deste módulo</h2>
               <p>
-                Isso não apaga sua conta DISPARA, dados de outras ferramentas
+                Isso não apaga sua conta AVANÇA, dados de outras ferramentas
                 ou posts já recebidos pelo TikTok. Para apagar esses posts, use
                 o próprio TikTok. Envios em andamento podem terminar. Cópias
                 técnicas de segurança seguem o ciclo de retenção dos provedores.
               </p>
               <h2>Revogar acesso no TikTok</h2>
               <p>
-                Você também pode remover o DISPARA das permissões de
+                Você também pode remover a Avança das permissões de
                 aplicativos conectados nas configurações do TikTok. Apenas
                 revogar a permissão no TikTok não exclui o histórico e os
-                arquivos no DISPARA.
+                arquivos na Avança.
               </p>
               <h2>Se não conseguir entrar</h2>
               <p>
@@ -291,7 +291,7 @@ export default function PublicInfo() {
           )}
           {pathname === "/contato" && (
             <>
-              <h2>Administração do DISPARA</h2>
+              <h2>Administração da Avança</h2>
               <p>
                 {operator ||
                   "Identificação do responsável ainda em configuração."}

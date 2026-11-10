@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import "./index.css";
 import "./silver-theme.css";
-import "./dispara-theme.css";
+import "./avanca-theme.css";
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>

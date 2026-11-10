@@ -21,7 +21,7 @@ export function WelcomeAnimation() {
           <header className="welcome-stage-header">
             <span className="welcome-stage-signature">
               <img src="/branding/favicon.svg" width="32" height="32" alt="" />
-              DISPARA <span>ESTÚDIO DE PUBLICAÇÃO</span>
+              AVANÇA <span>ESTÚDIO DE PUBLICAÇÃO</span>
             </span>
             <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">
               <span>Pular</span><X size={18} aria-hidden="true" />
@@ -30,14 +30,11 @@ export function WelcomeAnimation() {
 
           <div className="welcome-stage-content">
             <div className="welcome-stage-emblem" aria-hidden="true">
-              <span className="welcome-stage-orbit" />
-              <span className="welcome-stage-orbit welcome-stage-orbit-outer" />
-              <img src="/branding/dispara-simbolo-cromo.svg" width="240" height="198" alt="" />
-              <span className="welcome-stage-flare" />
+              <img src="/branding/avanca-simbolo-claro.svg" width="106" height="154" alt="" />
             </div>
             <p className="welcome-stage-kicker">SUA PRÓXIMA FASE COMEÇA AGORA</p>
             <Dialog.Title className="welcome-stage-title">
-              <span>Bem-vindo ao</span> DISPARA
+              <span>Bem-vindo à</span> Avança
             </Dialog.Title>
             <Dialog.Description className="welcome-stage-description">
               Mais controle. Mais alcance. Mais resultados.

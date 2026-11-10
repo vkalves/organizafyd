@@ -110,7 +110,7 @@ export default function InstagramConnect() {
           <form onSubmit={event => { event.preventDefault(); void confirmAccount(); }} className="space-y-4">
             <fieldset disabled={busy} className="space-y-3">
               <legend className="font-semibold">Qual Instagram deseja conectar?</legend>
-              <p className="text-sm text-muted-foreground">A Meta autorizou mais de um perfil. Escolha uma conta para adicionar ao DISPARA.</p>
+              <p className="text-sm text-muted-foreground">A Meta autorizou mais de um perfil. Escolha uma conta para adicionar à Avança.</p>
               <div className="max-h-64 space-y-2 overflow-y-auto">
                 {choice.accounts.map(account => (
                   <label key={account.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 has-[:checked]:bg-secondary">
@@ -130,14 +130,14 @@ export default function InstagramConnect() {
             <p>
               O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.
             </p>
-            <Button asChild className="mt-4"><a href="/dispara/instagram">Voltar ao DISPARA</a></Button>
+            <Button asChild className="mt-4"><a href="/dispara/instagram">Voltar à Avança</a></Button>
           </div>
         ) : (
           manager && (
             <>
               <p>
                 Você está conectando seu Instagram à conta de{" "}
-                <strong className="break-all">{manager}</strong> no DISPARA.
+                <strong className="break-all">{manager}</strong> na Avança.
               </p>
               <p className="text-sm text-muted-foreground">
                 Ao autorizar, esse responsável poderá agendar e publicar
@@ -150,7 +150,7 @@ export default function InstagramConnect() {
               <p className="text-xs text-muted-foreground">
                 Na tela da Meta, escolha o portfólio correto. Se houver vários
                 perfis autorizados, você escolherá qual conectar ao voltar ao
-                DISPARA. Confira o @ antes de confirmar.
+                AVANÇA. Confira o @ antes de confirmar.
               </p>
             </>
           )
