@@ -20,7 +20,7 @@ describe('Instagram authorization return',()=>{
  });
  it('consumes browser verifier and sends it only in the exchange request',async()=>{
  window.location.hash='code=secret-code&state=state1';sessionStorage.setItem('ig-login:state1','verifier');vi.mocked(loginRequest).mockResolvedValue({username:'client'});
- render(<InstagramConnect/>);expect(await screen.findByText('@client conectado!')).toBeInTheDocument();
+ render(<InstagramConnect/>);expect(await screen.findByText('@client conectado!')).toBeInTheDocument();expect(screen.getByRole('link',{name:'Voltar ao DISPARA'})).toHaveAttribute('href','/dispara/instagram');
  expect(loginRequest).toHaveBeenCalledWith('finish',{code:'secret-code',state:'state1',verifier:'verifier'});expect(sessionStorage.getItem('ig-login:state1')).toBeNull();
  });
  it('handles denial without exchange',async()=>{
