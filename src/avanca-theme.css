@@ -212,3 +212,20 @@ body .welcome-stage[data-state="closed"] { animation: welcome-stage-close 160ms 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Metallic details shared by the workspace navigation. */
+.shell-desktop-brand { display: none; }
+@media (min-width: 1024px) {
+  body .workspace-shell .shell-expanded { --sidebar-w: 272px; }
+  .shell-desktop-brand { display: inline-flex; align-items: center; border: 1px solid #454545; border-radius: 999px; padding: 4px 14px; font-size: 13px; background: linear-gradient(145deg,#282828,#171717); }
+  .shell-desktop-brand + .shell-current-page::before { content: "/"; margin-right: 13px; color: #888; }
+}
+body .workspace-shell .shell-rail { background: radial-gradient(ellipse at 25% 92%, #242424 0%, transparent 36%), #101010; }
+body .workspace-shell .shell-rail-footer { background: #141414; border: 1px solid #292929; border-radius: 14px; padding: 8px; }
+body .workspace-shell:not(.shell-expanded) .shell-rail-footer { padding: 5px 0; }
+body .workspace-shell .shell-nav-link.is-active {
+  background: radial-gradient(ellipse at 85% 120%, #b1b1b1 0%, transparent 54%), linear-gradient(118deg, #484848, #292929 60%, #4f4f4f);
+  border-color: #6b6b6b;
+  box-shadow: inset 0 1px 0 #ffffff22, 0 5px 22px #0006;
+}
+body .workspace-shell .shell-nav-create:not(.is-active) { border-color: transparent; }

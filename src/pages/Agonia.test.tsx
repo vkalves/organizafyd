@@ -20,6 +20,8 @@ vi.mock("@/features/instagram-publisher/useInstagramAnalytics", () => ({ useInst
 vi.mock("@/features/instagram-publisher/account-api", () => ({ loadAccountPhotos: vi.fn().mockResolvedValue([]) }));
 import Agonia from "./Agonia";
 import { loadSettings } from "@/features/agonia/schedule";
+import { listPosts } from "@/features/instagram-publisher/api";
+import type { Post } from "@/features/instagram-publisher/model";
 
 const clients: QueryClient[] = [];
 function show(section: string) {
@@ -34,6 +36,26 @@ beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("crypto", webcrypto); local
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); });
 
 describe("Avança — controles dos fluxos existentes", () => {
+  it("exibe a fila real e altera o resumo de publicações ao selecionar o período", async () => {
+    const now = new Date();
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12).toISOString();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12).toISOString();
+    const post: Post = {
+      id: "published", user_id: "visual-qa", account_id: "a", caption: "Publicação anterior",
+      format: "Reel", media_urls: [], scheduled_at: null, status: "published",
+      created_at: yesterday, updated_at: yesterday, published_at: yesterday,
+    };
+    vi.mocked(listPosts).mockResolvedValueOnce([post, {
+      ...post, id: "queued", caption: "Reel agendado para amanhã", status: "scheduled", published_at: null, scheduled_at: tomorrow,
+    }]);
+    show("dashboard");
+    expect(await screen.findByText("Reel agendado para amanhã")).toBeInTheDocument();
+    expect(screen.getByText("Publicações concluídas · Hoje")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Ontem" }));
+    const summary = screen.getByRole("heading", { name: "Resumo de desempenho" }).closest("section")!;
+    expect(within(summary).getByText("Publicações concluídas · Ontem")).toBeInTheDocument();
+    expect(within(summary).getAllByText("1")).toHaveLength(2);
+  });
   it("envia mídia, legenda, conta e horário revisados ao contrato de agendamento", async () => {
     show("reels-new");
     await screen.findByText("@conta_teste");
