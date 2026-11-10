@@ -514,11 +514,11 @@ export default function Agonia() {
     }
     // 🌤️ Tarde: das 12h às 18h
     if (dashHour >= 12 && dashHour < 18) {
-      return "Boa tarde! Sua operação em movimento.";
+      return "Boa tarde! Vamos aos resultados.";
     }
     // 🌙 Noite: das 18h à 0h
     if (dashHour >= 18 && dashHour < 24) {
-      return "Boa noite! Acompanhe seus resultados.";
+      return "Boa noite! Vamos aos resultados.";
     }
     // 🦉 Madrugada: da 0h às 5h
     return "Olá! Seu espaço está pronto.";
@@ -1127,10 +1127,10 @@ export default function Agonia() {
       {section === "dashboard" && (
         <>
           <header className="topbar dash-hero">
-            <div className="dash-hero-art" aria-hidden="true"><img src="/branding/avanca-simbolo-claro.svg" alt="" /></div>
+            <div className="dash-hero-art" aria-hidden="true" />
             <div>
               <h1 className="page-title">{dashGreeting}</h1>
-              <p className="page-subtitle">Seu conteúdo, suas contas e os próximos passos.</p>
+              <p className="page-subtitle">Acompanhe o desempenho dos seus conteúdos, organize sua produção e escale seus resultados no Instagram.</p>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/dispara/fluxos">
@@ -1182,7 +1182,7 @@ export default function Agonia() {
               <div className="value">{stats.scheduled}</div>
             </Link>
             <div className="stat-card tone-purple">
-              <span className="stat-icon"><Eye className="h-4 w-4" /></span>
+              <span className="stat-icon"><Play className="h-4 w-4" /></span>
               <div className="label">Visualizações de vídeos</div>
               <div className="value">{accountViewsMetrics.allAccountsTotalViews?.toLocaleString("pt-BR") ?? "—"}</div>
             </div>
@@ -1227,77 +1227,10 @@ export default function Agonia() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void viewsReport.refetch()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
-              {accountViewsMetrics.hasMore && <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore} onClick={() => void loadMoreViews()}>{viewsLoadingMore ? "Carregando vídeos…" : "Carregar mais vídeos"}</button>}
-              <Link to="/dispara/visualizacoes" className="underline">Ver análise de visualizações</Link>
-            </div>
-            {viewsReport.isFetching && <p role="status" className="text-xs text-muted-foreground">Consultando visualizações na Meta…</p>}
-            {viewsReport.isError && <p role="alert" className="text-xs text-rose-300">Não foi possível atualizar as métricas. Tente novamente; os dados já consultados são mantidos.</p>}
-            {viewsReport.data && accountViewsMetrics.partial && <p className="text-xs text-muted-foreground">Consulta parcial: há mais vídeos ou métricas indisponíveis. Carregue mais vídeos; se o acesso estiver indisponível, confira a permissão de insights e reconecte a conta.</p>}
-            {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. O ranking mostra totais acumulados.</p>}
-
-            {/* Filtro de Ranking por Modelo */}
-            <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
-              <span className="ranking-filter-label">Filtrar por modelo:</span>
-              <div className="ranking-filter-tabs">
-                {MODEL_OPTIONS.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={selectedModel === m.id}
-                    className={`ranking-filter-tab ${selectedModel === m.id ? "is-active" : ""}`}
-                    onClick={() => setSelectedModel(m.id)}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="dash-ranking-data">
             <DashboardViewsChart report={viewsReport.data} accountIds={accountViewsMetrics.accountIds} />
             <div className="dash-ranking-detail">
-            {accountViewsMetrics.best && (
-              <div className="performance-highlights">
-                <div className="performance-highlight performance-highlight-best">
-                  <div className="performance-highlight-label">
-                    <Trophy className="h-3.5 w-3.5 text-amber-400" /> 1º Lugar · Mais visualizações
-                  </div>
-                  <strong>
-                    {accountViewsMetrics.best ? `@${accountViewsMetrics.best.username}` : "Nenhuma conta"}
-                  </strong>
-                  <span>
-                    {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
-                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de vídeos`
-                      : "0 visualizações"}
-                  </span>
-                </div>
-                <div className="performance-highlight performance-highlight-low">
-                  <div className="performance-highlight-label">
-                    <TrendingDown className="h-3.5 w-3.5" /> Menos visualizações
-                  </div>
-                  <strong>
-                    {accountViewsMetrics.lowestAccounts.length > 0
-                      ? accountViewsMetrics.lowestAccounts
-                          .slice(0, 3)
-                          .map((a) => `@${a.username}`)
-                          .join(", ") +
-                        (accountViewsMetrics.lowestAccounts.length > 3
-                          ? ` +${accountViewsMetrics.lowestAccounts.length - 3}`
-                          : "")
-                      : "Todas com mesmo alcance"}
-                  </strong>
-                  <span>
-                    {accountViewsMetrics.lowest && accountViewsMetrics.lowest.views > 0
-                      ? `${accountViewsMetrics.lowest.views.toLocaleString("pt-BR")} visualizações`
-                      : "0 visualizações"}
-                  </span>
-                </div>
-              </div>
-            )}
-
+            <h3 className="dash-top-accounts">Top contas <span>(visualizações)</span></h3>
             {accounts.length === 0 ? (
               <div className="empty">
                 Conecte uma conta do Instagram para consultar as visualizações dos seus vídeos.
@@ -1350,8 +1283,80 @@ export default function Agonia() {
               </div>
             )}
 
+            <Link className="dash-ranking-link" to="/dispara/visualizacoes">Ver ranking completo <ArrowRight /></Link>
             </div>
             </div>
+            <details className="dash-ranking-tools">
+              <summary>Filtros e métricas</summary>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void viewsReport.refetch()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
+              {accountViewsMetrics.hasMore && <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore} onClick={() => void loadMoreViews()}>{viewsLoadingMore ? "Carregando vídeos…" : "Carregar mais vídeos"}</button>}
+              <Link to="/dispara/visualizacoes" className="underline">Ver análise de visualizações</Link>
+            </div>
+            {viewsReport.isFetching && <p role="status" className="text-xs text-muted-foreground">Consultando visualizações na Meta…</p>}
+            {viewsReport.isError && <p role="alert" className="text-xs text-rose-300">Não foi possível atualizar as métricas. Tente novamente; os dados já consultados são mantidos.</p>}
+            {viewsReport.data && accountViewsMetrics.partial && <p className="text-xs text-muted-foreground">Consulta parcial: há mais vídeos ou métricas indisponíveis. Carregue mais vídeos; se o acesso estiver indisponível, confira a permissão de insights e reconecte a conta.</p>}
+            {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. O ranking mostra totais acumulados.</p>}
+
+            {/* Filtro de Ranking por Modelo */}
+            <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
+              <span className="ranking-filter-label">Filtrar por modelo:</span>
+              <div className="ranking-filter-tabs">
+                {MODEL_OPTIONS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedModel === m.id}
+                    className={`ranking-filter-tab ${selectedModel === m.id ? "is-active" : ""}`}
+                    onClick={() => setSelectedModel(m.id)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {accountViewsMetrics.best && (
+              <div className="performance-highlights">
+                <div className="performance-highlight performance-highlight-best">
+                  <div className="performance-highlight-label">
+                    <Trophy className="h-3.5 w-3.5 text-amber-400" /> 1º Lugar · Mais visualizações
+                  </div>
+                  <strong>
+                    {accountViewsMetrics.best ? `@${accountViewsMetrics.best.username}` : "Nenhuma conta"}
+                  </strong>
+                  <span>
+                    {accountViewsMetrics.best && accountViewsMetrics.best.views > 0
+                      ? `${accountViewsMetrics.best.views.toLocaleString("pt-BR")} visualizações de vídeos`
+                      : "0 visualizações"}
+                  </span>
+                </div>
+                <div className="performance-highlight performance-highlight-low">
+                  <div className="performance-highlight-label">
+                    <TrendingDown className="h-3.5 w-3.5" /> Menos visualizações
+                  </div>
+                  <strong>
+                    {accountViewsMetrics.lowestAccounts.length > 0
+                      ? accountViewsMetrics.lowestAccounts
+                          .slice(0, 3)
+                          .map((a) => `@${a.username}`)
+                          .join(", ") +
+                        (accountViewsMetrics.lowestAccounts.length > 3
+                          ? ` +${accountViewsMetrics.lowestAccounts.length - 3}`
+                          : "")
+                      : "Todas com mesmo alcance"}
+                  </strong>
+                  <span>
+                    {accountViewsMetrics.lowest && accountViewsMetrics.lowest.views > 0
+                      ? `${accountViewsMetrics.lowest.views.toLocaleString("pt-BR")} visualizações`
+                      : "0 visualizações"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            </details>
             <div className="performance-footer">
               <span>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Ordenação pelas visualizações disponíveis na consulta

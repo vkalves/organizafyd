@@ -95,8 +95,8 @@ export function DashboardOverview({ posts, alerts, period, periodLabel, pending,
         </dl>
       </section>
       <section className="panel">
-        <div className="dash-widget-head"><h2><Layers /> Fluxo de publicação</h2></div>
-        <p className="panel-copy">Registros por etapa · {periodLabel}</p>
+        <div className="dash-widget-head"><h2><Layers /> Funil de publicação <span className="dash-period-note">({periodLabel.toLowerCase()})</span></h2></div>
+        
         <ol className="dash-counts dash-steps">
           {([["Criados", created], ["Na fila", queued], ["Publicados", published.length]] as const).map(([label, value]) => (
             <li key={label}><span className="dash-step-marker">{value > 0 && !pending && !error && <Check />}</span><span>{label}</span><strong>{count(value)}</strong></li>
