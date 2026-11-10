@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Instagram, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loginRequest } from "@/features/instagram-publisher/login";
+type AccountChoice = { id: string; username: string };
+type FinishResult = { username: string } | { selection: string; accounts: AccountChoice[] };
 export default function InstagramConnect() {
   const [params] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)),
@@ -11,6 +13,8 @@ export default function InstagramConnect() {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(true);
   const started = useRef(false);
+  const [choice, setChoice] = useState<{ selection: string; verifier: string; accounts: AccountChoice[] } | null>(null);
+  const [accountId, setAccountId] = useState("");
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -30,12 +34,17 @@ export default function InstagramConnect() {
             throw new Error(
               "Abra a autorização no mesmo navegador em que iniciou a conexão. Solicite um novo link.",
             );
-          const result = await loginRequest<{ username: string }>("finish", {
+          const result = await loginRequest<FinishResult>("finish", {
             code: params.get("code"),
             state,
             verifier,
+            allow_selection: true,
           });
-          setSuccess(result.username);
+          if ("selection" in result) {
+            setChoice({ ...result, verifier });
+          } else {
+            setSuccess(result.username);
+          }
         } else {
           const info = await loginRequest<{ manager: string }>("invite_info", {
             invite: params.get("invite"),
@@ -68,6 +77,22 @@ export default function InstagramConnect() {
       setBusy(false);
     }
   }
+  async function confirmAccount() {
+    if (!choice || !accountId || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await loginRequest<{ username: string }>("select_account", {
+        selection: choice.selection,
+        verifier: choice.verifier,
+        account_id: accountId,
+      });
+      setSuccess(result.username);
+      setChoice(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na conexão. Solicite um novo link.");
+    } finally { setBusy(false); }
+  }
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <section className="panel panel-body w-full max-w-md space-y-4">
@@ -80,6 +105,24 @@ export default function InstagramConnect() {
             <Loader2 className="animate-spin" />
             Aguarde…
           </p>
+        )}
+        {choice && !success && (
+          <form onSubmit={event => { event.preventDefault(); void confirmAccount(); }} className="space-y-4">
+            <fieldset disabled={busy} className="space-y-3">
+              <legend className="font-semibold">Qual Instagram deseja conectar?</legend>
+              <p className="text-sm text-muted-foreground">A Meta autorizou mais de um perfil. Escolha uma conta para adicionar ao DISPARA.</p>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {choice.accounts.map(account => (
+                  <label key={account.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 has-[:checked]:bg-secondary">
+                    <input type="radio" name="instagram-account" value={account.id} checked={accountId === account.id} onChange={() => setAccountId(account.id)} className="h-4 w-4 shrink-0 accent-foreground" />
+                    <span className="break-all">@{account.username}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <Button type="submit" disabled={busy || !accountId} className="w-full">Conectar perfil escolhido</Button>
+            <p className="text-xs text-muted-foreground">Somente o perfil escolhido será adicionado. Esta escolha expira em 10 minutos.</p>
+          </form>
         )}
         {success ? (
           <div role="status">
@@ -105,9 +148,9 @@ export default function InstagramConnect() {
                 Autorizar no Instagram
               </Button>
               <p className="text-xs text-muted-foreground">
-                Na tela da Meta, escolha o portfólio correto e apenas um perfil
-                do Instagram. Confira o @ antes de autorizar. Você pode revogar
-                o acesso posteriormente nas configurações do Instagram.
+                Na tela da Meta, escolha o portfólio correto. Se houver vários
+                perfis autorizados, você escolherá qual conectar ao voltar ao
+                DISPARA. Confira o @ antes de confirmar.
               </p>
             </>
           )
@@ -117,6 +160,7 @@ export default function InstagramConnect() {
             {error}
           </p>
         )}
+        {!success && (error || choice) && <a href="/dispara/instagram" className="block text-sm underline">Voltar e gerar um novo link</a>}
         <div className="flex gap-4 text-xs">
           <a href="/privacidade" className="underline">
             Privacidade
