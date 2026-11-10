@@ -1,3 +1,4 @@
+import { storage } from '@/lib/storage';
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
@@ -243,7 +244,7 @@ export async function uploadMedia(
       throw new Error("Use JPG ou MP4, com até 100 MB por arquivo.");
     const path = userId + "/" + crypto.randomUUID() + "." + ext;
     progress?.("Enviando arquivo limpo…");
-    const { error } = await supabase.storage
+    const { error } = await storage
       .from("instagram-publisher")
       .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
     if (error) throw new Error("Falha no upload. Tente novamente.");

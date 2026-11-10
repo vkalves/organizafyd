@@ -7,7 +7,7 @@ const db = createClient(
   { auth: { persistSession: false } },
 );
 const site = "https://www.organizafy.site";
-const allowedOrigins = new Set([site, "https://organizafy.site", "https://organizafyd.vercel.app"]);
+const allowedOrigins = new Set(["https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online", site, "https://organizafy.site", "https://organizafyd.vercel.app"]);
 const callback =
   Deno.env.get("SUPABASE_URL")! + "/functions/v1/instagram-login";
 const hash = async (s: string) =>

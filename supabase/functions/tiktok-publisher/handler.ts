@@ -30,6 +30,7 @@ export function createTikTokHandler(
   fetcher: typeof fetch = fetch,
 ) {
   const app = config.appUrl ? new URL(config.appUrl) : null;
+  const allowedOrigins = new Set([app?.origin, 'https://xn--avana-1ra.online', 'https://www.xn--avana-1ra.online'].filter(Boolean));
   const ready = !!(
     app &&
     config.supabaseUrl &&
@@ -305,7 +306,7 @@ export function createTikTokHandler(
     const headers = {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": app?.origin ?? "null",
+      "Access-Control-Allow-Origin": allowedOrigins.has(request.headers.get("Origin") || "") ? request.headers.get("Origin")! : app?.origin ?? "null",
       "Access-Control-Allow-Headers":
         "authorization, apikey, content-type, x-client-info",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -341,7 +342,7 @@ export function createTikTokHandler(
         return reply({ error: "method_not_allowed" }, 405);
       if (
         request.headers.get("Origin") &&
-        request.headers.get("Origin") !== app?.origin
+        !allowedOrigins.has(request.headers.get("Origin") || "")
       )
         throw new TikTokError("origin_denied", 403);
       if (Number(request.headers.get("Content-Length") || 0) > 32768)

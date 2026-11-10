@@ -1,3 +1,4 @@
+import { storage } from '@/lib/storage';
 import { cleanMedia, type MediaStage } from "./clean-media";
 import { supabase } from "@/integrations/supabase/client";
 export interface XAccount {
@@ -108,7 +109,7 @@ export async function uploadFiles(
           ? "png"
           : "mp4";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage
+    const { error } = await storage
       .from("x-media")
       .upload(path, file, { contentType: file.type, upsert: false });
     if (error)

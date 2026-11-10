@@ -1,0 +1,25 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://xn--avana-1ra.online",
+        "https://www.xn--avana-1ra.online",
+        "https://organizafy.site",
+        "https://www.organizafy.site",
+        "https://organizafyd.vercel.app"
+      ],
+      "AllowedMethods": [
+        "GET",
+        "HEAD",
+        "POST"
+      ],
+      "AllowedHeaders": [
+        "*"
+      ],
+      "ExposeHeaders": [
+        "ETag"
+      ],
+      "MaxAgeSeconds": 300
+    }
+  ]
+}
