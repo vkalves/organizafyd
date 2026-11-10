@@ -477,34 +477,11 @@ export default function Agonia() {
   const selectedModelLabel =
     MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label ?? "Todas as contas";
 
-  const getRankBadge = (pos: number) => {
-    if (pos === 1) {
-      return (
-        <span className="rank-pos-badge rank-pos-1" title="1º Lugar no ranking">
-          🥇 1º
-        </span>
-      );
-    }
-    if (pos === 2) {
-      return (
-        <span className="rank-pos-badge rank-pos-2" title="2º Lugar no ranking">
-          🥈 2º
-        </span>
-      );
-    }
-    if (pos === 3) {
-      return (
-        <span className="rank-pos-badge rank-pos-3" title="3º Lugar no ranking">
-          🥉 3º
-        </span>
-      );
-    }
-    return (
-      <span className="rank-pos-badge rank-pos-other">
-        {pos}º
-      </span>
-    );
-  };
+  const getRankBadge = (pos: number) => (
+    <span className="rank-pos-badge" title={`${pos}º Lugar no ranking`}>
+      {pos}
+    </span>
+  );
 
   const dashHour = new Date().getHours();
   const dashGreeting = useMemo(() => {
@@ -1258,7 +1235,7 @@ export default function Agonia() {
                     <div className="performance-account">
                       <div className="flex items-center gap-2 min-w-0">
                         {row.views !== null ? getRankBadge(index + 1) : <span className="text-xs text-muted-foreground">—</span>}
-                        <span className="truncate" title={`@${row.username}`}>@{row.username}</span>
+                        <Instagram className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate" title={`@${row.username}`}>@{row.username}</span>
                       </div>
                       <strong>
                         {row.views?.toLocaleString("pt-BR") ?? (viewsReport.isPending ? "Aguardando" : "Indisponível")}{" "}
@@ -1356,7 +1333,6 @@ export default function Agonia() {
               </div>
             )}
 
-            </details>
             <div className="performance-footer">
               <span>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Ordenação pelas visualizações disponíveis na consulta
@@ -1365,6 +1341,8 @@ export default function Agonia() {
                 {accountViewsMetrics.rows.length} conta(s) no ranking · Filtro: {selectedModelLabel}
               </span>
             </div>
+            </details>
+
           </section>
           <DashboardSchedule posts={stats.nextPosts} accounts={accountNames} pending={postsQuery.isPending} error={postsQuery.isError} />
           </div>

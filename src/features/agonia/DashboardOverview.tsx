@@ -44,7 +44,7 @@ export function DashboardViewsChart({ report, accountIds }: { report?: Analytics
     <figure className="dash-views-chart">
       <figcaption><strong>Visualizações por data de publicação</strong><small>Totais dos vídeos consultados, publicados nos últimos 7 dias.</small></figcaption>
       {points.length ? <>
-        <svg viewBox="0 0 360 130" aria-hidden="true">
+        <svg viewBox="0 0 360 130" preserveAspectRatio="none" aria-hidden="true">
           <defs><linearGradient id="avanca-chart-fill" x2="0" y2="1"><stop stopColor="white" stopOpacity=".25" /><stop offset="1" stopColor="white" stopOpacity="0" /></linearGradient></defs>
           {[22, 53, 84, 116].map(y => <path key={y} d={`M16 ${y}H344`} stroke="currentColor" strokeOpacity=".19" strokeDasharray="2 4" />)}
           {points.length > 1 && <polygon points={`${points[0][0]},116 ${line} ${points.at(-1)![0]},116`} fill="url(#avanca-chart-fill)" />}
