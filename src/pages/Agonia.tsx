@@ -91,6 +91,8 @@ import {
   type MetaAppConfig,
 } from "@/features/agonia/schedule";
 import "@/features/agonia/agonia.css";
+import { DashboardOverview, DashboardSchedule, DashboardViewsChart, type DashboardPeriod } from "@/features/agonia/DashboardOverview";
+import "@/features/agonia/dashboard-concept.css";
 
 const AccountViews = lazy(() => import("@/features/instagram-publisher/AccountViews"));
 const MetaDeveloper = lazy(() => import("@/features/meta-developer/MetaDeveloper"));
@@ -461,9 +463,7 @@ export default function Agonia() {
     };
   }, [accounts.length, posts]);
 
-  // Métricas de visualização de Reels & alertas das contas conectadas
-  // Período do dashboard (apenas layout; dados de métricas serão ligados depois)
-  const [dashPeriod, setDashPeriod] = useState<"today" | "yesterday" | "7d">("today");
+  const [dashPeriod, setDashPeriod] = useState<DashboardPeriod>("today");
   const dashPeriodLabel = { today: "Hoje", yesterday: "Ontem", "7d": "7 dias" }[dashPeriod];
 
   // Filtro por modelo no Ranking de Contas
@@ -530,7 +530,7 @@ export default function Agonia() {
     const all = accountViewsRanking(rankedAccounts, viewsReport.data);
     const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
     const filtered = selectedModel === "all" ? rankedAccounts : rankedAccounts.filter((acc) => acc.model?.toLowerCase() === selectedModel || acc.model?.toLowerCase() === target);
-    return { ...accountViewsRanking(filtered, viewsReport.data), allAccountsTotalViews: all.totalViews };
+    return { ...accountViewsRanking(filtered, viewsReport.data), allAccountsTotalViews: all.totalViews, accountIds: filtered.map(account => account.id) };
   }, [accounts, accountMeta, viewsReport.data, selectedModel]);
 
   const redirectUri = `${window.location.origin}/instagram/conectar`;
@@ -1126,7 +1126,8 @@ export default function Agonia() {
       {/* 1. DASHBOARD */}
       {section === "dashboard" && (
         <>
-          <header className="topbar">
+          <header className="topbar dash-hero">
+            <div className="dash-hero-art" aria-hidden="true"><img src="/branding/avanca-simbolo-claro.svg" alt="" /></div>
             <div>
               <h1 className="page-title">{dashGreeting}</h1>
               <p className="page-subtitle">Seu conteúdo, suas contas e os próximos passos.</p>
@@ -1141,9 +1142,10 @@ export default function Agonia() {
             </div>
           </header>
 
-          <Link to="/dispara/meta-developer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "17px 21px" }}>
+          <Link to="/dispara/meta-developer" className="panel dash-connect">
+            <span className="dash-connect-icon"><Instagram aria-hidden="true" /></span>
             <div><strong>Primeiro acesso? Conecte seu Instagram</strong><p className="panel-copy">Abra o guia Meta Developer e siga um passo de cada vez.</p></div>
-            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="dash-connect-arrow"><ArrowRight aria-hidden="true" /></span>
           </Link>
 
           {/* 1. MÉTRICAS NO TOPO */}
@@ -1152,7 +1154,7 @@ export default function Agonia() {
               <BarChart3 className="h-3.5 w-3.5" /> Métricas
               <span className="font-normal opacity-70">· {dashPeriodLabel}</span>
             </div>
-            <div className="period-tabs" role="tablist" aria-label="Período">
+            <div className="period-tabs" role="tablist" aria-label="Período do resumo e do fluxo de publicação">
               {([["today", "Hoje"], ["yesterday", "Ontem"], ["7d", "7 dias"]] as const).map(([k, l]) => (
                 <button
                   key={k}
@@ -1176,7 +1178,7 @@ export default function Agonia() {
             </Link>
             <Link to="/dispara/scheduled" className="stat-card tone-blue">
               <span className="stat-icon"><CalendarClock className="h-4 w-4" /></span>
-              <div className="label">Reels agendados</div>
+              <div className="label">Publicações na fila</div>
               <div className="value">{stats.scheduled}</div>
             </Link>
             <div className="stat-card tone-purple">
@@ -1187,7 +1189,7 @@ export default function Agonia() {
             <div className="stat-card tone-blue">
               <span className="stat-icon"><Heart className="h-4 w-4" /></span>
               <div className="label">Curtidas Reels</div>
-              <div className="value">0</div>
+              <div className="value" aria-label="Curtidas indisponíveis" title="A consulta atual da Meta não inclui curtidas">—</div>
             </div>
             <div className="stat-card tone-green">
               <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>
@@ -1204,6 +1206,7 @@ export default function Agonia() {
           </section>
 
           {/* 2. RANKING DE CONTAS POR VISUALIZAÇÃO TOTAL DE REELS */}
+          <div className="dash-main-grid">
           <section className="panel performance-panel analytics-ranking">
             <div className="panel-header performance-header">
               <div>
@@ -1232,7 +1235,7 @@ export default function Agonia() {
             {viewsReport.isFetching && <p role="status" className="text-xs text-muted-foreground">Consultando visualizações na Meta…</p>}
             {viewsReport.isError && <p role="alert" className="text-xs text-rose-300">Não foi possível atualizar as métricas. Tente novamente; os dados já consultados são mantidos.</p>}
             {viewsReport.data && accountViewsMetrics.partial && <p className="text-xs text-muted-foreground">Consulta parcial: há mais vídeos ou métricas indisponíveis. Carregue mais vídeos; se o acesso estiver indisponível, confira a permissão de insights e reconecte a conta.</p>}
-            {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. Estes totais não são limitados ao período dos cartões acima.</p>}
+            {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. O ranking mostra totais acumulados.</p>}
 
             {/* Filtro de Ranking por Modelo */}
             <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
@@ -1253,6 +1256,9 @@ export default function Agonia() {
               </div>
             </div>
 
+            <div className="dash-ranking-data">
+            <DashboardViewsChart report={viewsReport.data} accountIds={accountViewsMetrics.accountIds} />
+            <div className="dash-ranking-detail">
             {accountViewsMetrics.best && (
               <div className="performance-highlights">
                 <div className="performance-highlight performance-highlight-best">
@@ -1308,6 +1314,7 @@ export default function Agonia() {
                 className="performance-list"
                 role="list"
                 aria-label="Ranking de contas por visualizações de vídeos"
+                tabIndex={0}
               >
                 {accountViewsMetrics.rows.map((row, index) => (
                   <div
@@ -1343,6 +1350,8 @@ export default function Agonia() {
               </div>
             )}
 
+            </div>
+            </div>
             <div className="performance-footer">
               <span>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Ordenação pelas visualizações disponíveis na consulta
@@ -1352,6 +1361,10 @@ export default function Agonia() {
               </span>
             </div>
           </section>
+          <DashboardSchedule posts={stats.nextPosts} accounts={accountNames} pending={postsQuery.isPending} error={postsQuery.isError} />
+          </div>
+
+          <DashboardOverview posts={posts} alerts={activeAlerts} period={dashPeriod} periodLabel={dashPeriodLabel} pending={postsQuery.isPending} error={postsQuery.isError} />
 
           {/* 3. AÇÕES RÁPIDAS (Minimalista) */}
           <section className="quick-actions-minimal">

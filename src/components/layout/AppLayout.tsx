@@ -351,6 +351,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="shell-header-title">
             <span className="shell-eyebrow"><SilverBrand compact /></span>
+            <span className="shell-desktop-brand" aria-hidden="true">avança</span>
             <span className="shell-current-page">{currentPage}</span>
           </div>
 
