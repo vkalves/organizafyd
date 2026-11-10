@@ -131,6 +131,7 @@ function SideNav({
                 aria-label={item.title}
                 className={cn(
                   "shell-nav-link",
+                  item.path === "/dispara/reels-new" && "shell-nav-create",
                   isActive && "is-active",
                   collapsed && "is-collapsed",
                 )}
@@ -243,12 +244,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Mobile bottom bar: 4 primary destinations + "Mais" drawer trigger
   const mobilePrimaryItems = useMemo(
-    () => [
-      agoniaNavItems[0], // Dashboard
-      agoniaNavItems[1], // Modo Fluxo
-      agoniaNavItems[5], // Novo Reel
-      agoniaNavItems[8], // Agendamentos
-    ],
+    () => agoniaNavItems.filter((item) =>
+      ["/dispara", "/dispara/fluxos", "/dispara/reels-new", "/dispara/scheduled"].includes(item.path),
+    ),
     [],
   );
 
@@ -275,8 +273,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLink
               to="/dispara"
               className="shell-brand"
-              title="DISPARA · Dashboard"
-              aria-label="DISPARA · Dashboard"
+              title="AVANÇA · Dashboard"
+              aria-label="AVANÇA · Dashboard"
             >
               <AgoniaBrand compact={!desktopSidebarOpen} />
             </NavLink>
@@ -352,7 +350,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           <div className="shell-header-title">
-            <span className="shell-eyebrow">DISPARA</span>
+            <span className="shell-eyebrow"><SilverBrand compact /></span>
             <span className="shell-current-page">{currentPage}</span>
           </div>
 
@@ -387,7 +385,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <NavLink
                   to="/dispara"
                   onClick={() => setMobileMenuOpen(false)}
-                  aria-label="DISPARA"
+                  aria-label="AVANÇA"
                 >
                   <AgoniaBrand />
                 </NavLink>

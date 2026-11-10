@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="460" height="154" viewBox="0 0 460 154" role="img" aria-label="AVANÇA · horizontal"><defs>
+    <mask id="collar" maskUnits="userSpaceOnUse" x="0" y="0" width="106" height="154">
+      <rect width="106" height="154" fill="#fff"/>
+      <path fill="#000" d="M12 58 C36 70 65 65 94 49 L94 55 C65 75 35 78 12 65Z"/>
+    </mask>
+    <path id="king" fill="currentColor" mask="url(#collar)" d="
+      M48 3 H58 Q60 3 60 5 V14 Q60 17 63 17 H72 Q74 17 74 19 V28 Q74 30 72 30 H63 Q60 30 60 33 V37
+      C60 41 69 42 81 46 Q88 48 85 54 C77 67 69 74 67 86 C63 106 75 121 97 134
+      Q103 138 103 144 V148 Q103 151 99 151 H7 Q3 151 3 148 V144 Q3 138 9 134
+      C31 121 43 106 39 86 C37 74 29 67 21 54 Q18 48 25 46 C37 42 46 41 46 37 V33
+      Q46 30 43 30 H34 Q32 30 32 28 V19 Q32 17 34 17 H43 Q46 17 46 14 V5 Q46 3 48 3 Z"/>
+    <path id="letter-a" fill-rule="evenodd" d="M39 7V4H50V53H39V50
+      C35 53 30 55 24 55C10 55 1 44 1 29C1 14 10 3 24 3C30 3 35 4 39 7Z
+      M39 29C39 20 34 14 26 14C18 14 13 20 13 29C13 38 18 44 26 44C34 44 39 38 39 29Z"/>
+    <g id="wordmark" fill="currentColor">
+      <use xlink:href="#letter-a"/>
+      <path d="M57 4H70C73 17 78 29 83 40C90 27 94 16 96 4H109
+        C105 23 96 40 87 53H78C69 39 61 21 57 4Z"/>
+      <use xlink:href="#letter-a" x="115"/>
+      <path d="M175 4H186V9C190 5 196 3 202 3C215 3 223 11 223 25V53H211V27
+        C211 18 207 14 200 14C192 14 187 20 187 29V53H175Z"/>
+      <path d="M279 13L270 21C267 16 263 14 257 14C248 14 242 20 242 29
+        C242 38 248 44 257 44C263 44 268 41 271 37L280 43
+        C275 51 267 55 257 55C241 55 230 44 230 29C230 14 241 3 257 3
+        C266 3 274 6 279 13Z
+        M254 53H262L259 59C265 60 267 63 267 67C267 74 259 78 250 74L252 68
+        C257 70 261 69 261 67C261 65 258 64 253 65L251 61Z"/>
+      <use xlink:href="#letter-a" x="286"/>
+    </g>
+  </defs><use xlink:href="#king" color="#F5F5F5" transform="translate(0 0) scale(.88)"/><use xlink:href="#wordmark" color="#F5F5F5" transform="translate(105 42) scale(1.02)"/></svg>

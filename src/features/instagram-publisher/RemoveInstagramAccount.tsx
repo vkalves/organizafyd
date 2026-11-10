@@ -10,7 +10,7 @@ export function RemoveInstagramAccount({ account, onRemoved }: { account: { id: 
     <AlertDialogTrigger asChild><button type="button" className="ig-accounts-text-button ig-accounts-remove"><Trash2 size={14} /> Remover conta</button></AlertDialogTrigger>
     <AlertDialogContent className="w-[calc(100%_-_2rem)] max-h-[90dvh] overflow-y-auto rounded-xl">
       <AlertDialogHeader>
-        <AlertDialogTitle>Remover @{account.username} do DISPARA?</AlertDialogTitle>
+        <AlertDialogTitle>Remover @{account.username} da Avança?</AlertDialogTitle>
         <AlertDialogDescription>Os agendamentos pendentes desta conta serão cancelados e ela será retirada dos fluxos. O histórico será preservado. Isso não exclui seu perfil no Instagram; você poderá conectá-lo novamente.</AlertDialogDescription>
       </AlertDialogHeader>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

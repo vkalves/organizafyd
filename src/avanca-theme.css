@@ -1,0 +1,214 @@
+/* Avança — neutral, quiet surfaces. Loaded once; explicit shell scoping also
+   keeps the theme stable when feature styles arrive in lazy-loaded chunks. */
+:root, body .workspace-shell, body .tt-public, body .tt-studio, body .x-studio {
+  --background: 0 0% 4.3%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 96%;
+  --card-hover: 0 0% 10%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 5%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 0 0% 14%;
+  --accent-foreground: 0 0% 96%;
+  --border: 0 0% 17%;
+  --input: 0 0% 25%;
+  --ring: 0 0% 78%;
+  --sidebar-background: 0 0% 6%;
+  --sidebar-foreground: 0 0% 65%;
+  --sidebar-primary: 0 0% 96%;
+  --sidebar-primary-foreground: 0 0% 5%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 14%;
+  --sidebar-ring: 0 0% 78%;
+  --surface: 0 0% 5%;
+  --surface-raised: 0 0% 12%;
+  --font-display: Inter, system-ui, sans-serif;
+  --radius: .875rem;
+  --silver-gradient: linear-gradient(#f5f5f5, #f5f5f5);
+  --silver-glass: #121212;
+  --silver-line: #2b2b2b;
+  /* Retained aliases for legacy presentation components. */
+  --chrome-fill: #f5f5f5;
+  --chrome-text: linear-gradient(#f5f5f5, #f5f5f5);
+  --chrome-surface: #121212;
+}
+
+body { background: #0b0b0b; }
+body .silver-brand.avanca-brand { display: inline-flex; line-height: 0; }
+body .silver-brand.avanca-brand img { width: 132px; height: auto; object-fit: contain; mix-blend-mode: normal; }
+body .silver-brand.avanca-brand.is-compact img { width: auto; height: 30px; }
+
+/* Workspace navigation: the same destinations and handlers, with a quieter rail. */
+body .workspace-shell { --header-h: 64px; background: #0b0b0b; }
+body .workspace-shell.shell-expanded { --sidebar-w: 248px; }
+body .workspace-shell .shell-rail { padding: 20px 12px 12px; background: #101010; border-right-color: #242424; box-shadow: none; }
+body .workspace-shell .shell-rail-top { padding: 0 8px 24px; min-height: 64px; }
+body .workspace-shell .shell-header { background: #0b0b0bf5; border-bottom-color: #242424; box-shadow: none; }
+body .workspace-shell .shell-eyebrow { padding: 0 12px 0 0; border: 0; border-right: 1px solid #303030; border-radius: 0; background: none; }
+body .workspace-shell .shell-eyebrow img { height: 24px; }
+body .workspace-shell .shell-current-page { font-size: 13px; font-weight: 500; }
+body .workspace-shell .shell-header-title { gap: 12px; }
+body .workspace-shell .shell-nav-section + .shell-nav-section { margin-top: 24px; }
+body .workspace-shell .shell-nav-section-label { padding: 0 12px 9px; color: #909090; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+body .workspace-shell .shell-nav-link { min-height: 40px; padding-inline: 12px; border: 1px solid transparent; border-radius: 10px; font-weight: 450; color: #a6a6a6; }
+body .workspace-shell .shell-nav-link:hover { background: #1c1c1c; color: #f5f5f5; }
+body .workspace-shell .shell-nav-link.is-active { border-color: #353535; background: #242424; color: #fff; box-shadow: none; }
+body .workspace-shell .shell-nav-create { border-color: #373737; color: #f5f5f5; }
+body .workspace-shell .shell-nav-link.is-collapsed { padding: 0; }
+body .workspace-shell .shell-rail-footer { border-top-color: #292929; padding-top: 14px; }
+body .workspace-shell .shell-avatar { background: #252525; color: #f5f5f5; border-color: #404040; }
+body .workspace-shell .shell-bottom-nav, body .workspace-shell .shell-mobile-menu { background: #101010; border-color: #292929; }
+body .workspace-shell .shell-icon-button { width: 38px; height: 38px; }
+body .workspace-shell .shell-bottom-link.is-active .shell-bottom-icon { background: #2a2a2a; }
+body .workspace-shell .app-page-frame { max-width: 1600px; margin-inline: auto; }
+
+/* Content hierarchy and neutral surfaces across all active workspace sections. */
+body .workspace-shell .agonia-root {
+  --ink: #f5f5f5; --workspace-muted-ink: #a6a6a6; --line: #303030;
+  --cloud: #0b0b0b; --paper: #121212; --mint: #f5f5f5; --coral: #e5e5e5; --violet: #d4d4d4;
+  gap: 24px;
+}
+body .workspace-shell .agonia-root :is(.page-title, .panel-title, .stat-card .value) { font-family: var(--font-display); }
+body .workspace-shell .agonia-root .page-title { background: none; color: #f5f5f5; font-size: clamp(26px, 2.8vw, 36px); font-weight: 550; letter-spacing: -.045em; line-height: 1.2; }
+body .workspace-shell .agonia-root .page-subtitle { max-width: 65ch; font-size: 13px; line-height: 1.7; margin-top: 8px; }
+body .workspace-shell .agonia-root .eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .13em; color: #a6a6a6; }
+body .workspace-shell .agonia-root .topbar { margin-bottom: 4px; gap: 18px; align-items: center; }
+body .workspace-shell :is(.agonia-root .panel, .agonia-root .stat-card, .operation-panel, .ig-stat, .ig-flows .ig-panel) { background: #121212; border: 1px solid #2b2b2b; border-radius: 16px; box-shadow: none; backdrop-filter: none; }
+body .workspace-shell .agonia-root .panel { padding: 24px; }
+body .workspace-shell .agonia-root .panel-title { font-size: 16px; font-weight: 550; letter-spacing: -.02em; }
+body .workspace-shell .agonia-root .panel-header { margin-bottom: 22px; }
+body .workspace-shell .agonia-root .stat-card { padding: 20px; transition: background-color 150ms, border-color 150ms; }
+body .workspace-shell .agonia-root a.stat-card:hover { background: #191919; border-color: #444; }
+body .workspace-shell .agonia-root .stat-card .label { font-size: 12px; font-weight: 450; }
+body .workspace-shell .agonia-root .stats-grid .stat-card .label { text-transform: none; letter-spacing: 0; }
+body .workspace-shell .agonia-root .stat-card .value { font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; }
+body .workspace-shell .agonia-root .stat-icon { color: #b5b5b5; background: #232323; border-color: #353535; }
+body .workspace-shell .agonia-root :is(.reel-step, .step-number) { background: #ededed; color: #141414; box-shadow: none; }
+body .workspace-shell .agonia-root :is(.reel-media-card, .wizard-step, .account-option, .list-row, .settings-toggle, .reel-composer-summary, .stories-account-panel) { background: #151515; border-color: #303030; border-radius: 12px; }
+body .workspace-shell .agonia-root .settings-stack { max-width: 1040px; }
+body .workspace-shell .agonia-root .operations-hero-panel { background: #171717; box-shadow: none; }
+body .workspace-shell .agonia-root .operations-title { color: #f5f5f5; }
+
+/* Controls retain their semantic colours and all existing disabled states. */
+body .silver-button { background: #f5f5f5; color: #101010; border-color: #f5f5f5; box-shadow: none; }
+body .silver-button:hover:not(:disabled) { background: #dedede; border-color: #dedede; }
+body .workspace-shell .agonia-root .button { min-height: 42px; border-radius: 10px; font-size: 13px; font-weight: 550; transition: background-color 150ms, border-color 150ms, color 150ms, opacity 150ms, transform 120ms; }
+body .workspace-shell .agonia-root .button:hover { transform: none; }
+body .workspace-shell .agonia-root :is(.button-primary, .button-mint, .button-coral) { background: #f5f5f5; color: #101010; border-color: #f5f5f5; box-shadow: none; }
+body .workspace-shell .agonia-root :is(.button-primary, .button-mint, .button-coral):hover:not(:disabled) { background: #dedede; border-color: #dedede; filter: none; }
+body .workspace-shell .agonia-root .button-secondary { background: #191919; border-color: #363636; color: #e5e5e5; }
+body .workspace-shell .agonia-root .button-secondary:hover:not(:disabled) { background: #252525; border-color: #525252; }
+body .workspace-shell .agonia-root .button:active:not(:disabled), body .auth-submit:active:not(:disabled) { transform: translateY(1px); }
+body .workspace-shell .agonia-root .field label { font-weight: 500; color: #dedede; }
+body .workspace-shell .agonia-root .field :is(input, select, textarea) { background: #191919; border-color: #3d3d3d; border-radius: 10px; color: #f5f5f5; }
+body .workspace-shell .agonia-root .field :is(input, select, textarea):focus { border-color: #a6a6a6; box-shadow: 0 0 0 3px #ffffff0d; }
+body .workspace-shell .agonia-root .field select option { background: #191919; }
+body .workspace-shell .agonia-root .field-help { font-size: 12px; line-height: 1.6; }
+body .workspace-shell .agonia-root :is(.upload-drop, .ig-upload-dropzone, .ig-empty-dropzone) { background: #171717; border-color: #484848; box-shadow: none; border-radius: 12px; }
+body .workspace-shell .agonia-root :is(.upload-drop, .ig-upload-dropzone, .ig-empty-dropzone):hover { background: #202020; border-color: #999; }
+body .workspace-shell .agonia-root .upload-drop:focus-within { outline: 2px solid #c7c7c7; outline-offset: 3px; }
+body .workspace-shell .agonia-root :is(.empty, .ig-accounts-empty) { padding: 40px 20px; border-radius: 14px; background: #111; color: #a6a6a6; line-height: 1.7; }
+body .workspace-shell .agonia-root :is(.period-tabs, .ranking-filter-tabs, .ig-segmented-tabs, .ig-segmented-full) { background: #141414; border-color: #303030; border-radius: 10px; }
+body .workspace-shell .agonia-root :is(.period-tabs button.is-active, .ranking-filter-tab.is-active, .filter-tab.active, .ig-tab-pill.is-active, .ig-segmented-full button[aria-pressed="true"]) { background: #303030; color: #fff; border-color: #505050; box-shadow: none; }
+body .workspace-shell .agonia-root :is(.table th, .ig-table th) { background: #181818; color: #adadad; font-weight: 500; font-size: 11px; letter-spacing: .04em; }
+body .workspace-shell .agonia-root :is(.table td, .ig-table td) { border-color: #292929; padding-block: 16px; }
+body .workspace-shell .agonia-root :is(.table tbody tr:hover, .ig-table tbody tr:hover) { background: #1c1c1c; }
+body .workspace-shell :is(.table-wrap, .ig-table-scroll) { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+
+/* Accounts, media library, analytics and integration guide use the same palette. */
+body .workspace-shell :is(.ig-account-list, .ig-accounts-search, .ig-account-details, .ig-account-notes textarea, .ig-account-edit-fields input, .ig-account-edit-fields select, .ig-accounts-filters .ops-filter, .ig-accounts-bulk .ops-filter) { background: #151515; border-color: #383838; color: #ededed; }
+body .workspace-shell :is(.ig-account-item + .ig-account-item, .ig-account-details-footer, .ig-account-notes) { border-color: #303030; }
+body .workspace-shell .ig-account-item.is-selected { background: #232323; }
+body .workspace-shell .ig-account-details { background: #101010; }
+body .workspace-shell :is(.ig-account-avatar, .ig-upload-dropzone-icon, .meta-guide-mark) { background: #242424; color: #ededed; border-color: #3c3c3c; box-shadow: none; }
+body .workspace-shell .ig-account-identity strong { color: #f5f5f5; }
+body .workspace-shell :is(.ig-account-identity small, .ig-account-queue, .ig-accounts-result-count, .ig-account-notes > p, .ig-account-detail-stats span, .ig-account-details-footer > span) { color: #a6a6a6; }
+body .workspace-shell :is(.ig-accounts-manage, .ig-folder-tag, .ig-slot-chip, .ig-preset-pill, .ig-folder-picker-btn) { background: #1c1c1c; border-color: #3c3c3c; color: #ddd; box-shadow: none; }
+body .workspace-shell :is(.ig-media-tile, .ig-campaign-row, .ig-tool-drawer, .ig-check-row, .ig-flow-options label) { background: #181818; border-color: #333; box-shadow: none; }
+body .workspace-shell :is(.ig-media-tile.is-selected, .ig-folder-tag.is-active, .ig-flow-options label.is-checked, .ig-preset-pill[aria-pressed="true"]) { background: #272727; border-color: #919191; }
+body .workspace-shell .ig-flows .ig-panel { padding: 24px; }
+body .workspace-shell .ig-upload-btn { background: #ededed; color: #111; box-shadow: none; }
+body .workspace-shell .ig-flow-composer .ig-composer-section:last-of-type button:not(.ig-ghost-action):not(:disabled) { background: #f5f5f5; color: #111; border-color: #f5f5f5; box-shadow: none; transform: none; }
+body .workspace-shell .ig-flow-composer .ig-composer-section:last-of-type button:not(.ig-ghost-action):hover:not(:disabled) { background: #ddd; }
+body .workspace-shell .agonia-root .connect-account-btn-prominent { box-shadow: none !important; }
+body .workspace-shell .agonia-root .connect-account-btn-prominent:hover { transform: none; }
+body .workspace-shell .ig-stat strong { background: none; color: #f5f5f5; }
+body .workspace-shell :is(.meta-guide-card, .meta-guide-example, .meta-guide-callback, .meta-guide-paths > button) { background: #151515; border-color: #363636; }
+body .workspace-shell .meta-guide-paths > button[aria-pressed="true"] { background: #252525; border-color: #999; }
+body .workspace-shell .meta-guide-steps button[aria-current] > span { background: #ededed; border-color: #ededed; color: #111; }
+body .workspace-shell :is(.meta-guide-callback input, .meta-guide-callback button, .meta-guide-status button) { background: #1c1c1c; border-color: #414141; color: #ededed; }
+body .workspace-shell :is(.meta-guide-description, .meta-guide-heading p, .meta-guide-paths small, .meta-guide-example dt, .meta-guide-help details p) { color: #aaa; }
+body .workspace-shell :is(.ops-filter, .stories-stat-grid > div) { background: #191919; border-color: #3a3a3a; color: #ddd; }
+body .operation-panel { border: 1px solid #383838; border-radius: 16px; background: #171717; box-shadow: 0 24px 80px #0008; }
+body [data-sonner-toast] { border-color: #3a3a3a; }
+
+/* Public pages, including legal text, retain their content and destinations. */
+body .tt-public { max-width: 1120px; background: #0b0b0b; color: #f5f5f5; padding-inline: 32px; }
+body .tt-public header { padding-block: 28px; border-bottom: 1px solid #292929; }
+body .tt-public .tt-public-hero { padding-block: 100px 72px; max-width: 800px; }
+body .tt-public h1 { font-family: var(--font-display); font-size: clamp(36px, 5.7vw, 64px); line-height: 1.08; letter-spacing: -.05em; font-weight: 500; }
+body .tt-public .tt-public-legal h1 { font-size: clamp(30px, 4vw, 44px); }
+body .tt-public :is(p, li) { color: #adadad; line-height: 1.85; }
+body .tt-public .tt-public-button { min-height: 44px; background: #f5f5f5; border: 1px solid #f5f5f5; border-radius: 999px; color: #101010; box-shadow: none; font-weight: 550; transition: background-color 150ms; }
+body .tt-public .tt-public-button:hover { background: #dcdcdc; }
+body .tt-public .tt-public-cards { gap: 16px; }
+body .tt-public .tt-public-cards article { background: #141414; border: 1px solid #303030; border-radius: 16px; padding: 28px; box-shadow: none; }
+body .tt-public .tt-public-cards article > svg { color: #d4d4d4; }
+body .tt-public .tt-public-legal { max-width: 760px; }
+body .tt-public nav { border-color: #303030; gap: 14px 24px; }
+
+/* Animation conveys state without continuously moving the workspace. */
+@keyframes avanca-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+body [role="tabpanel"][data-state="active"], body .ig-account-details { animation: avanca-reveal 160ms ease-out; }
+body .workspace-shell :is(button, a, input, textarea, select):focus-visible { outline: 2px solid #d4d4d4; outline-offset: 3px; }
+body .workspace-shell :is(input[type="checkbox"], input[type="radio"]) { accent-color: #f5f5f5; }
+body .welcome-stage { background: #0b0b0b; color: #f5f5f5; animation-duration: 180ms; }
+body .welcome-stage-grid { display: none; }
+body .welcome-stage-emblem img { width: auto; height: 100%; max-width: 100%; animation: avanca-reveal 180ms ease-out; }
+body .welcome-stage-title { background: none; color: #f5f5f5; font-weight: 500; letter-spacing: -.04em; }
+body .welcome-stage :is(.welcome-stage-kicker, .welcome-stage-description, .welcome-stage-footer) { color: #aaa; }
+body .welcome-stage[data-state="closed"] { animation: welcome-stage-close 160ms ease-out both; }
+
+@media (min-width: 1024px) {
+  body .workspace-shell .agonia-root .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body .workspace-shell .app-page-frame { padding: 36px 40px 56px; }
+  body .workspace-shell .shell-eyebrow { display: none; }
+}
+@media (min-width: 1600px) { body .workspace-shell .agonia-root .stats-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 1023px) {
+  body .workspace-shell { --header-h: 60px; }
+  body .workspace-shell .shell-icon-button { min-width: 44px; min-height: 44px; }
+  body .workspace-shell .shell-mobile-menu .shell-nav-link { min-height: 44px; }
+  body .workspace-shell .app-page-frame:not(.app-page-frame-focus) { padding: 24px 18px 36px; }
+  body .workspace-shell .shell-header { gap: 8px; padding-inline: max(10px, env(safe-area-inset-left)); }
+  body .workspace-shell .shell-header-title { flex: 1; }
+  body .workspace-shell .shell-header-space { flex: 0; }
+  body .workspace-shell .shell-shortcuts nav { max-width: 96px; }
+}
+@media (max-width: 380px) { body .workspace-shell .shell-eyebrow { display: none; } body .workspace-shell .shell-shortcuts nav { max-width: 76px; } }
+@media (max-width: 640px) {
+  body .workspace-shell .agonia-root { gap: 20px; }
+  body .workspace-shell .agonia-root .page-title { font-size: 28px; }
+  body .workspace-shell .agonia-root :is(.panel, .ig-panel) { padding: 18px; border-radius: 14px; }
+  body .workspace-shell .agonia-root .stat-card { padding: 16px; }
+  body .workspace-shell .agonia-root .stat-card .value { font-size: 28px; }
+  body .workspace-shell .agonia-root .button { min-height: 44px; white-space: normal; text-align: center; }
+  body .workspace-shell .agonia-root .field :is(input, select, textarea) { font-size: 16px; min-height: 44px; }
+  body .workspace-shell .agonia-root :is(.topbar .action-row, .topbar .actions) { width: 100%; flex-wrap: wrap; gap: 8px; }
+  body .workspace-shell .agonia-root .topbar :is(.action-row, .actions) > :is(a, button) { flex: 1 1 auto; }
+  body .workspace-shell .agonia-root :is(.period-tabs button, .ranking-filter-tab, .filter-tab) { min-height: 40px; }
+  body .tt-public { padding-inline: 20px; }
+  body .tt-public header { gap: 20px; flex-wrap: wrap; }
+  body .tt-public .tt-public-hero { padding-block: 56px 40px; }
+  body .tt-public .tt-public-cards article { padding: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

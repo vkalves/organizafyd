@@ -30,7 +30,7 @@ const connectSteps: Step[] = [
     label: "Prepare",
     title: "Seu Instagram precisa ser profissional.",
     description:
-      "Use uma conta de Empresa ou Criador de conteúdo para conectar ao DISPARA.",
+      "Use uma conta de Empresa ou Criador de conteúdo para conectar à Avança.",
     actions: [
       "No Instagram, abra o menu do seu perfil e procure “Tipo de conta e ferramentas”.",
       "Se a conta for pessoal, escolha “Mudar para conta profissional”. Para publicar Stories pela API, use uma conta de Empresa.",
@@ -50,7 +50,7 @@ const connectSteps: Step[] = [
     label: "Autorize",
     title: "Conecte pela tela oficial da Meta.",
     description:
-      "O DISPARA abre a autorização oficial. Sua senha é digitada somente na Meta.",
+      "A Avança abre a autorização oficial. Sua senha é digitada somente na Meta.",
     actions: [
       "Clique em “Conectar conta” abaixo. Escolha continuar no navegador, copiar um link ou abrir pelo QR Code.",
       "Entre na conta da Meta que administra o negócio e selecione o portfólio empresarial correto.",
@@ -64,7 +64,7 @@ const connectSteps: Step[] = [
         ["Permissões", "Perfil e publicação"],
       ],
     },
-    done: "A tela oficial conclui a autorização e retorna ao DISPARA.",
+    done: "A tela oficial conclui a autorização e retorna à Avança.",
   },
   {
     label: "Confira",
@@ -77,7 +77,7 @@ const connectSteps: Step[] = [
       "Com a conta disponível, abra Novo Reel ou Modo Fluxo e escolha o conteúdo e os horários.",
     ],
     example: {
-      title: "O que conferir no DISPARA",
+      title: "O que conferir na Avança",
       rows: [
         ["Aba", "Instagram"],
         ["Perfil", "Seu @perfil aparece na lista"],
@@ -112,7 +112,7 @@ const appSteps: Step[] = [
     label: "Permissões",
     title: "Defina o que o app pode fazer.",
     description:
-      "O login atual do DISPARA usa Facebook Login for Business com uma configuração de login unificado.",
+      "O login atual da Avança usa Facebook Login for Business com uma configuração de login unificado.",
     actions: [
       "No Facebook Login for Business, crie uma configuração e selecione o fluxo de token de usuário do sistema (System User).",
       "Inclua instagram_basic para identificar o perfil e instagram_content_publish para publicar. Para métricas, confira também instagram_manage_insights e os acessos aos ativos exigidos pela Meta.",
@@ -132,7 +132,7 @@ const appSteps: Step[] = [
     label: "Endereço de retorno",
     title: "Diga à Meta para onde voltar.",
     description:
-      "Depois da autorização, a Meta precisa devolver a pessoa ao endereço correto do DISPARA.",
+      "Depois da autorização, a Meta precisa devolver a pessoa ao endereço correto da Avança.",
     actions: [
       "Abra as configurações do Facebook Login for Business e procure “Valid OAuth Redirect URIs” (URIs de redirecionamento OAuth válidos).",
       "Copie o endereço de retorno mostrado abaixo e cole nesse campo, sem alterar nenhum caractere.",
@@ -150,12 +150,12 @@ const appSteps: Step[] = [
   },
   {
     label: "Ative a integração",
-    title: "Finalize com o administrador do DISPARA.",
+    title: "Finalize com o administrador da Avança.",
     description:
       "A configuração do aplicativo é feita no servidor. Este guia não cadastra nem troca credenciais.",
     actions: [
       "Em Configurações do app → Básico, localize App ID e App Secret. Na configuração de login, localize o ID da configuração.",
-      "O administrador deve configurar esses três valores no ambiente seguro do servidor do DISPARA. O App Secret deve permanecer privado.",
+      "O administrador deve configurar esses três valores no ambiente seguro do servidor da Avança. O App Secret deve permanecer privado.",
       "Para atender pessoas fora dos papéis de teste, conclua a análise do app, o acesso avançado e a verificação empresarial que a Meta solicitar antes de liberar o uso público.",
     ],
     example: {
@@ -172,7 +172,7 @@ const appSteps: Step[] = [
     label: "Teste a conexão",
     title: "Autorize um perfil e confira o resultado.",
     description:
-      "A confirmação final acontece quando a conta aparece conectada no DISPARA.",
+      "A confirmação final acontece quando a conta aparece conectada na Avança.",
     actions: [
       "Confira se o Instagram é profissional, tem Página vinculada e está no portfólio que será autorizado.",
       "Clique em “Conectar conta”, conclua o login oficial e autorize um perfil por vez.",
@@ -182,7 +182,7 @@ const appSteps: Step[] = [
       title: "Como saber se funcionou",
       rows: [
         ["Autorização", "Concluída na Meta"],
-        ["Conta no DISPARA", "Visível na aba Instagram"],
+        ["Conta na Avança", "Visível na aba Instagram"],
         ["Publicação", "Confirmada no histórico após publicar"],
       ],
     },
@@ -192,7 +192,7 @@ const appSteps: Step[] = [
 const faqs = [
   [
     "Preciso criar um app para conectar meu Instagram?",
-    "Se a conexão do DISPARA já está disponível, use o guia rápido e autorize sua conta. A criação do app é uma tarefa de quem administra a integração.",
+    "Se a conexão da Avança já está disponível, use o guia rápido e autorize sua conta. A criação do app é uma tarefa de quem administra a integração.",
   ],
   [
     "Meu Instagram não aparece na autorização.",
@@ -208,7 +208,7 @@ const faqs = [
   ],
   [
     "O tutorial que eu vi usa Instagram Login. É igual?",
-    "São configurações diferentes. Este DISPARA usa Facebook Login for Business e permissões instagram_basic e instagram_content_publish. Siga o fluxo deste guia; permissões instagram_business_* pertencem ao outro tipo de integração.",
+    "São configurações diferentes. Este AVANÇA usa Facebook Login for Business e permissões instagram_basic e instagram_content_publish. Siga o fluxo deste guia; permissões instagram_business_* pertencem ao outro tipo de integração.",
   ],
 ];
 
@@ -264,7 +264,7 @@ export default function MetaDeveloper({
           <Code2 size={25} />
         </div>
         <div>
-          <span className="meta-guide-eyebrow">INTEGRAÇÕES · DISPARA</span>
+          <span className="meta-guide-eyebrow">INTEGRAÇÕES · AVANÇA</span>
           <h1>Meta Developer</h1>
           <p>Do primeiro acesso à conta conectada. Um passo de cada vez.</p>
         </div>
@@ -273,11 +273,11 @@ export default function MetaDeveloper({
         <ShieldCheck size={17} aria-hidden="true" />
         <span>
           {config.isPending
-            ? "Consultando a conexão do DISPARA…"
+            ? "Consultando a conexão da Avança…"
             : config.isError
               ? "Não foi possível consultar a configuração."
               : config.data?.ready
-                ? "Conexão do DISPARA disponível"
+                ? "Conexão da Avança disponível"
                 : "Conexão aguardando configuração pelo administrador"}
         </span>
         <button
@@ -370,7 +370,7 @@ export default function MetaDeveloper({
           {mode === "app" && index === 2 && (
             <div className="meta-guide-callback">
               <label htmlFor="meta-callback">
-                Endereço de retorno do DISPARA
+                Endereço de retorno da Avança
               </label>
               {callback ? (
                 <div>

@@ -33,7 +33,7 @@ beforeEach(() => {
 describe("Meta Developer guided integration", () => {
   it("keeps technical setup separate, moves focus with each step, and resets when switching guides", async () => {
     show();
-    await screen.findByText("Conexão do DISPARA disponível");
+    await screen.findByText("Conexão da Avança disponível");
     expect(
       screen.getByRole("heading", { level: 2, name: /Instagram precisa/ }),
     ).toBeVisible();
@@ -63,12 +63,12 @@ describe("Meta Developer guided integration", () => {
       value: { writeText },
     });
     show();
-    await screen.findByText("Conexão do DISPARA disponível");
+    await screen.findByText("Conexão da Avança disponível");
     fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
     fireEvent.click(
       screen.getByRole("button", { name: /3 Endereço de retorno/ }),
     );
-    expect(screen.getByLabelText("Endereço de retorno do DISPARA")).toHaveValue(
+    expect(screen.getByLabelText("Endereço de retorno da Avança")).toHaveValue(
       callback,
     );
     fireEvent.click(

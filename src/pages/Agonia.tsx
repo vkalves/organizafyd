@@ -1112,7 +1112,7 @@ export default function Agonia() {
   }
 
   return (
-    <div className="agonia-root">
+    <div className="agonia-root" data-section={section}>
       {section === "meta-developer" && (
         <Suspense fallback={<p role="status">Carregando guia de integração…</p>}>
           <MetaDeveloper onConnected={refreshAll} />
@@ -1129,6 +1129,7 @@ export default function Agonia() {
           <header className="topbar">
             <div>
               <h1 className="page-title">{dashGreeting}</h1>
+              <p className="page-subtitle">Seu conteúdo, suas contas e os próximos passos.</p>
             </div>
             <div className="action-row">
               <Link className="button button-secondary" to="/dispara/fluxos">
@@ -1803,7 +1804,7 @@ export default function Agonia() {
                             setOpsExpandedAccountId(null);
                             queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user?.id], (current) => current?.filter((item) => item.id !== id));
                             await refreshAll();
-                            toast.success("Conta removida do DISPARA.");
+                            toast.success("Conta removida da Avança.");
                           }} />
                         </div>
                         {link?.reconnect_required && <Link className="ig-accounts-text-button" to="/dispara/conectar">Reconectar esta conta <ArrowRight size={14} /></Link>}
@@ -3284,7 +3285,7 @@ export default function Agonia() {
               <div className="eyebrow">Conta</div>
               <h1 className="page-title">Meu Perfil</h1>
               <p className="page-subtitle">
-                Personalize seu nome e sua foto no DISPARA.
+                Personalize seu nome e sua foto na Avança.
               </p>
             </div>
           </header>

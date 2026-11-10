@@ -1,11 +1,11 @@
 {
-  "name": "DISPARA",
-  "short_name": "DISPARA",
+  "name": "AVANÇA",
+  "short_name": "AVANÇA",
   "lang": "pt-BR",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#08090B",
-  "theme_color": "#08090B",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0B0B0B",
   "icons": [
     {
       "src": "/branding/pwa-icon-192.png",
