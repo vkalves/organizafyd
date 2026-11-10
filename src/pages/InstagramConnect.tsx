@@ -87,7 +87,7 @@ export default function InstagramConnect() {
             <p>
               O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.
             </p>
-            <a href="/dispara/instagram" className="button button-primary mt-4">Voltar ao DISPARA</a>
+            <Button asChild className="mt-4"><a href="/dispara/instagram">Voltar ao DISPARA</a></Button>
           </div>
         ) : (
           manager && (

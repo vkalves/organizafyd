@@ -136,7 +136,9 @@ Continuar neste navegador mantém a autorização na mesma aba em telas pequenas
 ou dispositivos com ponteiro de toque. Em desktop, a janela é reservada durante
 o clique, antes da consulta assíncrona do convite, para reduzir bloqueios de
 pop-up. Janela bloqueada ou fechada usa a mesma aba; falha ao criar convite fecha
-a janela vazia. Após uma autorização concluída, Voltar ao DISPARA leva à lista
+a janela vazia. A apresentação de boas-vindas não é exibida na rota pública de
+autorização, tanto no convite quanto no callback. Após uma autorização concluída,
+Voltar ao DISPARA leva à lista
 de contas sem reutilizar o histórico de códigos da Meta.
 
 O protocolo de autorização, a configuração Meta e o consumo único do verificador

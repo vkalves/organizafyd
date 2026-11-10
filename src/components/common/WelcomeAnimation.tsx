@@ -3,14 +3,15 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { BarChart3, Layers, Users, X } from "lucide-react";
 import "./welcome-animation.css";
 
-/** One presentation per page load, above routes so navigation never replays it. */
+/** One presentation per page load, except on the dedicated authorization route. */
 export function WelcomeAnimation() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => window.location.pathname.replace(/\/+$/, "") !== "/instagram/conectar");
 
   useEffect(() => {
+    if (!visible) return;
     const timer = window.setTimeout(() => setVisible(false), 1800);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [visible]);
 
   return (
     <Dialog.Root open={visible} onOpenChange={setVisible}>
