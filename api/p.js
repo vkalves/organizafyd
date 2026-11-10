@@ -11,7 +11,9 @@ function escapeHtml(value) {
 
 function publicFileUrl(storagePath) {
   const base = String(SUPABASE_URL).replace(/\/$/, "");
-  return `${base}/storage/v1/object/public/media/${storagePath}`;
+  return process.env.VITE_STORAGE_PROVIDER === "aws"
+    ? `${base}/functions/v1/s3-storage?${new URLSearchParams({ bucket: "media", path: storagePath })}`
+    : `${base}/storage/v1/object/public/media/${storagePath}`;
 }
 
 function isVideo(mime) {

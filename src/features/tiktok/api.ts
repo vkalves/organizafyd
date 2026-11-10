@@ -1,3 +1,4 @@
+import { storage } from '@/lib/storage';
 import { supabase } from "@/integrations/supabase/client";
 import type {
   Settings,
@@ -130,7 +131,7 @@ export async function preparePhoto(file: File): Promise<File> {
   }
 }
 export async function uploadPhoto(path: string, file: File) {
-  const { error } = await supabase.storage
+  const { error } = await storage
     .from("tiktok-media")
     .upload(path, file, {
       upsert: false,

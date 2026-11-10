@@ -1,3 +1,4 @@
+import { hybridStorage } from '../_shared/hybrid-storage.ts';
 import { readVideoAnalytics } from "./analytics.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
@@ -12,8 +13,9 @@ const db = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { auth: { persistSession: false } },
 );
+const fileStorage = hybridStorage(db, Deno.env.get("SUPABASE_URL")!);
 const origins = new Set([
-  "https://www.organizafy.site",
+  "https://www.organizafy.site", "https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online",
   "https://organizafy.site",
 ]);
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
@@ -65,7 +67,7 @@ async function credential(id: string) {
 async function signed(value: string) {
   if (!value.startsWith("storage://")) return value;
   const data = checked(
-    await db.storage
+    await fileStorage
       .from("instagram-publisher")
       .createSignedUrl(value.slice(10), 3600),
   );
@@ -148,7 +150,7 @@ async function worker() {
     checked(await db.rpc('ig_retire_flow_media'));
     const retired = checked(await db.from('ig_flow_library').select('id,url').eq('retired',true).limit(100));
     if (retired.length) {
-      checked(await db.storage.from('instagram-publisher').remove(retired.map(m => m.url.slice(10))));
+      checked(await fileStorage.from('instagram-publisher').remove(retired.map(m => m.url.slice(10))));
       checked(await db.from('ig_flow_library').delete().in('id',retired.map(m => m.id)));
     }
   } catch { /* Retry cleanup on the next tick. */ }

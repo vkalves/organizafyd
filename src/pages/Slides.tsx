@@ -1,9 +1,9 @@
+import { storage } from '@/lib/storage';
 import { useRef, useState } from 'react';
 import { Plus, Presentation, Search, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseCrud } from '@/hooks/useSupabaseCrud';
-import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { readSlideFile } from '@/features/slides/import';
 import { SlidePreview } from '@/features/slides/SlidePreview';
@@ -54,9 +54,9 @@ export default function Slides() {
     onUpload={async file => {
       const name = file.name.replace(/[^\w.-]+/g, '_').slice(-90);
       const storagePath = `${user.id}/slides/${open.id}/${crypto.randomUUID()}-${name}`;
-      const { error } = await supabase.storage.from('media').upload(storagePath, file, { contentType: file.type, upsert: false });
+      const { error } = await storage.from('media').upload(storagePath, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      return { storagePath, src: supabase.storage.from('media').getPublicUrl(storagePath).data.publicUrl };
+      return { storagePath, src: storage.from('media').getPublicUrl(storagePath).data.publicUrl };
     }} />;
   return <div className="mx-auto min-w-0 max-w-5xl space-y-5">
     <header className="page-header">
@@ -87,9 +87,9 @@ export default function Slides() {
         if (!await remove(deleteRow.id)) return;
         try { localStorage.removeItem(`organizafyd:slides:${user.id}:${deleteRow.id}`); } catch { /* Cache may be disabled. */ }
         const folder = `${user.id}/slides/${deleteRow.id}`;
-        const { data: files, error: listError } = await supabase.storage.from('media').list(folder, { limit: 1000 });
+        const { data: files, error: listError } = await storage.from('media').list(folder, { limit: 1000 });
         if (!listError && files?.length) {
-          const { error } = await supabase.storage.from('media').remove(files.map(f => `${folder}/${f.name}`));
+          const { error } = await storage.from('media').remove(files.map(f => `${folder}/${f.name}`));
           if (error) toast.warning('Apresentação excluída. Alguns arquivos não puderam ser limpos.');
         }
         setDeleteRow(null);

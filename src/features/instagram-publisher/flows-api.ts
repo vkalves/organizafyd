@@ -1,3 +1,4 @@
+import { storage } from '@/lib/storage';
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { publisherRequest, uploadMedia } from "./api";
@@ -289,7 +290,7 @@ export async function deleteMedia(id: string, url: string, userId: string) {
     );
 
   const path = url.slice("storage://".length);
-  const { error: storageError } = await supabase.storage
+  const { error: storageError } = await storage
     .from("instagram-publisher")
     .remove([path]);
   if (storageError)
@@ -386,7 +387,7 @@ export async function deleteFlow(id: string, userId?: string) {
 }
 
 export async function previewMedia(url: string) {
-  const { data, error } = await supabase.storage
+  const { data, error } = await storage
     .from("instagram-publisher")
     .createSignedUrl(url.slice(10), 600);
   if (error) throw new Error("Não foi possível abrir esta mídia.");

@@ -10,8 +10,10 @@ export default async function handler(req, res) {
   if (!base) return res.status(503).end();
   try {
     const upstream = await fetch(
-      `${base.replace(/\/$/, "")}/storage/v1/object/public/tiktok-media/${path}`,
-      { redirect: "error", signal: AbortSignal.timeout(15000) },
+      process.env.VITE_STORAGE_PROVIDER === "aws"
+        ? `${base.replace(/\/$/, "")}/functions/v1/s3-storage?${new URLSearchParams({ bucket: "tiktok-media", path })}`
+        : `${base.replace(/\/$/, "")}/storage/v1/object/public/tiktok-media/${path}`,
+      { redirect: process.env.VITE_STORAGE_PROVIDER === "aws" ? "follow" : "error", signal: AbortSignal.timeout(15000) },
     );
     if (!upstream.ok) return res.status(404).end();
     const type = upstream.headers.get("content-type")?.split(";")[0];
