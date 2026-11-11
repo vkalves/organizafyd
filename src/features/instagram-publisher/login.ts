@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 const messages: Record<string, string> = {
+  forbidden: "Somente administradores podem alterar o aplicativo Meta.",
+  unauthorized: "Entre novamente na Avança para continuar.",
+  invalid_app_config: "Confira os IDs numéricos e o App Secret de 32 caracteres hexadecimais.",
+  app_secret_required: "Informe o App Secret ao trocar o App ID.",
   invalid_token:
     "A Meta retornou um acesso incompatível. Gere outro link e autorize com a configuração de login unificado.",
   business_missing:

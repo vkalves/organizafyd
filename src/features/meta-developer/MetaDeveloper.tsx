@@ -1,5 +1,6 @@
+import { MetaAppConfig, type MetaConfig } from "./MetaAppConfig";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -150,12 +151,12 @@ const appSteps: Step[] = [
   },
   {
     label: "Ative a integração",
-    title: "Finalize com o administrador da Avança.",
+    title: "Salve as credenciais do aplicativo.",
     description:
-      "A configuração do aplicativo é feita no servidor. Este guia não cadastra nem troca credenciais.",
+      "Administradores podem salvar as credenciais pelo formulário abaixo, sem editar arquivos no servidor.",
     actions: [
       "Em Configurações do app → Básico, localize App ID e App Secret. Na configuração de login, localize o ID da configuração.",
-      "O administrador deve configurar esses três valores no ambiente seguro do servidor da Avança. O App Secret deve permanecer privado.",
+      "Preencha os três valores no formulário abaixo. Deixe o Secret vazio para manter a chave atual; ao trocar o App ID, informe a nova chave.",
       "Para atender pessoas fora dos papéis de teste, conclua a análise do app, o acesso avançado e a verificação empresarial que a Meta solicitar antes de liberar o uso público.",
     ],
     example: {
@@ -217,6 +218,7 @@ export default function MetaDeveloper({
 }: {
   onConnected: (id: string) => Promise<void>;
 }) {
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<"connect" | "app">("connect");
   const [index, setIndex] = useState(0);
   const [copyState, setCopyState] = useState("");
@@ -224,7 +226,7 @@ export default function MetaDeveloper({
   const shouldFocus = useRef(false);
   const config = useQuery({
     queryKey: ["meta-developer-config"],
-    queryFn: () => loginRequest<{ ready: boolean; callback: string }>("config"),
+    queryFn: () => loginRequest<MetaConfig>("config"),
     retry: false,
     staleTime: 60000,
   });
@@ -400,6 +402,11 @@ export default function MetaDeveloper({
               </p>
             </div>
           )}
+          {mode === "app" && index === 3 && (config.data?.canManage ? (
+            <MetaAppConfig config={config.data} onSaved={saved => {
+              queryClient.setQueryData(["meta-developer-config"], saved);
+            }} />
+          ) : <p>Somente administradores da integração podem salvar credenciais. Solicite a configuração ao responsável pela Avança.</p>)}
           <div className="meta-guide-done">
             <CheckCircle2 size={19} aria-hidden="true" />
             <div>

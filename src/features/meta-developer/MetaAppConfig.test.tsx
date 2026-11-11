@@ -1,0 +1,30 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, expect, it, vi } from "vitest";
+const request = vi.hoisted(() => vi.fn());
+vi.mock("@/features/instagram-publisher/login", () => ({ loginRequest: request }));
+import { MetaAppConfig } from "./MetaAppConfig";
+const config = { ready: true, callback: "https://example.com/callback", appId: "123456", configId: "654321", secretConfigured: true, canManage: true };
+beforeEach(() => vi.clearAllMocks());
+it("preserves an existing secret and clears new secrets after saving", async () => {
+  const saved = vi.fn(); request.mockResolvedValue(config);
+  render(<MetaAppConfig config={config} onSaved={saved} />);
+  const secret = screen.getByLabelText("Meta App Secret");
+  expect(secret).toHaveAttribute("type", "password");
+  fireEvent.click(screen.getByRole("button", { name: "Salvar configuração" }));
+  await screen.findByText(/Configuração salva/);
+  expect(request).toHaveBeenCalledWith("save_config", { appId: "123456", configId: "654321", appSecret: "" });
+  fireEvent.change(secret, { target: { value: "a".repeat(32) } });
+  fireEvent.click(screen.getByRole("button", { name: "Salvar configuração" }));
+  await screen.findByText(/Configuração salva/);
+  expect(secret).toHaveValue(""); expect(saved).toHaveBeenCalledWith(config);
+});
+it("requires a new secret when changing apps and reports save failures", async () => {
+  request.mockRejectedValue(new Error("Sem permissão"));
+  render(<MetaAppConfig config={config} onSaved={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText("Meta App ID"), { target: { value: "999999" } });
+  expect(screen.getByLabelText("Meta App Secret")).toBeRequired();
+  fireEvent.change(screen.getByLabelText("Meta App Secret"), { target: { value: "b".repeat(32) } });
+  fireEvent.click(screen.getByRole("button", { name: "Salvar configuração" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão");
+  expect(screen.queryByText(/Configuração salva/)).not.toBeInTheDocument();
+});
