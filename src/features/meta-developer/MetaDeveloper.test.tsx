@@ -117,3 +117,20 @@ describe("Meta Developer guided integration", () => {
     await waitFor(() => expect(mocks.config).toHaveBeenCalledWith("config"));
   });
 });
+
+it("hides global credentials from ordinary users", async () => {
+  show();
+  await screen.findByText("Conexão da Avança disponível");
+  fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
+  fireEvent.click(screen.getByRole("button", { name: /4 Ative/ }));
+  expect(screen.queryByLabelText("Meta App Secret")).not.toBeInTheDocument();
+  expect(screen.getByText(/Somente administradores da integração/)).toBeVisible();
+});
+it("offers credential setup to server-authorized administrators even before setup", async () => {
+  mocks.config.mockResolvedValue({ ready: false, callback, canManage: true });
+  show();
+  await screen.findByText("Conexão aguardando configuração pelo administrador");
+  fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
+  fireEvent.click(screen.getByRole("button", { name: /4 Ative/ }));
+  expect(screen.getByLabelText("Meta App Secret")).toBeRequired();
+});

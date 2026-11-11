@@ -1,3 +1,4 @@
+import { canManageMeta, validateAppConfig } from "./app-config.ts";
 import { createAccountSelection, consumeAccountSelection, type SelectionStore } from "./account-selection.ts";
 import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
@@ -95,7 +96,25 @@ Deno.serve(async (req) => {
     const secret = config.meta_app_secret;
     const configId = config.meta_config_id;
     const ready = !!(appId && secret && configId);
-    if (b.action === "config") return reply({ ready, callback });
+    if (b.action === "config" || b.action === "save_config") {
+      const jwt = req.headers.get("authorization")?.replace(/^Bearer /i, "") || "";
+      const { data: { user }, error } = await db.auth.getUser(jwt);
+      const canManage = !error && canManageMeta(user);
+      if (b.action === "config") return reply({
+        ready, callback, canManage,
+        ...(canManage ? { appId: appId || "", configId: configId || "", secretConfigured: !!secret } : {}),
+      });
+      if (error || !user) return reply({ error: "unauthorized" }, 401);
+      if (!canManage) return reply({ error: "forbidden" }, 403);
+      const values = validateAppConfig(b, !!secret);
+      // Keeping a secret while changing the app would silently pair unrelated credentials.
+      if (values.appId !== appId && !values.secret) return reply({ error: "app_secret_required" }, 400);
+      checked(await db.rpc("ig_save_login_config", {
+        p_app_id: values.appId, p_config_id: values.configId, p_secret: values.secret || null,
+      }));
+      return reply({ ready: true, callback, canManage: true, appId: values.appId,
+        configId: values.configId, secretConfigured: true });
+    }
     if (!ready) return reply({ error: "not_configured" }, 503);
     const loginConfig = { appId, secret, configId };
     if (b.action === "invite") {
@@ -199,6 +218,7 @@ Deno.serve(async (req) => {
     return reply({ error: "unknown_action" }, 400);
   } catch (e) {
     const safe = [
+      "invalid_app_config",
       "invalid_token",
       "business_missing",
       "no_instagram_accounts",
