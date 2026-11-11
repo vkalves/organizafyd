@@ -1,4 +1,4 @@
-import { canManageMeta, validateAppConfig } from "./app-config.ts";
+import { instagramAuthorizeUrl, instagramGrant } from "./instagram.ts";
 import { createAccountSelection, consumeAccountSelection, type SelectionStore } from "./account-selection.ts";
 import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
@@ -38,12 +38,16 @@ const selectionStore: SelectionStore = {
   },
 };
 async function saveAccount(userId: string, grant: Grant, profile: Profile) {
-  const saved = await db.rpc("ig_connect_unified", {
+  const saved = grant.metaAppId ? await db.rpc("ig_connect_meta_app", {
+    p_app_client_id: grant.metaAppClientId, p_config_id: grant.metaAppConfigId || null,
+    p_user: userId, p_app: grant.metaAppId, p_graph: profile.id, p_username: profile.username,
+    p_token: grant.token, p_business: grant.businessId || null, p_expires: grant.expiresAt,
+  }) : await db.rpc("ig_connect_unified", {
     p_user: userId, p_graph: profile.id, p_username: profile.username,
     p_token: grant.token, p_business: grant.businessId, p_expires: grant.expiresAt,
   });
   if (saved.error) {
-    if (["account_already_connected", "provider_conflict"].includes(saved.error.message)) throw new Error(saved.error.message);
+    if (["account_already_connected", "provider_conflict", "app_not_found"].includes(saved.error.message)) throw new Error(saved.error.message);
     throw new Error("database_error");
   }
   return { username: profile.username };
@@ -51,9 +55,21 @@ async function saveAccount(userId: string, grant: Grant, profile: Profile) {
 async function json(url: string, init?: RequestInit) {
   const r = await fetch(url, { ...init, signal: AbortSignal.timeout(20000) });
   const d = await r.json();
-  if (!r.ok || d.error) throw new Error("meta_authorization_failed");
+  if (!r.ok || d.error || d.error_type) throw new Error("meta_authorization_failed");
   return d;
 }
+async function loginConfigFor(userId: string, appId: string | null) {
+  if (appId) {
+    const app = checked(await db.rpc("ig_meta_app_config", { p_user: userId, p_id: appId }));
+    if (!app || !app.active) throw new Error("app_not_found");
+    return { appId: app.appId, secret: app.secret, configId: app.configId || "" };
+  }
+  // Invitations issued before multi-app support retain their original flow.
+  const old = checked(await db.rpc("ig_login_config")) || {};
+  if (!old.meta_app_id || !old.meta_app_secret || !old.meta_config_id) throw new Error("not_configured");
+  return { appId: old.meta_app_id, secret: old.meta_app_secret, configId: old.meta_config_id };
+}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Deno.serve(async (req) => {
   const headers = {
     "Content-Type": "application/json",
@@ -91,32 +107,23 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 12000) throw new Error("invalid_request");
     const b = JSON.parse(raw);
-    const config = checked(await db.rpc("ig_login_config")) || {};
-    const appId = config.meta_app_id;
-    const secret = config.meta_app_secret;
-    const configId = config.meta_config_id;
-    const ready = !!(appId && secret && configId);
-    if (b.action === "config" || b.action === "save_config") {
+    if (b.action === "config" || b.action === "apps" || b.action === "save_app" || b.action === "toggle_app" || b.action === "delete_app") {
       const jwt = req.headers.get("authorization")?.replace(/^Bearer /i, "") || "";
       const { data: { user }, error } = await db.auth.getUser(jwt);
-      const canManage = !error && canManageMeta(user);
-      if (b.action === "config") return reply({
-        ready, callback, canManage,
-        ...(canManage ? { appId: appId || "", configId: configId || "", secretConfigured: !!secret } : {}),
-      });
-      if (error || !user) return reply({ error: "unauthorized" }, 401);
-      if (!canManage) return reply({ error: "forbidden" }, 403);
-      const values = validateAppConfig(b, !!secret);
-      // Keeping a secret while changing the app would silently pair unrelated credentials.
-      if (values.appId !== appId && !values.secret) return reply({ error: "app_secret_required" }, 400);
-      checked(await db.rpc("ig_save_login_config", {
-        p_app_id: values.appId, p_config_id: values.configId, p_secret: values.secret || null,
-      }));
-      return reply({ ready: true, callback, canManage: true, appId: values.appId,
-        configId: values.configId, secretConfigured: true });
+      if (error || !user) {
+        if (b.action === "config") return reply({ ready: false, callback, apps: [] });
+        return reply({ error: "unauthorized" }, 401);
+      }
+      const action = ({ save_app: "save", toggle_app: "toggle", delete_app: "delete" } as Record<string, string>)[b.action] || "list";
+      if (b.id != null && (typeof b.id !== "string" || !UUID.test(b.id))) return reply({ error: "invalid_app_config" }, 400);
+      const result = await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: action, p_values: b });
+      if (result.error) {
+        const code = result.error.code === "23505" ? "app_exists" : result.error.message;
+        if (["app_exists", "app_in_use", "app_not_found", "invalid_app_config", "app_secret_required"].includes(code)) return reply({ error: code }, 400);
+        throw new Error("database_error");
+      }
+      return reply({ apps: result.data, ready: result.data.some((app: { active: boolean }) => app.active), callback });
     }
-    if (!ready) return reply({ error: "not_configured" }, 503);
-    const loginConfig = { appId, secret, configId };
     if (b.action === "invite") {
       const jwt =
         req.headers.get("authorization")?.replace(/^Bearer /i, "") || "";
@@ -125,6 +132,10 @@ Deno.serve(async (req) => {
         error,
       } = await db.auth.getUser(jwt);
       if (error || !user) return reply({ error: "unauthorized" }, 401);
+      const apps = checked(await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: "list" }));
+      const app = b.app_id ? apps.find((a: { id: string; active: boolean }) => a.id === b.app_id && a.active)
+        : apps.find((a: { active: boolean }) => a.active);
+      if (!app) return reply({ error: "not_configured" }, 400);
       const token = random();
       checked(
         await db.from("ig_connection_invites").delete().eq("user_id", user.id),
@@ -132,6 +143,7 @@ Deno.serve(async (req) => {
       checked(
         await db.from("ig_connection_invites").insert({
           token_hash: await hash(token),
+          meta_app_id: app.id,
           user_id: user.id,
           manager_label: user.email || "Administrador da conta",
         }),
@@ -144,14 +156,15 @@ Deno.serve(async (req) => {
       const invite = checked(
         await db
           .from("ig_connection_invites")
-          .select("user_id,manager_label")
+          .select("user_id,manager_label,meta_app_id")
           .eq("token_hash", await hash(b.invite))
           .gt("expires_at", new Date().toISOString())
           .maybeSingle(),
       );
       if (!invite) throw new Error("invalid_invite");
+      const loginConfig = await loginConfigFor(invite.user_id, invite.meta_app_id);
       if (b.action === "invite_info")
-        return reply({ manager: invite.manager_label });
+        return reply({ manager: invite.manager_label, provider: loginConfig.configId ? "facebook" : "instagram" });
       if (typeof b.verifier !== "string" || !/^[a-f0-9]{64}$/.test(b.verifier))
         throw new Error("invalid_state");
       const state = random();
@@ -173,14 +186,16 @@ Deno.serve(async (req) => {
       checked(
         await db.from("ig_login_states").insert({
           state_hash: await hash(state),
+          meta_app_id: invite.meta_app_id,
           verifier_hash: await hash(b.verifier),
           user_id: invite.user_id,
         }),
       );
-      return reply({ url: authorizeUrl(loginConfig, callback, state), state });
+      return reply({ url: (loginConfig.configId ? authorizeUrl : instagramAuthorizeUrl)(loginConfig, callback, state), state });
     }
     if (b.action === "select_account") {
       const { userId, grant, profile } = await consumeAccountSelection(b.selection, b.verifier, b.account_id, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, selectionStore);
+      const loginConfig = await loginConfigFor(userId, grant.metaAppId || null);
       await verifyPublishingAccess(loginConfig, grant, profile.id, json);
       return reply(await saveAccount(userId, grant, profile));
     }
@@ -202,22 +217,33 @@ Deno.serve(async (req) => {
           .is("pending_grant", null)
           .eq("verifier_hash", await hash(b.verifier))
           .gt("expires_at", new Date().toISOString())
-          .select("user_id"),
+          .select("user_id,meta_app_id"),
       );
       if (states.length !== 1) throw new Error("invalid_state");
-      const grant = await authorizedAccounts(loginConfig, callback, b.code, json);
+      const loginConfig = await loginConfigFor(states[0].user_id, states[0].meta_app_id);
+      const grant: Grant = loginConfig.configId
+        ? await authorizedAccounts(loginConfig, callback, b.code, json)
+        : await instagramGrant(loginConfig, callback, b.code, json);
+      if (states[0].meta_app_id) {
+        grant.metaAppId = states[0].meta_app_id;
+        grant.metaAppClientId = loginConfig.appId;
+        grant.metaAppConfigId = loginConfig.configId;
+      }
       if (grant.accounts.length > 1) {
         // Cached clients retain their existing behavior until the new chooser is loaded.
         if (b.allow_selection !== true) throw new Error("multiple_instagram_accounts");
         return reply(await createAccountSelection(grant, states[0].user_id, b.verifier, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, selectionStore));
       }
       const profile = grant.accounts[0];
-      await verifyPublishingAccess(loginConfig, grant, profile.id, json);
+      if (loginConfig.configId) await verifyPublishingAccess(loginConfig, grant, profile.id, json);
       return reply(await saveAccount(states[0].user_id, grant, profile));
     }
     return reply({ error: "unknown_action" }, 400);
   } catch (e) {
     const safe = [
+      "app_not_found",
+      "not_configured",
+      "professional_required",
       "invalid_app_config",
       "invalid_token",
       "business_missing",

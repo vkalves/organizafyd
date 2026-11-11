@@ -82,7 +82,7 @@ export async function authorizedAccounts(
   };
 }
 export type Profile = { id: string; username: string };
-export type Grant = { token: string; accounts: Profile[]; businessId: string; expiresAt: string | null };
+export type Grant = { metaAppId?: string; metaAppClientId?: string; metaAppConfigId?: string; provider?: "facebook" | "instagram"; token: string; accounts: Profile[]; businessId: string; expiresAt: string | null };
 async function graphReader(config: Config, token: string, json: Json) {
   const key = await crypto.subtle.importKey(
     "raw",

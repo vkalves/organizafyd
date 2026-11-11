@@ -1,8 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 const messages: Record<string, string> = {
+  app_exists: "Você já cadastrou um app com esse App ID.",
+  app_not_found: "Este app não está disponível. Escolha um app ativo e gere um novo link.",
+  app_in_use: "Este app tem contas vinculadas. Você pode desativá-lo; para mudar o App ID ou o tipo de login, adicione outro app.",
+  professional_required: "Use uma conta profissional do Instagram: Business ou Creator.",
   forbidden: "Somente administradores podem alterar o aplicativo Meta.",
   unauthorized: "Entre novamente na Avança para continuar.",
-  invalid_app_config: "Confira os IDs numéricos e o App Secret de 32 caracteres hexadecimais.",
+  invalid_app_config: "Preencha o nome, o App ID numérico e o Secret de 32 caracteres. O Config ID é opcional.",
   app_secret_required: "Informe o App Secret ao trocar o App ID.",
   invalid_token:
     "A Meta retornou um acesso incompatível. Gere outro link e autorize com a configuração de login unificado.",
@@ -13,7 +17,7 @@ const messages: Record<string, string> = {
   multiple_instagram_accounts:
     "Autorize apenas o Instagram que deseja conectar. Solicite um novo link e selecione um único perfil.",
   not_configured:
-    "A conexão direta aguarda a configuração do aplicativo Meta pelo administrador.",
+    "Cadastre e ative um app em Meta Developer para iniciar a conexão.",
   invalid_invite: "Este link expirou ou já foi usado. Solicite um novo link.",
   invalid_state:
     "Esta autorização expirou ou foi aberta em outro navegador. Solicite um novo link.",

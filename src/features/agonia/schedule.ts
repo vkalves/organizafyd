@@ -23,13 +23,6 @@ export const DEFAULT_SETTINGS: AgoniaSettings = {
   pauseOnRepeatedFailures: true,
 };
 
-export type MetaAppConfig = {
-  id: string;
-  name: string;
-  appId: string;
-  active: boolean;
-  createdAt: string;
-};
 
 export type AccountMetaMap = Record<
   string,
@@ -51,7 +44,6 @@ export type AgoniaProfile = {
 export type WorkspaceMode = "agonia";
 
 const storageKey = (userId: string) => `agonia:settings:${userId}`;
-const appsKey = (userId: string) => `agonia:meta-apps:${userId}`;
 const accountMetaKey = (userId: string) => `agonia:account-meta:${userId}`;
 const accountFoldersKey = (userId: string) => `agonia:account-folders:${userId}`;
 const profileKey = (userId: string) => `agonia:profile:${userId}`;
@@ -104,37 +96,6 @@ export function saveSettings(userId: string, settings: AgoniaSettings) {
       intervalMinutes: clampInterval(settings.intervalMinutes),
     }),
   );
-}
-
-const DEFAULT_META_APPS: MetaAppConfig[] = [
-  {
-    id: "app-default-1",
-    name: "App Principal 01",
-    appId: "1096552783081849",
-    active: true,
-    createdAt: "2026-01-01T00:00:00.000Z",
-  },
-];
-
-export function loadMetaApps(userId: string | undefined): MetaAppConfig[] {
-  if (!userId || typeof localStorage === "undefined") return DEFAULT_META_APPS;
-  try {
-    const raw = JSON.parse(localStorage.getItem(appsKey(userId)) || "null");
-    if (!Array.isArray(raw) || !raw.length) return DEFAULT_META_APPS;
-    return raw.filter(
-      (item): item is MetaAppConfig =>
-        item &&
-        typeof item.id === "string" &&
-        typeof item.name === "string" &&
-        typeof item.appId === "string",
-    );
-  } catch {
-    return DEFAULT_META_APPS;
-  }
-}
-
-export function saveMetaApps(userId: string, apps: MetaAppConfig[]) {
-  localStorage.setItem(appsKey(userId), JSON.stringify(apps));
 }
 
 export function loadAccountMeta(userId: string | undefined): AccountMetaMap {

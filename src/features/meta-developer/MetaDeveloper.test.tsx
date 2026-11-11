@@ -1,136 +1,69 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ config: vi.fn() }));
-vi.mock("@/features/instagram-publisher/login", () => ({
-  loginRequest: mocks.config,
-}));
-vi.mock("@/features/instagram-publisher/ConnectAccount", () => ({
-  ConnectAccount: () => <button>Conectar conta</button>,
-}));
+import { beforeEach, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ request: vi.fn(), browser: vi.fn() }));
+vi.mock("@/features/instagram-publisher/login", () => ({ loginRequest: mocks.request }));
+vi.mock("@/features/instagram-publisher/browser-login", () => ({ openBrowserLogin: mocks.browser }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 import MetaDeveloper from "./MetaDeveloper";
 const callback = "https://project.supabase.co/functions/v1/instagram-login";
-function show() {
-  return render(
-    <MemoryRouter>
-      <QueryClientProvider
-        client={
-          new QueryClient({
-            defaultOptions: { queries: { retry: false, gcTime: 0 } },
-          })
-        }
-      >
-        <MetaDeveloper onConnected={vi.fn()} />
-      </QueryClientProvider>
-    </MemoryRouter>,
-  );
-}
+const app = { id: "app-one", name: "Instagram 01", appId: "123456", configId: "", active: true, createdAt: "", accountCount: 3, secretConfigured: true };
+function show() {return render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}><MetaDeveloper onConnected={vi.fn()} /></QueryClientProvider></MemoryRouter>);}
 beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.config.mockResolvedValue({ ready: true, callback });
+ vi.clearAllMocks(); mocks.request.mockResolvedValue({ apps: [app], ready: true, callback });
+ mocks.browser.mockImplementation(async fn => { await fn(); return "popup"; });
 });
-describe("Meta Developer guided integration", () => {
-  it("keeps technical setup separate, moves focus with each step, and resets when switching guides", async () => {
-    show();
-    await screen.findByText("Conexão da Avança disponível");
-    expect(
-      screen.getByRole("heading", { level: 2, name: /Instagram precisa/ }),
-    ).toBeVisible();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Próximo passo" }));
-    expect(
-      screen.getByRole("heading", { name: /Conecte pela tela/ }),
-    ).toHaveFocus();
-    expect(
-      screen.getByRole("button", { name: "Conectar conta" }),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
-    expect(screen.getByRole("heading", { name: /Abra seu app/ })).toHaveFocus();
-    expect(
-      screen.getByRole("link", { name: /Abrir Meta for Developers/ }),
-    ).toHaveAttribute("href", "https://developers.facebook.com/apps/");
-    fireEvent.click(screen.getByRole("button", { name: /Quero conectar/ }));
-    expect(screen.getByRole("button", { name: "Voltar" })).toBeDisabled();
-  });
-  it("copies the server callback and reports clipboard failures without claiming success", async () => {
-    const writeText = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("denied"))
-      .mockResolvedValueOnce(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    show();
-    await screen.findByText("Conexão da Avança disponível");
-    fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /3 Endereço de retorno/ }),
-    );
-    expect(screen.getByLabelText("Endereço de retorno da Avança")).toHaveValue(
-      callback,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Copiar endereço de retorno" }),
-    );
-    await screen.findByText(/Não foi possível copiar/);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Copiar endereço de retorno" }),
-    );
-    await screen.findByText("Endereço copiado.");
-    expect(writeText).toHaveBeenLastCalledWith(callback);
-  });
-  it("offers retry on configuration errors and does not invent a callback", async () => {
-    mocks.config.mockRejectedValueOnce(new Error("offline"));
-    show();
-    await screen.findByText("Não foi possível consultar a configuração.");
-    fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /3 Endereço de retorno/ }),
-    );
-    expect(
-      screen.queryByRole("button", { name: "Copiar endereço de retorno" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Atualizar status da integração" }),
-    );
-    await screen.findByDisplayValue(callback);
-    expect(mocks.config).toHaveBeenCalledTimes(2);
-  });
-  it("distinguishes configured server from pending setup and provides account navigation", async () => {
-    mocks.config.mockResolvedValue({ ready: false, callback });
-    show();
-    await screen.findByText(
-      "Conexão aguardando configuração pelo administrador",
-    );
-    fireEvent.click(screen.getByRole("button", { name: /3 Confira/ }));
-    expect(
-      screen.getByRole("link", { name: "Ver minhas contas" }),
-    ).toHaveAttribute("href", "/avanca/instagram");
-    expect(
-      screen.getByRole("link", { name: "Ir para Instagram" }),
-    ).toHaveAttribute("href", "/avanca/instagram");
-    expect(
-      screen.queryByRole("button", { name: "Próximo passo" }),
-    ).not.toBeInTheDocument();
-    await waitFor(() => expect(mocks.config).toHaveBeenCalledWith("config"));
-  });
+it("matches the reference layout with private apps, optional Config ID, real counts and callbacks", async () => {
+ show(); await screen.findByText("App ID:");
+ expect(screen.getByRole("heading", { name: "Apps Meta Developer" })).toBeVisible();
+ expect(screen.getByRole("button", { name: "Adicionar app Meta" })).toBeVisible();
+ expect(screen.getByText("3 contas")).toBeVisible();
+ expect(screen.getByLabelText("Callback do Instagram Login")).toHaveValue(callback);
+ expect(screen.getByLabelText(/Config ID/)).not.toBeRequired();
+ expect(screen.getByText("instagram_business_basic")).toBeVisible();
 });
-
-it("hides global credentials from ordinary users", async () => {
-  show();
-  await screen.findByText("Conexão da Avança disponível");
-  fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
-  fireEvent.click(screen.getByRole("button", { name: /4 Ative/ }));
-  expect(screen.queryByLabelText("Meta App Secret")).not.toBeInTheDocument();
-  expect(screen.getByText(/Somente administradores da integração/)).toBeVisible();
+it("connects using the selected app and updates permissions for unified login", async () => {
+ const fb = { ...app, id: "app-two", name: "Business 02", configId: "987654" };
+ mocks.request.mockImplementation(async action => action === "invite" ? { url: "https://example.com/invite" } : { apps: [app, fb], ready: true, callback });
+ show(); await screen.findByText("Business 02", { selector: "strong" });
+ fireEvent.change(screen.getByLabelText("App para esta conexão"), { target: { value: "app-two" } });
+ expect(screen.getByText("instagram_basic")).toBeVisible();
+ fireEvent.click(screen.getByRole("button", { name: "Conectar pelo Instagram" }));
+ await vi.waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: "app-two" }));
 });
-it("offers credential setup to server-authorized administrators even before setup", async () => {
-  mocks.config.mockResolvedValue({ ready: false, callback, canManage: true });
-  show();
-  await screen.findByText("Conexão aguardando configuração pelo administrador");
-  fireEvent.click(screen.getByRole("button", { name: /Quero configurar/ }));
-  fireEvent.click(screen.getByRole("button", { name: /4 Ative/ }));
-  expect(screen.getByLabelText("Meta App Secret")).toBeRequired();
+it("uses server state for toggles and offers editing", async () => {
+ show(); await screen.findByText("App ID:");
+ mocks.request.mockResolvedValue({ apps: [{ ...app, active: false }], ready: false, callback });
+ fireEvent.click(screen.getByRole("button", { name: "Desativar" }));
+ await screen.findByRole("button", { name: "Ativar" });
+ expect(screen.getByRole("button", { name: "Conectar pelo Instagram" })).toBeDisabled();
+ expect(mocks.request).toHaveBeenCalledWith("toggle_app", { id: app.id });
+ fireEvent.click(screen.getByRole("button", { name: "Editar Config ID" }));
+ expect(screen.getByRole("heading", { name: "Editar Instagram 01" })).toBeVisible();
+});
+it("requires explicit deletion and reports backend protection for linked accounts", async () => {
+ show(); await screen.findByText("App ID:");
+ fireEvent.click(screen.getByRole("button", { name: "Excluir Instagram 01" }));
+ expect(mocks.request).not.toHaveBeenCalledWith("delete_app", expect.anything());
+ mocks.request.mockRejectedValue(new Error("App tem contas vinculadas"));
+ fireEvent.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
+ await screen.findByText("App tem contas vinculadas");
+ expect(mocks.request).toHaveBeenCalledWith("delete_app", { id: app.id });
+});
+it("handles empty and failed lists without inventing credentials", async () => {
+ mocks.request.mockRejectedValueOnce(new Error("offline")); show();
+ await screen.findByText("Não foi possível consultar seus apps.");
+ expect(screen.getByRole("button", { name: "Conectar pelo Instagram" })).toBeDisabled();
+ mocks.request.mockResolvedValue({ apps: [], ready: false, callback });
+ fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+ await screen.findByText("Seu primeiro app começa aqui");
+ expect(screen.getByRole("button", { name: "Adicionar app Meta" })).toBeVisible();
+});
+it("reports clipboard failure without claiming the callback was copied", async () => {
+ Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) } });
+ show(); await screen.findByText("App ID:");
+ fireEvent.click(screen.getByRole("button", { name: "Copiar Callback do Instagram Login" }));
+ await screen.findByText(/Não foi possível copiar/);
+ expect(screen.queryByText("Endereço de retorno copiado.")).not.toBeInTheDocument();
 });
