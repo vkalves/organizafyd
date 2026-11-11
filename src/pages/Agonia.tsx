@@ -1,3 +1,5 @@
+import { loginRequest } from "@/features/instagram-publisher/login";
+import type { MetaConfig } from "@/features/meta-developer/meta-apps";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,17 +80,14 @@ import {
   loadAccountFolders,
   loadAccountMeta,
   loadAgoniaProfile,
-  loadMetaApps,
   loadSettings,
   localToUtcIso,
   parseCaptionVariants,
   saveAccountFolders,
   saveAccountMeta,
   saveAgoniaProfile,
-  saveMetaApps,
   saveSettings,
   type AccountMetaMap,
-  type MetaAppConfig,
 } from "@/features/agonia/schedule";
 import "@/features/agonia/agonia.css";
 import { DashboardOverview, DashboardSchedule, DashboardViewsChart, type DashboardPeriod } from "@/features/agonia/DashboardOverview";
@@ -269,9 +268,9 @@ export default function Agonia() {
 
   // Settings & Local Persistence
   const [settings, setSettings] = useState(() => loadSettings(user?.id));
-  const [metaApps, setMetaApps] = useState<MetaAppConfig[]>(() =>
-    loadMetaApps(user?.id),
-  );
+  const metaConfig = useQuery({ queryKey: ["meta-apps", user?.id],
+    queryFn: () => loginRequest<MetaConfig>("apps"), enabled: !!user, staleTime: 30000 });
+  const metaApps = useMemo(() => metaConfig.data?.apps || [], [metaConfig.data]);
   const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [accountMeta, setAccountMeta] = useState<AccountMetaMap>(() =>
     loadAccountMeta(user?.id),
@@ -287,9 +286,6 @@ export default function Agonia() {
   const [modelDrafts, setModelDrafts] = useState<Record<string, string>>({});
 
   // Meta App form state
-  const [newAppName, setNewAppName] = useState("");
-  const [newAppId, setNewAppId] = useState("");
-  const [newAppSecret, setNewAppSecret] = useState("");
 
   // Instagram Operations Map state
   const [opsFilter, setOpsFilter] = useState("ALL");
@@ -352,7 +348,6 @@ export default function Agonia() {
     setStoryTimezone(loaded.timezone);
     setReelInterval(loaded.intervalMinutes || 10);
     setReelCaption((prev) => prev || loaded.defaultCaption);
-    setMetaApps(loadMetaApps(user?.id));
     setAccountMeta(loadAccountMeta(user?.id));
     setAccountFolders(loadAccountFolders(user?.id));
     setProfile(loadAgoniaProfile(user?.id, fallbackDisplayName));
@@ -510,7 +505,6 @@ export default function Agonia() {
     return { ...accountViewsRanking(filtered, viewsReport.data), allAccountsTotalViews: all.totalViews, accountIds: filtered.map(account => account.id) };
   }, [accounts, accountMeta, viewsReport.data, selectedModel]);
 
-  const redirectUri = `${window.location.origin}/instagram/conectar`;
 
   async function refreshAll() {
     await Promise.all([
@@ -530,54 +524,6 @@ export default function Agonia() {
         queryKey: ["ig-flows", user?.id],
       }),
     ]);
-  }
-
-  function handleAddMetaApp(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    const name = newAppName.trim();
-    const appId = newAppId.trim();
-    if (!name || !appId || newAppSecret.trim().length < 4) {
-      toast.error("Preencha o Nome interno, o Meta App ID e o App Secret.");
-      return;
-    }
-    const next: MetaAppConfig[] = [
-      ...metaApps,
-      {
-        id: crypto.randomUUID(),
-        name,
-        appId,
-        active: true,
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    setMetaApps(next);
-    saveMetaApps(user.id, next);
-    setNewAppName("");
-    setNewAppId("");
-    setNewAppSecret("");
-    toast.success(`App Meta "${name}" adicionado com sucesso.`);
-  }
-
-  function toggleMetaApp(id: string) {
-    if (!user) return;
-    const next = metaApps.map((app) =>
-      app.id === id ? { ...app, active: !app.active } : app,
-    );
-    setMetaApps(next);
-    saveMetaApps(user.id, next);
-  }
-
-  function deleteMetaApp(id: string) {
-    if (!user) return;
-    if (metaApps.length <= 1) {
-      toast.error("Mantenha pelo menos um App Meta cadastrado.");
-      return;
-    }
-    const next = metaApps.filter((app) => app.id !== id);
-    setMetaApps(next);
-    saveMetaApps(user.id, next);
-    toast.success("App Meta removido.");
   }
 
   function saveModelForAccount(accountId: string, username: string) {
@@ -928,165 +874,6 @@ export default function Agonia() {
     }
   }
 
-  function renderMetaAppsPanel() {
-    return (
-      <section className="panel meta-apps-panel">
-        <div className="panel-header">
-          <div>
-            <h2 className="panel-title">
-              <Layers className="h-4 w-4" /> Apps Meta Developer
-            </h2>
-            <p className="panel-copy">
-              Use um app diferente para novas autorizações. O App Secret nunca é
-              exibido depois de salvo.
-            </p>
-          </div>
-          <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="notice" style={{ marginBottom: 0 }}>
-          <strong>Como funciona:</strong> selecione o app desejado na área de
-          contas conectadas antes de clicar em “Adicionar”. Cada app precisa ter
-          seu próprio produto, redirect URI e permissões configurados no Meta
-          for Developers.
-        </div>
-        <div className="meta-app-list">
-          {metaApps.map((app) => (
-            <article
-              key={app.id}
-              className={`meta-app-card ${!app.active ? "meta-app-card-disabled" : ""}`}
-            >
-              <div className="meta-app-card-main">
-                <div className="meta-app-icon">
-                  <Instagram className="h-4 w-4" />
-                </div>
-                <div>
-                  <strong>{app.name}</strong>
-                  <span>
-                    App ID: <code>{app.appId}</code>
-                  </span>
-                  <small>
-                    {app.active
-                      ? "Disponível para novas conexões"
-                      : "Desativado para novas conexões"}
-                  </small>
-                </div>
-              </div>
-              <div className="meta-app-card-actions">
-                <span
-                  className={`setup-status ${app.active ? "setup-ok" : "setup-pending"}`}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {app.active ? "Ativo" : "Pausado"}
-                </span>
-                <span className="meta-app-account-count">
-                  {accounts.length} conta(s)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => toggleMetaApp(app.id)}
-                  className="button button-secondary"
-                  style={{ padding: "6px 10px", fontSize: 11 }}
-                >
-                  {app.active ? "Desativar" : "Ativar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteMetaApp(app.id)}
-                  className="button button-danger"
-                  style={{ padding: "6px 10px", fontSize: 11 }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-        <div className="meta-app-redirect">
-          <span>Redirect URI que deve ser cadastrado em todos os apps</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <code>{redirectUri}</code>
-            <button
-              type="button"
-              className="icon-button"
-              title="Copiar redirect URI"
-              onClick={() => {
-                void navigator.clipboard.writeText(redirectUri);
-                toast.success("Redirect URI copiado!");
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-        <form onSubmit={handleAddMetaApp} className="meta-app-form">
-          <div className="meta-app-form-heading">
-            <div>
-              <h3>Adicionar outro app Meta</h3>
-              <p>
-                Preencha os três campos abaixo com os dados copiados do Meta for
-                Developers.
-              </p>
-            </div>
-            <Plus className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div className="form-grid">
-            <label className="meta-app-field form-full">
-              <span className="meta-app-field-label">1. Nome interno</span>
-              <input
-                placeholder="Ex.: App Meta 02"
-                required
-                minLength={2}
-                maxLength={80}
-                value={newAppName}
-                onChange={(e) => setNewAppName(e.target.value)}
-              />
-              <small>Um nome para você identificar este app no painel.</small>
-            </label>
-            <label className="meta-app-field">
-              <span className="meta-app-field-label">
-                2. Meta App ID <b>obrigatório</b>
-              </span>
-              <input
-                placeholder="Ex.: 123456789012345"
-                inputMode="numeric"
-                required
-                value={newAppId}
-                onChange={(e) => setNewAppId(e.target.value)}
-              />
-              <small>
-                Somente números. Encontre em Meta for Developers → Configurações
-                básicas.
-              </small>
-            </label>
-            <label className="meta-app-field">
-              <span className="meta-app-field-label">
-                3. Meta App Secret <b>obrigatório</b>
-              </span>
-              <input
-                type="password"
-                placeholder="Cole aqui o App Secret"
-                required
-                minLength={4}
-                maxLength={512}
-                autoComplete="new-password"
-                value={newAppSecret}
-                onChange={(e) => setNewAppSecret(e.target.value)}
-              />
-              <small>O secret fica oculto e não será exibido novamente.</small>
-            </label>
-          </div>
-          <div className="config-actions">
-            <button className="button button-mint" type="submit">
-              <Plus className="h-4 w-4" /> Adicionar app Meta
-            </button>
-            <span className="panel-copy">
-              Os Apps e chaves cadastrados aqui são privados da sua conta.
-            </span>
-          </div>
-        </form>
-      </section>
-    );
-  }
 
   return (
     <div className="agonia-root" data-section={section}>

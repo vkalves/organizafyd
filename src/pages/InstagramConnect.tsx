@@ -4,10 +4,17 @@ import { Button } from "@/components/ui/button";
 import { loginRequest } from "@/features/instagram-publisher/login";
 type AccountChoice = { id: string; username: string };
 type FinishResult = { username: string } | { selection: string; accounts: AccountChoice[] };
+async function beginAuthorization(invite: string | null) {
+  const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v => v.toString(16).padStart(2, "0")).join("");
+  const result = await loginRequest<{ url: string; state: string }>("start", { invite, verifier });
+  sessionStorage.setItem("ig-login:" + result.state, verifier);
+  window.location.assign(result.url);
+}
 export default function InstagramConnect() {
   const [params] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)),
   );
+  const [provider, setProvider] = useState("instagram");
   const [manager, setManager] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -46,10 +53,12 @@ export default function InstagramConnect() {
             setSuccess(result.username);
           }
         } else {
-          const info = await loginRequest<{ manager: string }>("invite_info", {
+          const info = await loginRequest<{ manager: string; provider?: string }>("invite_info", {
             invite: params.get("invite"),
           });
-          setManager(info.manager);
+          setProvider(info.provider || "instagram");
+          if (params.get("direct") === "1") await beginAuthorization(params.get("invite"));
+          else setManager(info.manager);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Falha na conexão.");
@@ -63,15 +72,7 @@ export default function InstagramConnect() {
     setBusy(true);
     setError("");
     try {
-      const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-        .map((v) => v.toString(16).padStart(2, "0"))
-        .join("");
-      const result = await loginRequest<{ url: string; state: string }>(
-        "start",
-        { invite: params.get("invite"), verifier },
-      );
-      sessionStorage.setItem("ig-login:" + result.state, verifier);
-      window.location.assign(result.url);
+      await beginAuthorization(params.get("invite"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na conexão.");
       setBusy(false);
@@ -148,9 +149,7 @@ export default function InstagramConnect() {
                 Autorizar no Instagram
               </Button>
               <p className="text-xs text-muted-foreground">
-                Na tela da Meta, escolha o portfólio correto. Se houver vários
-                perfis autorizados, você escolherá qual conectar ao voltar ao
-                AVANÇA. Confira o @ antes de confirmar.
+                {provider === "facebook" ? "Na tela da Meta, escolha o portfólio correto. Se houver vários perfis, escolha qual conectar ao voltar à Avança." : "Entre no Instagram profissional que deseja conectar e autorize o acesso ao perfil e à publicação. Não é necessário vincular uma Página do Facebook."}
               </p>
             </>
           )

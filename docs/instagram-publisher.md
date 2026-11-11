@@ -149,9 +149,4 @@ nas páginas da Meta; isso exige uma nova autorização real pelo titular no cel
 
 ### Configuração pelo painel Meta Developer
 
-Na Avança, abra **Meta Developer → Quero configurar um app Meta → Ative a integração**.
-O formulário permite salvar App ID, App Secret e ID da configuração de Facebook Login for Business. Este fluxo preserva o login unificado existente; não usa as credenciais de Instagram Login mostradas no site de referência.
-
-Aplique a migration `20261111210717_meta_app_panel.sql` e publique a Edge Function `instagram-login` antes de disponibilizar o frontend. O Vault existente armazena os três valores; o Secret nunca é devolvido pela API. O endpoint exige um usuário validado pelo Supabase Auth com `app_metadata.role = "admin"`. Esse atributo deve ser atribuído pelo operador via Admin API ou painel confiável do Supabase, nunca por `user_metadata` ou pelo navegador. Usuários comuns continuam podendo conectar contas, sem editar as credenciais globais.
-
-Secret vazio preserva a chave atual. Trocar App ID exige uma nova chave. A configuração é global e deve ser alterada com cuidado: conexões existentes não são migradas nem reautorizadas automaticamente. Salvar confirma o armazenamento, não a aprovação do aplicativo pela Meta; finalize o guia, registre a URL de retorno e teste a autorização de uma conta profissional.
+A aba agora permite cadastrar apps privados de cada usuário, com Instagram Login quando não há Config ID e Login Unificado quando há. Consulte [meta-developer.md](meta-developer.md) para a configuração atual, segurança, compatibilidade e publicação.

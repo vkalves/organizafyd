@@ -10,17 +10,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
+import type { MetaApp, MetaConfig } from "@/features/meta-developer/meta-apps";
 import { loginRequest } from "./login";
 import { openBrowserLogin } from "./browser-login";
 
 export function ConnectAccount({
   onConnected: _onConnected,
   className,
+  appId,
   variant = "outline",
   size = "sm",
 }: {
   onConnected: (id: string) => Promise<void>;
   className?: string;
+  appId?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   size?: "default" | "sm" | "lg" | "icon";
 }) {
@@ -42,15 +46,17 @@ export function ConnectAccount({
         <DialogContent
           className="max-h-[92vh] overflow-y-auto max-w-[460px] p-0 border border-white/10 bg-[#12151c] text-white rounded-[24px] shadow-2xl focus:outline-none"
         >
-          {open && <ConnectAccountModalContent onClose={() => setOpen(false)} />}
+          {open && <ConnectAccountModalContent appId={appId} onClose={() => setOpen(false)} />}
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
+function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; appId?: string }) {
   const [view, setView] = useState<"menu" | "qr">("menu");
+  const [apps, setApps] = useState<MetaApp[]>([]);
+  const [selectedApp, setSelectedApp] = useState(appId || "");
   const [ready, setReady] = useState<boolean | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -61,8 +67,9 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
 
   // Check backend readiness
   useEffect(() => {
-    loginRequest<{ ready: boolean }>("config")
-      .then((d) => setReady(d.ready))
+    loginRequest<MetaConfig>("config")
+      .then((d) => { setReady(d.ready); setApps(d.apps || []);
+        setSelectedApp(current => d.apps?.some(a => a.id === current && a.active) ? current : d.apps?.find(a => a.active)?.id || ""); })
       .catch((e) => setError(e instanceof Error ? e.message : "Erro ao consultar configuração"));
   }, []);
 
@@ -83,7 +90,7 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
 
   // Helper to fetch authorization invite link
   async function generateInviteUrl(): Promise<string> {
-    const data = await loginRequest<{ url: string }>("invite");
+    const data = await loginRequest<{ url: string }>("invite", { app_id: selectedApp });
     return data.url;
   }
 
@@ -96,7 +103,11 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
     setBusyAction("popup");
     setError("");
     try {
-      const target = await openBrowserLogin(generateInviteUrl);
+      const target = await openBrowserLogin(async () => {
+        const url = new URL(await generateInviteUrl());
+        const params = new URLSearchParams(url.hash.slice(1)); params.set("direct", "1");
+        url.hash = params.toString(); return url.toString();
+      });
       if (target === "popup") {
         toast.success("Janela de login aberta. Conclua a autorização na Meta.");
       }
@@ -213,16 +224,21 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
           {/* Warning if server not configured */}
           {ready === false && (
             <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/40 p-3 text-xs text-amber-300">
-              A conexão direta aguarda ativação pelo administrador.
+              Cadastre seu app Meta para conectar uma conta. <Link to="/avanca/meta-developer" className="underline" onClick={onClose}>Abrir Meta Developer</Link>
             </div>
           )}
 
+          {apps.some(a => a.active) && <label className="mb-4 block text-xs text-neutral-300">App para esta conexão
+            <select aria-label="App para esta conexão" className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3" value={selectedApp} onChange={e => setSelectedApp(e.target.value)} disabled={busyAction !== null}>
+              {apps.filter(a => a.active).map(a => <option key={a.id} value={a.id}>{a.name} · {a.configId ? "Login Unificado" : "Instagram Login"}</option>)}
+            </select>
+          </label>}
           {/* Options List */}
           <div className="space-y-3">
             {/* 1. Popup neste navegador */}
             <button
               type="button"
-              disabled={busyAction !== null || ready === false}
+              disabled={busyAction !== null || ready !== true}
               onClick={() => void handleOpenPopup()}
               className="w-full text-left rounded-xl p-4 flex items-start gap-3.5 bg-[#161922] hover:bg-[#1c212c] border border-white/10 hover:border-white/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
             >
@@ -246,7 +262,7 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
             {/* 2. Copiar link para outro navegador */}
             <button
               type="button"
-              disabled={busyAction !== null || ready === false}
+              disabled={busyAction !== null || ready !== true}
               onClick={() => void handleCopyLink()}
               className="w-full text-left rounded-xl p-4 flex items-start gap-3.5 bg-[#161922] hover:bg-[#1c212c] border border-white/10 hover:border-white/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
             >
@@ -278,7 +294,7 @@ function ConnectAccountModalContent({ onClose }: { onClose: () => void }) {
             {/* 3. Abrir no celular (QR Code) */}
             <button
               type="button"
-              disabled={busyAction !== null || ready === false}
+              disabled={busyAction !== null || ready !== true}
               onClick={() => void handleOpenQr()}
               className="w-full text-left rounded-xl p-4 flex items-start gap-3.5 bg-[#161922] hover:bg-[#1c212c] border border-white/10 hover:border-white/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
             >
