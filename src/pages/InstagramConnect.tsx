@@ -130,7 +130,7 @@ export default function InstagramConnect() {
             <p>
               O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.
             </p>
-            <Button asChild className="mt-4"><a href="/dispara/instagram">Voltar à Avança</a></Button>
+            <Button asChild className="mt-4"><a href="/avanca/instagram">Voltar à Avança</a></Button>
           </div>
         ) : (
           manager && (
@@ -160,7 +160,7 @@ export default function InstagramConnect() {
             {error}
           </p>
         )}
-        {!success && (error || choice) && <a href="/dispara/instagram" className="block text-sm underline">Voltar e gerar um novo link</a>}
+        {!success && (error || choice) && <a href="/avanca/instagram" className="block text-sm underline">Voltar e gerar um novo link</a>}
         <div className="flex gap-4 text-xs">
           <a href="/privacidade" className="underline">
             Privacidade

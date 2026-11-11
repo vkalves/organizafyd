@@ -101,7 +101,7 @@ export function InstagramAnalytics() {
       ) : !report.data?.accounts.length ? (
         <div className="rounded-xl border p-6 text-sm space-y-3">
           <p>Nenhuma conta do Instagram conectada para analisar.</p>
-          <a className="underline" href="/dispara/conectar">Conectar conta do Instagram</a>
+          <a className="underline" href="/avanca/conectar">Conectar conta do Instagram</a>
         </div>
       ) : (
         <>

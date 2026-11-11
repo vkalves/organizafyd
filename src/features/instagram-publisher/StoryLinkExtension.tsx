@@ -16,7 +16,7 @@ export function StoryLinkExtension() {
           <div className="eyebrow">Preparar e finalizar no Instagram</div>
           <h1 className="page-title">Stories com Link</h1>
         </div>
-        <span className="story-link-top-status">Editor local · v0.8.0</span>
+        <span className="story-link-top-status">Editor local · v0.8.1</span>
       </header>
       <section className="panel story-link-hero">
         <div className="story-link-hero-copy">
@@ -30,10 +30,10 @@ export function StoryLinkExtension() {
           </p>
           <a
             className="button button-primary"
-            href="/extensions/storys-com-link.zip?v=0.8.0"
+            href="/extensions/storys-com-link.zip?v=0.8.1"
             download="storys-com-link.zip"
           >
-            <Download size={16} /> Baixar extensão v0.8.0
+            <Download size={16} /> Baixar extensão v0.8.1
           </a>
           <span className="story-link-version">
             Chrome e Edge · sem publicação automática
@@ -55,7 +55,7 @@ export function StoryLinkExtension() {
           <p className="mt-2 text-xs leading-relaxed">
             Em chrome://extensions ou edge://extensions, remova a extensão
             Storys Com Link v0.7.0 ou anterior. Feche todas as janelas do
-            navegador e abra novamente. Depois instale a v0.8.0 em uma nova
+            navegador e abra novamente. Depois instale a v0.8.1 em uma nova
             pasta.
           </p>
           <p className="mt-2 text-xs leading-relaxed">
@@ -63,7 +63,7 @@ export function StoryLinkExtension() {
               Baixar ou instalar a nova versão não desativa a antiga.
             </strong>{" "}
             A extensão anterior acessava a sessão do Instagram e alterava
-            requisições; a v0.8.0 remove esse mecanismo.
+            requisições; a v0.8.1 remove esse mecanismo.
           </p>
         </div>
       </section>
@@ -140,19 +140,19 @@ export function StoryLinkExtension() {
             manifest.json.
           </li>
           <li>
-            Confira a versão 0.8.0. Clique no ícone da extensão para abrir o
+            Confira a versão 0.8.1. Clique no ícone da extensão para abrir o
             editor local.
           </li>
         </ol>
       </details>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        A v0.8.0 prepara a imagem e o link; não agenda, publica ou cria
+        A v0.8.1 prepara a imagem e o link; não agenda, publica ou cria
         Destaques. Ela não recupera contas com restrições nem garante ausência
         de alertas da Meta. Se uma conta pedir confirmação de identidade, siga o
         processo oficial do Instagram.
       </p>
       <footer className="story-link-footer">
-        <Link className="link" to="/dispara/stories">
+        <Link className="link" to="/avanca/stories">
           Ir para Stories <ArrowRight size={14} />
         </Link>
         <span>

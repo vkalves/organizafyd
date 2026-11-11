@@ -391,7 +391,7 @@ export function AgoniaAlerts({
                 Meta.
               </p>
             </div>
-            <Link className="link" to="/dispara/instagram">
+            <Link className="link" to="/avanca/instagram">
               Gerenciar Contas <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

@@ -1,4 +1,4 @@
-DISPARA · Preparar Story com Link · v0.8.0
+Avança · Preparar Story com Link · v0.8.1
 
 ATUALIZAÇÃO DA v0.7.0 OU ANTERIOR
 1. Remova a extensão antiga em chrome://extensions ou edge://extensions.

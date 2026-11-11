@@ -9,7 +9,7 @@ import AuthLayout from "@/components/layout/AuthLayout";
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const destination = "/dispara";
+  const destination = "/avanca";
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");

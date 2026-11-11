@@ -13,7 +13,7 @@ import Auth from "./Auth";
 function show() {
   return render(<MemoryRouter initialEntries={["/auth"]}><Routes>
     <Route path="/auth" element={<Auth />} />
-    <Route path="/dispara" element={<h1>Workspace autenticado</h1>} />
+    <Route path="/avanca" element={<h1>Workspace autenticado</h1>} />
   </Routes></MemoryRouter>);
 }
 beforeEach(() => { vi.clearAllMocks(); Object.values(auth).forEach(fn => fn.mockResolvedValue({ error: null })); });

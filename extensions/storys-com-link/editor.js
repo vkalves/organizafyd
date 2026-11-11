@@ -150,7 +150,7 @@ byId("download").addEventListener("click", () => {
       const url = URL.createObjectURL(blob),
         anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "dispara-story-1080x1920.jpg";
+      anchor.download = "avanca-story-1080x1920.jpg";
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

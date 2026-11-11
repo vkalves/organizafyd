@@ -2,7 +2,7 @@
 
 ## Contas do Instagram
 
-A aba `/dispara/instagram` usa uma lista compacta em lugar dos cards extensos. A tela principal mostra a conta, seu status, itens na fila e as ações Publicar/Gerenciar. O cabeçalho reúne Conectar conta, Atualizar e um menu com verificação de saúde e reativação de contas pausadas.
+A aba `/avanca/instagram` usa uma lista compacta em lugar dos cards extensos. A tela principal mostra a conta, seu status, itens na fila e as ações Publicar/Gerenciar. O cabeçalho reúne Conectar conta, Atualizar e um menu com verificação de saúde e reativação de contas pausadas.
 
 A busca aceita usuário e nome personalizado. Os filtros de pasta e status ficam próximos da busca. Contadores globais redundantes e a explicação permanente sobre etiquetas foram retirados da tela; os dias de operação e demais métricas continuam disponíveis nos detalhes.
 
