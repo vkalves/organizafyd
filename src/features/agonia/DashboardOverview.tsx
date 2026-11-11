@@ -60,7 +60,7 @@ export function DashboardViewsChart({ report, accountIds }: { report?: Analytics
 export function DashboardSchedule({ posts, accounts, pending, error }: { posts: Post[]; accounts: Map<string, string>; pending: boolean; error: boolean }) {
   return (
     <section className="panel dash-schedule">
-      <div className="dash-widget-head"><h2><CalendarClock /> Próximos agendamentos</h2><Link to="/dispara/scheduled">Ver todos <ArrowRight /></Link></div>
+      <div className="dash-widget-head"><h2><CalendarClock /> Próximos agendamentos</h2><Link to="/avanca/scheduled">Ver todos <ArrowRight /></Link></div>
       {posts.length ? <ul className="dash-entries">{posts.slice(0, 3).map(post => (
         <li key={post.id}><span className="dash-entry-icon"><Film /></span><div><strong>{post.caption.trim() || `${post.format} sem legenda`}</strong><small>{post.scheduled_at && Number.isFinite(Date.parse(post.scheduled_at)) ? dateTime.format(new Date(post.scheduled_at)) : "Horário indisponível"} · {accounts.has(post.account_id) ? `@${accounts.get(post.account_id)}` : post.format}</small></div></li>
       ))}</ul> : <p className="dash-empty" role="status">{pending ? "Carregando agendamentos…" : error ? "Não foi possível carregar os agendamentos." : "Nenhuma publicação na fila."}</p>}
@@ -74,11 +74,11 @@ export function DashboardOverview({ posts, alerts, period, periodLabel, pending,
   const queued = posts.filter(post => (post.status === "scheduled" || post.status === "processing") && includes(post.scheduled_at)).length;
   const published = posts.filter(post => post.status === "published" && includes(post.published_at || post.created_at));
   const recent = [
-    ...alerts.map(alert => ({ id: `alert-${alert.id}`, date: alert.created_at, title: healthLabels[alert.state], detail: "Alerta de conta", to: "/dispara/alertas" })),
+    ...alerts.map(alert => ({ id: `alert-${alert.id}`, date: alert.created_at, title: healthLabels[alert.state], detail: "Alerta de conta", to: "/avanca/alertas" })),
     ...posts.filter(post => post.status === "published" || post.status === "failed").map(post => ({
       id: `post-${post.id}`, date: post.published_at || post.updated_at || post.created_at,
       title: post.status === "published" ? `${post.format} publicado` : `Falha ao publicar ${post.format}`,
-      detail: post.caption.trim() || "Sem legenda", to: "/dispara/reels",
+      detail: post.caption.trim() || "Sem legenda", to: "/avanca/reels",
     })),
   ].filter(item => Number.isFinite(Date.parse(item.date))).sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, 3);
   const count = (value: number) => pending || error ? "—" : number.format(value);
@@ -104,7 +104,7 @@ export function DashboardOverview({ posts, alerts, period, periodLabel, pending,
         </ol>
       </section>
       <section className="panel">
-        <div className="dash-widget-head"><h2><Zap /> Atividade recente</h2><Link to="/dispara/reels">Ver histórico <ArrowRight /></Link></div>
+        <div className="dash-widget-head"><h2><Zap /> Atividade recente</h2><Link to="/avanca/reels">Ver histórico <ArrowRight /></Link></div>
         {recent.length ? <ul className="dash-entries">{recent.map(item => (
           <li key={item.id}><Link to={item.to}><span className="dash-entry-icon"><Zap /></span><div><strong>{item.title}</strong><small>{item.detail} · {dateTime.format(new Date(item.date))}</small></div></Link></li>
         ))}</ul> : <p className="dash-empty">{pending ? "Carregando atividade…" : error ? "Não foi possível carregar as publicações." : "Nenhuma atividade recente."}</p>}

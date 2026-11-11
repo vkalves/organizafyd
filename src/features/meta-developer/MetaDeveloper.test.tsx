@@ -107,10 +107,10 @@ describe("Meta Developer guided integration", () => {
     fireEvent.click(screen.getByRole("button", { name: /3 Confira/ }));
     expect(
       screen.getByRole("link", { name: "Ver minhas contas" }),
-    ).toHaveAttribute("href", "/dispara/instagram");
+    ).toHaveAttribute("href", "/avanca/instagram");
     expect(
       screen.getByRole("link", { name: "Ir para Instagram" }),
-    ).toHaveAttribute("href", "/dispara/instagram");
+    ).toHaveAttribute("href", "/avanca/instagram");
     expect(
       screen.queryByRole("button", { name: "Próximo passo" }),
     ).not.toBeInTheDocument();

@@ -120,7 +120,7 @@ it("filters by account and publication date while preserving genuine zero views"
 it("offers a connection link when there are no connected accounts", async () => {
   request.mockResolvedValueOnce({ accounts: [], checked_at: new Date().toISOString() });
   renderAnalytics();
-  expect(await screen.findByRole("link", { name: "Conectar conta do Instagram" })).toHaveAttribute("href", "/dispara/conectar");
+  expect(await screen.findByRole("link", { name: "Conectar conta do Instagram" })).toHaveAttribute("href", "/avanca/conectar");
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
 });
 

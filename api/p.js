@@ -89,7 +89,7 @@ export default async function handler(req, res) {
   </style>
 </head>
 <body>
-  <header>DISPARA</header>
+  <header>Avança</header>
   <main>
     <h1>Referências e Original</h1>
     <p class="sub">Somente visualização</p>

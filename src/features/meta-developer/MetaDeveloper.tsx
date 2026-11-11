@@ -415,7 +415,7 @@ export default function MetaDeveloper({
                 variant="default"
                 size="default"
               />
-              <Link className="button button-secondary" to="/dispara/instagram">
+              <Link className="button button-secondary" to="/avanca/instagram">
                 Ver minhas contas <ArrowRight size={15} />
               </Link>
             </div>
@@ -438,7 +438,7 @@ export default function MetaDeveloper({
                 Próximo passo <ArrowRight size={16} />
               </button>
             ) : (
-              <Link className="button button-primary" to="/dispara/instagram">
+              <Link className="button button-primary" to="/avanca/instagram">
                 <Check size={16} /> Ir para Instagram
               </Link>
             )}

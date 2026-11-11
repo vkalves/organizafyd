@@ -4,7 +4,7 @@ import vm from "node:vm";
 const dir = new URL("../extensions/storys-com-link/", import.meta.url);
 const read = (name) => readFile(new URL(name, dir), "utf8");
 const manifest = JSON.parse(await read("manifest.json"));
-assert.equal(manifest.version, "0.8.0");
+assert.equal(manifest.version, "0.8.1");
 assert.deepEqual(manifest.permissions, []);
 for (const field of [
   "host_permissions",

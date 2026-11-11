@@ -27,9 +27,9 @@ const clients: QueryClient[] = [];
 function show(section: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   clients.push(client);
-  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[`/dispara/${section}`]}><Routes>
-    <Route path="/dispara/:section" element={<Agonia />} />
-    <Route path="/dispara" element={<h1>Dashboard</h1>} />
+  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[`/avanca/${section}`]}><Routes>
+    <Route path="/avanca/:section" element={<Agonia />} />
+    <Route path="/avanca" element={<h1>Dashboard</h1>} />
   </Routes></MemoryRouter></QueryClientProvider>);
 }
 beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("crypto", webcrypto); localStorage.clear(); mocks.request.mockResolvedValue({}); mocks.upload.mockResolvedValue(["storage://visual-qa/test.mp4"]); mocks.save.mockResolvedValue({}); });
@@ -97,8 +97,8 @@ describe("Avança — controles dos fluxos existentes", () => {
     expect(screen.getByLabelText("App Meta")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "a" } });
     expect(screen.getByLabelText("Conta")).toHaveValue("a");
-    expect(screen.getByRole("link", { name: "Novo Reel" })).toHaveAttribute("href", "/dispara/reels-new");
-    expect(screen.getByRole("link", { name: "Novo Story" })).toHaveAttribute("href", "/dispara/stories");
+    expect(screen.getByRole("link", { name: "Novo Reel" })).toHaveAttribute("href", "/avanca/reels-new");
+    expect(screen.getByRole("link", { name: "Novo Story" })).toHaveAttribute("href", "/avanca/stories");
     expect(screen.getByRole("button", { name: "Apagar registros" })).toBeDisabled();
   });
   it("salva configurações pela mesma persistência e recupera os valores", async () => {

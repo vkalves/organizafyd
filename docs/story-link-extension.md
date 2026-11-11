@@ -1,4 +1,4 @@
-# Stories with Link extension v0.8.0
+# Stories with Link extension v0.8.1
 
 The original uploaded v0.7.0 package used Instagram session cookies, browser-wide
 persistent declarativeNetRequest rules and private mobile publishing endpoints.
@@ -25,14 +25,14 @@ https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/refe
 Direct requests were rate limited (HTTP 429). No current official supported Link
 sticker publishing API was confirmed; this release therefore does not claim an
 API substitute for native sticker creation. Publishing ordinary Stories through
-DISPARA's existing official integration remains a separate feature.
+Avança's existing official integration remains a separate feature.
 
 ## Upgrade matters
 
 An uploaded ZIP cannot remotely update an unpacked installed extension. Remove
 v0.7.0 and older from every browser/profile first, close all browser windows and
 restart. Removal clears the old extension's active network rules; restarting also
-unloads previously injected tab scripts. Install v0.8.0 from a new permanent
+unloads previously injected tab scripts. Install v0.8.1 from a new permanent
 folder only after removing old copies. Installing both versions keeps the old
 extension operational. The website and bundled instructions make this explicit.
 This change does not recover restricted accounts or guarantee against Meta flags.

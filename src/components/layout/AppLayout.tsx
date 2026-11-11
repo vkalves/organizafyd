@@ -53,30 +53,30 @@ interface NavSection {
 const agoniaSections: NavSection[] = [
   {
     items: [
-      { title: "Dashboard", path: "/dispara", icon: LayoutDashboard, exact: true },
-      { title: "Modo Fluxo", path: "/dispara/fluxos", icon: Layers },
-      { title: "Alertas", path: "/dispara/alertas", icon: AlertTriangle },
-      { title: "Conectar", path: "/dispara/conectar", icon: PlugZap },
-      { title: "Meta Developer", path: "/dispara/meta-developer", icon: Code2 },
+      { title: "Dashboard", path: "/avanca", icon: LayoutDashboard, exact: true },
+      { title: "Modo Fluxo", path: "/avanca/fluxos", icon: Layers },
+      { title: "Alertas", path: "/avanca/alertas", icon: AlertTriangle },
+      { title: "Conectar", path: "/avanca/conectar", icon: PlugZap },
+      { title: "Meta Developer", path: "/avanca/meta-developer", icon: Code2 },
     ],
   },
   {
     label: "Publicação",
     items: [
-      { title: "Instagram", path: "/dispara/instagram", icon: Instagram },
-      { title: "Novo Reel", path: "/dispara/reels-new", icon: PlusCircle },
-      { title: "Stories", path: "/dispara/stories", icon: Image },
-      { title: "Stories c/ Link", path: "/dispara/stories-link", icon: Link2 },
-      { title: "Agendamentos", path: "/dispara/scheduled", icon: CalendarClock },
-      { title: "Publicados", path: "/dispara/reels", icon: Film, matchPaths: ["/dispara/reels", "/dispara/reels-test"] },
+      { title: "Instagram", path: "/avanca/instagram", icon: Instagram },
+      { title: "Novo Reel", path: "/avanca/reels-new", icon: PlusCircle },
+      { title: "Stories", path: "/avanca/stories", icon: Image },
+      { title: "Stories c/ Link", path: "/avanca/stories-link", icon: Link2 },
+      { title: "Agendamentos", path: "/avanca/scheduled", icon: CalendarClock },
+      { title: "Publicados", path: "/avanca/reels", icon: Film, matchPaths: ["/avanca/reels", "/avanca/reels-test"] },
     ],
   },
   {
     label: "Conta",
     items: [
-      { title: "Visualizações", path: "/dispara/visualizacoes", icon: BarChart3 },
-      { title: "Configurações", path: "/dispara/settings", icon: Settings },
-      { title: "Meu Perfil", path: "/dispara/profile", icon: UserRound },
+      { title: "Visualizações", path: "/avanca/visualizacoes", icon: BarChart3 },
+      { title: "Configurações", path: "/avanca/settings", icon: Settings },
+      { title: "Meu Perfil", path: "/avanca/profile", icon: UserRound },
     ],
   },
 ];
@@ -89,7 +89,7 @@ function AgoniaBrand({ compact = false }: { compact?: boolean }) {
 
 function isItemActive(item: NavItem, pathname: string) {
   if (item.exact) {
-    return pathname === "/" || pathname === "/dispara" || pathname === "/dispara/";
+    return pathname === "/" || pathname === "/avanca" || pathname === "/avanca/";
   }
   if (item.matchPaths) return item.matchPaths.includes(pathname);
   return pathname === item.path;
@@ -119,7 +119,7 @@ function SideNav({
           )}
           {section.items.map((item) => {
             const isActive = isItemActive(item, location.pathname);
-            const showAlertBadge = item.path === "/dispara/alertas" && unreadAlertsCount > 0;
+            const showAlertBadge = item.path === "/avanca/alertas" && unreadAlertsCount > 0;
             return (
               <NavLink
                 key={item.path}
@@ -131,7 +131,7 @@ function SideNav({
                 aria-label={item.title}
                 className={cn(
                   "shell-nav-link",
-                  item.path === "/dispara/reels-new" && "shell-nav-create",
+                  item.path === "/avanca/reels-new" && "shell-nav-create",
                   isActive && "is-active",
                   collapsed && "is-collapsed",
                 )}
@@ -235,7 +235,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
-    if (location.pathname === "/dispara/reels-test") return "Diagnóstico de Publicação";
+    if (location.pathname === "/avanca/reels-test") return "Diagnóstico de Publicação";
     const match = agoniaNavItems.find((item) =>
       isItemActive(item, location.pathname),
     );
@@ -245,7 +245,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Mobile bottom bar: 4 primary destinations + "Mais" drawer trigger
   const mobilePrimaryItems = useMemo(
     () => agoniaNavItems.filter((item) =>
-      ["/dispara", "/dispara/fluxos", "/dispara/reels-new", "/dispara/scheduled"].includes(item.path),
+      ["/avanca", "/avanca/fluxos", "/avanca/reels-new", "/avanca/scheduled"].includes(item.path),
     ),
     [],
   );
@@ -271,7 +271,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="shell-rail-top">
             <NavLink
-              to="/dispara"
+              to="/avanca"
               className="shell-brand"
               title="AVANÇA · Dashboard"
               aria-label="AVANÇA · Dashboard"
@@ -301,7 +301,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="shell-rail-footer">
             <NavLink
-              to="/dispara/profile"
+              to="/avanca/profile"
               className={cn("shell-rail-account", !desktopSidebarOpen && "is-collapsed")}
               title={`${displayName} · Configurações`}
               aria-label="Perfil e configurações"
@@ -384,7 +384,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="shell-mobile-brand">
                 <NavLink
-                  to="/dispara"
+                  to="/avanca"
                   onClick={() => setMobileMenuOpen(false)}
                   aria-label="AVANÇA"
                 >
@@ -406,7 +406,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
               <div className="shell-mobile-account">
                 <NavLink
-                  to="/dispara/profile"
+                  to="/avanca/profile"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex min-w-0 flex-1 items-center gap-2.5"
                 >

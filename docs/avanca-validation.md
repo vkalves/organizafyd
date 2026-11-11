@@ -6,7 +6,7 @@ Redesign da camada de apresentação sobre o commit `41135f7b2ad1df6a2bab5d55662
 
 | Área | Antes | Implementação Avança |
 | --- | --- | --- |
-| Identidade | DISPARA, logo cromada | Logo Avança branca original, símbolo compacto, favicon, ícones de instalação e metadados |
+| Identidade | Logo cromada da marca anterior | Logo Avança branca original, símbolo compacto, favicon, ícones de instalação e metadados |
 | Tema | Cinzas azulados, gradientes cromados e brilho | Preto #0B0B0B, superfícies neutras, bordas discretas, ações principais claras |
 | Acesso | Painel cromado, emblema flutuante e órbitas | Composição editorial, marca original, formulário simples, CTA arredondado |
 | Workspace | Navegação e superfícies cromadas | Menu lateral discreto, seleção clara, hierarquia de títulos, métricas legíveis |
@@ -37,7 +37,7 @@ O teste existente de Slides excedeu o limite padrão de 5 segundos. Passou com 1
 
 ### Fluxos conferidos em testes de componentes
 
-- Login: campos e validações, exibição da senha, sucesso com navegação para `/dispara`, erro e nova tentativa.
+- Login: campos e validações, exibição da senha, sucesso com navegação para `/avanca`, erro e nova tentativa.
 - Cadastro e recuperação: parâmetros enviados ao contrato existente, mensagens e retorno ao login.
 - Navegação: 14 destinos, menu expandido/recolhido, menu móvel, fechamento ao navegar, Escape e restauração de foco.
 - Novo Reel: quatro modos, campos condicionais, conta selecionada, bloqueio sem mídia, legenda e limites preservados.

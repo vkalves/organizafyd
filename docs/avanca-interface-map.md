@@ -15,7 +15,7 @@ Base examinada antes das alterações: `41135f7b2ad1df6a2bab5d55662152faeb4110b5
 
 ## Workspace autenticado
 
-Todas as telas estão em `/dispara`; a autenticação e os redirecionamentos permanecem intactos.
+Todas as telas estão em `/avanca`; a autenticação e os redirecionamentos permanecem intactos.
 
 | Seção | Fluxos e estados existentes |
 | --- | --- |
@@ -41,7 +41,7 @@ Menu recolhível, menu móvel com foco contido e Escape, barra inferior, atalhos
 
 Na barra inferior, a composição visual passa a priorizar Dashboard, Modo Fluxo, Novo Reel e Agendamentos. Instagram e Stories c/ Link continuam no menu completo, acessível pelo botão Mais, com seus destinos originais.
 
-As rotas legadas `/agonia/*`, `/disparo/*`, `/tarefas`, `/notas`, `/slides`, `/mapas`, `/config`, `/instagram/*`, `/tiktok` e `/x` mantêm seus redirecionamentos atuais. Os módulos antigos não foram reativados.
+As rotas legadas `/agonia/*`, `/dispara/*`, `/disparo/*`, `/tarefas`, `/notas`, `/slides`, `/mapas`, `/config`, `/instagram/*`, `/tiktok` e `/x` mantêm seus redirecionamentos atuais. Os módulos antigos não foram reativados.
 
 ## Limites da alteração
 

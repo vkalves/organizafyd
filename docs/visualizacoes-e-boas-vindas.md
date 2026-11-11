@@ -1,8 +1,8 @@
-# Visualizações e boas-vindas no DISPARA
+# Visualizações e boas-vindas na Avança
 
 ## Uso
 
-- Acesse **Conta → Visualizações**, em `/dispara/visualizacoes`, pelo menu lateral ou pelo menu **Mais** no celular.
+- Acesse **Conta → Visualizações**, em `/avanca/visualizacoes`, pelo menu lateral ou pelo menu **Mais** no celular.
 - Selecione uma conta ou todas e filtre os vídeos pela data de publicação (7 dias, 30 dias ou todo o histórico consultado).
 - Consulte total acumulado, média por vídeo, cobertura das métricas, ranking dos vídeos e comparação entre contas.
 - Use **Carregar mais vídeos** para incluir páginas adicionais e **Atualizar métricas** para iniciar uma nova consulta.
@@ -14,7 +14,7 @@ Os números representam visualizações acumuladas dos vídeos consultados, incl
 
 ## Boas-vindas
 
-A apresentação de boas-vindas ocupa a tela e usa o símbolo cromado oficial, com a marca DISPARA. Começa a fechar após 1,8 segundo, com saída suave de 420 ms, ou pelo botão de pular ou Escape. Não reaparece durante a navegação interna e respeita `prefers-reduced-motion`. O login segue a nova composição cromada inspirada nos estilos do site enviado. Veja os detalhes em [Identidade DISPARA](dispara-chrome.md).
+A apresentação de boas-vindas usa a marca Avança e respeita `prefers-reduced-motion`. O botão Pular e a tecla Escape permitem fechar a apresentação.
 
 ## Arquivos
 
@@ -23,7 +23,7 @@ A apresentação de boas-vindas ocupa a tela e usa o símbolo cromado oficial, c
 - `src/components/common/WelcomeAnimation.test.tsx`: fechamento automático, manual e ausência de repetição ao renderizar novamente.
 - `src/components/layout/AppLayout.tsx`: entrada Visualizações no menu.
 - `src/pages/Agonia.tsx`: reconhece a seção e carrega o módulo sob demanda.
-- `src/features/instagram-publisher/AccountViews.tsx`: página do módulo com o estilo atual do DISPARA.
+- `src/features/instagram-publisher/AccountViews.tsx`: página do módulo com o estilo atual da Avança.
 - `src/features/instagram-publisher/InstagramAnalytics.tsx`: comparação por conta, estados vazios e de erro, status da consulta e ajustes de responsividade.
 - `src/features/instagram-publisher/InstagramAnalytics.test.tsx`: filtros, recuperação de erro, ausência de conexão e métricas indisponíveis, além da cobertura existente de paginação e ranking.
 
@@ -35,4 +35,4 @@ A apresentação de boas-vindas ocupa a tela e usa o símbolo cromado oficial, c
 - Lint do código novo e do componente de analytics sem erros.
 - A comparação com o commit de origem `8ccc3a9` confirmou os mesmos seis diagnósticos TypeScript em `MediaPreview.tsx`, `flows-api.ts` e `useSupabaseCrud.ts`. Os cinco erros de `any` e dois avisos de hooks nos componentes existentes `Agonia.tsx` e `AppLayout.tsx` também já estavam presentes.
 
-Não houve teste autenticado contra uma conta real da Meta. O comportamento visual foi validado com dados simulados, e a consulta mantém a integração existente. O rebranding e os recursos oficiais foram aplicados conforme documentado em `dispara-chrome.md`.
+Não houve teste autenticado contra uma conta real da Meta. O comportamento visual foi validado com dados simulados, e a consulta mantém a integração existente.

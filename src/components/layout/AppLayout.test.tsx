@@ -7,14 +7,14 @@ vi.mock("@/features/instagram-publisher/PublicationSound", () => ({ PublicationF
 vi.mock("@/features/instagram-publisher/InstagramAlerts", () => ({ useInstagramMonitor: () => ({ data: { alerts: [] } }), InstagramAlerts: () => null }));
 import { AppLayout } from "./AppLayout";
 function Location() { return <output aria-label="Rota atual">{useLocation().pathname}</output>; }
-function show() { render(<MemoryRouter initialEntries={["/dispara"]}><AppLayout><Location /></AppLayout></MemoryRouter>); }
+function show() { render(<MemoryRouter initialEntries={["/avanca"]}><AppLayout><Location /></AppLayout></MemoryRouter>); }
 afterEach(() => { cleanup(); localStorage.clear(); });
-const destinations = ["/dispara", "/dispara/fluxos", "/dispara/alertas", "/dispara/conectar", "/dispara/meta-developer", "/dispara/instagram", "/dispara/reels-new", "/dispara/stories", "/dispara/stories-link", "/dispara/scheduled", "/dispara/reels", "/dispara/visualizacoes", "/dispara/settings", "/dispara/profile"];
+const destinations = ["/avanca", "/avanca/fluxos", "/avanca/alertas", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/reels-new", "/avanca/stories", "/avanca/stories-link", "/avanca/scheduled", "/avanca/reels", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
 describe("Avança — navegação preservada", () => {
   it("prioriza criar e agendar na barra móvel, mantendo os demais destinos em Mais", () => {
     show();
     const quickNav = screen.getByRole("navigation", { name: "Navegação rápida" });
-    expect(within(quickNav).getAllByRole("link").map(a => a.getAttribute("href"))).toEqual(["/dispara", "/dispara/fluxos", "/dispara/reels-new", "/dispara/scheduled"]);
+    expect(within(quickNav).getAllByRole("link").map(a => a.getAttribute("href"))).toEqual(["/avanca", "/avanca/fluxos", "/avanca/reels-new", "/avanca/scheduled"]);
     expect(within(quickNav).getByRole("button", { name: "Mais opções" })).toBeInTheDocument();
   });
   it("mantém todos os destinos expandidos e recolhidos", () => {
@@ -40,7 +40,7 @@ describe("Avança — navegação preservada", () => {
     expect(within(nav).getAllByRole("link").map(a => a.getAttribute("href"))).toEqual(destinations);
     fireEvent.click(within(nav).getByRole("link", { name: "Configurações" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Rota atual")).toHaveTextContent("/dispara/settings");
+    expect(screen.getByLabelText("Rota atual")).toHaveTextContent("/avanca/settings");
   });
   it("fecha com Escape e restaura o foco ao acionador", () => {
     show();
