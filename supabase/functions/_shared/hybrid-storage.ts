@@ -22,7 +22,11 @@ export function hybridStorage(client: Client, baseUrl: string, enabled = true) {
         return {
           data: null,
           error: {
-            message: details?.error ||
+            message: details?.error === "storage_quota_exceeded"
+              ? "Limite de armazenamento atingido. Exclua mídias ou solicite mais espaço ao administrador."
+              : details?.error === "upload_pending"
+              ? "Este arquivo tem um envio em andamento. Aguarde alguns minutos e tente novamente."
+              : details?.error ||
               "Não foi possível acessar o armazenamento.",
             statusCode: details?.statusCode || result.error.context?.status,
           },

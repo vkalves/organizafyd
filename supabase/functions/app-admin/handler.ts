@@ -3,7 +3,7 @@ interface AdminDatabase {
   rpc(name: string, params: Record<string, unknown>): PromiseLike<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
 }
 const origins = new Set(["https://www.organizafy.site", "https://organizafy.site", "https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online", "https://organizafyd.vercel.app"]);
-export function createAdminHandler(db: AdminDatabase) { return async (req: Request) => {
+export function createAdminHandler(db: AdminDatabase, refreshStorage?: (users: string[]) => Promise<void>) { return async (req: Request) => {
   const origin = req.headers.get("origin") || "";
   const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "Access-Control-Allow-Origin": origins.has(origin) ? origin : "https://www.organizafy.site", "Access-Control-Allow-Headers": "authorization,apikey,content-type,x-client-info", "Access-Control-Allow-Methods": "POST,OPTIONS", Vary: "Origin" };
   const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers });
@@ -27,7 +27,23 @@ export function createAdminHandler(db: AdminDatabase) { return async (req: Reque
       if (typeof search !== "string" || search.length > 100 || !Number.isInteger(page) || page < 1 || page > 100000) return reply({ error: "invalid_request" }, 400);
       const result = await db.rpc("avanca_admin_users", { p_actor: user.id, p_search: search, p_page: page });
       if (result.error) throw new Error("database_error");
+      if (refreshStorage) {
+        await refreshStorage((result.data?.users as { id: string }[] || []).map(u => u.id));
+        const refreshed = await db.rpc("avanca_admin_users", { p_actor: user.id, p_search: search, p_page: page });
+        if (refreshed.error) throw new Error("database_error");
+        return reply(refreshed.data);
+      }
       return reply(result.data);
+    }
+    if (body.action === "update_storage_limit") {
+      if (typeof body.user_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.user_id) || !Number.isSafeInteger(body.limit_bytes) || body.limit_bytes < 0 || body.limit_bytes > 10737418240000) return reply({ error: "invalid_storage_limit" }, 400);
+      const result = await db.rpc("avanca_admin_update_storage", { p_actor: user.id, p_target: body.user_id, p_bytes: body.limit_bytes });
+      if (result.error) {
+        if (result.error.message === "user_not_found") return reply({ error: "user_not_found" }, 404);
+        if (result.error.message === "admin_storage_unlimited") return reply({ error: "admin_storage_unlimited" }, 400);
+        throw new Error("database_error");
+      }
+      return reply({ ok: true });
     }
     if (body.action === "update_access") {
       if (typeof body.user_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.user_id) || typeof body.connection_allowed !== "boolean" || !(body.max_accounts === null || Number.isInteger(body.max_accounts) && body.max_accounts >= 0 && body.max_accounts <= 10000)) return reply({ error: "invalid_limit" }, 400);

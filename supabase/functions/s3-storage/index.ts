@@ -15,6 +15,7 @@ import {
   validBucket,
   validPath,
 } from "./policy.ts";
+import { reserveStorage, syncStorageInventory } from "./quota.ts";
 const base = Deno.env.get("SUPABASE_URL")!;
 const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db = createClient(base, service, {
@@ -148,6 +149,16 @@ Deno.serve(async (req) => {
       },
     });
     const key = `${bucket}/${body.path}`;
+    const inventory = (owner: string) => syncStorageInventory(db, owner, (prefix, continuation) => s3.send(new ListObjectsV2Command({
+      Bucket: cfg.bucket, Prefix: prefix, ContinuationToken: continuation,
+    })));
+    if (body.action === "quota") {
+      const owner = body.path.split("/")[0];
+      await inventory(owner);
+      const result = await db.rpc("avanca_storage_access", { p_user: owner });
+      if (result.error) throw new Error("storage_usage_failed");
+      return reply(result.data);
+    }
     if (body.action === "upload") {
       if (!uploadAllowed(bucket, body.contentType, body.size) || body.upsert) {
         return reply({ error: "invalid_upload" }, 400);
@@ -169,6 +180,10 @@ Deno.serve(async (req) => {
           statusCode: "409",
         }, 409);
       }
+      const owner = body.path.split("/")[0];
+      await inventory(owner);
+      const quotaError = await reserveStorage(db, owner, bucket, body.path, body.size);
+      if (quotaError) return reply({ error: quotaError }, quotaError === "storage_quota_exceeded" ? 413 : 409);
       const post = await createPresignedPost(s3, {
         Bucket: cfg.bucket,
         Key: key,
@@ -347,6 +362,8 @@ Deno.serve(async (req) => {
       if (removed.Errors?.length) throw new Error("delete_failed");
       const legacy = await db.storage.from(bucket).remove(body.paths);
       if (legacy.error) throw new Error("legacy_delete_failed");
+      const released = await db.rpc("avanca_storage_removed", { p_bucket: bucket, p_paths: body.paths });
+      if (released.error) throw new Error("storage_release_failed");
       return reply(body.paths.map((name: string) => ({ name })));
     }
     return reply({ error: "invalid_action" }, 400);
