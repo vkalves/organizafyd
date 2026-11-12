@@ -49,6 +49,7 @@ import { InstagramAccountAvatar } from "@/features/instagram-publisher/Instagram
 import { AccountNotes } from "@/features/instagram-publisher/AccountNotes";
 import { useInstagramAnalytics } from "@/features/instagram-publisher/useInstagramAnalytics";
 import { accountViewsRanking } from "@/features/instagram-publisher/account-views-ranking";
+import { reelMetrics } from "@/features/instagram-publisher/reel-metrics";
 import "@/features/instagram-publisher/account-views-ranking.css";
 import { StoryLinkExtension } from "@/features/instagram-publisher/StoryLinkExtension";
 import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
@@ -496,13 +497,13 @@ export default function Agonia() {
     return "Olá! Seu espaço está pronto.";
   }, [dashHour]);
 
-  const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews } = useInstagramAnalytics(user?.id, section === "dashboard");
+  const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews } = useInstagramAnalytics(user?.id, section === "dashboard", 60_000);
+  const reels = useMemo(() => reelMetrics(accounts.map(a => a.id), viewsReport.data), [accounts, viewsReport.data]);
   const accountViewsMetrics = useMemo(() => {
     const rankedAccounts = accounts.map((acc) => ({ id: acc.id, username: acc.username, model: accountMeta[acc.id]?.modelName ?? null }));
-    const all = accountViewsRanking(rankedAccounts, viewsReport.data);
     const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
     const filtered = selectedModel === "all" ? rankedAccounts : rankedAccounts.filter((acc) => acc.model?.toLowerCase() === selectedModel || acc.model?.toLowerCase() === target);
-    return { ...accountViewsRanking(filtered, viewsReport.data), allAccountsTotalViews: all.totalViews, accountIds: filtered.map(account => account.id) };
+    return { ...accountViewsRanking(filtered, viewsReport.data), accountIds: filtered.map(account => account.id) };
   }, [accounts, accountMeta, viewsReport.data, selectedModel]);
 
 
@@ -523,6 +524,7 @@ export default function Agonia() {
       queryClient.invalidateQueries({
         queryKey: ["ig-flows", user?.id],
       }),
+      queryClient.invalidateQueries({ queryKey: ["ig-analytics", user?.id] }),
     ]);
   }
 
@@ -947,13 +949,19 @@ export default function Agonia() {
             </Link>
             <div className="stat-card tone-purple">
               <span className="stat-icon"><Play className="h-4 w-4" /></span>
-              <div className="label">Visualizações de vídeos</div>
-              <div className="value">{accountViewsMetrics.allAccountsTotalViews?.toLocaleString("pt-BR") ?? "—"}</div>
+              <div className="label">Visualizações de Reels</div>
+              <div className="value" aria-label="Visualizações de Reels" title="Total acumulado dos Reels de todas as contas conectadas; atualizado a cada minuto">
+                {viewsReport.isPending ? "…" : reels.views.value?.toLocaleString("pt-BR") ?? "—"}
+              </div>
+              <span className="col-span-2 text-xs text-muted-foreground">{viewsReport.isError ? "Falha ao atualizar" : viewsReport.isPending ? "Consultando Instagram…" : reels.views.value === null ? "Métrica indisponível" : reels.views.partial ? "Total parcial · consulta incompleta" : "Atualiza a cada minuto"}</span>
             </div>
             <div className="stat-card tone-blue">
               <span className="stat-icon"><Heart className="h-4 w-4" /></span>
-              <div className="label">Curtidas Reels</div>
-              <div className="value" aria-label="Curtidas indisponíveis" title="A consulta atual da Meta não inclui curtidas">—</div>
+              <div className="label">Curtidas de Reels</div>
+              <div className="value" aria-label="Curtidas de Reels" title="Total acumulado dos Reels de todas as contas conectadas; atualizado a cada minuto">
+                {viewsReport.isPending ? "…" : reels.likes.value?.toLocaleString("pt-BR") ?? "—"}
+              </div>
+              <span className="col-span-2 text-xs text-muted-foreground">{viewsReport.isError ? "Falha ao atualizar" : viewsReport.isPending ? "Consultando Instagram…" : reels.likes.value === null ? "Métrica indisponível" : reels.likes.partial ? "Total parcial · consulta incompleta" : "Atualiza a cada minuto"}</span>
             </div>
             <div className="stat-card tone-green">
               <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>

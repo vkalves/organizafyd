@@ -1,6 +1,21 @@
 import { describe, it, expect, vi } from "vitest";
 import { readVideoAnalytics } from "../../../supabase/functions/instagram-publisher/analytics";
 describe("Instagram video insights", () => {
+  it("returns Reel classification and genuine likes independently of insight availability", async () => {
+    const graph = vi.fn(async (path: string) => {
+      if (path === "profile/media") return { data: [
+        { id: "reel", media_type: "VIDEO", media_product_type: "REELS", like_count: 0 },
+        { id: "video", media_type: "VIDEO", media_product_type: "FEED", like_count: 12 },
+        { id: "hidden", media_type: "VIDEO", media_product_type: "REELS" },
+      ] };
+      throw new Error("insight permission missing");
+    });
+    const result = await readVideoAnalytics("owner", "profile", graph);
+    expect(result.videos.map(v => [v.id, v.media_product_type, v.likes, v.views])).toEqual([
+      ["reel", "REELS", 0, null], ["video", "FEED", 12, null], ["hidden", "REELS", null, null],
+    ]);
+    expect(graph).toHaveBeenCalledWith("profile/media", expect.objectContaining({ fields: expect.stringContaining("like_count") }));
+  });
   it("paginates with cursors, excludes photos and distinguishes zero views from missing insights", async () => {
     const graph = vi.fn(
       async (path: string, params: Record<string, string>) => {
