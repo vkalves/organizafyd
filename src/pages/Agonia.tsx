@@ -1353,81 +1353,33 @@ export default function Agonia() {
             <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           </Link>
 
-          <section className="panel border-amber-500/30" aria-label="Aviso sobre API e autorização da conta">
-            <h2 className="panel-title">Não conseguiu conectar sem API própria?</h2>
+          <section className="panel" aria-label="Aviso sobre API e autorização da conta">
+            <h2 className="panel-title">API própria é opcional</h2>
             <p className="panel-copy mt-2">
-              Você pode usar a conexão da plataforma sem cadastrar uma API própria. Se o aplicativo utilizado exigir um convite e seu perfil ainda não estiver liberado, peça ao responsável pela API que adicione seu perfil na Meta e envie o convite.
+              Use a conexão da plataforma. Se seu perfil precisar de liberação, peça ao responsável pelo aplicativo que envie o convite. Para ter autonomia, você pode cadastrar sua própria API em <Link to="/avanca/meta-developer" className="underline">Meta Developer</Link>.
             </p>
-            <p className="panel-copy mt-2">
-              Se outra pessoa com API cadastrada no Avança gerar um link de conexão para você, confira quem está solicitando a autorização: o perfil ficará vinculado ao usuário responsável por esse convite.
-            </p>
-            <p className="panel-copy mt-2">
-              Para ter autonomia na adição das suas contas, recomendamos criar seu próprio aplicativo/API e cadastrá-lo em{" "}
-              <Link to="/avanca/meta-developer" className="underline">Meta Developer</Link>. Isso continua opcional e não dispensa a autorização do Instagram.
-            </p>
+            <p className="panel-copy mt-2">Convites gerados por outra pessoa vinculam o perfil ao usuário que enviou o link.</p>
           </section>
 
           <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">Como conectar sua conta</h2>
-                <p className="panel-copy">
-                  Prepare o perfil, aceite o convite quando ele for exigido e conclua a autorização no Avança.
-                </p>
-              </div>
-            </div>
+            <div className="panel-header"><h2 className="panel-title">Como conectar sua conta</h2></div>
             <div className="wizard-grid">
               <div className="wizard-step">
                 <span className="step-number">1</span>
-                <div>
-                  <h3>Conta Profissional</h3>
-                  <p>
-                    Certifique-se de que sua conta do Instagram seja do tipo{" "}
-                    <strong>Profissional (Criador de Conteúdo ou Empresa)</strong>.
-                  </p>
-                </div>
+                <div><h3>Use uma conta profissional</h3><p>No Instagram, mude o perfil para <strong>Criador de Conteúdo ou Empresa</strong>.</p></div>
               </div>
               <div className="wizard-step">
                 <span className="step-number">2</span>
                 <div>
-                  <h3>Peça a liberação do perfil na Meta</h3>
-                  <p>
-                    Quando o aplicativo exigir convite, o responsável por ele precisa adicionar seu perfil no aplicativo Meta, pelo Meta Developers ou Business conforme a configuração, e enviar o convite. Ele só aparecerá no Instagram depois de ser enviado.
-                  </p>
+                  <h3>Aceite o convite, se solicitado</h3>
+                  <p>Depois que o responsável enviar, aceite pelo <strong>computador ou navegador em modo desktop</strong>: Instagram → Configurações → Apps e sites → Convites. O app do celular pode não mostrar esse convite.</p>
                 </div>
               </div>
               <div className="wizard-step">
                 <span className="step-number">3</span>
                 <div>
-                  <h3>Aceite o convite no Instagram</h3>
-                  <p>
-                    Entre no perfil que será conectado e abra <strong>Configurações → Apps e sites → Convites</strong> (ou <strong>Convites de testador</strong>). Encontre o convite do aplicativo e clique em <strong>Aceitar</strong>. Se ele não aparecer, confirme com o responsável se já foi enviado para o perfil correto. Esta etapa se aplica quando houver um convite pendente.
-                  </p>
-                </div>
-              </div>
-              <div className="wizard-step">
-                <span className="step-number">4</span>
-                <div>
-                  <h3>Volte ao Avança e conecte</h3>
-                  <p>
-                    Depois de aceitar o convite, volte aqui e clique em <strong>Conectar conta</strong>. Escolha <strong>Continuar neste navegador</strong>, copie o link para abrir em outro navegador ou use o QR Code no celular. Se o aplicativo não exigir convite, você pode ir direto para esta etapa.
-                  </p>
-                </div>
-              </div>
-              <div className="wizard-step">
-                <span className="step-number">5</span>
-                <div>
-                  <h3>Autorize e conclua o cadastro</h3>
-                  <p>
-                    Autorize as permissões na tela oficial da Meta/Instagram. Aguarde a confirmação de conexão concluída e use <strong>Voltar à Avança</strong>. Confira se o perfil aparece em{" "}
-                    <Link to="/avanca/instagram" className="underline">
-                      Instagram
-                    </Link>. Depois, ele poderá ser usado no{" "}
-                    <Link to="/avanca/fluxos" className="underline">
-                      Modo Fluxo
-                    </Link>
-                    .
-                  </p>
+                  <h3>Conecte no Avança</h3>
+                  <p>Volte aqui, clique em <strong>Conectar conta</strong> e escolha navegador, link ou QR Code. Autorize na Meta e volte ao Avança para confirmar a conexão.</p>
                 </div>
               </div>
             </div>

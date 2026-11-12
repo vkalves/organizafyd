@@ -235,6 +235,9 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
               {apps.filter(a => a.active).map(a => <option key={a.id} value={a.id}>{a.name} · {a.configId ? "Login Unificado" : "Instagram Login"}</option>)}
             </select>
           </label></details>}
+          <p role="note" className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/30 p-3 text-xs leading-relaxed text-amber-200">
+            <strong>Convite pendente?</strong> Aceite no Instagram pelo computador ou navegador em modo desktop antes de conectar. O app do celular pode não mostrar o convite.
+          </p>
           {/* Options List */}
           <div className="space-y-3">
             {/* 1. Popup neste navegador */}
@@ -312,8 +315,7 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
                   Abrir no celular (QR Code)
                 </div>
                 <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                  Mostra um código pra você apontar a câmera. Use quando a conta IG foi criada no
-                  telefone.
+                  Autorize pelo navegador do celular. Se houver convite pendente, aceite antes pelo computador ou em modo desktop.
                 </p>
               </div>
             </button>
@@ -345,7 +347,7 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
         <div className="text-center py-2">
           <h3 className="text-base font-bold text-white mb-1">Escanear com o Celular</h3>
           <p className="text-xs text-neutral-400 mb-4 max-w-xs mx-auto">
-            Aponte a câmera do seu smartphone para autorizar no app do Instagram
+            Abra o link no navegador do celular para autorizar. Aceite convites pendentes antes, pelo computador ou em modo desktop.
           </p>
 
           {/* QR Code Container */}
