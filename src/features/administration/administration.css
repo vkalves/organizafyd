@@ -24,3 +24,5 @@
 .admin-error { color: #f87171; }
 .admin-pagination { display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; }
 @media(max-width:640px) { .admin-stats { grid-template-columns: 1fr; } .admin-user { padding: 15px; } .admin-permissions { flex-direction: column; align-items: stretch; gap: 10px; } .admin-limit input { width: 100%; } }
+.admin-storage { display: grid; gap: 12px; border-top: 1px solid rgba(160,160,180,.22); padding-top: 16px; }
+.admin-storage h3 { display: flex; align-items: center; gap: 8px; font-weight: 600; }

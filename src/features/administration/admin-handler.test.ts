@@ -19,7 +19,7 @@ describe("administration API authentication and authorization",()=>{
   });
   it("rejects directory reads and edits by non-admins even with spoofed admin fields",async()=>{
     const {db,handler}=setup();
-    for(const action of ["users","update_access"]) expect((await handler(request({action,is_admin:true,p_actor:target,user_id:target,connection_allowed:true,max_accounts:999}))).status).toBe(403);
+    for(const action of ["users","update_access","update_storage_limit"]) expect((await handler(request({action,is_admin:true,p_actor:target,user_id:target,connection_allowed:true,max_accounts:999}))).status).toBe(403);
     expect(db.rpc.mock.calls.every(([name])=>name==="avanca_user_access")).toBe(true);
   });
   it("uses the verified administrator as the audit actor when saving a target",async()=>{
@@ -32,6 +32,18 @@ describe("administration API authentication and authorization",()=>{
     const {db,handler}=setup(true);
     for(const max_accounts of [-1,1.5,"3",10001]) expect((await handler(request({action:"update_access",user_id:target,connection_allowed:true,max_accounts}))).status).toBe(400);
     expect(db.rpc.mock.calls.every(([name])=>name==="avanca_user_access")).toBe(true);
+  });
+  it("validates storage quotas and takes the audit actor from the session",async()=>{
+    const {db,handler}=setup(true);
+    for(const limit_bytes of [-1,1.5,"3",null,10737418240001]) expect((await handler(request({action:"update_storage_limit",user_id:target,limit_bytes}))).status).toBe(400);
+    expect(db.rpc.mock.calls.every(([name])=>name==="avanca_user_access")).toBe(true);
+    expect((await handler(request({action:"update_storage_limit",user_id:target,limit_bytes:2*1024**3,p_actor:target}))).status).toBe(200);
+    expect(db.rpc).toHaveBeenLastCalledWith("avanca_admin_update_storage",{p_actor:actor,p_target:target,p_bytes:2*1024**3});
+  });
+  it("does not return stale usage if inventory refresh fails",async()=>{
+    const {db}=setup(true);const refresh=vi.fn().mockRejectedValue(new Error("AWS unavailable"));
+    const response=await createAdminHandler(db,refresh)(request({action:"users"}));
+    expect(response.status).toBe(500);expect(refresh).toHaveBeenCalledExactlyOnceWith([]);
   });
   it("handles malformed bodies and server failures without leaking internals",async()=>{
     const {db,handler}=setup(true);

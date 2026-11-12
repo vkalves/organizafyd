@@ -7,6 +7,8 @@ export interface UserAccess {
   connected_accounts: number;
   connection_allowed: boolean;
   max_accounts: number | null;
+  storage_limit_bytes: number | null;
+  storage_used_bytes: number;
 }
 export interface ManagedUser extends UserAccess {
   id: string;
@@ -24,6 +26,8 @@ const messages: Record<string, string> = {
   unauthorized: "Entre novamente para continuar.",
   forbidden: "Esta área é exclusiva de administradores.",
   invalid_limit: "Informe um limite inteiro entre 0 e 10.000 ou escolha Sem limite.",
+  invalid_storage_limit: "Informe um espaço entre 0 e 10.000 GB.",
+  admin_storage_unlimited: "Administradores têm armazenamento sem limite.",
   user_not_found: "Este usuário não está mais cadastrado.",
 };
 export async function adminRequest<T>(action: string, values: Record<string, unknown> = {}): Promise<T> {

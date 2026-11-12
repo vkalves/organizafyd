@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Search, ShieldCheck, Users, Instagram, Ban } from "lucide-react";
 import { adminRequest, useAdministrationAccess, type ManagedUser, type UserDirectory } from "./api";
+import { StoragePermissions } from "./StoragePermissions";
 import "./administration.css";
 
 function UserPermissions({ user, onSaved }: { user: ManagedUser; onSaved: () => void }) {
@@ -35,6 +36,7 @@ function UserPermissions({ user, onSaved }: { user: ManagedUser; onSaved: () => 
         <button className="button button-primary" type="submit" disabled={!valid || save.isPending}>{save.isPending ? "Salvando…" : "Salvar permissões"}</button>
       </form>
       {user.max_accounts !== null && user.connected_accounts > user.max_accounts && <p className="admin-note">Acima do limite. As contas atuais continuam conectadas; novas conexões ficam bloqueadas até haver uma vaga.</p>}
+      <StoragePermissions key={String(user.storage_limit_bytes)} user={user} onSaved={onSaved} />
       {save.isError && <p role="alert" className="admin-error">{save.error.message}</p>}
       {save.isSuccess && <p role="status">Permissões salvas.</p>}
     </article>
@@ -62,8 +64,8 @@ export default function Administration() {
   if (!access.data?.is_admin) return <section className="panel"><h1 className="page-title">Acesso restrito</h1><p>Esta área é exclusiva de administradores.</p><Link className="button button-secondary" to="/avanca">Voltar à dashboard</Link></section>;
   return (
     <div className="admin-panel">
-      <header className="topbar"><div><div className="eyebrow">Administração</div><h1 className="page-title">Usuários e limites</h1><p className="page-subtitle">Controle quem pode conectar contas do Instagram e quantas contas cada usuário pode ter.</p></div></header>
-      <p className="panel admin-explanation">Os limites valem para novas conexões. Reduzir o limite ou bloquear um usuário não desconecta contas existentes nem interrompe suas publicações. Reconectar uma conta já vinculada continua permitido.</p>
+      <header className="topbar"><div><div className="eyebrow">Administração</div><h1 className="page-title">Usuários e limites</h1><p className="page-subtitle">Gerencie as conexões do Instagram e o espaço de armazenamento de cada usuário.</p></div></header>
+      <p className="panel admin-explanation">Os limites valem para novas conexões. Reduzir o limite ou bloquear um usuário não desconecta contas existentes nem interrompe suas publicações. Reconectar uma conta já vinculada continua permitido. O armazenamento padrão é de 1 GB por usuário; administradores têm espaço sem limite. Reduzir o espaço preserva as mídias existentes e bloqueia novos envios até haver espaço.</p>
       {directory.data && <div className="admin-stats">
         <div className="panel"><Users aria-hidden="true" /><strong>{directory.data.summary.users}</strong><span>Usuários cadastrados</span></div>
         <div className="panel"><Instagram aria-hidden="true" /><strong>{directory.data.summary.accounts}</strong><span>Contas conectadas</span></div>

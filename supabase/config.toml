@@ -31,3 +31,7 @@ verify_jwt = false
 # Every account-management action validates its JWT with auth.getUser.
 [functions.instagram-accounts]
 verify_jwt = false
+
+# Public reads and user/service requests are authorized inside the gateway.
+[functions.s3-storage]
+verify_jwt = false

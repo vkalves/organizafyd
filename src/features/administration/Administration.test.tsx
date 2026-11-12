@@ -6,7 +6,7 @@ import Administration from "./Administration";
 const mocks = vi.hoisted(() => ({ request: vi.fn(), access: vi.fn() }));
 vi.mock("./api", () => ({ adminRequest: mocks.request, useAdministrationAccess: mocks.access }));
 function mount() { return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})}><MemoryRouter><Administration /></MemoryRouter></QueryClientProvider>); }
-const managed={id:"fixture-user",email:"user@example.test",display_name:"Pessoa de teste",connected_accounts:2,max_accounts:3,connection_allowed:true,is_admin:false,created_at:"",updated_at:null};
+const managed={id:"fixture-user",email:"user@example.test",display_name:"Pessoa de teste",connected_accounts:2,max_accounts:3,connection_allowed:true,is_admin:false,created_at:"",updated_at:null,storage_limit_bytes:1024**3,storage_used_bytes:100*1024**2};
 beforeEach(() => {
   mocks.access.mockReturnValue({data:{is_admin:true},isPending:false,isError:false});
   mocks.request.mockImplementation(async action => action === "users" ? {users:[managed],total:1,summary:{users:4,accounts:7,blocked:1}} : {ok:true});
@@ -32,6 +32,29 @@ describe("administrative permissions panel",()=>{
     expect(within(form).getByRole("button",{name:"Salvar permissões"})).toBeDisabled();
     fireEvent.click(within(form).getByLabelText("Sem limite"));fireEvent.submit(form);
     await waitFor(()=>expect(mocks.request).toHaveBeenCalledWith("update_access",{user_id:"fixture-user",connection_allowed:true,max_accounts:null}));
+  });
+  it("saves a storage upgrade separately from connection permissions",async()=>{
+    mount();const form=await screen.findByRole("form",{name:"Limite de armazenamento de user@example.test"});
+    expect(screen.getByText("100 MB")).toBeInTheDocument();
+    expect(within(form).getByLabelText("Espaço permitido (GB)")).toHaveValue(1);
+    fireEvent.change(within(form).getByLabelText("Espaço permitido (GB)"),{target:{value:"2.5"}});
+    fireEvent.click(within(form).getByRole("button",{name:"Salvar armazenamento"}));
+    await waitFor(()=>expect(mocks.request).toHaveBeenCalledWith("update_storage_limit",{user_id:"fixture-user",limit_bytes:2.5*1024**3}));
+    expect(await screen.findByText("Limite de armazenamento salvo.")).toBeInTheDocument();
+  });
+  it("shows administrators as unlimited without an editable storage field",async()=>{
+    mocks.request.mockResolvedValue({users:[{...managed,is_admin:true,storage_limit_bytes:null}],total:1,summary:{users:1,accounts:2,blocked:0}});
+    mount();await screen.findByText("Pessoa de teste");
+    expect(screen.getByText("Administradores têm armazenamento sem limite.")).toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Salvar armazenamento"})).not.toBeInTheDocument();
+  });
+  it("rejects invalid storage values while allowing zero",async()=>{
+    mount();const form=await screen.findByRole("form",{name:"Limite de armazenamento de user@example.test"});
+    const field=within(form).getByLabelText("Espaço permitido (GB)");const button=within(form).getByRole("button",{name:"Salvar armazenamento"});
+    for(const value of ["","-1","10001"]) {fireEvent.change(field,{target:{value}});expect(button).toBeDisabled();}
+    fireEvent.change(field,{target:{value:"0"}});expect(button).not.toBeDisabled();
+    fireEvent.click(button);
+    await waitFor(()=>expect(mocks.request).toHaveBeenCalledWith("update_storage_limit",{user_id:"fixture-user",limit_bytes:0}));
   });
   it("displays fetch failures instead of fabricated zero totals",async()=>{
     mocks.request.mockRejectedValue(new Error("Falha ao consultar permissões"));mount();
