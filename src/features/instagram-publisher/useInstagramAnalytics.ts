@@ -15,17 +15,42 @@ export type AnalyticsReport = {
   checked_at: string;
 };
 
+export async function fetchAnalyticsReport(allPages = false): Promise<AnalyticsReport> {
+  const report = await publisherRequest<AnalyticsReport>("analytics");
+  if (!allPages) return report;
+  // Bound API work for large histories and preserve a cursor for manual continuation.
+  for (const account of report.accounts) {
+    const seen = new Set<string>();
+    for (let page = 0; page < 10 && account.nextCursor; page++) {
+      const cursor = account.nextCursor;
+      if (seen.has(cursor)) break;
+      seen.add(cursor);
+      try {
+        const next = await publisherRequest<AnalyticsReport>("analytics", { account_id: account.account_id, after: cursor });
+        const data = next.accounts.find(a => a.account_id === account.account_id);
+        if (!data || data.unavailable) break;
+        account.videos = [...new Map([...account.videos, ...data.videos].map(v => [v.id, v])).values()];
+        account.complete = data.complete;
+        account.nextCursor = data.nextCursor;
+      } catch { break; } // Keep the successful pages and report an incomplete total.
+    }
+  }
+  return report;
+}
+
 export function useInstagramAnalytics(
   userId: string | undefined,
   enabled = true,
+  refreshInterval?: number,
 ) {
   const cache = useQueryClient();
   const [loadingMore, setLoadingMore] = useState(false);
   const report = useQuery({
     queryKey: ["ig-analytics", userId],
-    queryFn: () => publisherRequest<AnalyticsReport>("analytics"),
+    queryFn: () => fetchAnalyticsReport(!!refreshInterval),
     enabled: !!userId && enabled,
-    staleTime: 300000,
+    staleTime: refreshInterval ?? 300000,
+    refetchInterval: enabled ? refreshInterval : false,
     retry: false,
   });
   async function loadMore() {

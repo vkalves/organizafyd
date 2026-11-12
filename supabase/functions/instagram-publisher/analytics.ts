@@ -6,6 +6,8 @@ export type VideoMetric = {
   permalink: string | null;
   thumbnail_url: string | null;
   views: number | null;
+  likes?: number | null;
+  media_product_type?: string | null;
 };
 type Graph = (
   path: string,
@@ -22,7 +24,7 @@ export async function readVideoAnalytics(
   let complete = false;
   const response = await graph(`${graphId}/media`, {
     fields:
-      "id,caption,media_type,media_product_type,timestamp,permalink,thumbnail_url",
+      "id,caption,media_type,media_product_type,timestamp,permalink,thumbnail_url,like_count",
     limit: "20",
     ...(after ? { after } : {}),
   });
@@ -30,6 +32,8 @@ export async function readVideoAnalytics(
     id: string;
     caption?: string;
     media_type: string;
+    media_product_type?: string;
+    like_count?: number;
     timestamp: string;
     permalink?: string;
     thumbnail_url?: string;
@@ -65,6 +69,9 @@ export async function readVideoAnalytics(
           permalink: media.permalink || null,
           thumbnail_url: media.thumbnail_url || null,
           views,
+          likes: typeof media.like_count === "number" && Number.isFinite(media.like_count) && media.like_count >= 0
+            ? media.like_count : null,
+          media_product_type: media.media_product_type ?? null,
         };
       }),
     );

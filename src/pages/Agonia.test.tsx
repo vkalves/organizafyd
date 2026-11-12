@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
-const mocks = vi.hoisted(() => ({ save: vi.fn(), request: vi.fn(), upload: vi.fn() }));
+const mocks = vi.hoisted(() => ({ save: vi.fn(), request: vi.fn(), upload: vi.fn(), analytics: vi.fn() }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "visual-qa", email: "qa@example.test", user_metadata: { display_name: "Teste" } }, signOut: vi.fn() }) }));
 vi.mock("@/features/instagram-publisher/api", async importOriginal => ({
   ...await importOriginal<typeof import("@/features/instagram-publisher/api")>(),
@@ -16,7 +16,7 @@ vi.mock("@/features/instagram-publisher/flows-api", async importOriginal => ({
   loadFlowData: vi.fn().mockResolvedValue({ media: [], flows: [], prefs: { folders: [], captions: [] }, report: { flows: [], usage: [] } }),
 }));
 vi.mock("@/features/instagram-publisher/InstagramAlerts", () => ({ useInstagramMonitor: () => ({ data: { alerts: [], health: [] } }), InstagramAlerts: () => null }));
-vi.mock("@/features/instagram-publisher/useInstagramAnalytics", () => ({ useInstagramAnalytics: () => ({ report: { data: { accounts: [] } }, loadingMore: false, loadMore: vi.fn() }) }));
+vi.mock("@/features/instagram-publisher/useInstagramAnalytics", () => ({ useInstagramAnalytics: (...args: unknown[]) => mocks.analytics(...args) }));
 vi.mock("@/features/instagram-publisher/account-api", () => ({ loadAccountPhotos: vi.fn().mockResolvedValue([]) }));
 import Agonia from "./Agonia";
 import { loadSettings } from "@/features/agonia/schedule";
@@ -32,10 +32,21 @@ function show(section: string) {
     <Route path="/avanca" element={<h1>Dashboard</h1>} />
   </Routes></MemoryRouter></QueryClientProvider>);
 }
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("crypto", webcrypto); localStorage.clear(); mocks.request.mockResolvedValue({}); mocks.upload.mockResolvedValue(["storage://visual-qa/test.mp4"]); mocks.save.mockResolvedValue({}); });
+beforeEach(() => { vi.clearAllMocks(); mocks.analytics.mockReturnValue({ report: { data: { accounts: [] } }, loadingMore: false, loadMore: vi.fn() }); vi.stubGlobal("crypto", webcrypto); localStorage.clear(); mocks.request.mockResolvedValue({}); mocks.upload.mockResolvedValue(["storage://visual-qa/test.mp4"]); mocks.save.mockResolvedValue({}); });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); });
 
 describe("Avança — controles dos fluxos existentes", () => {
+  it("preenche os dois cards existentes somente com métricas de Reels da API", async () => {
+    mocks.analytics.mockReturnValue({ report: { data: { accounts: [{ account_id: "a", complete: true, unavailable: false, videos: [
+      { id: "r", account_id: "a", media_product_type: "REELS", views: 1234, likes: 56, timestamp: "2026-11-01" },
+      { id: "feed", account_id: "a", media_product_type: "FEED", views: 9999, likes: 9999, timestamp: "2026-11-01" },
+    ] }] } }, loadingMore: false, loadMore: vi.fn() });
+    show("dashboard");
+    await waitFor(() => expect(screen.getByLabelText("Visualizações de Reels")).toHaveTextContent("1.234"));
+    expect(screen.getByLabelText("Curtidas de Reels")).toHaveTextContent("56");
+    expect(document.querySelectorAll(".stats-grid .stat-card")).toHaveLength(6);
+    expect(mocks.analytics).toHaveBeenCalledWith("visual-qa", true, 60_000);
+  });
   it("exibe a fila real e altera o resumo de publicações ao selecionar o período", async () => {
     const now = new Date();
     const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12).toISOString();
