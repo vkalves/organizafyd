@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Link } from "react-router-dom";
 import type { MetaApp, MetaConfig } from "@/features/meta-developer/meta-apps";
 import { loginRequest } from "./login";
 import { openBrowserLogin } from "./browser-login";
@@ -58,6 +57,7 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
   const [apps, setApps] = useState<MetaApp[]>([]);
   const [selectedApp, setSelectedApp] = useState(appId || "");
   const [ready, setReady] = useState<boolean | null>(null);
+  const [platformReady, setPlatformReady] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
@@ -68,8 +68,8 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
   // Check backend readiness
   useEffect(() => {
     loginRequest<MetaConfig>("config")
-      .then((d) => { setReady(d.ready); setApps(d.apps || []);
-        setSelectedApp(current => d.apps?.some(a => a.id === current && a.active) ? current : d.apps?.find(a => a.active)?.id || ""); })
+      .then((d) => { setReady(d.ready); setPlatformReady(!!d.platformReady); setApps(d.apps || []);
+        setSelectedApp(current => current && d.apps?.some(a => a.id === current && a.active) ? current : d.platformReady ? "" : d.apps?.find(a => a.active)?.id || ""); })
       .catch((e) => setError(e instanceof Error ? e.message : "Erro ao consultar configuração"));
   }, []);
 
@@ -224,15 +224,17 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
           {/* Warning if server not configured */}
           {ready === false && (
             <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/40 p-3 text-xs text-amber-300">
-              Cadastre seu app Meta para conectar uma conta. <Link to="/avanca/meta-developer" className="underline" onClick={onClose}>Abrir Meta Developer</Link>
+              A conexão com o Instagram não está disponível no momento. Tente novamente mais tarde.
             </div>
           )}
 
-          {apps.some(a => a.active) && <label className="mb-4 block text-xs text-neutral-300">App para esta conexão
+          {platformReady && <p className="mb-4 text-xs text-neutral-300">Conecte pela plataforma, sem cadastrar API ou aplicativo próprio.</p>}
+          {apps.some(a => a.active) && <details className="mb-4 text-xs text-neutral-300"><summary className="cursor-pointer">Usar aplicativo próprio (opcional)</summary><label className="mt-3 block">App para esta conexão
             <select aria-label="App para esta conexão" className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3" value={selectedApp} onChange={e => setSelectedApp(e.target.value)} disabled={busyAction !== null}>
+              {platformReady && <option value="">Conexão padrão da plataforma</option>}
               {apps.filter(a => a.active).map(a => <option key={a.id} value={a.id}>{a.name} · {a.configId ? "Login Unificado" : "Instagram Login"}</option>)}
             </select>
-          </label>}
+          </label></details>}
           {/* Options List */}
           <div className="space-y-3">
             {/* 1. Popup neste navegador */}

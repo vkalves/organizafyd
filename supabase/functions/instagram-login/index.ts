@@ -1,4 +1,5 @@
 import { instagramAuthorizeUrl, instagramGrant } from "./instagram.ts";
+import { selectConnectionApp } from "./connection-option.ts";
 import { createAccountSelection, consumeAccountSelection, type SelectionStore } from "./account-selection.ts";
 import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
@@ -64,10 +65,17 @@ async function loginConfigFor(userId: string, appId: string | null) {
     if (!app || !app.active) throw new Error("app_not_found");
     return { appId: app.appId, secret: app.secret, configId: app.configId || "" };
   }
-  // Invitations issued before multi-app support retain their original flow.
+  // Platform-default connections and legacy invitations use the server-managed app.
   const old = checked(await db.rpc("ig_login_config")) || {};
   if (!old.meta_app_id || !old.meta_app_secret || !old.meta_config_id) throw new Error("not_configured");
   return { appId: old.meta_app_id, secret: old.meta_app_secret, configId: old.meta_config_id };
+}
+async function platformConnectionReady() {
+  try { await loginConfigFor("", null); return true; }
+  catch (error) {
+    if (error instanceof Error && error.message === "not_configured") return false;
+    throw error;
+  }
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Deno.serve(async (req) => {
@@ -122,7 +130,8 @@ Deno.serve(async (req) => {
         if (["app_exists", "app_in_use", "app_not_found", "invalid_app_config", "app_secret_required"].includes(code)) return reply({ error: code }, 400);
         throw new Error("database_error");
       }
-      return reply({ apps: result.data, ready: result.data.some((app: { active: boolean }) => app.active), callback });
+      const platformReady = b.action === "config" ? await platformConnectionReady() : false;
+      return reply({ apps: result.data, ready: platformReady || result.data.some((app: { active: boolean }) => app.active), platformReady, callback });
     }
     if (b.action === "invite") {
       const jwt =
@@ -133,9 +142,7 @@ Deno.serve(async (req) => {
       } = await db.auth.getUser(jwt);
       if (error || !user) return reply({ error: "unauthorized" }, 401);
       const apps = checked(await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: "list" }));
-      const app = b.app_id ? apps.find((a: { id: string; active: boolean }) => a.id === b.app_id && a.active)
-        : apps.find((a: { active: boolean }) => a.active);
-      if (!app) return reply({ error: "not_configured" }, 400);
+      const app = selectConnectionApp<{ id: string; active: boolean }>(apps, b.app_id, b.app_id ? false : await platformConnectionReady());
       const token = random();
       checked(
         await db.from("ig_connection_invites").delete().eq("user_id", user.id),
@@ -143,7 +150,7 @@ Deno.serve(async (req) => {
       checked(
         await db.from("ig_connection_invites").insert({
           token_hash: await hash(token),
-          meta_app_id: app.id,
+          meta_app_id: app?.id ?? null,
           user_id: user.id,
           manager_label: user.email || "Administrador da conta",
         }),
