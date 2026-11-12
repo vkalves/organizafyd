@@ -662,7 +662,7 @@ export default function Flows({
       <Dialog open={!!syncFlowId} onOpenChange={open => { if (!open && !busy) setSyncFlowId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar contas à campanha</DialogTitle>
+            <DialogTitle>Conectar conta ao fluxo</DialogTitle>
             <DialogDescription>As contas selecionadas entram agora na campanha e acompanham as próximas publicações nos horários do fluxo. As postagens já concluídas não serão repetidas.</DialogDescription>
           </DialogHeader>
           <div className="max-h-72 space-y-2 overflow-y-auto">
@@ -2499,6 +2499,15 @@ export default function Flows({
                         </span>
                       </div>
 
+                      {["active", "paused"].includes(state) && <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="text-xs text-muted-foreground">{flow.settings.accountIds.length} conta(s) neste fluxo</span>
+                        <Button size="sm" variant="outline" disabled={busy || state !== "active"} className="h-8 text-xs" onClick={() => {
+                          setSyncFlowId(flow.id);
+                          setSyncAccountIds([]);
+                          void onCreated();
+                        }}><Plus size={13} className="mr-1.5" />Conectar conta ao fluxo</Button>
+                        {state === "paused" && <span className="text-xs text-muted-foreground">Retome a campanha para conectar uma conta.</span>}
+                      </div>}
                       {flow.last_error && (
                         <p role="status" className="text-xs text-warning">
                           {flow.last_error === "no_available_accounts"
@@ -2543,11 +2552,6 @@ export default function Flows({
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                      {state === "active" && <Button size="sm" variant="outline" disabled={busy} className="h-8 text-xs" onClick={() => {
-                        setSyncFlowId(flow.id);
-                        setSyncAccountIds([]);
-                        void onCreated();
-                      }}><Plus size={13} className="mr-1.5" />Adicionar contas</Button>}
                       <Button
                         size="sm"
                         variant="ghost"
