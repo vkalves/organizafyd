@@ -1353,12 +1353,26 @@ export default function Agonia() {
             <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           </Link>
 
+          <section className="panel border-amber-500/30" aria-label="Aviso sobre API e autorização da conta">
+            <h2 className="panel-title">Não conseguiu conectar sem API própria?</h2>
+            <p className="panel-copy mt-2">
+              Você pode usar a conexão da plataforma sem cadastrar uma API própria. Se o aplicativo utilizado exigir um convite e seu perfil ainda não estiver liberado, peça ao responsável pela API que adicione seu perfil na Meta e envie o convite.
+            </p>
+            <p className="panel-copy mt-2">
+              Se outra pessoa com API cadastrada no Avança gerar um link de conexão para você, confira quem está solicitando a autorização: o perfil ficará vinculado ao usuário responsável por esse convite.
+            </p>
+            <p className="panel-copy mt-2">
+              Para ter autonomia na adição das suas contas, recomendamos criar seu próprio aplicativo/API e cadastrá-lo em{" "}
+              <Link to="/avanca/meta-developer" className="underline">Meta Developer</Link>. Isso continua opcional e não dispensa a autorização do Instagram.
+            </p>
+          </section>
+
           <section className="panel">
             <div className="panel-header">
               <div>
                 <h2 className="panel-title">Como conectar sua conta</h2>
                 <p className="panel-copy">
-                  Siga este passo a passo simples para autorizar sua conta ou enviar um convite.
+                  Prepare o perfil, aceite o convite quando ele for exigido e conclua a autorização no Avança.
                 </p>
               </div>
             </div>
@@ -1376,23 +1390,39 @@ export default function Agonia() {
               <div className="wizard-step">
                 <span className="step-number">2</span>
                 <div>
-                  <h3>Clique em Conectar conta</h3>
+                  <h3>Peça a liberação do perfil na Meta</h3>
                   <p>
-                    Use o botão <strong>Conectar conta</strong> no topo da página. Você pode entrar direto na sua conta ou clicar em{" "}
-                    <strong>Gerar link de convite</strong> para enviar para outra pessoa autorizar.
+                    Quando o aplicativo exigir convite, o responsável por ele precisa adicionar seu perfil no aplicativo Meta, pelo Meta Developers ou Business conforme a configuração, e enviar o convite. Ele só aparecerá no Instagram depois de ser enviado.
                   </p>
                 </div>
               </div>
               <div className="wizard-step">
                 <span className="step-number">3</span>
                 <div>
-                  <h3>Autorize na tela oficial</h3>
+                  <h3>Aceite o convite no Instagram</h3>
                   <p>
-                    Confirme as permissões na página oficial do Instagram. Assim que concluir, a conta já aparece pronta em{" "}
+                    Entre no perfil que será conectado e abra <strong>Configurações → Apps e sites → Convites</strong> (ou <strong>Convites de testador</strong>). Encontre o convite do aplicativo e clique em <strong>Aceitar</strong>. Se ele não aparecer, confirme com o responsável se já foi enviado para o perfil correto. Esta etapa se aplica quando houver um convite pendente.
+                  </p>
+                </div>
+              </div>
+              <div className="wizard-step">
+                <span className="step-number">4</span>
+                <div>
+                  <h3>Volte ao Avança e conecte</h3>
+                  <p>
+                    Depois de aceitar o convite, volte aqui e clique em <strong>Conectar conta</strong>. Escolha <strong>Continuar neste navegador</strong>, copie o link para abrir em outro navegador ou use o QR Code no celular. Se o aplicativo não exigir convite, você pode ir direto para esta etapa.
+                  </p>
+                </div>
+              </div>
+              <div className="wizard-step">
+                <span className="step-number">5</span>
+                <div>
+                  <h3>Autorize e conclua o cadastro</h3>
+                  <p>
+                    Autorize as permissões na tela oficial da Meta/Instagram. Aguarde a confirmação de conexão concluída e use <strong>Voltar à Avança</strong>. Confira se o perfil aparece em{" "}
                     <Link to="/avanca/instagram" className="underline">
                       Instagram
-                    </Link>{" "}
-                    e no{" "}
+                    </Link>. Depois, ele poderá ser usado no{" "}
                     <Link to="/avanca/fluxos" className="underline">
                       Modo Fluxo
                     </Link>
