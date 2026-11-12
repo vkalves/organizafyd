@@ -50,6 +50,7 @@ import { AccountNotes } from "@/features/instagram-publisher/AccountNotes";
 import { useInstagramAnalytics } from "@/features/instagram-publisher/useInstagramAnalytics";
 import { accountViewsRanking } from "@/features/instagram-publisher/account-views-ranking";
 import { reelMetrics } from "@/features/instagram-publisher/reel-metrics";
+import { usePublishedReelsToday } from "@/features/instagram-publisher/usePublishedReelsToday";
 import "@/features/instagram-publisher/account-views-ranking.css";
 import { StoryLinkExtension } from "@/features/instagram-publisher/StoryLinkExtension";
 import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
@@ -438,16 +439,12 @@ export default function Agonia() {
     const scheduled = posts.filter(
       (p) => p.status === "scheduled" || p.status === "processing",
     );
-    const publishedToday = posts.filter(
-      (p) => p.status === "published" && isToday(p.published_at || p.created_at),
-    );
     const failed = posts.filter(
       (p) => p.status === "failed" || p.status === "uncertain",
     );
     return {
       connected: accounts.length,
       scheduled: scheduled.length,
-      publishedToday: publishedToday.length,
       failed: failed.length,
       nextPosts: [...scheduled]
         .sort(
@@ -498,6 +495,7 @@ export default function Agonia() {
   }, [dashHour]);
 
   const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews } = useInstagramAnalytics(user?.id, section === "dashboard", 60_000);
+  const publishedToday = usePublishedReelsToday(user?.id, section === "dashboard", settings.timezone);
   const reels = useMemo(() => reelMetrics(accounts.map(a => a.id), viewsReport.data), [accounts, viewsReport.data]);
   const accountViewsMetrics = useMemo(() => {
     const rankedAccounts = accounts.map((acc) => ({ id: acc.id, username: acc.username, model: accountMeta[acc.id]?.modelName ?? null }));
@@ -525,6 +523,7 @@ export default function Agonia() {
         queryKey: ["ig-flows", user?.id],
       }),
       queryClient.invalidateQueries({ queryKey: ["ig-analytics", user?.id] }),
+      queryClient.invalidateQueries({ queryKey: ["ig-published-today", user?.id] }),
     ]);
   }
 
@@ -966,7 +965,10 @@ export default function Agonia() {
             <div className="stat-card tone-green">
               <span className="stat-icon"><CheckCircle2 className="h-4 w-4" /></span>
               <div className="label">Publicados hoje</div>
-              <div className="value">{stats.publishedToday}</div>
+              <div className="value" aria-label="Reels publicados hoje" title={`Reels publicados em todas as contas do Instagram, de 00:00 a 00:00 no fuso ${settings.timezone}`}>
+                {publishedToday.isPending ? "…" : publishedToday.data?.count == null ? "—" : `${publishedToday.data.count.toLocaleString("pt-BR")}${publishedToday.data.partial ? "+" : ""}`}
+              </div>
+              <span className="col-span-2 text-xs text-muted-foreground">{publishedToday.isError ? "Falha ao atualizar" : publishedToday.isPending ? "Consultando Instagram…" : publishedToday.data?.count == null ? "Consulta indisponível" : publishedToday.data.partial ? "Total parcial · consulta incompleta" : "Reels · 00h até 00h"}</span>
             </div>
             <Link to="/avanca/alertas" className="stat-card tone-red">
               <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
