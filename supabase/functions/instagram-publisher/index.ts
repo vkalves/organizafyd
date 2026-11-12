@@ -497,6 +497,10 @@ Deno.serve(async (req) => {
       if (!rows.length) return reply({ error: "cannot_cancel" }, 409);
       return reply({ ok: true });
     }
+    if (body.action === 'add_flow_accounts') {
+      if (!Array.isArray(body.account_ids) || !body.account_ids.length || body.account_ids.length > 50 || body.account_ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) throw new Error("invalid_accounts");
+      return reply(checked(await db.rpc("ig_add_flow_accounts", { p_user: user.id, p_id: body.id, p_accounts: body.account_ids })));
+    }
     if (body.action === 'create_flow') {
       const input = body.flow as FlowInput;
       const library = checked(await db.from('ig_flow_library').select('id,url,kind,caption,folder').eq('user_id',user.id).eq('retired',false));

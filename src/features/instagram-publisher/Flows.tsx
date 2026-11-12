@@ -3,6 +3,7 @@ import { MediaPreview } from "./MediaPreview";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -42,6 +43,7 @@ import {
   savePrefs,
   setMedia,
   createFlow,
+  addFlowAccounts,
   cancelFlow,
   controlFlow,
   deleteFlow,
@@ -120,6 +122,8 @@ export default function Flows({
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [moveFolder, setMoveFolder] = useState("");
+  const [syncFlowId, setSyncFlowId] = useState<string | null>(null);
+  const [syncAccountIds, setSyncAccountIds] = useState<string[]>([]);
 
   // Estado do configurador de fluxo
   const [accountIds, setAccounts] = useState<string[]>([]);
@@ -176,6 +180,10 @@ export default function Flows({
   const prefs = query.data?.prefs;
   const flows = query.data?.flows ?? [];
   const report = query.data?.report;
+  const syncFlow = flows.find(flow => flow.id === syncFlowId);
+  const syncCandidates = accounts.filter(account =>
+    !syncFlow?.settings.accountIds.includes(account.id) &&
+    connections.some(c => c.account_id === account.id && !c.paused && !c.reconnect_required));
 
   const visible = media.filter(
     (m) => m.kind === kind && (folder === "*" || m.folder === folder),
@@ -651,6 +659,31 @@ export default function Flows({
 
   return (
     <div className="ig-flows">
+      <Dialog open={!!syncFlowId} onOpenChange={open => { if (!open && !busy) setSyncFlowId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar contas à campanha</DialogTitle>
+            <DialogDescription>As contas selecionadas entram agora na campanha e acompanham as próximas publicações nos horários do fluxo. As postagens já concluídas não serão repetidas.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 space-y-2 overflow-y-auto">
+            {syncCandidates.map(account => <label key={account.id} className="flex items-center gap-2 rounded-md border border-border p-2 text-sm">
+              <input type="checkbox" checked={syncAccountIds.includes(account.id)} disabled={busy} onChange={e => setSyncAccountIds(previous => e.target.checked ? [...previous, account.id] : previous.filter(id => id !== account.id))} />
+              @{account.username}
+            </label>)}
+            {!syncCandidates.length && <p className="text-sm text-muted-foreground">Não há novas contas disponíveis. Conecte uma conta do Instagram para adicioná-la aqui.</p>}
+          </div>
+          <Button disabled={busy || !syncAccountIds.length || syncFlow?.state !== "active"} onClick={() => {
+            if (!syncFlowId) return;
+            void perform(async () => {
+              await addFlowAccounts(syncFlowId, syncAccountIds);
+              await onCreated();
+              setSyncFlowId(null);
+              setSyncAccountIds([]);
+              toast.success("Contas sincronizadas com as próximas publicações do fluxo.");
+            });
+          }}>Sincronizar contas</Button>
+        </DialogContent>
+      </Dialog>
       {/* Modal de Inspeção Individual da Mídia (Prévia + Pasta + Legenda Individual) */}
       <Dialog
         open={!!inspector}
@@ -2510,6 +2543,11 @@ export default function Flows({
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                      {state === "active" && <Button size="sm" variant="outline" disabled={busy} className="h-8 text-xs" onClick={() => {
+                        setSyncFlowId(flow.id);
+                        setSyncAccountIds([]);
+                        void onCreated();
+                      }}><Plus size={13} className="mr-1.5" />Adicionar contas</Button>}
                       <Button
                         size="sm"
                         variant="ghost"

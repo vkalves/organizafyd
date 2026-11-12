@@ -38,6 +38,7 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  campaign_not_active: "Só é possível adicionar contas a uma campanha ativa.",
   invalid_campaign: "Revise o tamanho dos lotes e o descanso da campanha.",
   no_unused_media:
     "Todas as mídias selecionadas já foram usadas ou reservadas nessas contas. Escolha outras mídias ou desative a proteção contra repetição.",
