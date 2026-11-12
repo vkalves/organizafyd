@@ -17,7 +17,7 @@ const messages: Record<string, string> = {
   multiple_instagram_accounts:
     "Autorize apenas o Instagram que deseja conectar. Solicite um novo link e selecione um único perfil.",
   not_configured:
-    "Cadastre e ative um app em Meta Developer para iniciar a conexão.",
+    "A conexão com o Instagram ainda não está configurada no servidor.",
   invalid_invite: "Este link expirou ou já foi usado. Solicite um novo link.",
   invalid_state:
     "Esta autorização expirou ou foi aberta em outro navegador. Solicite um novo link.",
