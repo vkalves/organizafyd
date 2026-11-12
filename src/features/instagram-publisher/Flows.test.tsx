@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   control: vi.fn(),
   cancel: vi.fn(),
   remove: vi.fn(),
+  sync: vi.fn(),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u" } }),
@@ -17,6 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("./flows-api", () => ({
   loadFlowData: mocks.load,
   createFlow: mocks.create,
+  addFlowAccounts: mocks.sync,
   savePrefs: mocks.save,
   addMedia: mocks.add,
   setMedia: mocks.setMedia,
@@ -39,7 +41,7 @@ const media = {
   caption: "",
   created_at: "2026-01-01",
 };
-function show() {
+function show(accounts = [{ id: "a", username: "perfil" }]) {
   return render(
     <QueryClientProvider
       client={
@@ -47,10 +49,8 @@ function show() {
       }
     >
       <Flows
-        accounts={[{ id: "a", username: "perfil" }]}
-        connections={[
-          { account_id: "a", paused: false, reconnect_required: false },
-        ]}
+        accounts={accounts}
+        connections={accounts.map(account => ({ account_id: account.id, paused: false, reconnect_required: false }))}
         posts={[]}
         onCreated={vi.fn().mockResolvedValue(undefined)}
       />
@@ -58,6 +58,19 @@ function show() {
   );
 }
 describe("Fluxos interface", () => {
+  it("permite sincronizar uma nova conta na campanha ativa sem recriar o fluxo", async () => {
+    mocks.sync.mockResolvedValue({added:1,queued:2});
+    mocks.load.mockResolvedValue({media:[media],prefs:{user_id:"u",folders:[],captions:[]},flows:[{id:"f1",name:"Campanha ativa",state:"active",cycle:1,settings:{accountIds:["a"],mediaIds:["m"],kind:"posts",repeat:"loop",gapMinutes:60}}],report:{flows:[],usage:[]}});
+    show([{id:"a",username:"perfil"},{id:"b",username:"novo_perfil"}]);
+    await screen.findByRole("heading",{name:/Biblioteca de mídias/});
+    fireEvent.click(screen.getByRole("button",{name:/Campanhas \(1\)/}));
+    fireEvent.click(screen.getByRole("button",{name:"Adicionar contas"}));
+    expect(screen.getByRole("button",{name:"Sincronizar contas"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox",{name:"@novo_perfil"}));
+    fireEvent.click(screen.getByRole("button",{name:"Sincronizar contas"}));
+    await waitFor(()=>expect(mocks.sync).toHaveBeenCalledWith("f1",["b"]));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.load.mockResolvedValue({

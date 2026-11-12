@@ -327,6 +327,8 @@ export async function savePrefs(prefs: Prefs) {
 }
 export const createFlow = (input: FlowInput) =>
   publisherRequest("create_flow", { flow: input });
+export const addFlowAccounts = (id: string, accountIds: string[]) =>
+  publisherRequest<{ added: number }>("add_flow_accounts", { id, account_ids: accountIds });
 export const controlFlow = (id: string, control: "pause" | "resume" | "stop") =>
   publisherRequest("control_flow", { id, control });
 export const cancelFlow = (id: string) =>

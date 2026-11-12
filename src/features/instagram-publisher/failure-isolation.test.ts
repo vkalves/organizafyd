@@ -24,6 +24,7 @@ beforeAll(async () => {
     create table public.ig_publication_jobs(id uuid primary key default gen_random_uuid(),user_id uuid,account_id uuid,flow_id uuid,media_urls text[],status text default 'scheduled',scheduled_at timestamptz,next_attempt_at timestamptz default now(),published_at timestamptz,locked_at timestamptz,lock_token uuid,attempts integer default 0,publish_started boolean default false,error_code text,caption text,format text,cover_url text,flow_cycle integer default 1);
   `);
   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112020647_isolate_flow_account_and_media_failures.sql", import.meta.url), "utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112170828_add_accounts_to_active_flows.sql", import.meta.url), "utf8"));
 }, 30_000);
 beforeEach(async () => {
   await db.exec("truncate public.ig_publication_jobs,public.ig_flows,public.ig_publisher_connections,public.ig_account_health,public.ig_flow_library");
@@ -33,6 +34,38 @@ beforeEach(async () => {
 });
 afterAll(async () => { await db?.close(); });
 describe("automatic flow failure isolation in Postgres", () => {
+  it("syncs a new account immediately to remaining publications without waiting for a cycle or replaying completed media", async () => {
+    const c="00000000-0000-4000-8000-000000000005";
+    await db.query("insert into public.ig_publisher_connections(account_id,user_id) values($1,$2)",[c,user]);
+    const original=await job(a,"good.mp4"); await job(b,"good.mp4"); await job(a,"bad.mp4");
+    await job(a,"already-published.mp4","published","now()-interval '2 hours'");
+    const before=await rows("select * from public.ig_publication_jobs order by id");
+    const result=(await rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[]) as result",[user,flow,[c,c]]))[0].result;
+    expect(result).toEqual({added:1,queued:2});
+    expect((await rows<{settings:{accountIds:string[]}}>("select settings from public.ig_flows"))[0].settings.accountIds).toEqual([a,b,c]);
+    const added=await rows("select * from public.ig_publication_jobs where account_id=$1 order by media_urls",[c]);
+    expect(added.map(j=>j.media_urls)).toEqual([["bad.mp4"],["good.mp4"]]);
+    expect(added.every(j=>j.status==="scheduled" && j.flow_cycle===1)).toBe(true);
+    expect(added[1].scheduled_at).toEqual((await rows("select scheduled_at from public.ig_publication_jobs where id=$1",[original]))[0].scheduled_at);
+    expect(await rows("select * from public.ig_publication_jobs where account_id<>$1 order by id",[c])).toEqual(before);
+    expect((await rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[]) as result",[user,flow,[c]]))[0].result).toEqual({added:0,queued:0});
+  });
+  it("rejects account synchronization across owners and into stopped campaigns", async () => {
+    await expect(rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[])",[other,flow,[other]])).rejects.toThrow("invalid_flow");
+    await expect(rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[])",[user,flow,[other]])).rejects.toThrow("account_not_connected");
+    await db.exec("update public.ig_flows set state='stopped'");
+    await expect(rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[])",[user,flow,[other]])).rejects.toThrow("campaign_not_active");
+    expect((await rows("select has_function_privilege('authenticated','public.ig_add_flow_accounts(uuid,uuid,uuid[])','execute') as allowed"))[0].allowed).toBe(false);
+  });
+  it("keeps the reuse protection when adding an account that already used part of the library", async () => {
+    const c="00000000-0000-4000-8000-000000000005";
+    await db.query("insert into public.ig_publisher_connections(account_id,user_id) values($1,$2)",[c,user]);
+    await db.exec(`update public.ig_flows set settings=settings||'{"avoidReuse":true}'::jsonb`);
+    await job(a,"good.mp4"); await job(a,"bad.mp4");
+    await db.query("insert into public.ig_publication_jobs(user_id,account_id,media_urls,status,published_at) values($1,$2,array['good.mp4'],'published',now())",[user,c]);
+    expect((await rows("select public.ig_add_flow_accounts($1,$2,$3::uuid[]) as result",[user,flow,[c]]))[0].result).toEqual({added:1,queued:1});
+    expect((await rows("select media_urls from public.ig_publication_jobs where account_id=$1 and status='scheduled'",[c]))[0].media_urls).toEqual(["bad.mp4"]);
+  });
   it("resumes an old automatic pause, removes only the failed account/media pair, and claims another item", async () => {
     const failed = await job(a,"bad.mp4","failed");
     const skipped = await job(a,"bad.mp4");
