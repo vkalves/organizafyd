@@ -1,5 +1,7 @@
 import { hybridStorage } from '../_shared/hybrid-storage.ts';
 import { readVideoAnalytics } from "./analytics.ts";
+import { dayWindow } from "./day-window.ts";
+import { readPublishedReelsToday, type PublishedTodayReport } from "./published-today.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
 import { buildFlow, type FlowInput } from './flow.ts';
@@ -375,6 +377,26 @@ Deno.serve(async (req) => {
         return reply({ error: "account_already_connected" }, 409);
       const account_id = checked(saved);
       return reply({ account_id, username: profile.username });
+    }
+    if (body.action === "published_today") {
+      const now = Date.now();
+      const timezone = typeof body.timezone === "string" ? body.timezone : "America/Fortaleza";
+      const { start, end } = dayWindow(timezone, now);
+      const owned = checked(await db.from("ig_publisher_connections").select("account_id").eq("user_id", user.id));
+      const accounts: PublishedTodayReport["accounts"] = [];
+      for (let offset = 0; offset < owned.length; offset += 4) {
+        accounts.push(...await Promise.all(owned.slice(offset, offset + 4).map(async (account) => {
+          try {
+            const { c, token } = await credential(account.account_id);
+            const result = await readPublishedReelsToday(c.graph_id,
+              (path, params) => graph(path, token, params, false, c.provider), timezone, now);
+            return { account_id: account.account_id, ...result, unavailable: false };
+          } catch {
+            return { account_id: account.account_id, count: null, complete: false, unavailable: true };
+          }
+        })));
+      }
+      return reply({ accounts, start_at: new Date(start).toISOString(), end_at: new Date(end).toISOString(), checked_at: new Date(now).toISOString(), timezone } satisfies PublishedTodayReport);
     }
     if (body.action === "analytics") {
       const owned = checked(await db.from("ig_publisher_connections").select("account_id").eq("user_id", user.id));
