@@ -21,7 +21,7 @@ it("matches the reference layout with private apps, optional Config ID, real cou
  expect(screen.getByText("3 contas")).toBeVisible();
  expect(screen.getByLabelText("Callback do Instagram Login")).toHaveValue(callback);
  expect(screen.getByLabelText(/Config ID/)).not.toBeRequired();
- expect(screen.getByText("instagram_business_basic")).toBeVisible();
+ expect(screen.getByText("instagram_basic")).toBeVisible();
 });
 it("connects using the selected app and updates permissions for unified login", async () => {
  const fb = { ...app, id: "app-two", name: "Business 02", configId: "987654" };
