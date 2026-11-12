@@ -95,10 +95,14 @@ import "@/features/agonia/agonia.css";
 import { DashboardOverview, DashboardSchedule, DashboardViewsChart, type DashboardPeriod } from "@/features/agonia/DashboardOverview";
 import "@/features/agonia/dashboard-concept.css";
 
+const Administration = lazy(() => import("@/features/administration/Administration"));
+const ConnectionAccessSummary = lazy(() => import("@/features/administration/ConnectionAccessSummary"));
+
 const AccountViews = lazy(() => import("@/features/instagram-publisher/AccountViews"));
 const MetaDeveloper = lazy(() => import("@/features/meta-developer/MetaDeveloper"));
 
 type Section =
+  | "admin"
   | "meta-developer"
   | "visualizacoes"
   | "dashboard"
@@ -116,6 +120,7 @@ type Section =
   | "profile";
 
 const VALID_SECTIONS = new Set<Section>([
+  "admin",
   "meta-developer",
   "visualizacoes",
   "dashboard",
@@ -878,6 +883,7 @@ export default function Agonia() {
 
   return (
     <div className="agonia-root" data-section={section}>
+      {section === "admin" && <Suspense fallback={<p role="status">Carregando administração…</p>}><Administration /></Suspense>}
       {section === "meta-developer" && (
         <Suspense fallback={<p role="status">Carregando guia de integração…</p>}>
           <MetaDeveloper onConnected={refreshAll} />
@@ -1347,6 +1353,8 @@ export default function Agonia() {
             </div>
             <ConnectAccount onConnected={refreshAll} />
           </header>
+
+          <Suspense fallback={<p role="status">Consultando limite de contas…</p>}><ConnectionAccessSummary /></Suspense>
 
           <Link to="/avanca/meta-developer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "17px 21px" }}>
             <div><strong>Precisa de ajuda com a Meta?</strong><p className="panel-copy">Guia com exemplos para conectar sua conta ou configurar um app.</p></div>

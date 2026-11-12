@@ -1,0 +1,26 @@
+.admin-panel { display: grid; gap: 20px; }
+.admin-explanation { line-height: 1.7; }
+.admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+.admin-stats .panel { display: grid; gap: 8px; }
+.admin-stats strong { font-size: 28px; }
+.admin-stats svg { width: 20px; opacity: .65; }
+.admin-stats span, .admin-usage, .admin-note { color: var(--text-secondary, #a7a9b3); }
+.admin-search { display: grid; gap: 8px; }
+.admin-search > div { display: flex; gap: 10px; }
+.admin-search input { flex: 1; min-width: 0; }
+.admin-panel input:not([type=checkbox]) { padding: 10px 12px; border: 1px solid rgba(160,160,180,.3); border-radius: 8px; background: rgba(160,160,180,.06); color: inherit; }
+.admin-panel input:focus-visible { outline: 2px solid #a898fa; outline-offset: 2px; }
+.admin-user { border: 1px solid rgba(160,160,180,.22); border-radius: 14px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.admin-user-heading { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+.admin-user-heading h2 { font-weight: 600; overflow-wrap: anywhere; }
+.admin-user-heading p { overflow-wrap: anywhere; }
+.admin-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; border-radius: 20px; background: rgba(160,140,255,.12); padding: 5px 10px; }
+.admin-permissions { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.admin-check { display: flex; gap: 8px; align-items: center; min-height: 42px; }
+.admin-check input { accent-color: #a898fa; width: 17px; height: 17px; }
+.admin-limit { display: grid; gap: 5px; font-size: 13px; }
+.admin-limit input { width: 140px; }
+.admin-limit input:disabled { opacity: .45; }
+.admin-error { color: #f87171; }
+.admin-pagination { display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; }
+@media(max-width:640px) { .admin-stats { grid-template-columns: 1fr; } .admin-user { padding: 15px; } .admin-permissions { flex-direction: column; align-items: stretch; gap: 10px; } .admin-limit input { width: 100%; } }

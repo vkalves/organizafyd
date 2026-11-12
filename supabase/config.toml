@@ -1,5 +1,9 @@
 project_id = "csaplfphtvufxjhbpstl"
 
+# All actions validate the user's JWT internally; administration is checked server-side.
+[functions.app-admin]
+verify_jwt = false
+
 # Google returns to an unauthenticated GET; all POST actions validate the JWT
 # themselves, while cron uses a separate worker secret.
 [functions.google-calendar]

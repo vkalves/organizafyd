@@ -48,7 +48,7 @@ async function saveAccount(userId: string, grant: Grant, profile: Profile) {
     p_token: grant.token, p_business: grant.businessId, p_expires: grant.expiresAt,
   });
   if (saved.error) {
-    if (["account_already_connected", "provider_conflict", "app_not_found"].includes(saved.error.message)) throw new Error(saved.error.message);
+    if (["account_already_connected", "provider_conflict", "app_not_found", "account_connection_disabled", "account_limit_reached"].includes(saved.error.message)) throw new Error(saved.error.message);
     throw new Error("database_error");
   }
   return { username: profile.username };
@@ -248,6 +248,7 @@ Deno.serve(async (req) => {
     return reply({ error: "unknown_action" }, 400);
   } catch (e) {
     const safe = [
+      "account_connection_disabled", "account_limit_reached",
       "app_not_found",
       "not_configured",
       "professional_required",
