@@ -119,6 +119,7 @@ export default function Flows({
   const [folder, setFolder] = useState("*");
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolder, setNewFolder] = useState("");
+  const [moveFolder, setMoveFolder] = useState("");
 
   // Estado do configurador de fluxo
   const [accountIds, setAccounts] = useState<string[]>([]);
@@ -179,6 +180,8 @@ export default function Flows({
   const visible = media.filter(
     (m) => m.kind === kind && (folder === "*" || m.folder === folder),
   );
+  const selectedVisible = visible.filter(m => selected.includes(m.id));
+  const destinationFolders = [...new Set([...(prefs?.folders ?? []), ...media.map(m => m.folder).filter(Boolean)])];
   const picked = media.filter(
     (m) => selected.includes(m.id) && m.kind === kind,
   );
@@ -276,6 +279,30 @@ export default function Flows({
       setBusy(false);
       setProgress("");
     }
+  }
+
+  function moveSelectedMedia() {
+    const targets = selectedVisible.map(m => m.id);
+    const destination = moveFolder;
+    if (!targets.length || busy || uploadInProgress) return;
+    void perform(async () => {
+      const moved: string[] = [];
+      let failed = 0;
+      for (let offset = 0; offset < targets.length; offset += 4) {
+        const batch = targets.slice(offset, offset + 4);
+        const results = await Promise.allSettled(batch.map(id => setMedia(id, { folder: destination })));
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") moved.push(batch[index]);
+          else failed++;
+        });
+      }
+      cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous => previous ? {
+        ...previous, media: previous.media.map(m => moved.includes(m.id) ? { ...m, folder: destination } : m),
+      } : previous);
+      setSelected(previous => previous.filter(id => !moved.includes(id)));
+      if (moved.length) toast.success(`${moved.length} mídia(s) movida(s) para ${destination || "Sem pasta"}.`);
+      if (failed) toast.error(`${failed} mídia(s) não foram movidas. Elas continuam selecionadas para tentar novamente.`);
+    });
   }
 
   function confirmDeleteMedia() {
@@ -1166,6 +1193,27 @@ export default function Flows({
                 </form>
               </DialogContent>
             </Dialog>
+
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-secondary/30 p-2" aria-label="Ações das mídias da pasta aberta">
+              <Button type="button" size="sm" variant="outline" className="h-8 text-xs" disabled={busy || uploadInProgress || !visible.length} onClick={() => setSelected(visible.map(m => m.id))}>
+                Selecionar todas as mídias
+              </Button>
+              <Button type="button" size="sm" variant="ghost" className="h-8 text-xs" disabled={busy || uploadInProgress || !selected.length} onClick={() => setSelected([])}>
+                Limpar seleção
+              </Button>
+              <span className="text-xs text-muted-foreground" role="status">{selectedVisible.length} de {visible.length} selecionadas nesta pasta</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <label className="sr-only" htmlFor="move-media-folder">Pasta de destino das mídias selecionadas</label>
+                <select id="move-media-folder" className="h-8 max-w-full rounded-md border border-input bg-background px-2 text-xs" value={moveFolder} disabled={busy || uploadInProgress} onChange={e => setMoveFolder(e.target.value)}>
+                  <option value="">Sem pasta</option>
+                  {destinationFolders.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <Button type="button" size="sm" className="h-8 text-xs" disabled={busy || uploadInProgress || !selectedVisible.length} onClick={moveSelectedMedia}>
+                  Mover selecionadas
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Selecione uma ou várias mídias e escolha a pasta de destino acima. Novos arquivos enviados vão direto para {folder === "*" || !folder ? "Sem pasta" : `a pasta ${folder}`}.</p>
 
             {/* Grade minimalista de miniaturas (borda única, zero dropdown por item) */}
             {visible.length > 0 ? (
