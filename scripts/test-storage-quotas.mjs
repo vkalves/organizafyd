@@ -21,7 +21,7 @@ try {
  create table public.ig_publisher_connections(account_id uuid primary key,user_id uuid references auth.users(id),graph_id text);
  create schema storage;create table storage.objects(bucket_id text,name text,metadata jsonb,primary key(bucket_id,name));
  grant usage on schema storage to service_role;grant select on storage.objects to service_role;`);
- for(const file of ['20261112223428_administration_and_instagram_account_limits.sql','20261112225249_default_ten_instagram_accounts.sql','20261112231231_user_media_storage_quotas.sql']) await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`,import.meta.url),'utf8'));
+ for(const file of ['20261112223428_administration_and_instagram_account_limits.sql','20261112225249_default_ten_instagram_accounts.sql','20261112233603_user_media_storage_quotas.sql']) await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`,import.meta.url),'utf8'));
  await db.query("insert into auth.users(id,email) values($1,'admin@example.test'),($2,'user@example.test')",[admin,user]);
  await db.query("insert into public.profiles values($1,'Administrador'),($2,'Usuário de exemplo')",[admin,user]);
  await db.query('insert into public.avanca_admins(user_id) values($1)',[admin]);

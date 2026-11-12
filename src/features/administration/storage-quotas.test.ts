@@ -20,7 +20,7 @@ beforeAll(async()=>{
  create table public.ig_publisher_connections(account_id uuid primary key,user_id uuid references auth.users(id),graph_id text);
  create schema storage; create table storage.objects(bucket_id text,name text,metadata jsonb,primary key(bucket_id,name));
  grant usage on schema storage to service_role; grant select on storage.objects to service_role;`);
- for(const file of ["20261112223428_administration_and_instagram_account_limits.sql","20261112225249_default_ten_instagram_accounts.sql","20261112231231_user_media_storage_quotas.sql"])
+ for(const file of ["20261112223428_administration_and_instagram_account_limits.sql","20261112225249_default_ten_instagram_accounts.sql","20261112233603_user_media_storage_quotas.sql"])
   await db.exec(readFileSync(new URL(`../../../supabase/migrations/${file}`,import.meta.url),"utf8"));
 },30000);
 beforeEach(async()=>{
@@ -100,12 +100,12 @@ describe("media storage quotas enforced by Postgres",()=>{
   expect((await quota()).storage_used_bytes).toBe(0);
  });
  it("can pause and resume uploads for production inventory without affecting reads",async()=>{
-  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112233234_storage_quota_rollout_pause.sql",import.meta.url),"utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112233426_storage_quota_rollout_pause.sql",import.meta.url),"utf8"));
   try {
    await expect(legacy(user,1)).rejects.toThrow("storage_maintenance");
    expect((await quota()).storage_limit_bytes).toBe(GB);
   } finally {
-   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112233235_storage_quota_rollout_resume.sql",import.meta.url),"utf8"));
+   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112233820_storage_quota_rollout_resume.sql",import.meta.url),"utf8"));
   }
   await legacy(user,1);
  });

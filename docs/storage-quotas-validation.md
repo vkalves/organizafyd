@@ -15,7 +15,21 @@ O administrador acessa o painel de usuários, altera os gigabytes de uma conta e
 | Edge Functions | `deno check` passa para `s3-storage` e `app-admin`, com suas dependências |
 | TypeScript completo | Continua com os mesmos diagnósticos da versão original, confirmados em cópia limpa: `MediaPreview.tsx`, `flows-api.ts` e `useSupabaseCrud.ts`. Nenhum novo diagnóstico |
 
-Os testes não enviam mídias reais para a AWS, não usam autenticação de usuários reais e não aplicam alterações em produção. A migração, as duas funções e a interface precisam ser publicadas. Quando há mídias preexistentes na AWS, executar a reconciliação descrita em [administration.md](administration.md) antes de reabrir os uploads.
+Os testes locais não enviam mídias reais para a AWS e usam autenticação simulada.
+
+## Publicação em produção
+
+Publicação concluída em 12 de novembro de 2026, em [organizafy.site](https://www.organizafy.site/avanca/admin). A alteração de produto foi integrada em [Add per-user media storage quotas and admin controls](https://github.com/vkalves/organizafyd/pull/82).
+
+- As migrações de pausa, cotas e retomada foram aplicadas. Os nomes dos arquivos locais correspondem às versões registradas no banco de produção.
+- `s3-storage` e `app-admin` foram publicados. A autorização temporária para reconciliação foi removida na versão final do gateway.
+- O inventário reconciliou os nove usuários e 286 objetos S3. O uso lógico total foi de 1.893.475.104 bytes, sem duplicar as cópias existentes no Supabase. Nenhuma mídia foi excluída.
+- Oito usuários comuns receberam a cota padrão de 1 GB. O único administrador foi confirmado sem limite. Uma conta já estava acima da cota; suas mídias permanecem disponíveis e novos envios ficam bloqueados até liberar espaço ou aumentar a cota.
+- Os uploads foram retomados. Testes transacionais no banco real confirmaram o bloqueio por cota e a reserva para administrador sem persistir arquivos ou alterar cotas.
+- A compilação em produção foi marcada como `READY`, e o domínio do site passou a servir a interface com os controles de armazenamento.
+- As verificações de segurança do Supabase não apontaram novos avisos relacionados às cotas. Os avisos anteriores do projeto não foram alterados por este trabalho.
+
+Para uma nova implantação com arquivos preexistentes, seguir a reconciliação descrita em [administration.md](administration.md) antes de reabrir os uploads.
 
 Para repetir os testes:
 
