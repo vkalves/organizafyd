@@ -18,6 +18,7 @@ beforeAll(async () => {
     create table public.ig_publisher_connections(account_id uuid primary key,user_id uuid references auth.users(id),graph_id text);
   `);
   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112223428_administration_and_instagram_account_limits.sql", import.meta.url), "utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112225249_default_ten_instagram_accounts.sql", import.meta.url), "utf8"));
 }, 30000);
 beforeEach(async () => {
   await db.exec("truncate auth.users,public.avanca_admins,public.avanca_user_limits,public.ig_publisher_connections,public.profiles cascade");
@@ -26,9 +27,21 @@ beforeEach(async () => {
 });
 afterAll(async () => { await db?.close(); });
 describe("administrative account limits enforced by Postgres", () => {
-  it("preserves unlimited access until a policy is set and counts connections per owner", async () => {
+  it("uses ten accounts by default and counts connections per owner", async () => {
     await connect(); await connect(); await connect(other);
-    expect((await rows("select public.avanca_user_access($1) as access",[user]))[0].access).toEqual({is_admin:false,connection_allowed:true,max_accounts:null,connected_accounts:2});
+    expect((await rows("select public.avanca_user_access($1) as access",[user]))[0].access).toEqual({is_admin:false,connection_allowed:true,max_accounts:10,connected_accounts:2});
+  });
+  it("enforces the default for new users without an individual policy", async () => {
+    for (let n=0;n<10;n++) await connect();
+    await expect(connect()).rejects.toThrow("account_limit_reached");
+    expect((await rows<{data:{users:{id:string;max_accounts:number}[]}}>("select public.avanca_admin_users($1) as data",[admin]))[0].data.users.find(u=>u.id===user)?.max_accounts).toBe(10);
+    expect((await rows("select count(*)::int as n from public.avanca_user_limits"))[0].n).toBe(0);
+  });
+  it("preserves an explicit unlimited exception above ten accounts", async () => {
+    await policy(true,null);
+    for (let n=0;n<11;n++) await connect();
+    expect((await rows("select public.avanca_user_access($1) as access",[user]))[0].access).toMatchObject({max_accounts:null,connected_accounts:11});
+    expect((await rows<{data:{users:{id:string;max_accounts:number|null}[]}}>("select public.avanca_admin_users($1) as data",[admin]))[0].data.users.find(u=>u.id===user)?.max_accounts).toBeNull();
   });
   it("rejects new connections at the configured limit through any insert path", async () => {
     await policy(true,2); await connect(); await connect();

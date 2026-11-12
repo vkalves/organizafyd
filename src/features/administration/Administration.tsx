@@ -76,7 +76,7 @@ export default function Administration() {
       {directory.isPending && <p role="status">Carregando usuários…</p>}
       {directory.isError && <div className="panel"><p role="alert">{directory.error.message}</p><button className="button button-secondary" onClick={() => void directory.refetch()}>Tentar novamente</button></div>}
       {directory.data && <>
-        <p>{directory.data.total} usuário(s) encontrado(s). Sem configuração individual, novas conexões ficam liberadas e sem limite.</p>
+        <p>{directory.data.total} usuário(s) encontrado(s). Sem configuração individual, cada usuário pode conectar até 10 contas.</p>
         {directory.data.users.length === 0 && <p className="panel">Nenhum usuário encontrado.</p>}
         {directory.data.users.map(user => <UserPermissions key={user.id} user={user} onSaved={onSaved} />)}
         <nav className="admin-pagination" aria-label="Páginas de usuários"><button className="button button-secondary" disabled={page === 1 || directory.isFetching} onClick={() => setPage(p => p - 1)}>Anterior</button><span>Página {page} de {Math.max(1, Math.ceil(directory.data.total / 50))}</span><button className="button button-secondary" disabled={page * 50 >= directory.data.total || directory.isFetching} onClick={() => setPage(p => p + 1)}>Próxima</button></nav>

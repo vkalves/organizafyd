@@ -6,7 +6,7 @@ A área `/avanca/admin` permite procurar usuários cadastrados por nome/e-mail, 
 - **Máximo de contas** aceita inteiros de 0 a 10.000.
 - **Sem limite** salva `max_accounts = NULL`.
 
-Usuários sem política individual continuam com conexões liberadas e sem limite. As contas são contadas em `ig_publisher_connections`, inclusive vínculos pausados ou que precisam de reconexão. Reduzir um limite não remove contas nem cancela publicações. Renovar a autorização de uma conta já vinculada continua permitido.
+Usuários sem política individual têm conexões liberadas e limite padrão de 10 contas, inclusive novos cadastros. Exceções sem limite são salvas explicitamente com `max_accounts = NULL`. As contas são contadas em `ig_publisher_connections`, inclusive vínculos pausados ou que precisam de reconexão. Reduzir um limite não remove contas nem cancela publicações. Renovar a autorização de uma conta já vinculada continua permitido.
 
 ## Autorização
 
