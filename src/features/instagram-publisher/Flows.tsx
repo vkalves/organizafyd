@@ -2420,7 +2420,11 @@ export default function Flows({
 
                       {flow.last_error && (
                         <p role="status" className="text-xs text-warning">
-                          Campanha pausada para revisão. Confira a fila antes de retomar.
+                          {flow.last_error === "no_available_accounts"
+                            ? "Nenhuma conta disponível para publicar neste fluxo."
+                            : flow.last_error === "no_available_media"
+                              ? "Nenhuma mídia disponível para continuar neste fluxo."
+                              : "Não foi possível preparar o próximo ciclo. As tentativas anteriores estão registradas na fila."}
                         </p>
                       )}
 
@@ -2432,7 +2436,7 @@ export default function Flows({
                           <>
                             <span>·</span>
                             <span className="text-warning">
-                              {review} para revisar
+                              {review} item(ns) ignorado(s) após erro ou falta de confirmação
                             </span>
                           </>
                         )}

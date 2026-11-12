@@ -40,6 +40,8 @@ export function buildFlow(
     used?: { account_id: string; url: string }[];
     offsets?: Record<string, number>;
     starts?: Record<string, number>;
+    disabledAccounts?: string[];
+    excluded?: { account_id: string; url: string }[];
   } = {},
 ) {
   if (
@@ -167,16 +169,18 @@ export function buildFlow(
       : shuffle(media);
   const jobs: (Draft & { cover_url: string | null })[] = [];
   input.accountIds.forEach((accountId, accountIndex) => {
+    if (context.disabledAccounts?.includes(accountId)) return;
     const items =
       input.distribution === "split"
         ? split.filter((_, i) => i % input.accountIds.length === accountIndex)
         : shuffle(media);
     const fresh = items.filter(
       (item) =>
-        !input.avoidReuse ||
+        !context.excluded?.some(excluded => excluded.account_id === accountId && excluded.url === item.url) &&
+        (!input.avoidReuse ||
         !context.used?.some(
           (used) => used.account_id === accountId && used.url === item.url,
-        ),
+        )),
     );
     const offset = context.offsets?.[accountId] ?? 0;
     const batch = input.batchSize || 500;
