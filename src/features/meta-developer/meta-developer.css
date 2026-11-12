@@ -1,7 +1,4 @@
 .meta-connect-page { width:100%; max-width:1180px; margin:0 auto; display:grid; gap:22px; color:var(--text,#e6eaf0); }
-.meta-guide-options { display:flex; flex-wrap:wrap; gap:8px; padding:0 clamp(20px,2vw,26px) 16px; }
-.meta-guide-options .button { font-size:11px; white-space:normal; text-align:left; }
-.meta-guide-options button[aria-pressed="true"] { border-color:#8796ac; color:#edf2f8; background:#ffffff0b; }
 .meta-step > div { min-width:0; }
 .meta-guide-footer { padding:0 clamp(20px,2vw,26px) 24px; }
 .meta-guide-footer p { font-size:12px; line-height:1.7; color:#8e9bac; margin:0 0 12px; }
