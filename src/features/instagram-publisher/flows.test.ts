@@ -31,6 +31,20 @@ const input: FlowInput = {
   coverId: null,
 };
 describe("Fluxos de publicação", () => {
+  it("ignora a conta indisponível e a mídia com falha apenas na conta afetada, mesmo com reutilização permitida", () => {
+    const jobs = buildFlow(input, library, user, 0, Math.random, { excluded: [{ account_id: accounts[0], url: library[0].url }] });
+    expect(jobs.filter(j => j.account_id === accounts[0])).toHaveLength(3);
+    expect(jobs.filter(j => j.account_id === accounts[1])).toHaveLength(4);
+    const healthy = buildFlow(input, library, user, 0, Math.random, { disabledAccounts: [accounts[0]] });
+    expect(healthy).toHaveLength(4);
+    expect(healthy.every(j => j.account_id === accounts[1])).toBe(true);
+    expect(input.accountIds).toEqual(accounts);
+    expect(library).toHaveLength(4);
+  });
+  it("preserva a distribuição split das outras contas quando uma conta é ignorada", () => {
+    const jobs = buildFlow({ ...input, repeat: "loop", distribution: "split" }, library, user, 0, Math.random, { disabledAccounts: [accounts[0]] });
+    expect(jobs.map(j => j.media_urls[0])).toEqual([library[1].url, library[3].url]);
+  });
   it("distribui todas as mídias para cada conta sem alterar a biblioteca", () => {
     const jobs = buildFlow(input, library, user, 0);
     expect(jobs).toHaveLength(8);

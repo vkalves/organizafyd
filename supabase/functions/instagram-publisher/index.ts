@@ -80,6 +80,9 @@ async function advanceCampaigns() {
   for (const flow of due) {
     try {
       const input = flow.settings as FlowInput;
+      const runtime = checked(await db.rpc("ig_flow_runtime", { p_user: flow.user_id, p_id: flow.id })) as {
+        available: string[]; excluded: { account_id: string; url: string }[];
+      };
       const library = checked(
         await db
           .from("ig_flow_library")
@@ -122,7 +125,7 @@ async function advanceCampaigns() {
         flow.user_id,
         now,
         Math.random,
-        { used, offsets, starts },
+        { used, offsets, starts, disabledAccounts: input.accountIds.filter(id => !runtime.available.includes(id)), excluded: runtime.excluded },
       );
       checked(
         await db.rpc("ig_append_flow_cycle", {
@@ -132,12 +135,12 @@ async function advanceCampaigns() {
           p_jobs: jobs,
         }),
       );
-    } catch {
+    } catch (error) {
       // Preserve existing queued work; pause only an unchanged cycle.
       checked(
         await db
           .from("ig_flows")
-          .update({ state: "paused", last_error: "campaign_needs_review" })
+          .update({ state: "paused", last_error: error instanceof Error && error.message === "no_unused_media" ? "no_available_media" : "campaign_needs_review" })
           .eq("id", flow.id)
           .eq("cycle", flow.cycle)
           .eq("state", "active"),
@@ -276,7 +279,7 @@ async function worker() {
       err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
         ? err.message
         : "network_error";
-    if (code === "meta_190")
+    if (["meta_190", "meta_10", "meta_200", "credential_missing"].includes(code))
       await db
         .from("ig_publisher_connections")
         .update({ reconnect_required: true })
