@@ -5,12 +5,20 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "qa", e
 vi.mock("@/components/shortcuts/Shortcuts", () => ({ Shortcuts: () => null }));
 vi.mock("@/features/instagram-publisher/PublicationSound", () => ({ PublicationFeedback: () => null }));
 vi.mock("@/features/instagram-publisher/InstagramAlerts", () => ({ useInstagramMonitor: () => ({ data: { alerts: [] } }), InstagramAlerts: () => null }));
+const adminAccess = vi.hoisted(() => ({ is_admin: false }));
+vi.mock("@/features/administration/api", () => ({ useAdministrationAccess: () => ({ data: adminAccess }) }));
 import { AppLayout } from "./AppLayout";
 function Location() { return <output aria-label="Rota atual">{useLocation().pathname}</output>; }
 function show() { render(<MemoryRouter initialEntries={["/avanca"]}><AppLayout><Location /></AppLayout></MemoryRouter>); }
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); adminAccess.is_admin = false; });
 const destinations = ["/avanca", "/avanca/fluxos", "/avanca/alertas", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/reels-new", "/avanca/stories", "/avanca/stories-link", "/avanca/scheduled", "/avanca/reels", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
 describe("Avança — navegação preservada", () => {
+  it("mostra a administração apenas quando o servidor reconhece o administrador", () => {
+    show();
+    expect(screen.queryByRole("link", { name: "Administração" })).not.toBeInTheDocument();
+    cleanup(); adminAccess.is_admin = true; show();
+    expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("href", "/avanca/admin");
+  });
   it("prioriza criar e agendar na barra móvel, mantendo os demais destinos em Mais", () => {
     show();
     const quickNav = screen.getByRole("navigation", { name: "Navegação rápida" });

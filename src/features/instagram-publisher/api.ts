@@ -38,6 +38,8 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  account_connection_disabled: "O administrador não liberou novas conexões para seu usuário.",
+  account_limit_reached: "Você atingiu o limite de contas permitido. Solicite um aumento ao administrador.",
   campaign_not_active: "Só é possível adicionar contas a uma campanha ativa.",
   invalid_campaign: "Revise o tamanho dos lotes e o descanso da campanha.",
   no_unused_media:

@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 const messages: Record<string, string> = {
+  account_connection_disabled: "O administrador não liberou novas conexões para seu usuário.",
+  account_limit_reached: "Você atingiu o limite de contas permitido. Solicite um aumento ao administrador.",
   app_exists: "Você já cadastrou um app com esse App ID.",
   app_not_found: "Este app não está disponível. Escolha um app ativo e gere um novo link.",
   app_in_use: "Este app tem contas vinculadas. Você pode desativá-lo; para mudar o App ID ou o tipo de login, adicione outro app.",

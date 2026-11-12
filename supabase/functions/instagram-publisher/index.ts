@@ -21,6 +21,7 @@ const origins = new Set([
   "https://organizafy.site",
 ]);
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
+  if (error && typeof error === "object" && "message" in error && ["account_connection_disabled", "account_limit_reached"].includes(String(error.message))) throw new Error(String(error.message));
   if (error) throw new Error("database_error");
   return data;
 }

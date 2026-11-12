@@ -1,7 +1,9 @@
+import { useAdministrationAccess } from "@/features/administration/api";
 import { PublicationFeedback } from "@/features/instagram-publisher/PublicationSound";
 import { InstagramAlerts, useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
 import { Shortcuts } from "@/components/shortcuts/Shortcuts";
 import {
+  ShieldCheck,
   LayoutDashboard,
   BarChart3,
   Settings,
@@ -104,12 +106,14 @@ function SideNav({
 }) {
   const location = useLocation();
   const monitor = useInstagramMonitor();
+  const access = useAdministrationAccess();
+  const sections = access.data?.is_admin ? [...agoniaSections, { label: "Gestão", items: [{ title: "Administração", path: "/avanca/admin", icon: ShieldCheck }] }] : agoniaSections;
   const unreadAlertsCount =
     monitor.data?.alerts.filter((a) => !a.read_at && !a.resolved_at).length ?? 0;
 
   return (
     <>
-      {agoniaSections.map((section, sectionIdx) => (
+      {sections.map((section, sectionIdx) => (
         <div key={section.label || sectionIdx} className="shell-nav-section">
           {section.label && !collapsed && (
             <p className="shell-nav-section-label">{section.label}</p>
@@ -235,6 +239,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
+    if (location.pathname === "/avanca/admin") return "Administração";
     if (location.pathname === "/avanca/reels-test") return "Diagnóstico de Publicação";
     const match = agoniaNavItems.find((item) =>
       isItemActive(item, location.pathname),
