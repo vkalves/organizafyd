@@ -64,6 +64,7 @@ import {
   slotInstants,
 } from "../../../supabase/functions/instagram-publisher/schedule";
 import { playConfirmation, unlockAudio } from "./sound";
+import { FlowSharingDialog } from "./FlowSharingDialog";
 import "./flows.css";
 
 type UploadSource = { file: File; reelUrl?: never } | { file?: never; reelUrl: string };
@@ -103,6 +104,7 @@ export default function Flows({
   });
 
   // Navegação de contexto principal (uma tarefa principal por tela)
+  const [sharing, setSharing] = useState<{ id: string; name: string } | "join" | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceTab>("composer");
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
   const [campaignSearch, setCampaignSearch] = useState("");
@@ -668,6 +670,8 @@ export default function Flows({
 
   return (
     <div className="ig-flows">
+      {sharing && user && <FlowSharingDialog target={sharing === "join" ? null : sharing} userId={user.id}
+        onClose={() => setSharing(null)} onChanged={() => void query.refetch()} />}
       <Dialog open={!!syncFlowId} onOpenChange={open => { if (!open && !busy) setSyncFlowId(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -873,6 +877,8 @@ export default function Flows({
             )}
           </button>
         </div>
+
+        <Button size="sm" variant="outline" onClick={() => setSharing("join")}>Participar com código</Button>
 
         {workspace === "composer" ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -2556,6 +2562,8 @@ export default function Flows({
                           setSyncAccountIds([]);
                           void onCreated();
                         }}><Plus size={13} className="mr-1.5" />Conectar conta ao fluxo</Button>
+                        {state === "active" && <Button size="sm" variant="outline" className="h-8 text-xs"
+                          onClick={() => setSharing({ id: flow.id, name: flow.name || "Campanha sem nome" })}>Compartilhar fluxo</Button>}
                         {state === "paused" && <span className="text-xs text-muted-foreground">Retome a campanha para conectar uma conta.</span>}
                       </div>}
                       {flow.last_error && (
