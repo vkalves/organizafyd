@@ -22,6 +22,23 @@ export function createAdminHandler(db: AdminDatabase, refreshStorage?: (users: s
     if (access.error) throw new Error("database_error");
     if (body.action === "access") return reply(access.data);
     if (!access.data?.is_admin) return reply({ error: "forbidden" }, 403);
+    if (body.action === "pending_accounts") {
+      const page = body.page ?? 1;
+      if (!Number.isInteger(page) || page < 1 || page > 100000) return reply({ error: "invalid_request" }, 400);
+      const result = await db.rpc("avanca_admin_pending_accounts", { p_actor: user.id, p_page: page });
+      if (result.error) throw new Error("database_error");
+      return reply(result.data);
+    }
+    if (body.action === "approve_account") {
+      if (typeof body.user_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.user_id) || !["approved", "rejected"].includes(body.status)) return reply({ error: "invalid_approval" }, 400);
+      const result = await db.rpc("avanca_admin_review_account", { p_actor: user.id, p_target: body.user_id, p_status: body.status });
+      if (result.error) {
+        if (result.error.message === "user_not_found") return reply({ error: "user_not_found" }, 404);
+        if (result.error.message === "account_not_pending") return reply({ error: "account_not_pending" }, 409);
+        throw new Error("database_error");
+      }
+      return reply({ ok: true });
+    }
     if (body.action === "users") {
       const search = body.search ?? "", page = body.page ?? 1;
       if (typeof search !== "string" || search.length > 100 || !Number.isInteger(page) || page < 1 || page > 100000) return reply({ error: "invalid_request" }, 400);

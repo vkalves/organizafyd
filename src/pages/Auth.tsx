@@ -42,7 +42,7 @@ const Auth = () => {
       } else if (mode === "signup") {
         const { error } = await signUp(email, password, displayName);
         if (error) toast.error(error.message);
-        else toast.success("Conta criada! Verifique seu email para confirmar.");
+        else toast.success("Conta criada! Confirme seu e-mail e aguarde a aprovação da administração.");
       } else {
         const { error } = await resetPassword(email);
         if (error) toast.error(error.message);

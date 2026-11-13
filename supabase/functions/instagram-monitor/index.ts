@@ -1,6 +1,8 @@
+import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2.98.0';
 import { classify, transition, type HealthState } from './health.ts';
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+requireApprovedAccount(db);
 const origins = new Set(['https://organizafyd.vercel.app', 'https://organizafy.site', 'https://www.organizafy.site', 'https://xn--avana-1ra.online', 'https://www.xn--avana-1ra.online']);
 function checked<T>({ data, error }: { data: T; error: unknown }): T { if (error) throw new Error('database_error'); return data; }
 async function check(row: { account_id: string; state: HealthState; candidate: HealthState; failures: number; lease: string }) {

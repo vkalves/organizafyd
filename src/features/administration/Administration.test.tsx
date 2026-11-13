@@ -6,10 +6,10 @@ import Administration from "./Administration";
 const mocks = vi.hoisted(() => ({ request: vi.fn(), access: vi.fn() }));
 vi.mock("./api", () => ({ adminRequest: mocks.request, useAdministrationAccess: mocks.access }));
 function mount() { return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})}><MemoryRouter><Administration /></MemoryRouter></QueryClientProvider>); }
-const managed={id:"fixture-user",email:"user@example.test",display_name:"Pessoa de teste",connected_accounts:2,max_accounts:3,connection_allowed:true,is_admin:false,created_at:"",updated_at:null,storage_limit_bytes:1024**3,storage_used_bytes:100*1024**2};
+const managed={account_status:"approved",id:"fixture-user",email:"user@example.test",display_name:"Pessoa de teste",connected_accounts:2,max_accounts:3,connection_allowed:true,is_admin:false,created_at:"",updated_at:null,storage_limit_bytes:1024**3,storage_used_bytes:100*1024**2};
 beforeEach(() => {
   mocks.access.mockReturnValue({data:{is_admin:true},isPending:false,isError:false});
-  mocks.request.mockImplementation(async action => action === "users" ? {users:[managed],total:1,summary:{users:4,accounts:7,blocked:1}} : {ok:true});
+  mocks.request.mockImplementation(async action => action === "users" ? {users:[managed],total:1,summary:{users:4,accounts:7,blocked:1}} : action === "pending_accounts" ? {users:[],total:0} : {ok:true});
 });
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 describe("administrative permissions panel",()=>{
@@ -58,7 +58,7 @@ describe("administrative permissions panel",()=>{
   });
   it("displays fetch failures instead of fabricated zero totals",async()=>{
     mocks.request.mockRejectedValue(new Error("Falha ao consultar permissões"));mount();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao consultar permissões");
+    expect((await screen.findAllByRole("alert"))[0]).toHaveTextContent("Falha ao consultar permissões");
     expect(screen.queryByText("Contas conectadas")).not.toBeInTheDocument();
   });
   it("searches by the submitted name or email",async()=>{

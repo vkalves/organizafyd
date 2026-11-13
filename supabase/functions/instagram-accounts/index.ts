@@ -1,6 +1,8 @@
+import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { accountHandler, type AccountRepository } from "./handler.ts";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+requireApprovedAccount(db);
 function checked<T>({ data, error }: { data: T; error: { message: string } | null }): T {
   if (error) throw new Error(["account_busy", "account_not_found"].includes(error.message) ? error.message : "request_failed");
   return data;

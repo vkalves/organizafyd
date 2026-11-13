@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface UserAccess {
+  account_status: "pending" | "approved" | "rejected";
   is_admin: boolean;
   connected_accounts: number;
   connection_allowed: boolean;
@@ -23,6 +24,8 @@ export interface UserDirectory {
   summary: { users: number; accounts: number; blocked: number };
 }
 const messages: Record<string, string> = {
+  account_not_pending: "Este cadastro já foi analisado. Atualize a lista.",
+  invalid_approval: "Escolha aprovar ou rejeitar a conta.",
   unauthorized: "Entre novamente para continuar.",
   forbidden: "Esta área é exclusiva de administradores.",
   invalid_limit: "Informe um limite inteiro entre 0 e 10.000 ou escolha Sem limite.",
@@ -46,7 +49,8 @@ export function useAdministrationAccess() {
     queryKey: ["avanca-access", user?.id],
     queryFn: () => adminRequest<UserAccess>("access"),
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
     retry: false,
   });
 }
