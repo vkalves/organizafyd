@@ -1,3 +1,4 @@
+import { readPages } from "../../../supabase/functions/instagram-publisher/queue";
 import { storage } from '@/lib/storage';
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,12 +107,12 @@ function getDeletedFlowIdsSet(userId: string, prefs?: Prefs | null): Set<string>
 
 export async function loadFlowData(userId: string) {
   const [media, prefs, flows, report] = await Promise.all([
-    db
-      .from("ig_flow_library")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("retired", false)
-      .order("created_at"),
+    readPages<Media>(async (from,to) => {
+      const result = await db.from("ig_flow_library").select("*").eq("user_id",userId)
+        .eq("retired",false).order("created_at").order("id").range(from,to);
+      if(result.error) throw new Error("Não foi possível carregar a biblioteca.");
+      return result.data as Media[];
+    }),
     db
       .from("ig_flow_preferences")
       .select("*")
@@ -124,7 +125,7 @@ export async function loadFlowData(userId: string) {
       .limit(100),
     publisherRequest<CampaignReport>("campaign_report").catch(() => null),
   ]);
-  if (media.error || prefs.error || flows.error)
+  if (prefs.error || flows.error)
     throw new Error("Não foi possível carregar os Fluxos. Tente atualizar.");
   const loadedPrefs = (prefs.data as unknown as Prefs | null) ?? {
     user_id: userId,
@@ -145,7 +146,7 @@ export async function loadFlowData(userId: string) {
       }
     : null;
   return {
-    media: media.data as unknown as Media[],
+    media,
     prefs: loadedPrefs,
     flows: visibleFlows,
     report: filteredReport,

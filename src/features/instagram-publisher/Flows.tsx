@@ -2315,7 +2315,6 @@ export default function Flows({
                   busy ||
                   !picked.length ||
                   !available.length ||
-                  total > 500 ||
                   (scheduleMode === "gap"
                     ? gap * unit < 3 || !Number.isFinite(gap * unit)
                     : slotPreview.length === 0) ||
@@ -2337,12 +2336,6 @@ export default function Flows({
                       ? "Criar e agendar fluxo"
                       : "Criar fluxo e iniciar"}
               </Button>
-
-              {total > 500 && (
-                <p role="alert" className="text-xs text-destructive">
-                  Divida o lote em fluxos com até 500 publicações.
-                </p>
-              )}
             </div>
           </section>
         </div>

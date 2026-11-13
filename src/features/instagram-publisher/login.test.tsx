@@ -16,7 +16,7 @@ describe('Instagram authorization return',()=>{
  });
  it('does not exchange a callback without the browser verifier',async()=>{
  window.location.hash='code=secret-code&state=state1';render(<InstagramConnect/>);
- expect(await screen.findByRole('alert')).toHaveTextContent('mesmo navegador');expect(loginRequest).not.toHaveBeenCalled();expect(window.location.hash).toBe('');
+ expect(await screen.findByRole('alert')).toHaveTextContent('navegador em que você o abriu');expect(loginRequest).not.toHaveBeenCalled();expect(window.location.hash).toBe('');
  });
  it('consumes browser verifier and sends it only in the exchange request',async()=>{
  window.location.hash='code=secret-code&state=state1';sessionStorage.setItem('ig-login:state1','verifier');vi.mocked(loginRequest).mockResolvedValue({username:'client'});
