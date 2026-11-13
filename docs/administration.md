@@ -18,6 +18,9 @@ O bloqueio é aplicado pela interface, por políticas RLS restritivas nas tabela
 
 Os testes locais cobrem criação pendente, preservação de contas existentes, RLS, tentativa de autoaprovação, auditoria, decisões conflitantes, autenticação do servidor e estados da interface. A verificação no Chromium usa sessões e respostas simuladas, sem cadastrar ou aprovar contas reais.
 
+**Publicação verificada:** a migração foi aplicada em produção como `20261113003551_account_approval.sql`; o nome local acompanha o histórico remoto. As oito funções já existentes foram atualizadas com a aprovação (Google Agenda ainda não estava publicado nesse projeto). A interface foi publicada pela integração Git da Vercel. As nove contas anteriores mantiveram acesso. O fluxo de criação pendente, rejeição, aprovação e auditoria foi validado em uma transação revertida, sem deixar conta de teste nem alterar usuários reais. O endpoint administrativo rejeitou acesso sem sessão; o navegador confirmou a nova interface de aprovação no pacote publicado e o redirecionamento de visitantes para o login.
+
+
 A área `/avanca/admin` permite procurar usuários cadastrados por nome/e-mail, ver as contas vinculadas e salvar permissões individuais:
 
 - **Permitir novas conexões** libera ou bloqueia novos vínculos.

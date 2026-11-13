@@ -26,7 +26,7 @@ beforeAll(async () => {
   await db.exec(readFileSync(new URL("../../../supabase/migrations/20261112223428_administration_and_instagram_account_limits.sql", import.meta.url), "utf8"));
   await query("insert into auth.users(id) values($1),($2)", [admin, existing]);
   await query("insert into public.avanca_admins(user_id) values($1)", [admin]);
-  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261113001901_account_approval.sql", import.meta.url), "utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20261113003551_account_approval.sql", import.meta.url), "utf8"));
   await query("insert into auth.users(id,email) values($1,'new@example.test')", [pending]);
 }, 30000);
 afterAll(async () => { await db?.close(); });
