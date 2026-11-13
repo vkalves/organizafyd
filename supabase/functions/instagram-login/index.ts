@@ -2,6 +2,7 @@ import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { connectionSiteOrigin, integrationOrigins } from "../_shared/integration-origins.ts";
 import { instagramAuthorizeUrl, instagramGrant } from "./instagram.ts";
 import { selectConnectionApp } from "./connection-option.ts";
+import { upgradeLegacySelection, type LegacySelectionStore } from "./legacy-selection.ts";
 import { assertExpectedIdentity, completedResult, digest, expectedIdentity, hex, openGrant, publicRecovery, sealGrant, type RecoveryRow } from "./recovery.ts";
 import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
@@ -29,14 +30,36 @@ function checked({ data, error }: any) {
   return data;
 }
 const recoveryColumns = "state_hash,verifier_hash,user_id,meta_app_id,expires_at,pending_grant,expected_username,expected_graph_id,operation_status,operation_updated_at,operation_result,selection_hash,selected_graph_id";
+const legacySelectionStore: LegacySelectionStore = {
+  async findLegacy(hash, proof, now) {
+    return checked(await db.from("ig_login_states").select(recoveryColumns)
+      .eq("state_hash", hash).eq("verifier_hash", proof).eq("operation_status", "pending")
+      .is("selection_hash", null).not("pending_grant", "is", null).gt("expires_at", now).maybeSingle());
+  },
+  async upgrade(previous, next) {
+    // Compare ciphertext inside PostgreSQL: a large grant must not become a URL filter.
+    const rows = checked(await db.rpc("ig_upgrade_legacy_selection", {
+      p_state: previous.state_hash, p_proof: previous.verifier_hash,
+      p_previous_grant: previous.pending_grant, p_pending_grant: next.pending_grant,
+      p_app: next.meta_app_id, p_result: next.operation_result,
+    })) as RecoveryRow[];
+    return rows.length === 1 ? rows[0] : null;
+  },
+  async findCurrent(hash, proof, now) {
+    return checked(await db.from("ig_login_states").select(recoveryColumns)
+      .eq("selection_hash", hash).eq("verifier_hash", proof).gt("expires_at", now).maybeSingle());
+  },
+};
 async function recoveryRow(state: unknown, selection: unknown, verifier: unknown): Promise<RecoveryRow> {
   if(typeof verifier!=="string"||!/^[a-f0-9]{64}$/.test(verifier))throw new Error("invalid_state");
   const isSelection=typeof selection==="string"&&/^[a-f0-9]{64}$/.test(selection);
   if(!isSelection&&(typeof state!=="string"||state.length<1||state.length>100))throw new Error("invalid_state");
   const value=isSelection?await digest("selection:"+selection):await digest(state as string);
-  const row=checked(await db.from("ig_login_states").select(recoveryColumns)
+  let row=checked(await db.from("ig_login_states").select(recoveryColumns)
     .eq(isSelection?"selection_hash":"state_hash",value).eq("verifier_hash",await digest(verifier))
     .gt("expires_at",new Date().toISOString()).maybeSingle()) as RecoveryRow|null;
+  if (!row && isSelection) row = await upgradeLegacySelection(selection as string, verifier,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, legacySelectionStore);
   if(!row)throw new Error(isSelection?"invalid_selection":"invalid_state");
   return row;
 }
