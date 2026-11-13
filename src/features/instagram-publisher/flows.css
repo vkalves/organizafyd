@@ -1008,5 +1008,5 @@
 .ig-media-select-all input { width: 15px; height: 15px; margin: 0; accent-color: hsl(var(--foreground)); }
 .ig-media-select-all input:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .ig-media-selection-count { color: hsl(var(--muted-foreground)); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
-.ig-media-selection-actions { display: flex; align-items: center; gap: 4px; }
+.ig-media-selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 @media (max-width: 480px) { .ig-media-selection { gap: 6px 10px; } .ig-media-selection-actions { justify-content: flex-end; width: 100%; } }

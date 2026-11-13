@@ -25,6 +25,8 @@ O endpoint `instagram-reel-import` exige JWT válido e conta aprovada. URLs de e
 
 ## Limpeza e armazenamento
 
+Na biblioteca do Modo Fluxo, selecione mídias individualmente ou use **Selecionar todas** na pasta aberta e clique em **Excluir selecionadas**. A confirmação informa quantos arquivos serão removidos permanentemente. A exclusão verifica cada item e preserva mídias em uso em fluxos, postagens ou rascunhos. Falhas não interrompem o restante do lote; os itens que não foram excluídos permanecem na biblioteca e selecionados para tentar novamente. O botão **Limpar seleção** apenas desmarca os itens.
+
 A biblioteca recebe arquivos por seleção múltipla ou arrastar e soltar. É possível adicionar outras mídias enquanto a fila está trabalhando, sem esperar terminar a seleção anterior. Cada mídia conserva a pasta e o tipo escolhidos ao entrar na fila. A limpeza e o envio avançam um arquivo por vez, em ordem de entrada; uma falha fica visível e não impede os próximos arquivos. A lista mostra os arquivos aguardando, em processamento e concluídos. Mantenha a tela aberta para acompanhar a fila; ela não é persistida após recarregar a página.
 
 `uploadMedia` sempre chama a limpeza antes de Storage, inclusive para capas e para o compositor individual. Fotos são decodificadas, orientadas e reconstruídas em JPEG; vídeos são recodificados com FFmpeg, sem tags, capítulos e faixas auxiliares, seguidos de uma segunda limpeza estrutural. O arquivo recebe nome neutro e data zero. Se o processamento falhar, o original não é enviado. Formato, codec e dimensões necessários à reprodução continuam presentes.

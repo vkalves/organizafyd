@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   sync: vi.fn(),
   importReel: vi.fn(),
+  deleteMedia: vi.fn(),
 }));
 vi.mock("./reel-import", async () => {
   const { parseReelUrl } = await import("../../../supabase/functions/instagram-reel-import/url");
@@ -28,7 +29,7 @@ vi.mock("./flows-api", () => ({
   addMedia: mocks.add,
   setMedia: mocks.setMedia,
   previewMedia: vi.fn().mockResolvedValue(null),
-  deleteMedia: vi.fn().mockResolvedValue(undefined),
+  deleteMedia: mocks.deleteMedia,
   cancelFlow: mocks.cancel,
   controlFlow: mocks.control,
   deleteFlow: mocks.remove,
@@ -79,6 +80,7 @@ describe("Fluxos interface", () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.deleteMedia.mockReset().mockResolvedValue(undefined);
     mocks.load.mockResolvedValue({
       media: [media],
       prefs: { user_id: "u", folders: [], captions: [] },
@@ -279,6 +281,61 @@ describe("Fluxos interface", () => {
     fireEvent.click(within(actions).getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
     fireEvent.click(within(actions).getByRole("button", { name: "Limpar seleção" }));
     expect(screen.getByRole("checkbox", { name: "Foto 1" })).not.toBeChecked();
+  });
+
+  it("exclui somente as mídias selecionadas e permite cancelar antes de apagar", async () => {
+    let library = [media, { ...media, id: "m2", url: "storage://u/b.jpg" }, { ...media, id: "m3", url: "storage://u/story.jpg", kind: "stories" }];
+    mocks.load.mockImplementation(async () => ({ media: library, prefs: { user_id: "u", folders: [], captions: [] }, flows: [], report: { flows: [], usage: [] } }));
+    mocks.deleteMedia.mockImplementation(async id => { library = library.filter(item => item.id !== id); });
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    expect(screen.queryByRole("button", { name: "Excluir selecionadas" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir selecionadas" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Excluir 2 mídias selecionadas?" })).toBeInTheDocument();
+    expect(mocks.deleteMedia).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(mocks.deleteMedia).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Excluir selecionadas" }));
+    dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Excluir mídias selecionadas" }));
+    await waitFor(() => expect(mocks.deleteMedia).toHaveBeenCalledTimes(2));
+    expect(mocks.deleteMedia).toHaveBeenNthCalledWith(1, "m", media.url, "u");
+    expect(mocks.deleteMedia).toHaveBeenNthCalledWith(2, "m2", "storage://u/b.jpg", "u");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Excluir selecionadas" })).not.toBeInTheDocument();
+    expect(library.map(item => item.id)).toEqual(["m3"]);
+  });
+
+  it("continua o lote após uma mídia em uso e mantém a falha selecionada para tentar novamente", async () => {
+    let library = [media, { ...media, id: "m2", url: "storage://u/b.jpg" }];
+    mocks.load.mockImplementation(async () => ({ media: library, prefs: { user_id: "u", folders: [], captions: [] }, flows: [], report: { flows: [], usage: [] } }));
+    mocks.deleteMedia.mockRejectedValueOnce(new Error("Mídia em uso em um fluxo ativo."))
+      .mockImplementation(async id => { library = library.filter(item => item.id !== id); });
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir selecionadas" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir mídias selecionadas" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.deleteMedia).toHaveBeenCalledTimes(2);
+    expect(library.map(item => item.id)).toEqual(["m"]);
+    expect(screen.getByRole("checkbox", { name: "Foto 1" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Excluir selecionadas" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir mídia" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.deleteMedia).toHaveBeenLastCalledWith("m", media.url, "u");
+    expect(library).toEqual([]);
+  });
+
+  it("mantém a exclusão individual com confirmação", async () => {
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("button", { name: "Excluir foto 1" }));
+    expect(mocks.deleteMedia).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir mídia" }));
+    await waitFor(() => expect(mocks.deleteMedia).toHaveBeenCalledWith("m", media.url, "u"));
   });
 
   it("separa a gestão de campanhas e permite reutilizar, cancelar e apagar fluxos", async () => {
