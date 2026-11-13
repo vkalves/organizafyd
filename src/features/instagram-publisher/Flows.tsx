@@ -1,3 +1,4 @@
+import { importReelFile, parseReelUrl } from "./reel-import";
 import { LocalMediaPreviews } from "./LocalMediaPreviews";
 import { MediaPreview } from "./MediaPreview";
 import {
@@ -19,6 +20,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Upload,
+  Link2,
   RefreshCw,
   Eye,
   Plus,
@@ -63,6 +65,8 @@ import {
 } from "../../../supabase/functions/instagram-publisher/schedule";
 import { playConfirmation, unlockAudio } from "./sound";
 import "./flows.css";
+
+type UploadSource = { file: File; reelUrl?: never } | { file?: never; reelUrl: string };
 
 type WorkspaceTab = "composer" | "campaigns";
 type CampaignFilter = "all" | "active" | "paused" | "done";
@@ -116,6 +120,9 @@ export default function Flows({
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const [chosenFiles, setChosenFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [reelImportOpen, setReelImportOpen] = useState(false);
+  const [reelUrl, setReelUrl] = useState("");
+  const [reelError, setReelError] = useState("");
   const [kind, setKind] = useState<"posts" | "stories">("posts");
   const [selected, setSelected] = useState<string[]>([]);
   const [folder, setFolder] = useState("*");
@@ -172,13 +179,13 @@ export default function Flows({
   const [progress, setProgress] = useState("");
   const submitting = useRef(false);
   const uploading = useRef(false);
-  const pendingUploads = useRef<{
-    file: File;
+  const pendingUploads = useRef<(UploadSource & {
+    name: string;
     userId: string;
     kind: Media["kind"];
     folder: string;
     index: number;
-  }[]>([]);
+  })[]>([]);
   const nextUploadIndex = useRef(0);
   const [uploadInProgress, setUploadInProgress] = useState(false);
   const [flowId, setFlowId] = useState(() => crypto.randomUUID());
@@ -331,23 +338,25 @@ export default function Flows({
     });
   }
 
-  async function upload(files: File[], target: Media["kind"] = kind) {
-    if (!user || !files.length || submitting.current) return;
+  async function upload(files: File[], target: Media["kind"] = kind, sourceUrl?: string) {
+    if (!user || (!files.length && !sourceUrl) || submitting.current) return;
     if (target === "cover" && (files.length !== 1 || !files[0].type.startsWith("image/"))) {
       toast.error("Escolha uma imagem JPG ou PNG para a capa.");
       return;
     }
-    const jobs = files.map(file => ({
-      file,
+    const sources: UploadSource[] = sourceUrl ? [{ reelUrl: sourceUrl }] : files.map(file => ({ file }));
+    const jobs = sources.map(source => ({
+      ...source,
+      name: source.file?.name ?? `Reel ${parseReelUrl(source.reelUrl).shortcode}`,
       userId: user.id,
       kind: target,
       folder: folder === "*" ? "" : folder,
       index: nextUploadIndex.current++,
     }));
     pendingUploads.current.push(...jobs);
-    setChosenFiles(previous => [...previous, ...files]);
+    if (files.length) setChosenFiles(previous => [...previous, ...files]);
     setUploadItems(previous => [...previous, ...jobs.map(job => ({
-      index: job.index, name: job.file.name, status: "pending" as const, message: "Na fila",
+      index: job.index, name: job.name, status: "pending" as const, message: "Na fila",
     }))]);
     unlockAudio();
     // New selections append to the same queue while the current file is running.
@@ -360,8 +369,13 @@ export default function Flows({
       while (pendingUploads.current.length) {
         const job = pendingUploads.current.shift()!;
         try {
+          if (job.reelUrl) {
+            setUploadItems(previous => previous.map(entry => entry.index === job.index
+              ? { ...entry, status: "processing", message: "Baixando Reel do Instagram…" } : entry));
+          }
+          const file = job.file ?? await importReelFile(job.reelUrl!);
           const result = await addMedia(
-            [job.file], job.userId, job.kind, job.folder, setProgress,
+            [file], job.userId, job.kind, job.folder, setProgress,
             {
               onItem: item => setUploadItems(previous => previous.map(entry =>
                 entry.index === job.index ? { ...item, index: job.index } : entry,
@@ -385,7 +399,7 @@ export default function Flows({
             ? { ...entry, status: "error", message } : entry));
         } finally {
           // Release previews as each file leaves the queue instead of holding the whole batch.
-          setChosenFiles(previous => previous.slice(1));
+          if (job.file) setChosenFiles(previous => previous.slice(1));
         }
       }
       if (savedCount) toast.success(`${savedCount} mídia(s) pronta(s) para publicar.`);
@@ -1163,6 +1177,32 @@ export default function Flows({
                 </div>
               </div>
             </label>
+
+            <Button type="button" size="sm" variant="ghost" className="h-8 justify-start gap-2 text-xs text-muted-foreground" disabled={busy} onClick={() => { setReelError(""); setReelImportOpen(true); }}>
+              <Link2 size={14} aria-hidden="true" /> Importar Reel por link
+            </Button>
+            <Dialog open={reelImportOpen} onOpenChange={setReelImportOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Importar Reel do Instagram</DialogTitle>
+                  <DialogDescription>Cole o link de um Reel público. O vídeo entra na fila para baixar, limpar os metadados e salvar nesta biblioteca.</DialogDescription>
+                </DialogHeader>
+                <form className="space-y-3" onSubmit={event => {
+                  event.preventDefault();
+                  try {
+                    const reel = parseReelUrl(reelUrl);
+                    void upload([], kind, reel.url);
+                    setReelImportOpen(false); setReelUrl(""); setReelError("");
+                  } catch { setReelError("Cole um link válido de Reel do Instagram."); }
+                }}>
+                  <Label htmlFor="reel-import-url">Link do Reel</Label>
+                  <Input id="reel-import-url" type="url" required maxLength={2048} placeholder="https://www.instagram.com/reel/…" value={reelUrl} onChange={event => { setReelUrl(event.target.value); setReelError(""); }} aria-describedby="reel-import-note" />
+                  <p id="reel-import-note" className="text-xs text-muted-foreground">Até 100 MB. Reels privados, bloqueados ou indisponíveis não podem ser importados.</p>
+                  {reelError && <p role="alert" className="text-sm text-destructive">{reelError}</p>}
+                  <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setReelImportOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !reelUrl.trim()}>Adicionar à fila</Button></div>
+                </form>
+              </DialogContent>
+            </Dialog>
 
             <Dialog open={addingFolder} onOpenChange={setAddingFolder}>
               <DialogContent className="max-w-xs border-white/10 bg-[#12131a] text-white">

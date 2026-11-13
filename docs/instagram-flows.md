@@ -13,7 +13,15 @@ A dashboard principal (`/`) contém os indicadores, ranking e próxima publicaç
 - A transação `ig_create_flow` cria fluxo e jobs juntos, verifica contas e biblioteca e permite repetir o mesmo ID sem duplicar o lote.
 - Cancelar pendentes não interrompe um envio que já começou. Falhas e resultados incertos continuam visíveis na fila.
 
-## Privacidade
+## Importar Reel por link
+
+O botão **Importar Reel por link** abre um campo para uma URL pública de Reel do Instagram. Ao adicionar, o link entra na mesma fila de arquivos. O servidor baixa o vídeo, o navegador aplica a limpeza de metadados existente e somente o arquivo limpo é enviado ao armazenamento e registrado na biblioteca, na pasta selecionada. Importar não publica o vídeo no Instagram nem cria uma campanha.
+
+A importação aceita Reels públicos de perfis não conectados ao site. Não usa senha, cookies de conta ou credenciais da Meta do cliente. Conteúdo privado, restrito, removido, indisponível ou acima de 100 MB gera erro por item, sem interromper os próximos. A consulta usa a resposta pública do site do Instagram e pode parar de funcionar se o Instagram mudar seus endpoints ou limitar o acesso; o envio de arquivo continua disponível. Links copiados com parâmetros de rastreamento são normalizados.
+
+O endpoint `instagram-reel-import` exige JWT válido e conta aprovada. URLs de entrada ficam restritas ao formato de Reel nos domínios do Instagram; arquivos e redirecionamentos só podem vir por HTTPS dos CDNs da Meta. O download tem limite de tamanho e tempo, não retorna URLs de CDN ou dados de sessão ao navegador e não salva o original. Publicar a função antes da interface, mantendo a validação interna de autenticação e `verify_jwt = false`.
+
+## Limpeza e armazenamento
 
 A biblioteca recebe arquivos por seleção múltipla ou arrastar e soltar. É possível adicionar outras mídias enquanto a fila está trabalhando, sem esperar terminar a seleção anterior. Cada mídia conserva a pasta e o tipo escolhidos ao entrar na fila. A limpeza e o envio avançam um arquivo por vez, em ordem de entrada; uma falha fica visível e não impede os próximos arquivos. A lista mostra os arquivos aguardando, em processamento e concluídos. Mantenha a tela aberta para acompanhar a fila; ela não é persistida após recarregar a página.
 

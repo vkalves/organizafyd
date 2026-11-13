@@ -11,7 +11,12 @@ const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   remove: vi.fn(),
   sync: vi.fn(),
+  importReel: vi.fn(),
 }));
+vi.mock("./reel-import", async () => {
+  const { parseReelUrl } = await import("../../../supabase/functions/instagram-reel-import/url");
+  return { parseReelUrl, importReelFile: mocks.importReel };
+});
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u" } }),
 }));
@@ -237,6 +242,25 @@ describe("Fluxos interface", () => {
     await waitFor(() => {
       expect(mocks.setMedia).toHaveBeenCalledWith("m", { folder: "Ofertas" });
     });
+  });
+  it("valida o link do Reel e encaminha o vídeo baixado pela mesma fila de limpeza", async () => {
+    const file = new File(["downloaded"], "reel.mp4", { type: "video/mp4" });
+    mocks.importReel.mockResolvedValue(file);
+    mocks.add.mockImplementation(async (files, _user, _kind, _folder, _progress, callbacks) => {
+      callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
+      return { ids: ["imported"], errors: [] };
+    });
+    show(); await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    fireEvent.click(screen.getByRole("button", { name: "Importar Reel por link" }));
+    const input = await screen.findByLabelText("Link do Reel");
+    fireEvent.change(input, { target: { value: "https://other.example/reel/abcdef/" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cole um link válido"); expect(mocks.importReel).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: "https://www.instagram.com/reel/DY2PcmxiBE2/?igsh=tracking" } });
+    fireEvent.submit(input.closest("form")!);
+    await waitFor(() => expect(mocks.importReel).toHaveBeenCalledWith("https://www.instagram.com/reel/DY2PcmxiBE2/"));
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledWith([file], "u", "posts", "", expect.any(Function), expect.any(Object)));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
   it("mostra ações de pasta só após selecionar mídias e move pela pasta escolhida", async () => {
     mocks.setMedia.mockResolvedValue(undefined);

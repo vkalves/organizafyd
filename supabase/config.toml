@@ -1,5 +1,9 @@
 project_id = "csaplfphtvufxjhbpstl"
 
+# Import validates the user's JWT and approval before fetching public Instagram media.
+[functions.instagram-reel-import]
+verify_jwt = false
+
 # All actions validate the user's JWT internally; administration is checked server-side.
 [functions.app-admin]
 verify_jwt = false
