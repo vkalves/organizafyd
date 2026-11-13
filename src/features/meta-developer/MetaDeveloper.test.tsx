@@ -14,13 +14,13 @@ beforeEach(() => {
  vi.clearAllMocks(); mocks.request.mockResolvedValue({ apps: [app], ready: true, callback });
  mocks.browser.mockImplementation(async fn => { await fn(); return "popup"; });
 });
-it("matches the reference layout with private apps, optional Config ID, real counts and callbacks", async () => {
+it("matches the reference layout with private apps, required Config ID, real counts and callbacks", async () => {
  show(); await screen.findByText("App ID:");
  expect(screen.getByRole("heading", { name: "Apps Meta Developer" })).toBeVisible();
  expect(screen.getByRole("button", { name: "Adicionar app Meta" })).toBeVisible();
  expect(screen.getByText("3 contas")).toBeVisible();
  expect(screen.getByLabelText("Callback do Instagram Login")).toHaveValue(callback);
- expect(screen.getByLabelText(/Config ID/)).not.toBeRequired();
+ expect(screen.getByLabelText(/Config ID/)).toBeRequired();
  expect(screen.getByText("instagram_basic")).toBeVisible();
 });
 it("connects using the selected app and updates permissions for unified login", async () => {
@@ -41,6 +41,7 @@ it("uses server state for toggles and offers editing", async () => {
  expect(mocks.request).toHaveBeenCalledWith("toggle_app", { id: app.id });
  fireEvent.click(screen.getByRole("button", { name: "Editar Config ID" }));
  expect(screen.getByRole("heading", { name: "Editar Instagram 01" })).toBeVisible();
+ expect(screen.getByLabelText(/Config ID/)).toBeRequired();
 });
 it("requires explicit deletion and reports backend protection for linked accounts", async () => {
  show(); await screen.findByText("App ID:");

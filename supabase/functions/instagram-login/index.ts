@@ -126,6 +126,9 @@ Deno.serve(async (req) => {
       }
       const action = ({ save_app: "save", toggle_app: "toggle", delete_app: "delete" } as Record<string, string>)[b.action] || "list";
       if (b.id != null && (typeof b.id !== "string" || !UUID.test(b.id))) return reply({ error: "invalid_app_config" }, 400);
+      if (action === "save" && (typeof b.configId !== "string" || !/^[0-9]{5,40}$/.test(b.configId.trim()))) {
+        return reply({ error: "invalid_config_id" }, 400);
+      }
       const result = await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: action, p_values: b });
       if (result.error) {
         const code = result.error.code === "23505" ? "app_exists" : result.error.message;
