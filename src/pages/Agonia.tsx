@@ -1,3 +1,4 @@
+import { InsightsPermissionNotice } from "@/features/instagram-publisher/InsightsPermissionNotice";
 import { loginRequest } from "@/features/instagram-publisher/login";
 import type { MetaConfig } from "@/features/meta-developer/meta-apps";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
@@ -499,7 +500,7 @@ export default function Agonia() {
     return "Olá! Seu espaço está pronto.";
   }, [dashHour]);
 
-  const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews } = useInstagramAnalytics(user?.id, section === "dashboard", 60_000);
+  const { report: viewsReport, loadingMore: viewsLoadingMore, loadMore: loadMoreViews, refreshMetrics: refreshViews } = useInstagramAnalytics(user?.id, section === "dashboard", 60_000);
   const publishedToday = usePublishedReelsToday(user?.id, section === "dashboard", settings.timezone);
   const reels = useMemo(() => reelMetrics(accounts.map(a => a.id), viewsReport.data), [accounts, viewsReport.data]);
   const accountViewsMetrics = useMemo(() => {
@@ -955,7 +956,7 @@ export default function Agonia() {
             <div className="stat-card tone-purple">
               <span className="stat-icon"><Play className="h-4 w-4" /></span>
               <div className="label">Visualizações de Reels</div>
-              <div className="value" aria-label="Visualizações de Reels" title="Total acumulado dos Reels de todas as contas conectadas; atualizado a cada minuto">
+              <div className="value" aria-label="Visualizações de Reels" title="Total dos Reels consultados. Publicações recentes atualizadas a cada minuto; use Atualizar métricas para consultar o histórico.">
                 {viewsReport.isPending ? "…" : reels.views.value?.toLocaleString("pt-BR") ?? "—"}
               </div>
               <span className="col-span-2 text-xs text-muted-foreground">{viewsReport.isError ? "Falha ao atualizar" : viewsReport.isPending ? "Consultando Instagram…" : reels.views.value === null ? "Métrica indisponível" : reels.views.partial ? "Total parcial · consulta incompleta" : "Atualiza a cada minuto"}</span>
@@ -963,7 +964,7 @@ export default function Agonia() {
             <div className="stat-card tone-blue">
               <span className="stat-icon"><Heart className="h-4 w-4" /></span>
               <div className="label">Curtidas de Reels</div>
-              <div className="value" aria-label="Curtidas de Reels" title="Total acumulado dos Reels de todas as contas conectadas; atualizado a cada minuto">
+              <div className="value" aria-label="Curtidas de Reels" title="Total dos Reels consultados. Publicações recentes atualizadas a cada minuto; use Atualizar métricas para consultar o histórico.">
                 {viewsReport.isPending ? "…" : reels.likes.value?.toLocaleString("pt-BR") ?? "—"}
               </div>
               <span className="col-span-2 text-xs text-muted-foreground">{viewsReport.isError ? "Falha ao atualizar" : viewsReport.isPending ? "Consultando Instagram…" : reels.likes.value === null ? "Métrica indisponível" : reels.likes.partial ? "Total parcial · consulta incompleta" : "Atualiza a cada minuto"}</span>
@@ -987,6 +988,7 @@ export default function Agonia() {
 
           {/* 2. RANKING DE CONTAS POR VISUALIZAÇÃO TOTAL DE REELS */}
           <div className="dash-main-grid">
+          <InsightsPermissionNotice report={viewsReport.data} accounts={accounts} />
           <section className="panel performance-panel analytics-ranking">
             <div className="panel-header performance-header">
               <div>
@@ -1069,7 +1071,7 @@ export default function Agonia() {
             <details className="dash-ranking-tools">
               <summary>Filtros e métricas</summary>
             <div className="flex flex-wrap items-center gap-3 text-xs">
-              <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void viewsReport.refetch()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
+              <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void refreshViews()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
               {accountViewsMetrics.hasMore && <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore} onClick={() => void loadMoreViews()}>{viewsLoadingMore ? "Carregando vídeos…" : "Carregar mais vídeos"}</button>}
               <Link to="/avanca/visualizacoes" className="underline">Ver análise de visualizações</Link>
             </div>

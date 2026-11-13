@@ -150,3 +150,24 @@ nas páginas da Meta; isso exige uma nova autorização real pelo titular no cel
 ### Configuração pelo painel Meta Developer
 
 A aba agora permite cadastrar apps privados de cada usuário, com Instagram Login quando não há Config ID e Login Unificado quando há. Consulte [meta-developer.md](meta-developer.md) para a configuração atual, segurança, compatibilidade e publicação.
+
+## Visualizações e curtidas
+
+As métricas são consultadas por conta, com até três contas em paralelo. O backend
+usa a expansão `insights.metric(views,likes)` na leitura de mídias para obter uma
+página de métricas em uma chamada à Meta. Se a autorização de insights falhar,
+a consulta básica ainda retorna as curtidas disponíveis; visualizações ausentes
+continuam desconhecidas, sem serem convertidas em zero. A interface identifica
+as contas que precisam renovar a autorização, sem pausar suas publicações.
+
+A atualização automática consulta as publicações recentes e preserva as páginas
+já carregadas. **Atualizar métricas** consulta também o histórico, com no máximo
+dez páginas adicionais por conta; o cursor permite continuar por **Carregar mais
+vídeos**. Contas lentas ou indisponíveis não invalidam os resultados das outras.
+
+Na verificação de 13/11/2026, as 23 conexões usavam Facebook Login: uma concedia
+`instagram_manage_insights` e 22 não concediam essa permissão. A Meta retornou
+código 10 para insights de uma conexão sem autorização e retornou visualizações
+e curtidas para a conexão autorizada. A leitura básica de curtidas funcionou
+independentemente de insights. Renovar a autorização exige ação do responsável
+na Meta; o sistema não pode conceder essa permissão por conta própria.
