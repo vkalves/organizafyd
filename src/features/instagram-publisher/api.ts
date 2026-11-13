@@ -57,7 +57,7 @@ const messages: Record<string, string> = {
   invalid_flow_invite: "O código é inválido, expirou ou o fluxo não está ativo.",
   invalid_flow: "Revise os dados do fluxo.",
   invalid_accounts: "Selecione ao menos uma conta.",
-  flow_too_large: "Crie fluxos com até 500 publicações por vez.",
+  flow_too_large: "Não foi possível preparar este fluxo. Tente novamente.",
   invalid_caption: "Cada legenda deve ter até 2.200 caracteres.",
   invalid_media: "Selecione ao menos uma mídia da biblioteca.",
   use_instagram_login:

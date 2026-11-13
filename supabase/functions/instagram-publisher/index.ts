@@ -1,16 +1,23 @@
-import { librarySharing, type LibrarySharingDatabase } from "./library-sharing.ts";
+import {
+  librarySharing,
+  type LibrarySharingDatabase,
+} from "./library-sharing.ts";
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
-import { hybridStorage } from '../_shared/hybrid-storage.ts';
+import { hybridStorage } from "../_shared/hybrid-storage.ts";
 import { readVideoAnalytics } from "./analytics.ts";
 import { dayWindow } from "./day-window.ts";
 import { readSharedFlowProgress } from "./shared-flow-progress.ts";
-import { readPublishedReelsToday, type PublishedTodayReport } from "./published-today.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
-import { validate, mediaParams, type Draft } from "./model.ts";
-import { buildFlow, type FlowInput } from './flow.ts';
 import {
-  connectionInput,
+  type PublishedTodayReport,
+  readPublishedReelsToday,
+} from "./published-today.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { type Draft, mediaParams, validate } from "./model.ts";
+import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
+import { drainQueue, readPages, stageJobs } from "./queue.ts";
+import {
   checkProfile,
+  connectionInput,
   discoverProfiles,
 } from "./connection.ts";
 const db = createClient(
@@ -21,14 +28,23 @@ const db = createClient(
 requireApprovedAccount(db);
 const fileStorage = hybridStorage(db, Deno.env.get("SUPABASE_URL")!);
 const origins = new Set([
-  "https://www.organizafy.site", "https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online",
+  "https://www.organizafy.site",
+  "https://xn--avana-1ra.online",
+  "https://www.xn--avana-1ra.online",
   "https://organizafy.site",
 ]);
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
-  if (error && typeof error === "object" && "message" in error && [
-    "account_connection_disabled", "account_limit_reached", "invalid_flow_invite",
-    "campaign_not_active", "invalid_accounts", "account_not_connected", "flow_too_large",
-  ].includes(String(error.message))) throw new Error(String(error.message));
+  if (
+    error && typeof error === "object" && "message" in error && [
+      "account_connection_disabled",
+      "account_limit_reached",
+      "invalid_flow_invite",
+      "campaign_not_active",
+      "invalid_accounts",
+      "account_not_connected",
+      "flow_too_large",
+    ].includes(String(error.message))
+  ) throw new Error(String(error.message));
   if (error) throw new Error("database_error");
   return data;
 }
@@ -41,14 +57,17 @@ async function graph(
   provider = "facebook",
 ) {
   const url = new URL(
-    `https://${provider === "instagram" ? "graph.instagram.com" : "graph.facebook.com"}/${version}/${path}`,
+    `https://${
+      provider === "instagram" ? "graph.instagram.com" : "graph.facebook.com"
+    }/${version}/${path}`,
   );
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-  if (!post)
+  if (!post) {
     url.search = new URLSearchParams({
       ...params,
       access_token: token,
     }).toString();
+  }
   const res = await fetch(url, {
     method: post ? "POST" : "GET",
     headers,
@@ -58,8 +77,9 @@ async function graph(
     signal: AbortSignal.timeout(20000),
   });
   const data = await res.json();
-  if (!res.ok || data.error)
+  if (!res.ok || data.error) {
     throw new Error(`meta_${data.error?.code || res.status}`);
+  }
   return data;
 }
 async function credential(id: string) {
@@ -81,74 +101,172 @@ async function signed(value: string) {
       .from("instagram-publisher")
       .createSignedUrl(value.slice(10), 3600),
   );
+  if (
+    !data || typeof data !== "object" || !("signedUrl" in data) ||
+    typeof data.signedUrl !== "string"
+  ) throw new Error("storage_error");
   return data.signedUrl;
+}
+async function flowLibrary(user: string) {
+  return await readPages<LibraryMedia>(async (from, to) =>
+    checked(
+      await db.from("ig_flow_library")
+        .select("id,url,kind,caption,folder").eq("user_id", user).eq(
+          "retired",
+          false,
+        )
+        .order("id").range(from, to),
+    ) ?? []
+  );
+}
+async function flowUsed(user: string, urls: string[]) {
+  // Each request stays below URL/body and PostgREST row limits.
+  const rows: { account_id: string; url: string; flow_id: string }[] = [];
+  for (let offset = 0; offset < urls.length; offset += 200) {
+    rows.push(
+      ...await readPages<{ account_id: string; url: string; flow_id: string }>(
+        async (from, to) =>
+          checked(
+            await db.rpc("ig_flow_used", {
+              p_user: user,
+              p_urls: urls.slice(offset, offset + 200),
+            }).order("account_id").order("url").order("flow_id").range(
+              from,
+              to,
+            ),
+          ),
+      ),
+    );
+  }
+  return rows;
+}
+async function enqueuePlan(
+  user: string,
+  jobs: ReturnType<typeof buildFlowJobs>,
+  commit: (plan: { plan_id: string; batches: number }) => Promise<unknown>,
+) {
+  let planId: string | undefined;
+  try {
+    const plan = await stageJobs(jobs, async (batch) => {
+      planId = batch.plan_id;
+      checked(
+        await db.from("ig_flow_job_batches").insert({
+          ...batch,
+          user_id: user,
+        }),
+      );
+    });
+    return await commit(plan);
+  } finally {
+    // Expiry maintenance also catches interrupted isolates; cleanup errors do not
+    // turn a confirmed transaction into a client-visible failure.
+    if (planId) {
+      await db.from("ig_flow_job_batches").delete().eq("plan_id", planId).eq(
+        "user_id",
+        user,
+      );
+    }
+  }
 }
 async function advanceCampaigns() {
   const due = checked(await db.rpc("ig_campaign_due"));
   for (const flow of due) {
     try {
       const input = flow.settings as FlowInput;
-      const runtime = checked(await db.rpc("ig_flow_runtime", { p_user: flow.user_id, p_id: flow.id })) as {
-        available: string[]; excluded: { account_id: string; url: string }[];
+      const runtime = checked(
+        await db.rpc("ig_flow_runtime", {
+          p_user: flow.user_id,
+          p_id: flow.id,
+        }),
+      ) as {
+        available: string[];
+        excluded: { account_id: string; url: string }[];
       };
-      const library = checked(
-        await db
-          .from("ig_flow_library")
-          .select("id,url,kind,caption,folder")
-          .eq("user_id", flow.user_id)
-          .eq("retired", false),
-      );
+      const library = await flowLibrary(flow.user_id);
       const progress = checked(
         await db.rpc("ig_campaign_progress", {
           p_user: flow.user_id,
           p_id: flow.id,
         }),
       );
-      const used = checked(
-        await db.rpc("ig_flow_used", {
-          p_user: flow.user_id,
-          p_urls: library.map((m) => m.url),
-        }),
-      ).filter((row) => row.flow_id !== flow.id);
+      const used = (await flowUsed(flow.user_id, library.map((m) => m.url)))
+        .filter((row) => row.flow_id !== flow.id);
       const offsets: Record<string, number> = {},
         starts: Record<string, number> = {};
       const now = Date.now();
       for (const row of progress) {
         offsets[row.account_id] = Number(row.total);
-        const rest =
-          Number(row.total) > 0 &&
-          Number(row.total) % (input.batchSize || 500) === 0
-            ? (input.restMinutes || 0) * 60000
-            : 0;
-        const spacing =
-          input.schedule === "slots" ? 180_000 : input.gapMinutes * 60000;
+        const rest = Number(row.total) > 0 &&
+            Number(row.total) % (input.batchSize || 500) === 0
+          ? (input.restMinutes || 0) * 60000
+          : 0;
+        const spacing = input.schedule === "slots"
+          ? 180_000
+          : input.gapMinutes * 60000;
         starts[row.account_id] = Math.max(
           now + 60000,
           Date.parse(row.last_at) + spacing + rest,
         );
       }
-      const jobs = buildFlow(
+      const jobs = buildFlowJobs(
         { ...input, startAt: null },
         library,
         flow.user_id,
         now,
         Math.random,
-        { used, offsets, starts, disabledAccounts: input.accountIds.filter(id => !runtime.available.includes(id)), excluded: runtime.excluded },
+        {
+          used,
+          offsets,
+          starts,
+          disabledAccounts: input.accountIds.filter((id) =>
+            !runtime.available.includes(id)
+          ),
+          excluded: runtime.excluded,
+        },
       );
-      checked(
-        await db.rpc("ig_append_flow_cycle", {
-          p_user: flow.user_id,
-          p_id: flow.id,
-          p_cycle: flow.cycle,
-          p_jobs: jobs,
-        }),
+      await enqueuePlan(
+        flow.user_id,
+        jobs,
+        async (plan) =>
+          checked(
+            await db.rpc("ig_append_flow_cycle", {
+              p_user: flow.user_id,
+              p_id: flow.id,
+              p_cycle: flow.cycle,
+              p_jobs: plan,
+            }),
+          ),
       );
     } catch (error) {
+      const reason = error instanceof Error ? error.message : "network_error";
+      if (
+        ![
+          "no_unused_media",
+          "invalid_flow",
+          "invalid_accounts",
+          "invalid_media",
+          "invalid_media_owner",
+          "invalid_gap",
+          "invalid_schedule",
+          "invalid_campaign",
+          "invalid_caption",
+          "invalid_timezone",
+        ].includes(reason)
+      ) {
+        console.error("instagram_cycle_preparation_failed");
+        continue;
+      }
       // Preserve existing queued work; pause only an unchanged cycle.
       checked(
         await db
           .from("ig_flows")
-          .update({ state: "paused", last_error: error instanceof Error && error.message === "no_unused_media" ? "no_available_media" : "campaign_needs_review" })
+          .update({
+            state: "paused",
+            last_error:
+              error instanceof Error && error.message === "no_unused_media"
+                ? "no_available_media"
+                : "campaign_needs_review",
+          })
           .eq("id", flow.id)
           .eq("cycle", flow.cycle)
           .eq("state", "active"),
@@ -156,25 +274,49 @@ async function advanceCampaigns() {
     }
   }
 }
-async function worker() {
+async function maintenance() {
   await advanceCampaigns();
+  // Delete only abandoned preparation, never queued publications.
+  checked(
+    await db.from("ig_flow_job_batches").delete().lt(
+      "created_at",
+      new Date(Date.now() - 86400000).toISOString(),
+    ),
+  );
   // Cleanup failures never change the outcome of a confirmed publication.
   try {
-    checked(await db.rpc('ig_retire_flow_media'));
-    const retired = checked(await db.from('ig_flow_library').select('id,url').eq('retired',true).limit(100));
-    if (retired.length) {
-      checked(await fileStorage.from('instagram-publisher').remove(retired.map(m => m.url.slice(10))));
-      checked(await db.from('ig_flow_library').delete().in('id',retired.map(m => m.id)));
+    checked(await db.rpc("ig_retire_flow_media"));
+    const retired = checked(
+      await db.from("ig_flow_library").select("id,url").eq("retired", true)
+        .limit(100),
+    );
+    if (retired?.length) {
+      checked(
+        await fileStorage.from("instagram-publisher").remove(
+          retired.map((m) => m.url.slice(10)),
+        ),
+      );
+      checked(
+        await db.from("ig_flow_library").delete().in(
+          "id",
+          retired.map((m) => m.id),
+        ),
+      );
     }
   } catch { /* Retry cleanup on the next tick. */ }
+}
+async function processJob() {
   const lock = crypto.randomUUID();
   const job = checked(await db.rpc("ig_claim_job", { p_token: lock }))?.[0];
   if (!job) return { processed: 0 };
   let publishing = job.publish_started;
   async function update(values: Record<string, unknown>) {
     if (job.flow_id && values.status === "scheduled") {
-      const flow = checked(await db.from("ig_flows").select("state").eq("id",job.flow_id).single());
-      if(flow.state === "stopped") values.status="cancelled";
+      const flow = checked(
+        await db.from("ig_flows").select("state").eq("id", job.flow_id)
+          .single(),
+      );
+      if (flow?.state === "stopped") values.status = "cancelled";
     }
     const rows = checked(
       await db
@@ -185,7 +327,7 @@ async function worker() {
         .eq("status", "processing")
         .select("id"),
     );
-    if (!rows.length) throw new Error("lock_lost");
+    if (!rows?.length) throw new Error("lock_lost");
   }
   try {
     const { c, token } = await credential(job.account_id);
@@ -222,7 +364,9 @@ async function worker() {
         };
       } else {
         params = mediaParams(job.format, urls[0], job.media_urls[0]);
-        if (job.format === 'Reel' && job.cover_url) params.cover_url = await signed(job.cover_url);
+        if (job.format === "Reel" && job.cover_url) {
+          params.cover_url = await signed(job.cover_url);
+        }
         if (job.format !== "Story") params.caption = job.caption;
       }
       const created = await accountGraph(
@@ -242,14 +386,15 @@ async function worker() {
       if (job.attempts >= 30) throw new Error("media_processing_timeout");
       await update({
         status: "scheduled",
-        // The cron already limits checks to once a minute. Adding 60 seconds
-        // here skips the next tick when processing finishes after the boundary.
-        next_attempt_at: new Date().toISOString(),
+        // A batch worker can claim again during this tick; defer polling so one
+        // processing video cannot consume the whole batch or exhaust attempts.
+        next_attempt_at: new Date(Date.now() + 60_000).toISOString(),
       });
       return { processed: 1 };
     }
-    if (state.status_code !== "FINISHED")
+    if (state.status_code !== "FINISHED") {
       throw new Error("container_" + String(state.status_code));
+    }
     const current = checked(
       await db
         .from("ig_publisher_connections")
@@ -257,17 +402,29 @@ async function worker() {
         .eq("account_id", job.account_id)
         .single(),
     );
-    const campaign = job.flow_id ? checked(await db.from("ig_flows").select("state").eq("id",job.flow_id).single()) : null;
+    const campaign = job.flow_id
+      ? checked(
+        await db.from("ig_flows").select("state").eq("id", job.flow_id)
+          .single(),
+      )
+      : null;
     if (campaign && campaign.state !== "active") {
-      await update({status:campaign.state === "stopped" ? "cancelled" : "scheduled"});
-      return {processed:0};
+      await update({
+        status: campaign.state === "stopped" ? "cancelled" : "scheduled",
+      });
+      return { processed: 0 };
     }
-    if (current.paused || current.reconnect_required) {
+    if (!current || current.paused || current.reconnect_required) {
       await update({ status: "scheduled" });
       return { processed: 0 };
     }
     // Persist the publication boundary BEFORE calling Meta. Never retry after this point.
-    const canPublish = checked(await db.rpc("ig_begin_flow_publication", { p_job: job.id, p_lock: lock }));
+    const canPublish = checked(
+      await db.rpc("ig_begin_flow_publication", {
+        p_job: job.id,
+        p_lock: lock,
+      }),
+    );
     if (!canPublish) return { processed: 0 };
     publishing = true;
     const result = await accountGraph(
@@ -284,18 +441,45 @@ async function worker() {
       error_code: null,
     });
   } catch (err) {
-    const code =
-      err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
-        ? err.message
-        : "network_error";
-    if (["meta_190", "meta_10", "meta_200", "credential_missing"].includes(code))
+    const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
+      ? err.message
+      : "network_error";
+    if (
+      ["meta_190", "meta_10", "meta_200", "credential_missing"].includes(code)
+    ) {
       await db
         .from("ig_publisher_connections")
         .update({ reconnect_required: true })
         .eq("account_id", job.account_id);
+    }
+    const transient = !publishing && job.attempts < 30 &&
+      [
+        "network_error",
+        "database_error",
+        "meta_500",
+        "meta_502",
+        "meta_503",
+        "meta_504",
+        "meta_1",
+        "meta_2",
+        "meta_4",
+        "meta_17",
+        "meta_32",
+        "meta_613",
+        "meta_429",
+      ].includes(code);
     await update({
-      status: publishing ? "uncertain" : "failed",
+      status: publishing ? "uncertain" : transient ? "scheduled" : "failed",
       error_code: code,
+      ...(transient
+        ? {
+          next_attempt_at: new Date(
+            Date.now() +
+              Math.min(900_000, 30_000 * 2 ** Math.min(job.attempts, 5)) +
+              Math.floor(Math.random() * 10_000),
+          ).toISOString(),
+        }
+        : {}),
     });
   }
   return { processed: 1 };
@@ -317,16 +501,18 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers });
   if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
   try {
-    if (Number(req.headers.get("content-length") || 0) > 100000)
+    if (Number(req.headers.get("content-length") || 0) > 100000) {
       return reply({ error: "request_too_large" }, 413);
+    }
     const raw = await req.text();
     if (raw.length > 100000) return reply({ error: "request_too_large" }, 413);
     const body = JSON.parse(raw);
     if (body.action === "worker" || body.action === "health") {
       const key = checked(await db.rpc("ig_worker_key"));
       const supplied = req.headers.get("x-worker-secret");
-      if (!key || !supplied || supplied !== key)
+      if (!key || !supplied || supplied !== key) {
         return reply({ error: "unauthorized" }, 401);
+      }
       if (body.action === "health") {
         const c = checked(
           await db
@@ -335,7 +521,7 @@ Deno.serve(async (req) => {
             .eq("graph_id", body.graph_id)
             .single(),
         );
-        const { c: connection, token } = await credential(c.account_id);
+        const { c: connection, token } = await credential(c!.account_id);
         const profile = await graph(
           connection.graph_id,
           token,
@@ -350,7 +536,12 @@ Deno.serve(async (req) => {
           username: profile.username,
         });
       }
-      return reply(await worker());
+      try {
+        await maintenance();
+      } catch {
+        console.error("instagram_maintenance_failed");
+      }
+      return reply(await drainQueue(processJob));
     }
     const jwt = req.headers.get("authorization")?.replace(/^Bearer /i, "");
     if (!jwt) return reply({ error: "unauthorized" }, 401);
@@ -359,8 +550,25 @@ Deno.serve(async (req) => {
       error,
     } = await db.auth.getUser(jwt);
     if (error || !user) return reply({ error: "unauthorized" }, 401);
-    if (["library_identity", "library_set_handle", "library_shares", "library_grant", "library_revoke", "library_browse", "library_download"].includes(body.action)) {
-      return reply(await librarySharing(db as unknown as LibrarySharingDatabase, user.id, body, signed));
+    if (
+      [
+        "library_identity",
+        "library_set_handle",
+        "library_shares",
+        "library_grant",
+        "library_revoke",
+        "library_browse",
+        "library_download",
+      ].includes(body.action)
+    ) {
+      return reply(
+        await librarySharing(
+          db as unknown as LibrarySharingDatabase,
+          user.id,
+          body,
+          signed,
+        ),
+      );
     }
     if (body.action === "discover" || body.action === "connect") {
       const token = connectionInput(body.token, body.graph_id);
@@ -380,51 +588,109 @@ Deno.serve(async (req) => {
           .eq("graph_id", profile.id)
           .maybeSingle(),
       );
-      if (existing?.provider === "instagram")
+      if (existing?.provider === "instagram") {
         throw new Error("use_instagram_login");
+      }
       const saved = await db.rpc("ig_connect_account", {
         p_user: user.id,
         p_graph: profile.id,
         p_username: profile.username,
         p_token: token,
       });
-      if (saved.error?.message === "account_already_connected")
+      if (saved.error?.message === "account_already_connected") {
         return reply({ error: "account_already_connected" }, 409);
+      }
       const account_id = checked(saved);
       return reply({ account_id, username: profile.username });
     }
     if (body.action === "published_today") {
       const now = Date.now();
-      const timezone = typeof body.timezone === "string" ? body.timezone : "America/Fortaleza";
+      const timezone = typeof body.timezone === "string"
+        ? body.timezone
+        : "America/Fortaleza";
       const { start, end } = dayWindow(timezone, now);
-      const owned = checked(await db.from("ig_publisher_connections").select("account_id").eq("user_id", user.id));
+      const owned = checked(
+        await db.from("ig_publisher_connections").select("account_id").eq(
+          "user_id",
+          user.id,
+        ),
+      ) ?? [];
       const accounts: PublishedTodayReport["accounts"] = [];
       for (let offset = 0; offset < owned.length; offset += 4) {
-        accounts.push(...await Promise.all(owned.slice(offset, offset + 4).map(async (account) => {
-          try {
-            const { c, token } = await credential(account.account_id);
-            const result = await readPublishedReelsToday(c.graph_id,
-              (path, params) => graph(path, token, params, false, c.provider), timezone, now);
-            return { account_id: account.account_id, ...result, unavailable: false };
-          } catch {
-            return { account_id: account.account_id, count: null, complete: false, unavailable: true };
-          }
-        })));
+        accounts.push(
+          ...await Promise.all(
+            owned.slice(offset, offset + 4).map(async (account) => {
+              try {
+                const { c, token } = await credential(account.account_id);
+                const result = await readPublishedReelsToday(
+                  c.graph_id,
+                  (path, params) =>
+                    graph(path, token, params, false, c.provider),
+                  timezone,
+                  now,
+                );
+                return {
+                  account_id: account.account_id,
+                  ...result,
+                  unavailable: false,
+                };
+              } catch {
+                return {
+                  account_id: account.account_id,
+                  count: null,
+                  complete: false,
+                  unavailable: true,
+                };
+              }
+            }),
+          ),
+        );
       }
-      return reply({ accounts, start_at: new Date(start).toISOString(), end_at: new Date(end).toISOString(), checked_at: new Date(now).toISOString(), timezone } satisfies PublishedTodayReport);
+      return reply(
+        {
+          accounts,
+          start_at: new Date(start).toISOString(),
+          end_at: new Date(end).toISOString(),
+          checked_at: new Date(now).toISOString(),
+          timezone,
+        } satisfies PublishedTodayReport,
+      );
     }
     if (body.action === "analytics") {
-      const owned = checked(await db.from("ig_publisher_connections").select("account_id").eq("user_id", user.id));
+      const owned = checked(
+        await db.from("ig_publisher_connections").select("account_id").eq(
+          "user_id",
+          user.id,
+        ),
+      ) ?? [];
       const accounts = [];
-      for (const account of owned.filter(a => !body.account_id || a.account_id === body.account_id)) {
+      for (
+        const account of owned.filter((a) =>
+          !body.account_id || a.account_id === body.account_id
+        )
+      ) {
         try {
           const { c, token } = await credential(account.account_id);
-          const result = await readVideoAnalytics(account.account_id, c.graph_id,
+          const result = await readVideoAnalytics(
+            account.account_id,
+            c.graph_id,
             (path, params) => graph(path, token, params, false, c.provider),
-            typeof body.after === "string" && body.after.length <= 2000 ? body.after : undefined);
-          accounts.push({ account_id: account.account_id, ...result, unavailable: false });
+            typeof body.after === "string" && body.after.length <= 2000
+              ? body.after
+              : undefined,
+          );
+          accounts.push({
+            account_id: account.account_id,
+            ...result,
+            unavailable: false,
+          });
         } catch {
-          accounts.push({ account_id: account.account_id, videos: [], complete: false, unavailable: true });
+          accounts.push({
+            account_id: account.account_id,
+            videos: [],
+            complete: false,
+            unavailable: true,
+          });
         }
       }
       return reply({ accounts, checked_at: new Date().toISOString() });
@@ -467,10 +733,14 @@ Deno.serve(async (req) => {
           .eq("user_id", user.id)
           .maybeSingle(),
       );
-      if (!owned || typeof body.token !== "string" || body.token.length > 4096)
+      if (
+        !owned || typeof body.token !== "string" || body.token.length > 4096
+      ) {
         return reply({ error: "invalid_connection" }, 400);
-      if (owned.provider === "instagram")
+      }
+      if (owned.provider === "instagram") {
         return reply({ error: "use_instagram_login" }, 400);
+      }
       const profile = await graph(owned.graph_id, body.token, {
         fields: "id,username",
       });
@@ -493,7 +763,7 @@ Deno.serve(async (req) => {
           .eq("user_id", user.id)
           .select("account_id"),
       );
-      if (!rows.length) return reply({ error: "account_missing" }, 404);
+      if (!rows?.length) return reply({ error: "account_missing" }, 404);
       return reply({ ok: true });
     }
     if (body.action === "cancel") {
@@ -506,70 +776,202 @@ Deno.serve(async (req) => {
           .eq("status", "scheduled")
           .select("id"),
       );
-      if (!rows.length) return reply({ error: "cannot_cancel" }, 409);
+      if (!rows?.length) return reply({ error: "cannot_cancel" }, 409);
       return reply({ ok: true });
     }
     if (body.action === "shared_flow_progress") {
-      return reply(await readSharedFlowProgress(db as unknown as Parameters<typeof readSharedFlowProgress>[0], user.id));
+      return reply(
+        await readSharedFlowProgress(
+          db as unknown as Parameters<typeof readSharedFlowProgress>[0],
+          user.id,
+        ),
+      );
     }
     if (body.action === "list_shared_flow_accounts") {
-      return reply(checked(await db.rpc("ig_list_shared_flow_accounts", { p_user: user.id })));
+      return reply(
+        checked(
+          await db.rpc("ig_list_shared_flow_accounts", { p_user: user.id }),
+        ),
+      );
     }
-    if (body.action === "create_flow_invite" || body.action === "revoke_shared_flow_account") {
-      const validId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+    if (
+      body.action === "create_flow_invite" ||
+      body.action === "revoke_shared_flow_account"
+    ) {
+      const validId = (value: unknown) =>
+        typeof value === "string" &&
+        /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
       if (!validId(body.id)) throw new Error("invalid_flow");
       if (body.action === "create_flow_invite") {
-        const code = checked(await db.rpc("ig_create_flow_invite", { p_user: user.id, p_flow: body.id }));
+        const code = checked(
+          await db.rpc("ig_create_flow_invite", {
+            p_user: user.id,
+            p_flow: body.id,
+          }),
+        );
         return reply({ code });
       }
       if (!validId(body.account_id)) throw new Error("invalid_accounts");
-      checked(await db.rpc("ig_revoke_shared_flow_account", { p_user: user.id, p_flow: body.id, p_account: body.account_id }));
+      checked(
+        await db.rpc("ig_revoke_shared_flow_account", {
+          p_user: user.id,
+          p_flow: body.id,
+          p_account: body.account_id,
+        }),
+      );
       return reply({ ok: true });
     }
-    if (body.action === "preview_flow_invite" || body.action === "accept_flow_invite") {
-      const code = typeof body.code === "string" ? body.code.trim().toLowerCase() : "";
+    if (
+      body.action === "preview_flow_invite" ||
+      body.action === "accept_flow_invite"
+    ) {
+      const code = typeof body.code === "string"
+        ? body.code.trim().toLowerCase()
+        : "";
       if (!/^[0-9a-f]{32}$/.test(code)) throw new Error("invalid_flow_invite");
       if (body.action === "preview_flow_invite") {
-        return reply(checked(await db.rpc("ig_preview_flow_invite", { p_user: user.id, p_code: code })));
+        return reply(
+          checked(
+            await db.rpc("ig_preview_flow_invite", {
+              p_user: user.id,
+              p_code: code,
+            }),
+          ),
+        );
       }
-      if (!Array.isArray(body.account_ids) || body.account_ids.length < 1 || body.account_ids.length > 50 ||
-        body.account_ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))) {
+      if (
+        !Array.isArray(body.account_ids) || body.account_ids.length < 1 ||
+        body.account_ids.length > 50 ||
+        body.account_ids.some((id: unknown) =>
+          typeof id !== "string" ||
+          !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)
+        )
+      ) {
         throw new Error("invalid_accounts");
       }
-      return reply(checked(await db.rpc("ig_accept_flow_invite", { p_user: user.id, p_code: code, p_accounts: body.account_ids })));
+      return reply(
+        checked(
+          await db.rpc("ig_accept_flow_invite", {
+            p_user: user.id,
+            p_code: code,
+            p_accounts: body.account_ids,
+          }),
+        ),
+      );
     }
-    if (body.action === 'add_flow_accounts') {
-      if (!Array.isArray(body.account_ids) || !body.account_ids.length || body.account_ids.length > 50 || body.account_ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) throw new Error("invalid_accounts");
-      return reply(checked(await db.rpc("ig_add_flow_accounts", { p_user: user.id, p_id: body.id, p_accounts: body.account_ids })));
-    }
-    if (body.action === 'create_flow') {
-      const input = body.flow as FlowInput;
-      const library = checked(await db.from('ig_flow_library').select('id,url,kind,caption,folder').eq('user_id',user.id).eq('retired',false));
-      const existing = checked(await db.from("ig_flows").select("id").eq("id",input.id).eq("user_id",user.id).maybeSingle());
-      if(existing) {
-        checked(await db.rpc('ig_create_flow',{p_user:user.id,p_id:input.id,p_name:input.name,p_settings:input,p_jobs:[]}));
-        return reply({ok:true});
+    if (body.action === "add_flow_accounts") {
+      if (
+        !Array.isArray(body.account_ids) || !body.account_ids.length ||
+        body.account_ids.length > 50 || body.account_ids.some((id: unknown) =>
+          typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)
+        )
+      ) {
+        throw new Error("invalid_accounts");
       }
-      const used = input.avoidReuse ? checked(await db.rpc("ig_flow_used",{p_user:user.id,p_urls:library.map(m=>m.url)})) : [];
-      const jobs = buildFlow(input,library,user.id,Date.now(),Math.random,{used});
-      checked(await db.rpc('ig_create_flow',{p_user:user.id,p_id:input.id,p_name:input.name.trim() || (input.kind === 'stories' ? 'Fluxo de Stories' : 'Novo fluxo'),p_settings:input,p_jobs:jobs}));
-      return reply({ok:true});
+      return reply(
+        checked(
+          await db.rpc("ig_add_flow_accounts", {
+            p_user: user.id,
+            p_id: body.id,
+            p_accounts: body.account_ids,
+          }),
+        ),
+      );
     }
-    if (body.action === 'cancel_flow') {
-      checked(await db.rpc('ig_control_flow',{p_user:user.id,p_id:body.id,p_action:'stop'}));
-      return reply({ok:true});
+    if (body.action === "create_flow") {
+      const input = body.flow as FlowInput;
+      const library = await flowLibrary(user.id);
+      const existing = checked(
+        await db.from("ig_flows").select("id").eq("id", input.id).eq(
+          "user_id",
+          user.id,
+        ).maybeSingle(),
+      );
+      if (existing) {
+        checked(
+          await db.rpc("ig_create_flow", {
+            p_user: user.id,
+            p_id: input.id,
+            p_name: input.name,
+            p_settings: input,
+            p_jobs: [],
+          }),
+        );
+        return reply({ ok: true });
+      }
+      const used = input.avoidReuse
+        ? await flowUsed(user.id, library.map((m) => m.url))
+        : [];
+      const jobs = buildFlowJobs(
+        input,
+        library,
+        user.id,
+        Date.now(),
+        Math.random,
+        { used },
+      );
+      await enqueuePlan(
+        user.id,
+        jobs,
+        async (plan) =>
+          checked(
+            await db.rpc("ig_create_flow", {
+              p_user: user.id,
+              p_id: input.id,
+              p_name: input.name.trim() ||
+                (input.kind === "stories" ? "Fluxo de Stories" : "Novo fluxo"),
+              p_settings: input,
+              p_jobs: plan,
+            }),
+          ),
+      );
+      return reply({ ok: true });
     }
-    if (body.action === 'delete_flow') {
-      await db.rpc('ig_control_flow',{p_user:user.id,p_id:body.id,p_action:'stop'}).catch(()=>null);
-      await db.from('ig_publication_jobs').update({flow_id:null}).eq('flow_id',body.id).eq('user_id',user.id);
-      checked(await db.from('ig_flows').delete().eq('id',body.id).eq('user_id',user.id));
-      return reply({ok:true});
+    if (body.action === "cancel_flow") {
+      checked(
+        await db.rpc("ig_control_flow", {
+          p_user: user.id,
+          p_id: body.id,
+          p_action: "stop",
+        }),
+      );
+      return reply({ ok: true });
+    }
+    if (body.action === "delete_flow") {
+      await Promise.resolve(
+        db.rpc("ig_control_flow", {
+          p_user: user.id,
+          p_id: body.id,
+          p_action: "stop",
+        }),
+      ).catch(() => null);
+      await db.from("ig_publication_jobs").update({ flow_id: null }).eq(
+        "flow_id",
+        body.id,
+      ).eq("user_id", user.id);
+      checked(
+        await db.from("ig_flows").delete().eq("id", body.id).eq(
+          "user_id",
+          user.id,
+        ),
+      );
+      return reply({ ok: true });
     }
     if (body.action === "control_flow") {
-      checked(await db.rpc("ig_control_flow",{p_user:user.id,p_id:body.id,p_action:body.control}));
-      return reply({ok:true});
+      checked(
+        await db.rpc("ig_control_flow", {
+          p_user: user.id,
+          p_id: body.id,
+          p_action: body.control,
+        }),
+      );
+      return reply({ ok: true });
     }
-    if (body.action === "campaign_report") return reply(checked(await db.rpc("ig_campaign_report",{p_user:user.id})));
+    if (body.action === "campaign_report") {
+      return reply(
+        checked(await db.rpc("ig_campaign_report", { p_user: user.id })),
+      );
+    }
     if (body.action === "schedule") {
       const d = body.post as Draft;
       validate(d, user.id);
@@ -581,8 +983,9 @@ Deno.serve(async (req) => {
           .eq("user_id", user.id)
           .maybeSingle(),
       );
-      if (!account || account.reconnect_required)
+      if (!account || account.reconnect_required) {
         return reply({ error: "account_not_connected" }, 409);
+      }
       const row = {
         id: d.id,
         user_id: user.id,
@@ -593,8 +996,9 @@ Deno.serve(async (req) => {
         scheduled_at: d.scheduled_at,
       };
       const result = await db.from("ig_publication_jobs").insert(row);
-      if (result.error && result.error.code !== "23505")
+      if (result.error && result.error.code !== "23505") {
         throw new Error("database_error");
+      }
       if (result.error) {
         const old = checked(
           await db
@@ -613,17 +1017,17 @@ Deno.serve(async (req) => {
           old.format !== row.format ||
           JSON.stringify(old.media_urls) !== JSON.stringify(row.media_urls) ||
           Date.parse(old.scheduled_at) !== Date.parse(row.scheduled_at!)
-        )
+        ) {
           return reply({ error: "duplicate_conflict" }, 409);
+        }
       }
       return reply({ ok: true });
     }
     return reply({ error: "unknown_action" }, 400);
   } catch (err) {
-    const message =
-      err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
-        ? err.message
-        : "request_failed";
+    const message = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
+      ? err.message
+      : "request_failed";
     return reply({ error: message }, message === "database_error" ? 500 : 400);
   }
 });

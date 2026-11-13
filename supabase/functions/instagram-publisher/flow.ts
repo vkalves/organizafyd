@@ -1,4 +1,4 @@
-import { validate, type Draft, type Format } from "./model.ts";
+import { type Draft, type Format, validate } from "./model.ts";
 import { isValidTimeZone, parseSlots, slotInstants } from "./schedule.ts";
 export type LibraryMedia = {
   id: string;
@@ -31,7 +31,7 @@ export type FlowInput = {
   slots?: string[];
   timeZone?: string;
 };
-export function buildFlow(
+export function* buildFlowJobs(
   input: FlowInput,
   library: LibraryMedia[],
   userId: string,
@@ -50,42 +50,48 @@ export function buildFlow(
     !/^[0-9a-f-]{36}$/i.test(input.id) ||
     typeof input.name !== "string" ||
     input.name.length > 120
-  )
+  ) {
     throw new Error("invalid_flow");
+  }
   if (
     !Array.isArray(input.accountIds) ||
     !input.accountIds.length ||
     input.accountIds.length > 50 ||
     new Set(input.accountIds).size !== input.accountIds.length
-  )
+  ) {
     throw new Error("invalid_accounts");
+  }
   if (
     !Array.isArray(input.mediaIds) ||
     !input.mediaIds.length ||
     new Set(input.mediaIds).size !== input.mediaIds.length
-  )
+  ) {
     throw new Error("invalid_media");
+  }
   if (
     !Number.isFinite(input.gapMinutes) ||
     input.gapMinutes < 3 ||
     input.gapMinutes > 525600
-  )
+  ) {
     throw new Error("invalid_gap");
+  }
   if (
     !["all", "split"].includes(input.distribution) ||
     !["auto", "Reel", "Feed"].includes(input.format) ||
     !["posts", "stories"].includes(input.kind) ||
     typeof input.random !== "boolean"
-  )
+  ) {
     throw new Error("invalid_flow");
+  }
   if (
     typeof input.caption !== "string" ||
     input.caption.length > 2200 ||
     !Array.isArray(input.variations) ||
     input.variations.length > 100 ||
     input.variations.some((v) => typeof v !== "string" || v.length > 2200)
-  )
+  ) {
     throw new Error("invalid_caption");
+  }
   if (
     (input.repeat !== undefined && !["once", "loop"].includes(input.repeat)) ||
     (input.avoidReuse !== undefined && typeof input.avoidReuse !== "boolean") ||
@@ -97,8 +103,9 @@ export function buildFlow(
       (!Number.isFinite(input.restMinutes) ||
         input.restMinutes < 0 ||
         input.restMinutes > 10080))
-  )
+  ) {
     throw new Error("invalid_campaign");
+  }
   if (
     input.folderCaptions !== undefined &&
     (typeof input.folderCaptions !== "object" ||
@@ -114,46 +121,64 @@ export function buildFlow(
               typeof value !== "string" || !value.trim() || value.length > 2200,
           ),
       ))
-  )
+  ) {
     throw new Error("invalid_caption");
+  }
   const start = input.startAt ? Date.parse(input.startAt) : now + 60000;
-  if (input.gapPostDelay !== undefined && typeof input.gapPostDelay !== "boolean")
+  if (
+    input.gapPostDelay !== undefined && typeof input.gapPostDelay !== "boolean"
+  ) {
     throw new Error("invalid_schedule");
-  if (!Number.isFinite(start) || start <= now)
+  }
+  if (!Number.isFinite(start) || start <= now) {
     throw new Error("invalid_schedule");
+  }
   if (
     input.schedule !== undefined &&
     input.schedule !== "gap" &&
     input.schedule !== "slots"
-  )
+  ) {
     throw new Error("invalid_schedule");
-  const slotMinutes =
-    input.schedule === "slots" ? parseSlots(input.slots ?? []) : null;
+  }
+  const slotMinutes = input.schedule === "slots"
+    ? parseSlots(input.slots ?? [])
+    : null;
   if (
     slotMinutes &&
     (!input.timeZone || !isValidTimeZone(input.timeZone))
-  )
+  ) {
     throw new Error("invalid_timezone");
+  }
 
+  const byId = new Map(library.map((item) => [item.id, item]));
+  const used = new Set(
+    context.used?.map((item) => `${item.account_id}\0${item.url}`),
+  );
+  const excluded = new Set(
+    context.excluded?.map((item) => `${item.account_id}\0${item.url}`),
+  );
   const media = input.mediaIds.map((id) => {
-    const item = library.find((m) => m.id === id && m.kind === input.kind);
-    if (!item) throw new Error("invalid_media_owner");
+    const item = byId.get(id);
+    if (!item || item.kind !== input.kind) {
+      throw new Error("invalid_media_owner");
+    }
     return item;
   });
   const cover = input.coverId
     ? library.find(
-        (m) =>
-          m.id === input.coverId && m.kind === "cover" && /\.jpg$/i.test(m.url),
-      )
+      (m) =>
+        m.id === input.coverId && m.kind === "cover" && /\.jpg$/i.test(m.url),
+    )
     : null;
   if (input.coverId && !cover) throw new Error("invalid_media_owner");
   const shuffle = <T>(values: T[]) => {
     const result = [...values];
-    if (input.random)
+    if (input.random) {
       for (let i = result.length - 1; i > 0; i--) {
         const j = Math.floor(random() * (i + 1));
         [result[i], result[j]] = [result[j], result[i]];
       }
+    }
     return result;
   };
   // Loop campaigns keep the same split membership in every cycle.
@@ -162,28 +187,23 @@ export function buildFlow(
       (hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0,
       2166136261,
     );
-  const split =
-    input.repeat === "loop" && input.distribution === "split"
-      ? input.random
-        ? [...media].sort(
-            (a, b) => stableHash(input.id + a.id) - stableHash(input.id + b.id),
-          )
-        : [...media]
+  const split = input.repeat === "loop" && input.distribution === "split"
+    ? input.random
+      ? [...media].sort(
+        (a, b) => stableHash(input.id + a.id) - stableHash(input.id + b.id),
+      )
+      : [...media]
+    : shuffle(media);
+  let count = 0;
+  for (const [accountIndex, accountId] of input.accountIds.entries()) {
+    if (context.disabledAccounts?.includes(accountId)) continue;
+    const items = input.distribution === "split"
+      ? split.filter((_, i) => i % input.accountIds.length === accountIndex)
       : shuffle(media);
-  const jobs: (Draft & { cover_url: string | null; flow_base_at?: string })[] = [];
-  input.accountIds.forEach((accountId, accountIndex) => {
-    if (context.disabledAccounts?.includes(accountId)) return;
-    const items =
-      input.distribution === "split"
-        ? split.filter((_, i) => i % input.accountIds.length === accountIndex)
-        : shuffle(media);
     const fresh = items.filter(
       (item) =>
-        !context.excluded?.some(excluded => excluded.account_id === accountId && excluded.url === item.url) &&
-        (!input.avoidReuse ||
-        !context.used?.some(
-          (used) => used.account_id === accountId && used.url === item.url,
-        )),
+        !excluded.has(`${accountId}\0${item.url}`) &&
+        (!input.avoidReuse || !used.has(`${accountId}\0${item.url}`)),
     );
     const offset = context.offsets?.[accountId] ?? 0;
     const batch = input.batchSize || 500;
@@ -191,49 +211,52 @@ export function buildFlow(
     const ownStart = context.starts?.[accountId] ?? start;
     const times = slotMinutes
       ? slotInstants(fresh.length, ownStart, slotMinutes, input.timeZone!, {
-          offset,
-          batch,
-          restMs: rest,
-        })
+        offset,
+        batch,
+        restMs: rest,
+      })
       : null;
-    fresh.forEach((item, index) => {
+    for (const [index, item] of fresh.entries()) {
       const pool = input.folderCaptions?.[item.folder || ""] || [];
       const folderCaption = pool.length
         ? pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))]
         : "";
-      const format: Format =
-        input.kind === "stories"
-          ? "Story"
-          : input.format === "auto"
-            ? /\.mp4$/i.test(item.url)
-              ? "Reel"
-              : "Feed"
-            : input.format;
-      const baseAt = times ? times[index] : ownStart + index * input.gapMinutes * 60000 +
-        (Math.floor((offset + index) / batch) - Math.floor(offset / batch)) * rest;
+      const format: Format = input.kind === "stories"
+        ? "Story"
+        : input.format === "auto"
+        ? /\.mp4$/i.test(item.url) ? "Reel" : "Feed"
+        : input.format;
+      const baseAt = times
+        ? times[index]
+        : ownStart + index * input.gapMinutes * 60000 +
+          (Math.floor((offset + index) / batch) - Math.floor(offset / batch)) *
+            rest;
       const delayed = input.schedule !== "slots" && input.gapPostDelay;
-      const delayMs = delayed ? 60_000 + Math.min(240_000, Math.floor(random() * 240_001)) : accountIndex * 5000;
+      const delayMs = delayed
+        ? 60_000 + Math.min(240_000, Math.floor(random() * 240_001))
+        : accountIndex * 5000;
       const job = {
         id: crypto.randomUUID(),
         account_id: accountId,
         format,
-        caption:
-          format === "Story"
-            ? ""
-            : item.caption ||
-              folderCaption ||
-              input.variations[index % (input.variations.length || 1)] ||
-              input.caption,
+        caption: format === "Story" ? "" : item.caption ||
+          folderCaption ||
+          input.variations[index % (input.variations.length || 1)] ||
+          input.caption,
         media_urls: [item.url],
         scheduled_at: new Date(baseAt + delayMs).toISOString(),
         ...(delayed ? { flow_base_at: new Date(baseAt).toISOString() } : {}),
         cover_url: format === "Reel" ? (cover?.url ?? null) : null,
       };
       validate(job, userId, now);
-      jobs.push(job);
-    });
-  });
-  if (!jobs.length || jobs.length > 500)
-    throw new Error(jobs.length ? "flow_too_large" : "no_unused_media");
-  return jobs;
+      count++;
+      yield job;
+    }
+  }
+  if (!count) throw new Error("no_unused_media");
+}
+
+// Array convenience for previews/tests; production streams bounded batches.
+export function buildFlow(...args: Parameters<typeof buildFlowJobs>) {
+  return [...buildFlowJobs(...args)];
 }
