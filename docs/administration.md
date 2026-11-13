@@ -1,5 +1,23 @@
 # Administração de conexões
 
+## Aprovação de novos cadastros
+
+Em **Gestão → Administração**, a seção **Aprovação de novos cadastros** lista os usuários pendentes, com paginação e ações **Aprovar conta** e **Rejeitar conta**. Rejeitar exige confirmação. O status também aparece na busca geral de usuários; uma conta rejeitada pode ser aprovada posteriormente. Esta operação não revoga contas já aprovadas.
+
+Depois da implantação, novos cadastros recebem `pending` por um trigger em `auth.users`, independentemente dos metadados enviados pelo usuário. Confirmar o e-mail não aprova o cadastro. Contas existentes no momento da migração mantêm o acesso; administradores cadastrados em `avanca_admins` permanecem aprovados. A decisão registra o administrador e o horário no servidor, e uma segunda decisão concorrente não sobrescreve uma aprovação já concluída.
+
+O usuário pendente vê **Aguardando aprovação**, com opções para verificar novamente ou sair. Contas rejeitadas veem uma mensagem específica. O status é atualizado periodicamente e ao voltar à janela. Falhas na consulta não liberam acesso.
+
+O bloqueio é aplicado pela interface, por políticas RLS restritivas nas tabelas existentes com RLS em `public` e em `storage.objects`, e pela validação de aprovação nos clientes de serviço das funções do Instagram, Google Agenda, X, TikTok e armazenamento. O endpoint administrativo continua permitindo a consulta do próprio status por um usuário pendente; listar cadastros e aprovar/rejeitar exige administrador. Novas tabelas ou funções devem adotar a mesma verificação. Links de mídias já públicos continuam públicos.
+
+### Implantação
+
+1. Aplicar `account_approval` antes da interface ou das funções que dependem dela. A migração bloqueia brevemente inserções em `auth.users` para preservar o acesso das contas anteriores sem deixar cadastros fora da fila.
+2. Publicar `app-admin`, `google-calendar`, `instagram-accounts`, `instagram-login`, `instagram-monitor`, `instagram-publisher`, `s3-storage`, `tiktok-publisher` e `x-publisher`, incluindo o auxiliar compartilhado `account-approval.ts`.
+3. Publicar a interface e confirmar o fluxo cadastro → confirmação de e-mail → espera → aprovação administrativa → acesso.
+
+Os testes locais cobrem criação pendente, preservação de contas existentes, RLS, tentativa de autoaprovação, auditoria, decisões conflitantes, autenticação do servidor e estados da interface. A verificação no Chromium usa sessões e respostas simuladas, sem cadastrar ou aprovar contas reais.
+
 A área `/avanca/admin` permite procurar usuários cadastrados por nome/e-mail, ver as contas vinculadas e salvar permissões individuais:
 
 - **Permitir novas conexões** libera ou bloqueia novos vínculos.

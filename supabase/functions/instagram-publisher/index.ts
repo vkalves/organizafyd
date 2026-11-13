@@ -1,3 +1,4 @@
+import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { hybridStorage } from '../_shared/hybrid-storage.ts';
 import { readVideoAnalytics } from "./analytics.ts";
 import { dayWindow } from "./day-window.ts";
@@ -15,6 +16,7 @@ const db = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { auth: { persistSession: false } },
 );
+requireApprovedAccount(db);
 const fileStorage = hybridStorage(db, Deno.env.get("SUPABASE_URL")!);
 const origins = new Set([
   "https://www.organizafy.site", "https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online",

@@ -26,3 +26,7 @@
 @media(max-width:640px) { .admin-stats { grid-template-columns: 1fr; } .admin-user { padding: 15px; } .admin-permissions { flex-direction: column; align-items: stretch; gap: 10px; } .admin-limit input { width: 100%; } }
 .admin-storage { display: grid; gap: 12px; border-top: 1px solid rgba(160,160,180,.22); padding-top: 16px; }
 .admin-storage h3 { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+
+.admin-approvals { display: grid; gap: 16px; }
+.admin-approvals h2 { font-size: 18px; font-weight: 600; }
+.admin-approvals h3 { font-weight: 600; overflow-wrap: anywhere; }

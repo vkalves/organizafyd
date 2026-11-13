@@ -1,3 +1,4 @@
+import { AccountApprovalGate } from "@/features/administration/AccountApprovalGate";
 import { BackgroundMusic } from "@/components/audio/BackgroundMusic";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -27,7 +28,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <AppLoading />;
   if (!user) return <Navigate to="/auth" replace />;
-  return <AppLayout>{children}</AppLayout>;
+  return <AccountApprovalGate><AppLayout>{children}</AppLayout></AccountApprovalGate>;
 }
 
 const App = () => (

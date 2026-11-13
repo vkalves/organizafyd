@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Search, ShieldCheck, Users, Instagram, Ban } from "lucide-react";
 import { adminRequest, useAdministrationAccess, type ManagedUser, type UserDirectory } from "./api";
+import { AccountApprovals, AccountDecision } from "./AccountApprovals";
 import { StoragePermissions } from "./StoragePermissions";
 import "./administration.css";
 
@@ -36,6 +37,7 @@ function UserPermissions({ user, onSaved }: { user: ManagedUser; onSaved: () => 
         <button className="button button-primary" type="submit" disabled={!valid || save.isPending}>{save.isPending ? "Salvando…" : "Salvar permissões"}</button>
       </form>
       {user.max_accounts !== null && user.connected_accounts > user.max_accounts && <p className="admin-note">Acima do limite. As contas atuais continuam conectadas; novas conexões ficam bloqueadas até haver uma vaga.</p>}
+      <AccountDecision user={user} onSaved={onSaved} />
       <StoragePermissions key={String(user.storage_limit_bytes)} user={user} onSaved={onSaved} />
       {save.isError && <p role="alert" className="admin-error">{save.error.message}</p>}
       {save.isSuccess && <p role="status">Permissões salvas.</p>}
@@ -57,6 +59,7 @@ export default function Administration() {
   });
   function onSaved() {
     void client.invalidateQueries({ queryKey: ["avanca-admin-users"] });
+    void client.invalidateQueries({ queryKey: ["avanca-pending-accounts"] });
     void client.invalidateQueries({ queryKey: ["avanca-access"] });
   }
   if (access.isPending) return <p role="status">Verificando acesso administrativo…</p>;
@@ -71,6 +74,7 @@ export default function Administration() {
         <div className="panel"><Instagram aria-hidden="true" /><strong>{directory.data.summary.accounts}</strong><span>Contas conectadas</span></div>
         <div className="panel"><Ban aria-hidden="true" /><strong>{directory.data.summary.blocked}</strong><span>Usuários com novas conexões bloqueadas</span></div>
       </div>}
+      <AccountApprovals onSaved={onSaved} />
       <form className="admin-search" onSubmit={event => { event.preventDefault(); setPage(1); setFilter(search.trim()); }}>
         <label htmlFor="admin-search">Buscar usuário por nome ou e-mail</label>
         <div><input id="admin-search" type="search" maxLength={100} value={search} onChange={e => setSearch(e.target.value)} placeholder="Nome ou e-mail" /><button className="button button-secondary" type="submit"><Search size={16} /> Buscar</button></div>

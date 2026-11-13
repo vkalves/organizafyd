@@ -19,7 +19,7 @@ describe("administration API authentication and authorization",()=>{
   });
   it("rejects directory reads and edits by non-admins even with spoofed admin fields",async()=>{
     const {db,handler}=setup();
-    for(const action of ["users","update_access","update_storage_limit"]) expect((await handler(request({action,is_admin:true,p_actor:target,user_id:target,connection_allowed:true,max_accounts:999}))).status).toBe(403);
+    for(const action of ["users","update_access","update_storage_limit","pending_accounts","approve_account"]) expect((await handler(request({action,is_admin:true,p_actor:target,user_id:target,connection_allowed:true,max_accounts:999}))).status).toBe(403);
     expect(db.rpc.mock.calls.every(([name])=>name==="avanca_user_access")).toBe(true);
   });
   it("uses the verified administrator as the audit actor when saving a target",async()=>{
@@ -27,6 +27,24 @@ describe("administration API authentication and authorization",()=>{
     const response=await handler(request({action:"update_access",p_actor:target,user_id:target,connection_allowed:false,max_accounts:2}));
     expect(response.status).toBe(200);expect(db.rpc).toHaveBeenLastCalledWith("avanca_admin_update_access",{p_actor:actor,p_target:target,p_allowed:false,p_max:2});
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+  it("reviews accounts using the verified actor and validates decisions before writing",async()=>{
+    const {db,handler}=setup(true);
+    for (const status of ["pending", "admin", null, true]) {
+      expect((await handler(request({action:"approve_account",user_id:target,status}))).status).toBe(400);
+    }
+    expect((await handler(request({action:"approve_account",user_id:"bad-id",status:"approved"}))).status).toBe(400);
+    expect(db.rpc.mock.calls.every(([name])=>name==="avanca_user_access")).toBe(true);
+    expect((await handler(request({action:"approve_account",user_id:target,status:"approved",p_actor:target}))).status).toBe(200);
+    expect(db.rpc).toHaveBeenLastCalledWith("avanca_admin_review_account",{p_actor:actor,p_target:target,p_status:"approved"});
+  });
+  it("paginates the pending queue and reports a decision already made",async()=>{
+    const {db,handler}=setup(true);
+    expect((await handler(request({action:"pending_accounts",page:0}))).status).toBe(400);
+    expect((await handler(request({action:"pending_accounts",page:2}))).status).toBe(200);
+    expect(db.rpc).toHaveBeenLastCalledWith("avanca_admin_pending_accounts",{p_actor:actor,p_page:2});
+    db.rpc.mockImplementation(async name => ({data:name==="avanca_user_access"?{is_admin:true,connected_accounts:2,max_accounts:3,connection_allowed:true}:{ok:false},error:name==="avanca_admin_review_account"?{message:"account_not_pending"}:null}));
+    expect((await handler(request({action:"approve_account",user_id:target,status:"rejected"}))).status).toBe(409);
   });
   it("rejects invalid limits before modifying the database",async()=>{
     const {db,handler}=setup(true);

@@ -1,3 +1,4 @@
+import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import {
   DeleteObjectsCommand,
@@ -21,6 +22,7 @@ const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db = createClient(base, service, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+requireApprovedAccount(db);
 const origins = new Set([
   "https://xn--avana-1ra.online",
   "https://www.xn--avana-1ra.online",

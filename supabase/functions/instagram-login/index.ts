@@ -1,3 +1,4 @@
+import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { instagramAuthorizeUrl, instagramGrant } from "./instagram.ts";
 import { selectConnectionApp } from "./connection-option.ts";
 import { createAccountSelection, consumeAccountSelection, type SelectionStore } from "./account-selection.ts";
@@ -8,6 +9,7 @@ const db = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { auth: { persistSession: false } },
 );
+requireApprovedAccount(db);
 const site = "https://www.organizafy.site";
 const allowedOrigins = new Set(["https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online", site, "https://organizafy.site", "https://organizafyd.vercel.app"]);
 const callback =
