@@ -4,6 +4,8 @@ A dashboard principal (`/`) contém os indicadores, ranking e próxima publicaç
 
 ## Comportamento
 
+- Quem recebe um convite e autoriza contas acompanha o fluxo original na seção **Fluxos compartilhados comigo**. O acompanhamento mostra estado do fluxo, totais, próximo horário previsto e até 20 publicações/agendamentos por conta, com atualização a cada 30 segundos. Cada participante vê somente as próprias contas autorizadas. Retirar acesso remove o acompanhamento. O novo endpoint `shared_flow_progress` exige a publicação da função `instagram-publisher`; não requer migração de banco.
+
 - Biblioteca privada por usuário: pastas, Reels/posts e Stories, seleção em lote, prévia e legendas individuais.
 - Legenda padrão, coleção de legendas salvas e variações editáveis (reorganização do texto, sem serviço de IA externo).
 - Todas as contas recebem tudo, ou as mídias são divididas sem repetição. Embaralhamento independente por conta no primeiro modo.
