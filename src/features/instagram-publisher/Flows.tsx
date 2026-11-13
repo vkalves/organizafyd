@@ -33,6 +33,7 @@ import {
   Check,
   Ban,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2615,17 +2616,6 @@ export default function Flows({
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => reuseFlow(flow)}
-                        className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <Copy size={13} className="mr-1.5" />
-                        Reusar
-                      </Button>
-
                       {state === "active" && (
                         <Button size="sm" variant="outline" disabled={busy} className="h-8 text-xs"
                           onClick={() => setSharing({ id: flow.id, name: flow.name || "Campanha sem nome" })}>
@@ -2655,31 +2645,40 @@ export default function Flows({
                         </Button>
                       )}
 
-                      {(pending > 0 ||
-                        state === "active" ||
-                        state === "paused") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          className="h-8 text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-300"
-                          onClick={() => handleCancelFlow(flow.id)}
-                        >
-                          <Ban size={13} className="mr-1.5" />
-                          Cancelar fluxo
-                        </Button>
-                      )}
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => handleDeleteFlow(flow.id)}
-                      >
-                        <Trash2 size={13} className="mr-1.5" />
-                        Apagar fluxo
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={busy}
+                            className="h-8 w-8"
+                            aria-label={`Mais ações de ${flow.name || "Campanha sem nome"}`}
+                            title="Mais ações"
+                          >
+                            <MoreHorizontal size={16} aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => reuseFlow(flow)}>
+                            <Copy size={14} aria-hidden="true" />
+                            Reusar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {(pending > 0 || state === "active" || state === "paused") && (
+                            <DropdownMenuItem onSelect={() => handleCancelFlow(flow.id)}>
+                              <Ban size={14} aria-hidden="true" />
+                              Cancelar fluxo
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => handleDeleteFlow(flow.id)}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            Apagar fluxo
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </article>
                 );
