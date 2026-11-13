@@ -66,6 +66,7 @@ import {
 } from "../../../supabase/functions/instagram-publisher/schedule";
 import { playConfirmation, unlockAudio } from "./sound";
 import { FlowSharingDialog } from "./FlowSharingDialog";
+import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { SharedFlowProgress } from "./SharedFlowProgress";
 import "./flows.css";
 
@@ -107,6 +108,7 @@ export default function Flows({
 
   // Navegação de contexto principal (uma tarefa principal por tela)
   const [sharing, setSharing] = useState<{ id: string; name: string } | "join" | null>(null);
+  const [librarySharing, setLibrarySharing] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceTab>("composer");
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
   const [campaignSearch, setCampaignSearch] = useState("");
@@ -1004,6 +1006,8 @@ export default function Flows({
             <div className="ig-panel-head">
               <div className="flex items-baseline gap-2">
                 <h2 id="ig-library-heading">Biblioteca de mídias</h2>
+                <Button size="sm" variant="outline" onClick={() => setLibrarySharing(true)}>Compartilhar por @</Button>
+                {librarySharing && user && <LibrarySharingDialog userId={user.id} onClose={() => setLibrarySharing(false)} onChanged={() => { void cache.invalidateQueries({ queryKey: key }); }} />}
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {visible.length}
                 </span>

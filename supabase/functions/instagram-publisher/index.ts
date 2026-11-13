@@ -1,3 +1,4 @@
+import { librarySharing, type LibrarySharingDatabase } from "./library-sharing.ts";
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { hybridStorage } from '../_shared/hybrid-storage.ts';
 import { readVideoAnalytics } from "./analytics.ts";
@@ -358,6 +359,9 @@ Deno.serve(async (req) => {
       error,
     } = await db.auth.getUser(jwt);
     if (error || !user) return reply({ error: "unauthorized" }, 401);
+    if (["library_identity", "library_set_handle", "library_shares", "library_grant", "library_revoke", "library_browse", "library_download"].includes(body.action)) {
+      return reply(await librarySharing(db as unknown as LibrarySharingDatabase, user.id, body, signed));
+    }
     if (body.action === "discover" || body.action === "connect") {
       const token = connectionInput(body.token, body.graph_id);
       if (body.action === "discover") {

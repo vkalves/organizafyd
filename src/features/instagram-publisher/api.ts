@@ -80,6 +80,12 @@ const messages: Record<string, string> = {
   invalid_media_format:
     "Use JPG no Feed e Carrossel; MP4 nos Reels; JPG ou MP4 nos Stories.",
   invalid_media_owner: "Esta mídia não pertence à sua conta.",
+  invalid_handle: "Use de 3 a 30 letras, números ou sublinhados no seu @.",
+  handle_unavailable: "Este @ já está em uso.",
+  invalid_recipient: "Usuário não encontrado ou igual à sua própria conta.",
+  handle_required: "Salve seu @ antes de compartilhar.",
+  library_access_denied: "O acesso a esta biblioteca foi retirado.",
+  media_unavailable: "Esta mídia não está mais disponível.",
   cannot_cancel: "A postagem já está em processamento ou foi encerrada.",
   meta_190: "Token expirado ou inválido. Atualize a conexão.",
   duplicate_conflict: "Este rascunho já foi agendado. Atualize a fila.",
