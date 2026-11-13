@@ -1,3 +1,4 @@
+import { readPages } from "../../../supabase/functions/instagram-publisher/queue";
 import { storage } from '@/lib/storage';
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,13 +120,13 @@ export async function connections() {
     .accounts;
 }
 export async function listPosts(userId: string): Promise<Post[]> {
-  const drafts = await db
-    .from("instagram_publication_drafts")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (drafts.error) throw new Error("Não foi possível carregar os rascunhos.");
+  const drafts = await readPages<Post>(async (from, to) => {
+    const result = await db.from("instagram_publication_drafts").select("*")
+      .eq("user_id", userId).order("created_at", { ascending: false })
+      .order("id", { ascending: false }).range(from, to);
+    if (result.error || !result.data) throw new Error("Não foi possível carregar os rascunhos.");
+    return result.data as unknown as Post[];
+  });
   const jobsDb = supabase as unknown as SupabaseClient<{
     public: {
       Tables: {
@@ -140,25 +141,23 @@ export async function listPosts(userId: string): Promise<Post[]> {
       Functions: Record<string, never>;
     };
   }>;
-  const jobs = await jobsDb
-    .from("ig_publication_jobs")
-    .select(
-      "id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id,flow_id",
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (jobs.error) throw new Error("Não foi possível carregar a fila.");
-  const ids = new Set(jobs.data.map((p) => p.id));
+  const jobs = await readPages<Post>(async (from, to) => {
+    const result = await jobsDb.from("ig_publication_jobs")
+      .select("id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id,flow_id")
+      .eq("user_id", userId).order("created_at", { ascending: false })
+      .order("id", { ascending: false }).range(from, to);
+    if (result.error || !result.data) throw new Error("Não foi possível carregar a fila.");
+    return result.data as unknown as Post[];
+  });
+  const ids = new Set(jobs.map((p) => p.id));
+  // Every account's counters and queue use this collection. A global display
+  // limit here hides entire accounts after a large flow or account addition.
   return [
-    ...(drafts.data as unknown as Post[])
-      .filter((p) => !ids.has(p.id))
-      .map((p) => ({ ...p, source: "draft" as const })),
-    ...jobs.data.map((p) => ({ ...p, source: "job" as const })),
-  ]
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-    .slice(0, 200) as Post[];
+    ...drafts.filter((p) => !ids.has(p.id)).map((p) => ({ ...p, source: "draft" as const })),
+    ...jobs.map((p) => ({ ...p, source: "job" as const })),
+  ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id.localeCompare(a.id));
 }
+
 export async function savePost(post: Omit<Post, "created_at" | "updated_at">) {
   const clean = post;
   validatePost(post, post.status === "scheduled");
