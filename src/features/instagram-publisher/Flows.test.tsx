@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 const mocks = vi.hoisted(() => ({
@@ -32,6 +32,7 @@ vi.mock("./sound", () => ({
   playConfirmation: vi.fn(),
   unlockAudio: vi.fn(),
 }));
+vi.mock("./LocalMediaPreviews", () => ({ LocalMediaPreviews: () => null }));
 import Flows from "./Flows";
 const media = {
   id: "m",
@@ -80,6 +81,55 @@ describe("Fluxos interface", () => {
       report: { flows: [], usage: [] },
     });
     mocks.create.mockResolvedValue({ ok: true });
+  });
+  it("acrescenta novas seleções à fila em andamento e processa todos os arquivos na ordem", async () => {
+    let finishFirst: () => void;
+    mocks.add.mockImplementationOnce((files, _user, _kind, _folder, _progress, callbacks) => {
+      callbacks.onItem({ index: 0, name: files[0].name, status: "processing", message: "Limpando vídeo…" });
+      return new Promise(resolve => { finishFirst = () => {
+        callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
+        resolve({ ids: ["first"], errors: [] });
+      }; });
+    }).mockImplementation(async (files, _user, _kind, _folder, _progress, callbacks) => {
+      callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
+      return { ids: [files[0].name], errors: [] };
+    });
+    mocks.load.mockResolvedValue({ media: [], prefs: { user_id: "u", folders: [], captions: [] }, flows: [], report: { flows: [], usage: [] } });
+    show(); await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    const input = screen.getByLabelText("Adicionar mídias à fila");
+    const files = ["one.mp4", "two.mp4", "three.mp4", "four.mp4"].map(name => new File(["video"], name, { type: "video/mp4" }));
+    fireEvent.change(input, { target: { files: [files[0]] } });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(1));
+    expect(input).toBeEnabled();
+    expect(screen.getByLabelText("Adicionar mídias à pasta vazia")).toBeEnabled();
+    fireEvent.change(input, { target: { files: files.slice(1) } });
+    const queue = screen.getByRole("region", { name: "Fila de upload" });
+    expect(within(queue).getByText("four.mp4")).toBeInTheDocument();
+    expect(mocks.add).toHaveBeenCalledTimes(1);
+    await act(async () => { finishFirst!(); });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(4));
+    expect(mocks.add.mock.calls.map(call => call[0].map((file: File) => file.name))).toEqual(files.map(file => [file.name]));
+    expect(within(queue).getAllByText("Pronta para publicar")).toHaveLength(4);
+    expect(input).toBeEnabled();
+  });
+  it("enfileira um arquivo arrastado apenas uma vez e continua após uma falha", async () => {
+    let failFirst: () => void;
+    mocks.add.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = () => reject(new Error("Vídeo inválido")); }))
+      .mockImplementation(async (files, _user, _kind, _folder, _progress, callbacks) => {
+        callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
+        return { ids: ["second"], errors: [] };
+      });
+    show(); await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    const input = screen.getByLabelText("Adicionar mídias à fila");
+    fireEvent.change(input, { target: { files: [new File(["x"], "bad.mp4", { type: "video/mp4" })] } });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(1));
+    fireEvent.drop(input.closest("label")!, { dataTransfer: { files: [new File(["x"], "next.mp4", { type: "video/mp4" })] } });
+    const queue = screen.getByRole("region", { name: "Fila de upload" });
+    expect(within(queue).getAllByText("next.mp4")).toHaveLength(1);
+    await act(async () => { failFirst!(); });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(2));
+    expect(within(queue).getByText("Vídeo inválido")).toBeInTheDocument();
+    expect(within(queue).getByText("Pronta para publicar")).toBeInTheDocument();
   });
   it("exige seleção, conserva a distribuição e envia os dados revisados", async () => {
     show();

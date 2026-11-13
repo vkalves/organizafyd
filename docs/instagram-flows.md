@@ -15,6 +15,8 @@ A dashboard principal (`/`) contém os indicadores, ranking e próxima publicaç
 
 ## Privacidade
 
+A biblioteca recebe arquivos por seleção múltipla ou arrastar e soltar. É possível adicionar outras mídias enquanto a fila está trabalhando, sem esperar terminar a seleção anterior. Cada mídia conserva a pasta e o tipo escolhidos ao entrar na fila. A limpeza e o envio avançam um arquivo por vez, em ordem de entrada; uma falha fica visível e não impede os próximos arquivos. A lista mostra os arquivos aguardando, em processamento e concluídos. Mantenha a tela aberta para acompanhar a fila; ela não é persistida após recarregar a página.
+
 `uploadMedia` sempre chama a limpeza antes de Storage, inclusive para capas e para o compositor individual. Fotos são decodificadas, orientadas e reconstruídas em JPEG; vídeos são recodificados com FFmpeg, sem tags, capítulos e faixas auxiliares, seguidos de uma segunda limpeza estrutural. O arquivo recebe nome neutro e data zero. Se o processamento falhar, o original não é enviado. Formato, codec e dimensões necessários à reprodução continuam presentes.
 
 O limite do Instagram é de 100 MB por arquivo; os limites anteriores do X continuam iguais. O processamento acontece no dispositivo e pode falhar por memória/tempo em arquivos grandes. Links externos no compositor individual não passam por upload e, portanto, não recebem essa limpeza.
