@@ -238,6 +238,24 @@ describe("Fluxos interface", () => {
       expect(mocks.setMedia).toHaveBeenCalledWith("m", { folder: "Ofertas" });
     });
   });
+  it("mostra ações de pasta só após selecionar mídias e move pela pasta escolhida", async () => {
+    mocks.setMedia.mockResolvedValue(undefined);
+    mocks.load.mockResolvedValue({ media: [media], prefs: { user_id: "u", folders: ["Ofertas"], captions: [] }, flows: [], report: { flows: [], usage: [] } });
+    show(); await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    const actions = screen.getByRole("group", { name: "Ações das mídias da pasta aberta" });
+    expect(within(actions).getByRole("status")).toHaveTextContent("1 mídia");
+    expect(within(actions).queryByRole("button", { name: "Mover para" })).not.toBeInTheDocument();
+    fireEvent.click(within(actions).getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
+    expect(screen.getByRole("checkbox", { name: "Foto 1" })).toBeChecked();
+    expect(within(actions).getByRole("status")).toHaveTextContent("1 selecionada");
+    fireEvent.keyDown(within(actions).getByRole("button", { name: "Mover para" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Ofertas" }));
+    await waitFor(() => expect(mocks.setMedia).toHaveBeenCalledWith("m", { folder: "Ofertas" }));
+    await waitFor(() => expect(within(actions).queryByRole("button", { name: "Mover para" })).not.toBeInTheDocument());
+    fireEvent.click(within(actions).getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
+    fireEvent.click(within(actions).getByRole("button", { name: "Limpar seleção" }));
+    expect(screen.getByRole("checkbox", { name: "Foto 1" })).not.toBeChecked();
+  });
 
   it("separa a gestão de campanhas e permite reutilizar, cancelar e apagar fluxos", async () => {
     mocks.cancel.mockResolvedValue({ ok: true });

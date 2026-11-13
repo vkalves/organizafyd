@@ -1001,3 +1001,12 @@
 #agonia-flows-active-anchor {
   scroll-margin-top: 84px;
 }
+
+/* Compact, contextual actions for the open media folder. */
+.ig-media-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-height: 44px; padding: 6px 10px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--secondary) / .15); }
+.ig-media-select-all { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: 12px; cursor: pointer; }
+.ig-media-select-all input { width: 15px; height: 15px; margin: 0; accent-color: hsl(var(--foreground)); }
+.ig-media-select-all input:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.ig-media-selection-count { color: hsl(var(--muted-foreground)); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.ig-media-selection-actions { display: flex; align-items: center; gap: 4px; }
+@media (max-width: 480px) { .ig-media-selection { gap: 6px 10px; } .ig-media-selection-actions { justify-content: flex-end; width: 100%; } }
