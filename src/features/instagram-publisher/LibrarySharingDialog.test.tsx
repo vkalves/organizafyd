@@ -1,9 +1,10 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-const mocks = vi.hoisted(() => ({ request: vi.fn(), importMedia: vi.fn() }));
+const mocks = vi.hoisted(() => ({ request: vi.fn(), importMedia: vi.fn(), importAll: vi.fn() }));
 vi.mock("./api", () => ({ publisherRequest: mocks.request }));
 vi.mock("./library-sharing-api", () => ({ importSharedMedia: mocks.importMedia }));
+vi.mock("./library-sharing-batch", () => ({ importSharedLibrary: mocks.importAll }));
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 beforeEach(() => {
   vi.clearAllMocks();
@@ -21,6 +22,22 @@ function show() {
   return changed;
 }
 describe("library sharing dialog", () => {
+  it("imports the entire selected library and displays partial failures", async () => {
+    mocks.importAll.mockImplementation(async (_owner, _user, options) => {
+      options.onImported("media");
+      options.onProgress({ completed: 2, total: 2 });
+      return { imported: 1, skipped: 0, failures: [{ id: "failed", message: "Limite de armazenamento atingido." }] };
+    });
+    const changed = show();
+    await screen.findByRole("option", { name: "@ana" });
+    fireEvent.change(screen.getByLabelText("Bibliotecas compartilhadas comigo"), { target: { value: "owner" } });
+    await screen.findByRole("button", { name: "Importar" });
+    fireEvent.click(screen.getByRole("button", { name: "Importar todas as mídias" }));
+    await waitFor(() => expect(changed).toHaveBeenCalledOnce());
+    expect(mocks.importAll).toHaveBeenCalledWith("owner", "me", expect.objectContaining({ alreadyImported: [] }));
+    expect(screen.getByRole("alert")).toHaveTextContent("1 mídia(s) não foram importadas.");
+    expect(screen.getByRole("button", { name: "Importada" })).toBeDisabled();
+  });
   it("grants access by @ and revokes the selected recipient", async () => {
     show();
     await screen.findByText("@joao");

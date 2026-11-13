@@ -16,6 +16,12 @@ assinados já emitidos podem continuar válidos por até uma hora. Cópias que j
 foram importadas permanecem na conta de destino. A importação é individual;
 clicar novamente após reabrir o diálogo pode criar outra cópia.
 
+**Importar todas as mídias** percorre todas as páginas da biblioteca selecionada
+e copia um arquivo por vez, exibindo o progresso. Mantenha o diálogo e a aba
+abertos até concluir. Falhas individuais não descartam arquivos concluídos;
+tentar novamente ignora as mídias já importadas enquanto o diálogo estiver
+aberto. A cota de armazenamento continua sendo aplicada a cada arquivo.
+
 ## Implantação
 
 1. Aplicar `supabase/migrations/20261113110302_user_library_sharing.sql`.
