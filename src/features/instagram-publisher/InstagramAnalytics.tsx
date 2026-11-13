@@ -1,3 +1,4 @@
+import { InsightsPermissionNotice } from "./InsightsPermissionNotice";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 const number = (n: number) => n.toLocaleString("pt-BR");
 export function InstagramAnalytics() {
   const { user } = useAuth();
-  const { report, loadingMore, loadMore } = useInstagramAnalytics(user?.id);
+  const { report, loadingMore, loadMore, refreshMetrics } = useInstagramAnalytics(user?.id);
   const [period, setPeriod] = useState("all");
   const [account, setAccount] = useState("all");
   const names = useQuery({
@@ -55,7 +56,7 @@ export function InstagramAnalytics() {
         <Button
           variant="outline"
           disabled={report.isFetching || loadingMore}
-          onClick={() => { void names.refetch(); void report.refetch(); }}
+          onClick={() => { void names.refetch(); void refreshMetrics(); }}
         >
           {report.isFetching ? "Atualizando…" : "Atualizar métricas"}
         </Button>
@@ -92,6 +93,7 @@ export function InstagramAnalytics() {
       {names.isError && (
         <p role="alert">Não foi possível carregar os nomes das contas. Atualize as métricas para tentar novamente.</p>
       )}
+      <InsightsPermissionNotice report={report.data} accounts={names.data ?? []} />
       {report.isPending ? (
         <p role="status">Consultando visualizações no Instagram…</p>
       ) : report.isError ? (

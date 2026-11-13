@@ -663,6 +663,10 @@ Deno.serve(async (req) => {
           user.id,
         ),
       ) ?? [];
+      if (body.list_only === true) return reply({
+        metadata_only: true, checked_at: new Date().toISOString(),
+        accounts: owned.map(account => ({account_id:account.account_id,videos:[],complete:false,unavailable:false})),
+      });
       const accounts = [];
       for (
         const account of owned.filter((a) =>
