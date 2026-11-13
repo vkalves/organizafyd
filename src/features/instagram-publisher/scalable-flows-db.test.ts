@@ -81,6 +81,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../../supabase/migrations/20261113150413_preserve_new_account_flow_schedule.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 30000);
 beforeEach(async () => {
   await db.exec(
@@ -110,6 +119,63 @@ afterAll(async () => {
   await db?.close();
 });
 describe("large atomic flow preparation and account leases", () => {
+  it("copies every future slot when existing accounts shuffle the same videos", async () => {
+    const third = crypto.randomUUID(), added = crypto.randomUUID();
+    await rows(
+      "insert into ig_publisher_connections(account_id,user_id) values($1,$3),($2,$3)",
+      [third, added, user],
+    );
+    await rows("update ig_flows set settings=settings||$1::jsonb", [
+      JSON.stringify({
+        accountIds: [a, b, third],
+        gapMinutes: 60,
+        gapPostDelay: true,
+      }),
+    ]);
+    const base = Date.parse("2027-01-01T12:00:00Z");
+    const videos = ["one.mp4", "two.mp4", "three.mp4"];
+    for (const [accountIndex, account] of [a, b, third].entries()) {
+      for (let slot = 0; slot < 3; slot++) {
+        const at = new Date(base + slot * 3600000 + accountIndex * 5000)
+          .toISOString();
+        await rows(
+          `insert into ig_publication_jobs(user_id,account_id,flow_id,format,caption,media_urls,scheduled_at,flow_base_at) values($1,$2,$3,'Reel','',array[$4],$5,$5)`,
+          [user, account, flow, videos[(slot + accountIndex) % 3], at],
+        );
+      }
+    }
+    const result =
+      (await rows("select ig_sync_flow_accounts($1,$2,$3::uuid[],$1) result", [
+        user,
+        flow,
+        [added],
+      ]))[0].result;
+    expect(result).toEqual({ added: 1, queued: 2 });
+    const copied = await rows<
+      { status: string; media_urls: string[]; flow_base_at: Date }
+    >(
+      "select * from ig_publication_jobs where account_id=$1 order by flow_base_at",
+      [added],
+    );
+    expect(copied.map((j) => j.status)).toEqual([
+      "cancelled",
+      "scheduled",
+      "scheduled",
+    ]);
+    expect(new Set(copied.map((j) => j.media_urls[0])).size).toBe(3);
+    expect(
+      new Date(copied[2].flow_base_at).getTime() -
+        new Date(copied[1].flow_base_at).getTime(),
+    ).toBe(3600000);
+    expect(
+      (await rows("select ig_sync_flow_accounts($1,$2,$3::uuid[],$1) result", [
+        user,
+        flow,
+        [added],
+      ]))[0].result,
+    ).toEqual({ added: 0, queued: 0 });
+  });
+
   it("creates 1200 jobs from six bounded batches and retries without duplication", async () => {
     await db.exec("delete from ig_flows");
     const plan = crypto.randomUUID();
