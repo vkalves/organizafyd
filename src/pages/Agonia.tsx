@@ -1357,6 +1357,7 @@ export default function Agonia() {
           </header>
 
           <Suspense fallback={<p role="status">Consultando limite de contas…</p>}><ConnectionAccessSummary /></Suspense>
+          <Link to="/avanca/integracao" className="panel flex items-center justify-between gap-4 p-5"><div><strong>Verificar a mesma conta e integrar ao fluxo</strong><p className="panel-copy">Confira o @ na Meta e confirme a associação a um fluxo ativo existente.</p></div><ArrowRight size={16} aria-hidden="true" /></Link>
 
           <Link to="/avanca/meta-developer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "17px 21px" }}>
             <div><strong>Precisa de ajuda com a Meta?</strong><p className="panel-copy">Guia com exemplos para conectar sua conta ou configurar um app.</p></div>

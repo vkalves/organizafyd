@@ -1,3 +1,4 @@
+import { integrationOrigins } from "../_shared/integration-origins.ts";
 export type AccountConnection = {
   account_id: string;
   graph_id: string;
@@ -14,7 +15,6 @@ export interface AccountRepository {
   disconnect(userId: string, accountId: string): Promise<void>;
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const origins = new Set(["https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online", "https://www.organizafy.site", "https://organizafy.site"]);
 export function safePhotoUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 4096) return null;
   try {
@@ -23,7 +23,7 @@ export function safePhotoUrl(value: unknown): string | null {
   } catch { return null; }
 }
 
-export function accountHandler(repository: AccountRepository, request: typeof fetch = fetch) {
+export function accountHandler(repository: AccountRepository, request: typeof fetch = fetch, origins = integrationOrigins()) {
   return async (req: Request): Promise<Response> => {
     const origin = req.headers.get("origin") || "";
     const headers = {

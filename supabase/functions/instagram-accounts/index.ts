@@ -1,3 +1,4 @@
+import { integrationOrigins, connectionSiteOrigin } from "../_shared/integration-origins.ts";
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { accountHandler, type AccountRepository } from "./handler.ts";
@@ -30,4 +31,4 @@ const repository: AccountRepository = {
     checked(await db.rpc("ig_disconnect_account", { p_user: userId, p_account: accountId }));
   },
 };
-Deno.serve(accountHandler(repository));
+Deno.serve(accountHandler(repository, fetch, integrationOrigins(Deno.env.get("AVANCA_EXTRA_ORIGINS"), connectionSiteOrigin(Deno.env.get("AVANCA_SITE_ORIGIN")))));

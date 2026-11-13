@@ -1,3 +1,4 @@
+import { integrationOrigins, connectionSiteOrigin } from "../_shared/integration-origins.ts";
 import {
   librarySharing,
   type LibrarySharingDatabase,
@@ -27,12 +28,7 @@ const db = createClient(
 );
 requireApprovedAccount(db);
 const fileStorage = hybridStorage(db, Deno.env.get("SUPABASE_URL")!);
-const origins = new Set([
-  "https://www.organizafy.site",
-  "https://xn--avana-1ra.online",
-  "https://www.xn--avana-1ra.online",
-  "https://organizafy.site",
-]);
+const origins = integrationOrigins(Deno.env.get("AVANCA_EXTRA_ORIGINS"), connectionSiteOrigin(Deno.env.get("AVANCA_SITE_ORIGIN")));
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
   if (
     error && typeof error === "object" && "message" in error && [
