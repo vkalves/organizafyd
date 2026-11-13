@@ -8,7 +8,8 @@ const messages: Record<string, string> = {
   professional_required: "Use uma conta profissional do Instagram: Business ou Creator.",
   forbidden: "Somente administradores podem alterar o aplicativo Meta.",
   unauthorized: "Entre novamente na Avança para continuar.",
-  invalid_app_config: "Preencha o nome, o App ID numérico e o Secret de 32 caracteres. O Config ID é opcional.",
+  invalid_config_id: "Informe o Config ID numérico do Login Unificado (5 a 40 dígitos).",
+  invalid_app_config: "Preencha o nome, o App ID numérico e o Secret de 32 caracteres.",
   app_secret_required: "Informe o App Secret ao trocar o App ID.",
   invalid_token:
     "A Meta retornou um acesso incompatível. Gere outro link e autorize com a configuração de login unificado.",
