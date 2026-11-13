@@ -325,12 +325,14 @@ describe("Fluxos interface", () => {
     expect(screen.getByText("Reels Diários")).toBeInTheDocument();
     expect(screen.getByText("4 publicado(s)")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Cancelar fluxo/i }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Mais ações de Reels Diários" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Cancelar fluxo" }));
     await waitFor(() => {
       expect(mocks.cancel).toHaveBeenCalledWith("f1");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Apagar fluxo/i }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Mais ações de Reels Diários" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Apagar fluxo" }));
     await waitFor(() => {
       expect(mocks.remove).toHaveBeenCalledWith("f1", "u");
     });
