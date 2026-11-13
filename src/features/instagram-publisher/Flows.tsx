@@ -66,6 +66,7 @@ import {
 } from "../../../supabase/functions/instagram-publisher/schedule";
 import { playConfirmation, unlockAudio } from "./sound";
 import { FlowSharingDialog } from "./FlowSharingDialog";
+import { SharedFlowProgress } from "./SharedFlowProgress";
 import "./flows.css";
 
 type UploadSource = { file: File; reelUrl?: never } | { file?: never; reelUrl: string };
@@ -672,7 +673,11 @@ export default function Flows({
   return (
     <div className="ig-flows">
       {sharing && user && <FlowSharingDialog target={sharing === "join" ? null : sharing} userId={user.id}
-        onClose={() => setSharing(null)} onChanged={() => void query.refetch()} />}
+        onClose={() => setSharing(null)} onChanged={() => {
+          void query.refetch();
+          void cache.invalidateQueries({ queryKey: ["ig-shared-flow-progress", user.id] });
+        }} />}
+      {user && <SharedFlowProgress userId={user.id} />}
       <Dialog open={!!syncFlowId} onOpenChange={open => { if (!open && !busy) setSyncFlowId(null); }}>
         <DialogContent>
           <DialogHeader>

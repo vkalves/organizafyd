@@ -2,6 +2,7 @@ import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { hybridStorage } from '../_shared/hybrid-storage.ts';
 import { readVideoAnalytics } from "./analytics.ts";
 import { dayWindow } from "./day-window.ts";
+import { readSharedFlowProgress } from "./shared-flow-progress.ts";
 import { readPublishedReelsToday, type PublishedTodayReport } from "./published-today.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { validate, mediaParams, type Draft } from "./model.ts";
@@ -503,6 +504,9 @@ Deno.serve(async (req) => {
       );
       if (!rows.length) return reply({ error: "cannot_cancel" }, 409);
       return reply({ ok: true });
+    }
+    if (body.action === "shared_flow_progress") {
+      return reply(await readSharedFlowProgress(db as unknown as Parameters<typeof readSharedFlowProgress>[0], user.id));
     }
     if (body.action === "list_shared_flow_accounts") {
       return reply(checked(await db.rpc("ig_list_shared_flow_accounts", { p_user: user.id })));
