@@ -148,6 +148,7 @@ export default function Flows({
   const [start, setStart] = useState("");
   const [scheduleMode, setScheduleMode] = useState<"gap" | "slots">("gap");
   const [gap, setGap] = useState(1);
+  const [gapPostDelay, setGapPostDelay] = useState(true);
   const [unit, setUnit] = useState(60);
   const [slotDraft, setSlotDraft] = useState("09:00\n12:30\n18:00\n21:00");
   const [slotTime, setSlotTime] = useState("");
@@ -483,6 +484,7 @@ export default function Flows({
     setDistribution(s.distribution ?? "all");
     setRandom(s.random ?? true);
     setFormat(s.format ?? "auto");
+    setGapPostDelay(s.gapPostDelay ?? false);
     setCaption(s.caption ?? "");
     setVariations((s.variations ?? []).join("\n---\n"));
 
@@ -547,6 +549,7 @@ export default function Flows({
         accountIds: available,
         mediaIds: picked.map((m) => m.id),
         gapMinutes: scheduleMode === "slots" ? 3 : gap * unit,
+        gapPostDelay: scheduleMode === "gap" && gapPostDelay,
         random,
         distribution,
         format,
@@ -1687,6 +1690,10 @@ export default function Flows({
                     </div>
                   </div>
 
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" checked={gapPostDelay} onChange={(event) => setGapPostDelay(event.target.checked)} />
+                    <span>Atraso aleatório de 1 a 5 minutos por postagem. Cada publicação recebe um novo sorteio após o horário base do GAP, inclusive na mesma conta.</span>
+                  </label>
                   <div className="flex flex-wrap items-center gap-1">
                     {(
                       [
