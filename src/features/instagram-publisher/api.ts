@@ -54,6 +54,7 @@ const messages: Record<string, string> = {
   invalid_slots:
     "Informe de 1 a 24 horários HH:MM, sem repetir e com pelo menos 3 minutos entre eles.",
   invalid_timezone: "Escolha um fuso horário válido.",
+  invalid_flow_invite: "O código é inválido, expirou ou o fluxo não está ativo.",
   invalid_flow: "Revise os dados do fluxo.",
   invalid_accounts: "Selecione ao menos uma conta.",
   flow_too_large: "Crie fluxos com até 500 publicações por vez.",
