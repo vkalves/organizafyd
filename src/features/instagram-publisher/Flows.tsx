@@ -118,7 +118,8 @@ export default function Flows({
     video: boolean;
     captionDraft: string;
   } | null>(null);
-  const [mediaToDelete, setMediaToDelete] = useState<Media | null>(null);
+  const [mediaToDelete, setMediaToDelete] = useState<Media[]>([]);
+  const [deleteProgress, setDeleteProgress] = useState(0);
 
   // Estado de upload e biblioteca
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
@@ -331,14 +332,29 @@ export default function Flows({
   }
 
   function confirmDeleteMedia() {
-    const target = mediaToDelete;
-    if (!user || !target) return;
+    const targets = mediaToDelete;
+    if (!user || !targets.length || uploadInProgress) return;
     void perform(async () => {
-      await deleteMedia(target.id, target.url, user.id);
-      setSelected((current) => current.filter((id) => id !== target.id));
-      if (inspector?.mediaId === target.id) setInspector(null);
-      setMediaToDelete(null);
-      toast.success("Mídia excluída.");
+      setDeleteProgress(0);
+      const deleted = new Set<string>();
+      const failures: string[] = [];
+      for (const [index, target] of targets.entries()) {
+        try {
+          await deleteMedia(target.id, target.url, user.id);
+          deleted.add(target.id);
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : "Não foi possível excluir esta mídia.");
+        }
+        setDeleteProgress(index + 1);
+      }
+      cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous => previous ? {
+        ...previous, media: previous.media.filter(item => !deleted.has(item.id)),
+      } : previous);
+      setSelected(current => current.filter(id => !deleted.has(id)));
+      if (inspector && deleted.has(inspector.mediaId)) setInspector(null);
+      setMediaToDelete([]);
+      if (deleted.size) toast.success(`${deleted.size} mídia(s) excluída(s).`);
+      if (failures.length) toast.error(`${failures.length} mídia(s) não foram excluídas e permanecem na biblioteca. ${failures[0]}`);
     });
   }
 
@@ -818,29 +834,30 @@ export default function Flows({
       </Dialog>
 
       <Dialog
-        open={!!mediaToDelete}
+        open={mediaToDelete.length > 0}
         onOpenChange={(open) => {
-          if (!open && !busy) setMediaToDelete(null);
+          if (!open && !busy) setMediaToDelete([]);
         }}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold">
-              Excluir mídia?
+              {mediaToDelete.length > 1 ? `Excluir ${mediaToDelete.length} mídias selecionadas?` : "Excluir mídia?"}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            O arquivo será removido permanentemente. Se um fluxo, uma postagem
-            ou um rascunho ainda usar esta mídia, a exclusão será bloqueada até
-            que ele seja concluído ou cancelado.
-          </p>
+          <DialogDescription className="text-xs text-muted-foreground">
+            {mediaToDelete.length > 1 ? "Os arquivos selecionados serão removidos permanentemente." : "O arquivo será removido permanentemente."}
+            {" "}Mídias usadas em fluxos, postagens ou rascunhos serão preservadas até
+            que eles sejam concluídos ou cancelados. As demais serão excluídas.
+          </DialogDescription>
+          {busy && <p role="status" className="text-xs">Excluindo {deleteProgress} de {mediaToDelete.length} mídia(s)…</p>}
           <div className="flex justify-end gap-2">
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={busy}
-              onClick={() => setMediaToDelete(null)}
+              onClick={() => setMediaToDelete([])}
             >
               Cancelar
             </Button>
@@ -848,10 +865,10 @@ export default function Flows({
               type="button"
               size="sm"
               variant="destructive"
-              disabled={busy}
+              disabled={busy || uploadInProgress}
               onClick={confirmDeleteMedia}
             >
-              {busy ? "Excluindo…" : "Excluir mídia"}
+              {busy ? "Excluindo…" : mediaToDelete.length > 1 ? "Excluir mídias selecionadas" : "Excluir mídia"}
             </Button>
           </div>
         </DialogContent>
@@ -1304,6 +1321,10 @@ export default function Flows({
                     {destinationFolders.map(f => <DropdownMenuItem key={f} onSelect={() => moveSelectedMedia(f)}><Folder size={14} aria-hidden="true" />{f}</DropdownMenuItem>)}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <Button type="button" size="sm" variant="destructive" className="h-8 gap-1.5 text-xs" disabled={busy || uploadInProgress}
+                  onClick={() => { setDeleteProgress(0); setMediaToDelete([...selectedVisible]); }}>
+                  <Trash2 size={13} aria-hidden="true" /> Excluir selecionadas
+                </Button>
                 <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={busy || uploadInProgress} aria-label="Limpar seleção" title="Limpar seleção" onClick={() => setSelected([])}><X size={14} /></Button>
               </div>}
             </div>}
@@ -1392,7 +1413,7 @@ export default function Flows({
                         disabled={busy}
                         title="Excluir mídia"
                         aria-label={`Excluir ${isVideo ? "vídeo" : "foto"} ${i + 1}`}
-                        onClick={() => setMediaToDelete(m)}
+                        onClick={() => { setDeleteProgress(0); setMediaToDelete([m]); }}
                       >
                         <Trash2 size={12} />
                       </button>
