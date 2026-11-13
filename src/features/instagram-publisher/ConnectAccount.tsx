@@ -68,8 +68,15 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
   // Check backend readiness
   useEffect(() => {
     loginRequest<MetaConfig>("config")
-      .then((d) => { setReady(d.ready); setPlatformReady(!!d.platformReady); setApps(d.apps || []);
-        setSelectedApp(current => current && d.apps?.some(a => a.id === current && a.active) ? current : d.platformReady ? "" : d.apps?.find(a => a.active)?.id || ""); })
+      .then((config) => {
+        const activeApps = (config.apps || []).filter((app) => app.active);
+        setApps(activeApps);
+        setPlatformReady(!!config.platformReady);
+        setSelectedApp((current) =>
+          activeApps.find((app) => app.id === current)?.id ?? activeApps[0]?.id ?? "",
+        );
+        setReady(config.ready);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "Erro ao consultar configuração"));
   }, []);
 
@@ -90,7 +97,9 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
 
   // Helper to fetch authorization invite link
   async function generateInviteUrl(): Promise<string> {
-    const data = await loginRequest<{ url: string }>("invite", { app_id: selectedApp });
+    const data = await loginRequest<{ url: string }>("invite", {
+      app_id: selectedApp || null,
+    });
     return data.url;
   }
 
@@ -228,13 +237,26 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
             </div>
           )}
 
-          {platformReady && <p className="mb-4 text-xs text-neutral-300">Conecte pela plataforma, sem cadastrar API ou aplicativo próprio.</p>}
-          {apps.some(a => a.active) && <details className="mb-4 text-xs text-neutral-300"><summary className="cursor-pointer">Usar aplicativo próprio (opcional)</summary><label className="mt-3 block">App para esta conexão
-            <select aria-label="App para esta conexão" className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3" value={selectedApp} onChange={e => setSelectedApp(e.target.value)} disabled={busyAction !== null}>
-              {platformReady && <option value="">Conexão padrão da plataforma</option>}
-              {apps.filter(a => a.active).map(a => <option key={a.id} value={a.id}>{a.name} · {a.configId ? "Login Unificado" : "Instagram Login"}</option>)}
-            </select>
-          </label></details>}
+          {apps.length > 0 ? (
+            <label className="mb-4 block text-xs text-neutral-300">
+              App para esta conexão
+              <select
+                className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3"
+                value={selectedApp}
+                onChange={(event) => setSelectedApp(event.target.value)}
+                disabled={busyAction !== null}
+              >
+                {apps.map((app) => (
+                  <option key={app.id} value={app.id}>
+                    {app.name} · {app.configId ? "Login Unificado" : "Instagram Login"}
+                  </option>
+                ))}
+                {platformReady && <option value="">Conexão padrão da plataforma</option>}
+              </select>
+            </label>
+          ) : platformReady && (
+            <p className="mb-4 text-xs text-neutral-300">Conexão padrão da plataforma</p>
+          )}
           <p role="note" className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/30 p-3 text-xs leading-relaxed text-amber-200">
             <strong>Convite pendente?</strong> Aceite no Instagram pelo computador ou navegador em modo desktop antes de conectar. O app do celular pode não mostrar o convite.
           </p>
