@@ -23,7 +23,10 @@ const origins = new Set([
   "https://organizafy.site",
 ]);
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
-  if (error && typeof error === "object" && "message" in error && ["account_connection_disabled", "account_limit_reached"].includes(String(error.message))) throw new Error(String(error.message));
+  if (error && typeof error === "object" && "message" in error && [
+    "account_connection_disabled", "account_limit_reached", "invalid_flow_invite",
+    "campaign_not_active", "invalid_accounts", "account_not_connected", "flow_too_large",
+  ].includes(String(error.message))) throw new Error(String(error.message));
   if (error) throw new Error("database_error");
   return data;
 }
@@ -262,7 +265,8 @@ async function worker() {
       return { processed: 0 };
     }
     // Persist the publication boundary BEFORE calling Meta. Never retry after this point.
-    await update({ publish_started: true });
+    const canPublish = checked(await db.rpc("ig_begin_flow_publication", { p_job: job.id, p_lock: lock }));
+    if (!canPublish) return { processed: 0 };
     publishing = true;
     const result = await accountGraph(
       c.graph_id + "/media_publish",
@@ -499,6 +503,32 @@ Deno.serve(async (req) => {
       );
       if (!rows.length) return reply({ error: "cannot_cancel" }, 409);
       return reply({ ok: true });
+    }
+    if (body.action === "list_shared_flow_accounts") {
+      return reply(checked(await db.rpc("ig_list_shared_flow_accounts", { p_user: user.id })));
+    }
+    if (body.action === "create_flow_invite" || body.action === "revoke_shared_flow_account") {
+      const validId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+      if (!validId(body.id)) throw new Error("invalid_flow");
+      if (body.action === "create_flow_invite") {
+        const code = checked(await db.rpc("ig_create_flow_invite", { p_user: user.id, p_flow: body.id }));
+        return reply({ code });
+      }
+      if (!validId(body.account_id)) throw new Error("invalid_accounts");
+      checked(await db.rpc("ig_revoke_shared_flow_account", { p_user: user.id, p_flow: body.id, p_account: body.account_id }));
+      return reply({ ok: true });
+    }
+    if (body.action === "preview_flow_invite" || body.action === "accept_flow_invite") {
+      const code = typeof body.code === "string" ? body.code.trim().toLowerCase() : "";
+      if (!/^[0-9a-f]{32}$/.test(code)) throw new Error("invalid_flow_invite");
+      if (body.action === "preview_flow_invite") {
+        return reply(checked(await db.rpc("ig_preview_flow_invite", { p_user: user.id, p_code: code })));
+      }
+      if (!Array.isArray(body.account_ids) || body.account_ids.length < 1 || body.account_ids.length > 50 ||
+        body.account_ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))) {
+        throw new Error("invalid_accounts");
+      }
+      return reply(checked(await db.rpc("ig_accept_flow_invite", { p_user: user.id, p_code: code, p_accounts: body.account_ids })));
     }
     if (body.action === 'add_flow_accounts') {
       if (!Array.isArray(body.account_ids) || !body.account_ids.length || body.account_ids.length > 50 || body.account_ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) throw new Error("invalid_accounts");
