@@ -1,9 +1,9 @@
+import { integrationOrigins } from "../_shared/integration-origins.ts";
 interface AdminDatabase {
   auth: { getUser(token: string): Promise<{ data: { user: { id: string } | null }; error: unknown }> };
   rpc(name: string, params: Record<string, unknown>): PromiseLike<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
 }
-const origins = new Set(["https://www.organizafy.site", "https://organizafy.site", "https://xn--avana-1ra.online", "https://www.xn--avana-1ra.online", "https://organizafyd.vercel.app"]);
-export function createAdminHandler(db: AdminDatabase, refreshStorage?: (users: string[]) => Promise<void>) { return async (req: Request) => {
+export function createAdminHandler(db: AdminDatabase, refreshStorage?: (users: string[]) => Promise<void>, origins = integrationOrigins()) { return async (req: Request) => {
   const origin = req.headers.get("origin") || "";
   const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "Access-Control-Allow-Origin": origins.has(origin) ? origin : "https://www.organizafy.site", "Access-Control-Allow-Headers": "authorization,apikey,content-type,x-client-info", "Access-Control-Allow-Methods": "POST,OPTIONS", Vary: "Origin" };
   const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers });

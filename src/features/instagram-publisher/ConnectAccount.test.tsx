@@ -46,3 +46,21 @@ it("prefers an owned active app unless the platform is explicitly selected", () 
   expect(() => selectConnectionApp([{ ...app, active: false }], "private", true)).toThrow("app_not_found");
   expect(() => selectConnectionApp([], undefined, false)).toThrow("not_configured");
 });
+it("binds authorization to the explicitly entered Android/Chrome handle", async () => {
+  mocks.request.mockImplementation(async action => action === "config" ? { ready: true, platformReady: true, apps: [] } : { url: "https://example.com/instagram/conectar#invite=fixture" });
+  render(<ConnectAccount onConnected={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  const expected = await screen.findByLabelText("Instagram esperado (opcional)");
+  fireEvent.change(expected, { target: { value: "@Same.Account" } });
+  fireEvent.click(screen.getByRole("button", { name: /Continuar neste navegador/ }));
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: null, expected_username: "same.account" }));
+});
+it("does not generate a connection link for an invalid expected handle", async () => {
+  mocks.request.mockResolvedValue({ ready: true, platformReady: true, apps: [] });
+  render(<ConnectAccount onConnected={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  fireEvent.change(await screen.findByLabelText("Instagram esperado (opcional)"), { target: { value: "not a handle" } });
+  fireEvent.click(screen.getByRole("button", { name: /Continuar neste navegador/ }));
+  expect(await screen.findByText(/Informe um @ válido/)).toBeInTheDocument();
+  expect(mocks.request).not.toHaveBeenCalledWith("invite", expect.anything());
+});

@@ -56,6 +56,7 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
   const [view, setView] = useState<"menu" | "qr">("menu");
   const [apps, setApps] = useState<MetaApp[]>([]);
   const [selectedApp, setSelectedApp] = useState(appId || "");
+  const [expectedUsername, setExpectedUsername] = useState("");
   const [ready, setReady] = useState<boolean | null>(null);
   const [platformReady, setPlatformReady] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -97,8 +98,13 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
 
   // Helper to fetch authorization invite link
   async function generateInviteUrl(): Promise<string> {
+    const expected = expectedUsername.trim().replace(/^@/, "").toLowerCase();
+    if (expected && !/^[a-z0-9._]{1,30}$/.test(expected)) {
+      throw new Error("Informe um @ válido, com até 30 letras, números, pontos ou sublinhados.");
+    }
     const data = await loginRequest<{ url: string }>("invite", {
       app_id: selectedApp || null,
+      ...(expected ? { expected_username: expected } : {}),
     });
     return data.url;
   }
@@ -257,6 +263,21 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
           ) : platformReady && (
             <p className="mb-4 text-xs text-neutral-300">Conexão padrão da plataforma</p>
           )}
+          <label className="mb-4 block text-xs text-neutral-300">
+            Instagram esperado (opcional)
+            <input
+              className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3"
+              aria-label="Instagram esperado (opcional)"
+              value={expectedUsername}
+              onChange={event => setExpectedUsername(event.target.value)}
+              disabled={busyAction !== null}
+              placeholder="@conta.usada.no.android"
+              maxLength={31}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <span className="mt-2 block text-neutral-400">Informe o mesmo @ do aplicativo Android e do Chrome para impedir a conexão de outro perfil.</span>
+          </label>
           <p role="note" className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/30 p-3 text-xs leading-relaxed text-amber-200">
             <strong>Convite pendente?</strong> Aceite no Instagram pelo computador ou navegador em modo desktop antes de conectar. O app do celular pode não mostrar o convite.
           </p>

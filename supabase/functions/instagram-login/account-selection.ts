@@ -39,10 +39,14 @@ export async function createAccountSelection(grant: Grant, userId: string, verif
   // Tokens stay encrypted on the server. The browser receives only a one-use nonce and profile names.
   return { selection: nonce, accounts: grant.accounts.map(({ id, username }) => ({ id, username })) };
 }
-export async function consumeAccountSelection(nonce: string, verifier: string, accountId: string, serverKey: string, store: SelectionStore) {
-  if (typeof nonce !== "string" || !/^[a-f0-9]{64}$/.test(nonce) || typeof verifier !== "string" || !/^[a-f0-9]{64}$/.test(verifier) || typeof accountId !== "string" || !/^\d{5,30}$/.test(accountId)) throw fail();
-  const row = await store.find(await digest("selection:" + nonce), await digest(verifier), new Date().toISOString());
-  if (!row || Date.parse(row.expires_at) <= Date.now()) throw fail();
+/** Read a legacy selection without consuming it, so a new handler can upgrade
+ * its encrypted representation before performing the transactional save. */
+export async function readAccountSelection<T extends PendingSelection>(nonce: string, verifier: string, serverKey: string,
+  store: { find(hash: string, proof: string, now: string): Promise<T | null> }) {
+  if (typeof nonce !== "string" || !/^[a-f0-9]{64}$/.test(nonce) || typeof verifier !== "string" || !/^[a-f0-9]{64}$/.test(verifier)) throw fail();
+  const stateHash = await digest("selection:" + nonce), proofHash = await digest(verifier);
+  const row = await store.find(stateHash, proofHash, new Date().toISOString());
+  if (!row || row.state_hash !== stateHash || row.verifier_hash !== proofHash || !Number.isFinite(Date.parse(row.expires_at)) || Date.parse(row.expires_at) <= Date.now()) throw fail();
   let grant: Grant;
   try {
     const parts = row.pending_grant.split(".");
@@ -50,8 +54,17 @@ export async function consumeAccountSelection(nonce: string, verifier: string, a
     const bytes = (s: string) => Uint8Array.from(s.match(/../g)!, pair => parseInt(pair, 16));
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(parts[0]), additionalData: aad(row) }, await encryptionKey(serverKey), bytes(parts[1]));
     grant = JSON.parse(new TextDecoder().decode(plain));
+    if (!Array.isArray(grant.accounts) || !grant.accounts.length || grant.accounts.length > 500 ||
+      typeof grant.token !== "string" || !grant.token || grant.accounts.some(profile =>
+        typeof profile.id !== "string" || !/^\d{5,30}$/.test(profile.id) ||
+        typeof profile.username !== "string" || !/^[a-zA-Z0-9._]{1,30}$/.test(profile.username))) throw fail();
   } catch { throw fail(); }
-  const profile = grant.accounts?.find(a => a.id === accountId);
+  return { row, grant };
+}
+export async function consumeAccountSelection(nonce: string, verifier: string, accountId: string, serverKey: string, store: SelectionStore) {
+  if (typeof accountId !== "string" || !/^\d{5,30}$/.test(accountId)) throw fail();
+  const { row, grant } = await readAccountSelection(nonce, verifier, serverKey, store);
+  const profile = grant.accounts.find(a => a.id === accountId);
   if (!profile) throw fail();
   // Compare and delete before saving so concurrent requests cannot connect different profiles.
   if (!await store.consume(row, new Date().toISOString())) throw fail();

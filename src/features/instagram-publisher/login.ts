@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 const messages: Record<string, string> = {
+  account_mismatch: "A conta autorizada não corresponde ao Instagram esperado. Entre na conta correta e gere uma nova autorização.",
+  invalid_expected_account: "Informe um @ válido para a conta esperada.",
+  authorization_restart_required: "Esta autorização precisa ser iniciada novamente com um novo link.",
+  invalid_expected_identity: "Informe um @ válido para a conta esperada.",
+  operation_in_progress: "A autorização está sendo processada. Verifique o resultado antes de tentar novamente.",
+  restart_required: "Esta autorização precisa ser iniciada novamente com um novo link.",
   account_connection_disabled: "O administrador não liberou novas conexões para seu usuário.",
   account_limit_reached: "Você atingiu o limite de contas permitido. Solicite um aumento ao administrador.",
   app_exists: "Você já cadastrou um app com esse App ID.",

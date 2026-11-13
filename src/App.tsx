@@ -14,6 +14,7 @@ import { LegacyWorkspaceRedirect } from "@/components/common/LegacyWorkspaceRedi
 const PublicInfo = lazy(() => import("./pages/PublicInfo"));
 const InstagramConnect = lazy(() => import("./pages/InstagramConnect"));
 const Agonia = lazy(() => import("./pages/Agonia"));
+const AutomationIntegration = lazy(() => import("./pages/AutomationIntegration"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/instagram/conectar" element={<InstagramConnect />} />
               <Route path="/" element={<Navigate to="/avanca" replace />} />
               <Route path="/avanca" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
+              <Route path="/avanca/integracao" element={<ProtectedRoute><AutomationIntegration /></ProtectedRoute>} />
               <Route path="/avanca/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
               <Route path="/agonia/*" element={<LegacyWorkspaceRedirect />} />
               <Route path="/dispara/*" element={<LegacyWorkspaceRedirect />} />
