@@ -163,6 +163,7 @@ describe("Fluxos interface", () => {
           accountIds: ["a"],
           mediaIds: ["m"],
           gapMinutes: 60,
+          gapPostDelay: true,
           distribution: "split",
           startAt: null,
         }),

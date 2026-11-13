@@ -12,27 +12,63 @@ const append=(jobs:unknown[],cycle=1)=>rows('select public.ig_append_flow_cycle(
 beforeAll(async()=>{
  db=new PGlite();
  await db.exec(`create role anon; create role authenticated; create role service_role;
- create table ig_flows(id uuid primary key,user_id uuid,settings jsonb,state text default 'active',cycle integer default 1,last_error text);
- create table ig_publisher_connections(account_id uuid primary key,user_id uuid);
+ create table ig_flows(id uuid primary key,user_id uuid,name text,settings jsonb,state text default 'active',cycle integer default 1,last_error text);
+ create table ig_publisher_connections(account_id uuid primary key,user_id uuid,paused boolean default false,reconnect_required boolean default false);
  create table ig_flow_library(id uuid primary key,user_id uuid,url text,retired boolean default false);
- create table ig_publication_jobs(id uuid primary key default gen_random_uuid(),user_id uuid,account_id uuid,caption text,format text,media_urls text[],scheduled_at timestamptz,next_attempt_at timestamptz default now(),flow_id uuid,cover_url text,flow_cycle integer default 1,shared_account_owner uuid,status text default 'scheduled',error_code text,published_at timestamptz);
+ create table ig_publication_jobs(id uuid primary key default gen_random_uuid(),user_id uuid,account_id uuid,caption text,format text,media_urls text[],scheduled_at timestamptz,next_attempt_at timestamptz default now(),flow_id uuid,cover_url text,flow_cycle integer default 1,shared_account_owner uuid,status text default 'scheduled',error_code text,published_at timestamptz,account_owner uuid generated always as (coalesce(shared_account_owner,user_id)) stored,locked_at timestamptz,lock_token uuid,attempts integer default 0,publish_started boolean default false);
  create function ig_flow_destination_ready(uuid,uuid,uuid) returns boolean language sql as $$ select exists(select 1 from public.ig_publisher_connections where account_id=$3) $$;
  create function ig_flow_media_skipped(uuid,uuid,text[]) returns boolean language sql as $$ select false $$;
+ create function ig_create_flow(uuid,uuid,text,jsonb,jsonb) returns void language sql as $$ select $$;
+ create function ig_claim_job(uuid) returns setof ig_publication_jobs language sql as $$ select * from ig_publication_jobs where false $$;
  create function ig_sync_flow_accounts(uuid,uuid,uuid[],uuid) returns jsonb language sql as $$ select '{}'::jsonb $$;
  create function ig_append_flow_cycle(uuid,uuid,integer,jsonb) returns boolean language sql as $$ select false $$;
  create function ig_campaign_progress(uuid,uuid) returns table(account_id uuid,total bigint,last_at timestamptz) language sql as $$ select null::uuid,0::bigint,null::timestamptz where false $$;
- revoke all on function ig_sync_flow_accounts(uuid,uuid,uuid[],uuid),ig_append_flow_cycle(uuid,uuid,integer,jsonb),ig_campaign_progress(uuid,uuid) from public,anon,authenticated;
+ revoke all on function ig_create_flow(uuid,uuid,text,jsonb,jsonb),ig_claim_job(uuid),ig_sync_flow_accounts(uuid,uuid,uuid[],uuid),ig_append_flow_cycle(uuid,uuid,integer,jsonb),ig_campaign_progress(uuid,uuid) from public,anon,authenticated;
  grant execute on function ig_sync_flow_accounts(uuid,uuid,uuid[],uuid),ig_append_flow_cycle(uuid,uuid,integer,jsonb),ig_campaign_progress(uuid,uuid) to service_role;`);
  await db.exec(readFileSync(new URL('../../../supabase/migrations/20261113121349_skip_next_flow_post_on_account_entry.sql',import.meta.url),'utf8'));
+ await db.exec(readFileSync(new URL('../../../supabase/migrations/20261113123501_gap_account_delay.sql',import.meta.url),'utf8'));
 },30000);
 beforeEach(async()=>{
  await db.exec('truncate ig_flows,ig_publisher_connections,ig_flow_library,ig_publication_jobs');
  await rows('insert into ig_flows(id,user_id,settings) values($1,$2,$3)',[flow,user,JSON.stringify({accountIds:[a],mediaIds:[m1,m2],distribution:'all',repeat:'loop',gapMinutes:120})]);
- await rows('insert into ig_publisher_connections values($1,$3),($2,$3)',[a,b,user]);
+ await rows('insert into ig_publisher_connections(account_id,user_id) values($1,$3),($2,$3)',[a,b,user]);
  await rows("insert into ig_flow_library(id,user_id,url) values($1,$3,'one.mp4'),($2,$3,'two.mp4')",[m1,m2,user]);
 });
 afterAll(async()=>{await db?.close();});
 describe('new accounts skip the next active-flow slot once',()=>{
+ it('gives each newly connected post a fresh delay while skipping the first nominal slot',async()=>{
+  await db.exec(`update ig_flows set settings=settings||'{"gapPostDelay":true}'::jsonb;select setseed(0.42);`);
+  await addJob('one.mp4',20);await addJob('two.mp4',140);
+  await db.exec("update ig_publication_jobs set flow_base_at=scheduled_at,scheduled_at=scheduled_at+interval '3 minutes'");
+  expect(await sync()).toEqual({added:1,queued:1});
+  const jobs=await rows<{scheduled_at:Date;flow_base_at:Date;status:string;media_urls:string[]}>('select * from ig_publication_jobs where account_id=$1 order by flow_base_at',[b]);
+  const delays=jobs.map(j=>new Date(j.scheduled_at).getTime()-new Date(j.flow_base_at).getTime());
+  expect(delays.every(delay=>delay>=60000&&delay<=300000)).toBe(true);expect(delays[0]).not.toBe(delays[1]);
+  expect(jobs.map(j=>j.status)).toEqual(['cancelled','scheduled']);
+ });
+ it('persists nominal timestamps on initial creation',async()=>{
+  await db.exec('truncate ig_flows,ig_publication_jobs');
+  const job={...draft(a),flow_base_at:'2027-01-01T11:57:00Z'};
+  await rows('select ig_create_flow($1,$2,$3,$4::jsonb,$5::jsonb)',[user,flow,'Delay',JSON.stringify({accountIds:[a],mediaIds:[m1],gapPostDelay:true}),JSON.stringify([job])]);
+  const saved=(await rows<{flow_base_at:Date}>('select flow_base_at from ig_publication_jobs'))[0];
+  expect(new Date(saved.flow_base_at).toISOString()).toBe('2027-01-01T11:57:00.000Z');
+ });
+ it('skips the first nominal slot even when its random target is later than the second target',async()=>{
+  await sync();
+  await append([{...draft(b,'one.mp4','2027-01-01T12:05:00Z'),flow_base_at:'2027-01-01T12:00:00Z'},{...draft(b,'two.mp4','2027-01-01T12:04:00Z'),flow_base_at:'2027-01-01T12:03:00Z'}]);
+  expect((await rows('select status from ig_publication_jobs order by flow_base_at')).map(j=>j.status)).toEqual(['cancelled','scheduled']);
+  expect(new Date((await rows<{last_at:Date}>('select * from ig_campaign_progress($1,$2)',[user,flow]))[0].last_at).toISOString()).toBe('2027-01-01T12:00:00.000Z');
+ });
+ it('does not publish a later logical slot before an earlier slot when random targets overlap',async()=>{
+  await rows("insert into ig_publication_jobs(user_id,account_id,flow_id,media_urls,status,scheduled_at,flow_base_at) values($1,$2,$3,array['one.mp4'],'scheduled',now()-interval '20 seconds',now()-interval '320 seconds'),($1,$2,$3,array['two.mp4'],'scheduled',now()-interval '80 seconds',now()-interval '140 seconds')",[user,a,flow]);
+  const job=(await rows<{media_urls:string[]}>('select * from ig_claim_job(gen_random_uuid())'))[0];
+  expect(job.media_urls).toEqual(['one.mp4']);
+ });
+ it('allows independently jittered targets instead of forcing every delay to match the previous one',async()=>{
+  await db.exec(`update ig_flows set settings=settings||'{"gapPostDelay":true}'::jsonb`);
+  await rows("insert into ig_publication_jobs(user_id,account_id,flow_id,media_urls,status,scheduled_at,flow_base_at,published_at) values($1,$2,$3,array['one.mp4'],'published',now()-interval '119 minutes',now()-interval '123 minutes',now()-interval '119 minutes'),($1,$2,$3,array['two.mp4'],'scheduled',now()-interval '1 minute',now()-interval '3 minutes',null)",[user,a,flow]);
+  expect((await rows<{media_urls:string[]}>('select * from ig_claim_job(gen_random_uuid())'))[0].media_urls).toEqual(['two.mp4']);
+ });
  it.each([20,90,240])('skips the next slot with %i minutes remaining and preserves existing jobs',async(minutes)=>{
   await addJob('one.mp4',minutes);await addJob('two.mp4',minutes+120);
   const before=await rows('select * from ig_publication_jobs order by id');

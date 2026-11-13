@@ -13,6 +13,7 @@ export type FlowInput = {
   accountIds: string[];
   mediaIds: string[];
   gapMinutes: number;
+  gapPostDelay?: boolean;
   random: boolean;
   distribution: "all" | "split";
   format: "auto" | "Reel" | "Feed";
@@ -116,6 +117,8 @@ export function buildFlow(
   )
     throw new Error("invalid_caption");
   const start = input.startAt ? Date.parse(input.startAt) : now + 60000;
+  if (input.gapPostDelay !== undefined && typeof input.gapPostDelay !== "boolean")
+    throw new Error("invalid_schedule");
   if (!Number.isFinite(start) || start <= now)
     throw new Error("invalid_schedule");
   if (
@@ -167,7 +170,7 @@ export function buildFlow(
           )
         : [...media]
       : shuffle(media);
-  const jobs: (Draft & { cover_url: string | null })[] = [];
+  const jobs: (Draft & { cover_url: string | null; flow_base_at?: string })[] = [];
   input.accountIds.forEach((accountId, accountIndex) => {
     if (context.disabledAccounts?.includes(accountId)) return;
     const items =
@@ -206,6 +209,10 @@ export function buildFlow(
               ? "Reel"
               : "Feed"
             : input.format;
+      const baseAt = times ? times[index] : ownStart + index * input.gapMinutes * 60000 +
+        (Math.floor((offset + index) / batch) - Math.floor(offset / batch)) * rest;
+      const delayed = input.schedule !== "slots" && input.gapPostDelay;
+      const delayMs = delayed ? 60_000 + Math.min(240_000, Math.floor(random() * 240_001)) : accountIndex * 5000;
       const job = {
         id: crypto.randomUUID(),
         account_id: accountId,
@@ -218,16 +225,8 @@ export function buildFlow(
               input.variations[index % (input.variations.length || 1)] ||
               input.caption,
         media_urls: [item.url],
-        scheduled_at: new Date(
-          (times
-            ? times[index]
-            : ownStart +
-              index * input.gapMinutes * 60000 +
-              (Math.floor((offset + index) / batch) -
-                Math.floor(offset / batch)) *
-                rest) +
-            accountIndex * 5000,
-        ).toISOString(),
+        scheduled_at: new Date(baseAt + delayMs).toISOString(),
+        ...(delayed ? { flow_base_at: new Date(baseAt).toISOString() } : {}),
         cover_url: format === "Reel" ? (cover?.url ?? null) : null,
       };
       validate(job, userId, now);

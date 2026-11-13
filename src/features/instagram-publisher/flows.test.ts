@@ -31,6 +31,29 @@ const input: FlowInput = {
   coverId: null,
 };
 describe("Fluxos de publicação", () => {
+  it("draws a fresh 1–5 minute delay for every GAP post, including the same account", () => {
+    let draw = 0;
+    const samples = [0, 0.5, 0.999999, 0.25];
+    const jobs = buildFlow({ ...input, gapPostDelay: true, gapMinutes: 120 }, library, user, 0, () => samples[draw++ % samples.length]);
+    expect(jobs).toHaveLength(8);
+    for (const account of accounts) {
+      const own = jobs.filter((job) => job.account_id === account);
+      expect(own.map((job) => Date.parse(job.scheduled_at!) - Date.parse(job.flow_base_at!))).toEqual([60000, 180000, 300000, 120000]);
+      expect(Date.parse(own[1].flow_base_at!) - Date.parse(own[0].flow_base_at!)).toBe(120 * 60000);
+    }
+    expect(draw).toBe(8);
+  });
+  it("uses a fresh draw in subsequent cycles without changing nominal GAP/rest anchors", () => {
+    const jobs = buildFlow({ ...input, gapPostDelay: true, batchSize: 2, restMinutes: 20 }, library, user, 0, () => 0.5, { starts: { [accounts[0]]: 900000 } });
+    expect(Date.parse(jobs[0].flow_base_at!)).toBe(900000);
+    expect(Date.parse(jobs[0].scheduled_at!)).toBe(1080000);
+    expect(Date.parse(jobs[2].flow_base_at!) - Date.parse(jobs[1].flow_base_at!)).toBe(23 * 60000);
+  });
+  it("keeps fixed-time behavior and disabled-delay flows unchanged", () => {
+    const config = { ...input, schedule: "slots" as const, slots: ["09:00", "12:00"], timeZone: "UTC" };
+    expect(buildFlow({ ...config, gapPostDelay: true }, library, user, 0).map((job) => job.scheduled_at)).toEqual(buildFlow(config, library, user, 0).map((job) => job.scheduled_at));
+    expect(buildFlow({ ...input, gapPostDelay: false }, library, user, 0).map((job) => job.scheduled_at)).toEqual(buildFlow(input, library, user, 0).map((job) => job.scheduled_at));
+  });
   it("ignora a conta indisponível e a mídia com falha apenas na conta afetada, mesmo com reutilização permitida", () => {
     const jobs = buildFlow(input, library, user, 0, Math.random, { excluded: [{ account_id: accounts[0], url: library[0].url }] });
     expect(jobs.filter(j => j.account_id === accounts[0])).toHaveLength(3);
