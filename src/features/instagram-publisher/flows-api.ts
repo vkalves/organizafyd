@@ -56,7 +56,7 @@ type Schema = {
       ig_flow_library: Table<Media>;
       ig_flow_preferences: Table<Prefs>;
       ig_flows: Table<Flow>;
-      ig_publication_jobs: Table<MediaReference>;
+      ig_publication_jobs: Table<MediaReference & { cover_url: string | null }>;
       instagram_publication_drafts: Table<MediaReference>;
     };
     Views: Record<string, never>;
@@ -248,22 +248,34 @@ export async function setMedia(
     .eq("id", id);
   if (error) throw new Error("Não foi possível salvar a mídia.");
 }
-export async function deleteMedia(id: string, url: string, userId: string) {
-  const prefix = `storage://${userId}/`;
-  if (!url.startsWith(prefix) || url.includes(".."))
-    throw new Error("Não foi possível validar o arquivo desta mídia.");
-
-  const [activeFlows, pendingJobs, pendingDrafts] = await Promise.all([
+export async function mediaInUse(id: string, url: string, userId: string) {
+  const [activeFlows, activeCovers, pendingJobs, pendingCovers, pendingDrafts] = await Promise.all([
     db
       .from("ig_flows")
-      .select("settings")
+      .select("id")
       .eq("user_id", userId)
-      .in("state", ["active", "paused"]),
+      .in("state", ["active", "paused"])
+      .contains("settings", { mediaIds: [id] })
+      .limit(1),
+    db
+      .from("ig_flows")
+      .select("id")
+      .eq("user_id", userId)
+      .in("state", ["active", "paused"])
+      .eq("settings->>coverId", id)
+      .limit(1),
     db
       .from("ig_publication_jobs")
       .select("id")
       .eq("user_id", userId)
       .contains("media_urls", [url])
+      .in("status", ["scheduled", "processing", "failed", "uncertain"])
+      .limit(1),
+    db
+      .from("ig_publication_jobs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("cover_url", url)
       .in("status", ["scheduled", "processing", "failed", "uncertain"])
       .limit(1),
     db
@@ -275,16 +287,34 @@ export async function deleteMedia(id: string, url: string, userId: string) {
       .limit(1),
   ]);
 
-  if (activeFlows.error || pendingJobs.error || pendingDrafts.error)
+  if (activeFlows.error || activeCovers.error || pendingJobs.error || pendingCovers.error || pendingDrafts.error)
     throw new Error("Não foi possível verificar se esta mídia está em uso.");
-  if (
-    activeFlows.data?.some(
-      (flow) =>
-        flow.settings?.mediaIds?.includes(id) || flow.settings?.coverId === id,
-    ) ||
+  return Boolean(
+    activeFlows.data?.length || activeCovers.data?.length ||
     pendingJobs.data?.length ||
+    pendingCovers.data?.length ||
     pendingDrafts.data?.length
-  )
+  );
+}
+
+export async function loadLibraryMedia(userId: string): Promise<Media[]> {
+  const result: Media[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await db.from("ig_flow_library").select("*")
+      .eq("user_id", userId).eq("retired", false)
+      .order("created_at").order("id").range(offset, offset + 499);
+    if (error) throw new Error("Não foi possível carregar toda a biblioteca.");
+    const page = (data ?? []) as unknown as Media[];
+    result.push(...page);
+    if (page.length < 500) return result;
+  }
+}
+
+export async function deleteMedia(id: string, url: string, userId: string) {
+  const prefix = `storage://${userId}/`;
+  if (!url.startsWith(prefix) || url.includes(".."))
+    throw new Error("Não foi possível validar o arquivo desta mídia.");
+  if (await mediaInUse(id, url, userId))
     throw new Error(
       "Conclua ou cancele os fluxos, postagens e rascunhos que usam esta mídia antes de excluí-la.",
     );

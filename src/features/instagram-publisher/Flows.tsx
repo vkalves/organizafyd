@@ -67,6 +67,7 @@ import {
 import { playConfirmation, unlockAudio } from "./sound";
 import { FlowSharingDialog } from "./FlowSharingDialog";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
+import { DuplicateMediaDialog } from "./DuplicateMediaDialog";
 import { SharedFlowProgress } from "./SharedFlowProgress";
 import "./flows.css";
 
@@ -109,6 +110,7 @@ export default function Flows({
   // Navegação de contexto principal (uma tarefa principal por tela)
   const [sharing, setSharing] = useState<{ id: string; name: string } | "join" | null>(null);
   const [librarySharing, setLibrarySharing] = useState(false);
+  const [duplicateCleanup, setDuplicateCleanup] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceTab>("composer");
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
   const [campaignSearch, setCampaignSearch] = useState("");
@@ -1004,9 +1006,18 @@ export default function Flows({
           >
             {/* Cabeçalho da biblioteca + botão direto de upload */}
             <div className="ig-panel-head">
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <h2 id="ig-library-heading">Biblioteca de mídias</h2>
                 <Button size="sm" variant="outline" onClick={() => setLibrarySharing(true)}>Compartilhar por @</Button>
+                <Button size="sm" variant="outline" disabled={busy || uploadInProgress} onClick={() => setDuplicateCleanup(true)}>Remover repetidos</Button>
+                {duplicateCleanup && user && <DuplicateMediaDialog userId={user.id} onClose={() => setDuplicateCleanup(false)} onDeleted={(ids) => {
+                  const deleted = new Set(ids);
+                  cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous => previous ? { ...previous, media: previous.media.filter(item => !deleted.has(item.id)) } : previous);
+                  setSelected(previous => previous.filter(id => !deleted.has(id)));
+                  if (coverId && deleted.has(coverId)) setCoverId(null);
+                  if (inspector && deleted.has(inspector.mediaId)) setInspector(null);
+                  void cache.invalidateQueries({ queryKey: key });
+                }} />}
                 {librarySharing && user && <LibrarySharingDialog userId={user.id} onClose={() => setLibrarySharing(false)} onChanged={() => { void cache.invalidateQueries({ queryKey: key }); }} />}
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {visible.length}
