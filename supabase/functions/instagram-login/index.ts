@@ -144,7 +144,9 @@ Deno.serve(async (req) => {
       } = await db.auth.getUser(jwt);
       if (error || !user) return reply({ error: "unauthorized" }, 401);
       const apps = checked(await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: "list" }));
-      const app = selectConnectionApp<{ id: string; active: boolean }>(apps, b.app_id, b.app_id ? false : await platformConnectionReady());
+      const usePlatform = b.app_id === null || (!b.app_id && !apps.some((app: { active: boolean }) => app.active));
+      const platformReady = usePlatform && await platformConnectionReady();
+      const app = selectConnectionApp<{ id: string; active: boolean }>(apps, b.app_id, platformReady);
       const token = random();
       checked(
         await db.from("ig_connection_invites").delete().eq("user_id", user.id),

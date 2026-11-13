@@ -16,21 +16,30 @@ it("connects without registering or selecting a personal app", async () => {
   await waitFor(() => expect(login).toBeEnabled());
   expect(screen.queryByLabelText("App para esta conexão")).not.toBeInTheDocument();
   fireEvent.click(login);
-  await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: "" }));
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: null }));
 });
-it("defaults to the platform connection even when the user has a private app, keeping it optional", async () => {
+it("uses the visible private app by default when continuing in this browser", async () => {
   mocks.request.mockImplementation(async action => action === "config" ? { ready: true, platformReady: true, apps: [app] } : { url: "https://example.com/instagram/conectar#invite=fixture" });
   render(<ConnectAccount onConnected={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
-  fireEvent.click(await screen.findByText("Usar aplicativo próprio (opcional)"));
-  expect(screen.getByLabelText("App para esta conexão")).toHaveValue("");
-  fireEvent.change(screen.getByLabelText("App para esta conexão"), { target: { value: "private" } });
+  expect(await screen.findByLabelText("App para esta conexão")).toHaveValue("private");
   fireEvent.click(screen.getByRole("button", { name: /Continuar neste navegador/ }));
   await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: "private" }));
 });
-it("selects only the platform app or an explicitly owned active private app", () => {
+it("honors an explicit platform choice even when a private app is active", async () => {
+  mocks.request.mockImplementation(async action => action === "config" ? { ready: true, platformReady: true, apps: [app] } : { url: "https://example.com/instagram/conectar#invite=fixture" });
+  render(<ConnectAccount onConnected={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  fireEvent.change(await screen.findByLabelText("App para esta conexão"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: /Continuar neste navegador/ }));
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: null }));
+});
+it("prefers an owned active app unless the platform is explicitly selected", () => {
   expect(selectConnectionApp([], "", true)).toBeNull();
-  expect(selectConnectionApp([app], undefined, true)).toBeNull();
+  expect(selectConnectionApp([app], undefined, true)).toBe(app);
+  expect(selectConnectionApp([app], "", true)).toBe(app);
+  expect(selectConnectionApp([app], null, true)).toBeNull();
+  expect(() => selectConnectionApp([app], null, false)).toThrow("not_configured");
   expect(selectConnectionApp([app], "private", true)).toBe(app);
   expect(selectConnectionApp([app], undefined, false)).toBe(app);
   expect(() => selectConnectionApp([app], "somebody-elses-app", true)).toThrow("app_not_found");
