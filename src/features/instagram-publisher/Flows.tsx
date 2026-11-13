@@ -2365,6 +2365,13 @@ export default function Flows({
                   </div>
 
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    {state === "active" && (
+                      <Button size="sm" variant="outline" disabled={busy} className="h-8 text-xs"
+                        onClick={() => setSharing({ id: flow.id, name: flow.name || "Campanha sem nome" })}>
+                        <Link2 size={13} className="mr-1.5" />
+                        Compartilhar fluxo
+                      </Button>
+                    )}
                     {canCancel && (
                       <Button
                         size="sm"
@@ -2562,8 +2569,6 @@ export default function Flows({
                           setSyncAccountIds([]);
                           void onCreated();
                         }}><Plus size={13} className="mr-1.5" />Conectar conta ao fluxo</Button>
-                        {state === "active" && <Button size="sm" variant="outline" className="h-8 text-xs"
-                          onClick={() => setSharing({ id: flow.id, name: flow.name || "Campanha sem nome" })}>Compartilhar fluxo</Button>}
                         {state === "paused" && <span className="text-xs text-muted-foreground">Retome a campanha para conectar uma conta.</span>}
                       </div>}
                       {flow.last_error && (
@@ -2621,6 +2626,13 @@ export default function Flows({
                         Reusar
                       </Button>
 
+                      {state === "active" && (
+                        <Button size="sm" variant="outline" disabled={busy} className="h-8 text-xs"
+                          onClick={() => setSharing({ id: flow.id, name: flow.name || "Campanha sem nome" })}>
+                          <Link2 size={13} className="mr-1.5" />
+                          Compartilhar fluxo
+                        </Button>
+                      )}
                       {report && ["active", "paused"].includes(state) && (
                         <Button
                           size="sm"
