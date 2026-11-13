@@ -173,6 +173,14 @@ export default function Flows({
   const [progress, setProgress] = useState("");
   const submitting = useRef(false);
   const uploading = useRef(false);
+  const pendingUploads = useRef<{
+    file: File;
+    userId: string;
+    kind: Media["kind"];
+    folder: string;
+    index: number;
+  }[]>([]);
+  const nextUploadIndex = useRef(0);
   const [uploadInProgress, setUploadInProgress] = useState(false);
   const [flowId, setFlowId] = useState(() => crypto.randomUUID());
 
@@ -326,82 +334,71 @@ export default function Flows({
   }
 
   async function upload(files: File[], target: Media["kind"] = kind) {
-    if (!user || !files.length || submitting.current || uploading.current)
+    if (!user || !files.length || submitting.current) return;
+    if (target === "cover" && (files.length !== 1 || !files[0].type.startsWith("image/"))) {
+      toast.error("Escolha uma imagem JPG ou PNG para a capa.");
       return;
+    }
+    const jobs = files.map(file => ({
+      file,
+      userId: user.id,
+      kind: target,
+      folder: folder === "*" ? "" : folder,
+      index: nextUploadIndex.current++,
+    }));
+    pendingUploads.current.push(...jobs);
+    setChosenFiles(previous => [...previous, ...files]);
+    setUploadItems(previous => [...previous, ...jobs.map(job => ({
+      index: job.index, name: job.file.name, status: "pending" as const, message: "Na fila",
+    }))]);
+    unlockAudio();
+    // New selections append to the same queue while the current file is running.
+    if (uploading.current) return;
     uploading.current = true;
     setUploadInProgress(true);
-    setChosenFiles(files);
-    setUploadItems(
-      files.map((file, index) => ({
-        index,
-        name: file.name,
-        status: "pending",
-        message: "Na fila",
-      })),
-    );
-    unlockAudio();
+    let savedCount = 0;
+    let errorCount = 0;
     try {
-      if (
-        target === "cover" &&
-        (files.length !== 1 || !files[0].type.startsWith("image/"))
-      )
-        throw new Error("Escolha uma imagem JPG ou PNG para a capa.");
-      const result = await addMedia(
-        files,
-        user.id,
-        target,
-        folder === "*" ? "" : folder,
-        setProgress,
-        {
-          onItem: (item) =>
-            setUploadItems((previous) =>
-              previous.map((entry) =>
-                entry.index === item.index ? item : entry,
-              ),
-            ),
-          onSaved: (saved) => {
-            if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
-            cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(
-              key,
-              (previous) =>
-                previous
-                  ? {
-                      ...previous,
-                      media: [
-                        ...previous.media.filter((m) => m.id !== saved.id),
-                        saved,
-                      ],
-                    }
-                  : previous,
-            );
-            if (target === "cover") setCoverId(saved.id);
-          },
-        },
-      );
-      const ids = result.ids;
-
-      if (target === "cover") setCoverId(ids[0]);
-      else setSelected((prev) => [...new Set([...prev, ...ids])]);
-      setChosenFiles([]);
-      if (ids.length)
-        toast.success(
-          `${ids.length} de ${files.length} mídia(s) pronta(s) para publicar.`,
-        );
-      if (result.errors.length)
-        toast.error(
-          `${result.errors.length} arquivo(s) não foram enviados. Confira os detalhes na lista.`,
-        );
-      await cache.invalidateQueries({ queryKey: key });
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível concluir o upload.",
-      );
+      while (pendingUploads.current.length) {
+        const job = pendingUploads.current.shift()!;
+        try {
+          const result = await addMedia(
+            [job.file], job.userId, job.kind, job.folder, setProgress,
+            {
+              onItem: item => setUploadItems(previous => previous.map(entry =>
+                entry.index === job.index ? { ...item, index: job.index } : entry,
+              )),
+              onSaved: saved => {
+                if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
+                cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous =>
+                  previous ? { ...previous, media: [...previous.media.filter(m => m.id !== saved.id), saved] } : previous,
+                );
+                if (job.kind === "cover") setCoverId(saved.id);
+              },
+            },
+          );
+          savedCount += result.ids.length;
+          errorCount += result.errors.length;
+          if (job.kind !== "cover") setSelected(previous => [...new Set([...previous, ...result.ids])]);
+        } catch (error) {
+          errorCount++;
+          const message = error instanceof Error ? error.message : "Não foi possível processar o arquivo.";
+          setUploadItems(previous => previous.map(entry => entry.index === job.index
+            ? { ...entry, status: "error", message } : entry));
+        } finally {
+          // Release previews as each file leaves the queue instead of holding the whole batch.
+          setChosenFiles(previous => previous.slice(1));
+        }
+      }
+      if (savedCount) toast.success(`${savedCount} mídia(s) pronta(s) para publicar.`);
+      if (errorCount) toast.error(`${errorCount} arquivo(s) não foram enviados. Confira os detalhes na lista.`);
     } finally {
+      // Do not await a refresh between draining the queue and releasing the runner:
+      // a selection arriving in that gap would otherwise remain stuck in the queue.
       uploading.current = false;
       setUploadInProgress(false);
       setProgress("");
+      void cache.invalidateQueries({ queryKey: key });
     }
   }
 
@@ -957,7 +954,7 @@ export default function Flows({
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              if (!busy && !uploadInProgress && e.dataTransfer.files.length) {
+              if (!busy && e.dataTransfer.files.length) {
                 void upload(Array.from(e.dataTransfer.files));
               }
             }}
@@ -1078,7 +1075,7 @@ export default function Flows({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-foreground">
                     {uploadItems.filter((item) => item.status === "done").length}/
-                    {uploadItems.length} mídia(s) pronta(s)
+                    {uploadItems.length} mídia(s) pronta(s) · {uploadItems.filter(item => item.status === "pending").length} na fila
                   </span>
                   {!uploadInProgress && (
                     <button
@@ -1114,11 +1111,12 @@ export default function Flows({
               </section>
             )}
 
+            <p className="text-xs text-muted-foreground">Adicione um ou vários arquivos, inclusive durante o processamento. Mantenha esta tela aberta para acompanhar a fila.</p>
             <LocalMediaPreviews files={chosenFiles} />
 
             {/* Espaço das pastas agora ocupado pelo botão amplo de envio com opção de arrastar vídeos */}
             <label
-              className={`ig-upload-dropzone ${dragOver ? "is-dragover" : ""} ${busy || uploadInProgress ? "is-disabled" : ""}`}
+              className={`ig-upload-dropzone ${dragOver ? "is-dragover" : ""} ${busy ? "is-disabled" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 if (!dragOver) setDragOver(true);
@@ -1130,8 +1128,9 @@ export default function Flows({
               }}
               onDrop={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 setDragOver(false);
-                if (!busy && !uploadInProgress && e.dataTransfer.files.length) {
+                if (!busy && e.dataTransfer.files.length) {
                   void upload(Array.from(e.dataTransfer.files));
                 }
               }}
@@ -1139,8 +1138,9 @@ export default function Flows({
               <input
                 type="file"
                 accept="image/jpeg,image/png,video/mp4"
+                aria-label="Adicionar mídias à fila"
                 multiple
-                disabled={busy || uploadInProgress}
+                disabled={busy}
                 className="sr-only"
                 onChange={(e) => {
                   void upload(Array.from(e.target.files ?? []));
@@ -1154,13 +1154,13 @@ export default function Flows({
                 <div className="ig-upload-dropzone-content">
                   <span className="ig-upload-dropzone-title">
                     {uploadInProgress
-                      ? "Enviando mídias…"
+                      ? "Adicione mais arquivos à fila"
                       : dragOver
                         ? "Solte as mídias aqui para enviar"
                         : "Arraste arquivos ou clique para selecionar vários"}
                   </span>
                   <span className="ig-upload-dropzone-subtitle">
-                    Fotos JPG/PNG e vídeos MP4 · até 3 arquivos processados juntos
+                    Fotos JPG/PNG e vídeos MP4 · limpeza em fila · até 100 MB por arquivo
                   </span>
                 </div>
               </div>
@@ -1351,8 +1351,9 @@ export default function Flows({
                 <input
                   type="file"
                   accept="image/jpeg,image/png,video/mp4"
+                  aria-label="Adicionar mídias à pasta vazia"
                   multiple
-                  disabled={busy || uploadInProgress}
+                  disabled={busy}
                   className="sr-only"
                   onChange={(e) => {
                     void upload(Array.from(e.target.files ?? []));
