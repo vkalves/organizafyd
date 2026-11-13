@@ -72,6 +72,7 @@ describe("Fluxos interface", () => {
     await screen.findByRole("heading",{name:/Biblioteca de mídias/});
     fireEvent.click(screen.getByRole("button",{name:/Campanhas \(1\)/}));
     fireEvent.click(screen.getByRole("button",{name:"Conectar conta ao fluxo"}));
+    expect(screen.getByText(/pulam sempre a próxima postagem e começam na seguinte/)).toBeInTheDocument();
     expect(screen.getByRole("button",{name:"Sincronizar contas"})).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox",{name:"@novo_perfil"}));
     fireEvent.click(screen.getByRole("button",{name:"Sincronizar contas"}));

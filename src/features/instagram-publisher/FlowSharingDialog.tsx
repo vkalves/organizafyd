@@ -99,7 +99,7 @@ export function FlowSharingDialog({ target, userId, onClose, onChanged }: {
                 {invitation.accounts.length ? (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      O fluxo poderá publicar nos perfis selecionados conforme a programação definida pelo dono.
+                      O fluxo poderá publicar nos perfis selecionados conforme a programação definida pelo dono. As contas novas pulam a próxima postagem e começam na seguinte.
                     </p>
                     <div className="max-h-40 space-y-2 overflow-y-auto">
                       {invitation.accounts.map((account) => (

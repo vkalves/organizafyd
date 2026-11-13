@@ -702,7 +702,7 @@ export default function Flows({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Conectar conta ao fluxo</DialogTitle>
-            <DialogDescription>As contas selecionadas entram agora na campanha e acompanham as próximas publicações nos horários do fluxo. As postagens já concluídas não serão repetidas.</DialogDescription>
+            <DialogDescription>As contas selecionadas entram na campanha, pulam sempre a próxima postagem e começam na seguinte, nos horários do fluxo. As contas já conectadas continuam normalmente. As postagens já concluídas não serão repetidas.</DialogDescription>
           </DialogHeader>
           <div className="max-h-72 space-y-2 overflow-y-auto">
             {syncCandidates.map(account => <label key={account.id} className="flex items-center gap-2 rounded-md border border-border p-2 text-sm">
@@ -718,7 +718,7 @@ export default function Flows({
               await onCreated();
               setSyncFlowId(null);
               setSyncAccountIds([]);
-              toast.success("Contas sincronizadas com as próximas publicações do fluxo.");
+              toast.success("Contas conectadas. A próxima postagem será ignorada para essas contas; elas começam na seguinte.");
             });
           }}>Sincronizar contas</Button>
         </DialogContent>
