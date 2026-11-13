@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { publisherRequest } from "./api";
 import { importSharedMedia } from "./library-sharing-api";
+import { importSharedLibrary } from "./library-sharing-batch";
 import type { Media } from "./flows-api";
 
 type Shares = {
@@ -21,6 +22,8 @@ export function LibrarySharingDialog({ userId, onClose, onChanged }: { userId: s
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [imported, setImported] = useState<string[]>([]);
+  const [batchProgress, setBatchProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [importingAll, setImportingAll] = useState(false);
   const identity = useQuery({ queryKey: ["ig-library-identity", userId], queryFn: () => publisherRequest<{ handle: string } | null>("library_identity") });
   const shares = useQuery({ queryKey: ["ig-library-shares", userId], queryFn: () => publisherRequest<Shares>("library_shares") });
   const media = useQuery({ queryKey: ["ig-library-shared-media", userId, ownerId, offset], queryFn: () => publisherRequest<Pick<Media, "id" | "folder" | "caption" | "kind">[]>("library_browse", { owner_id: ownerId, offset }), enabled: !!ownerId });
@@ -36,6 +39,25 @@ export function LibrarySharingDialog({ userId, onClose, onChanged }: { userId: s
     void perform(async () => {
       await publisherRequest("library_set_handle", { handle });
       await identity.refetch(); setHandle(""); setMessage("Seu @ foi salvo.");
+    });
+  }
+  function importAll() {
+    void perform(async () => {
+      setImportingAll(true);
+      setBatchProgress(null);
+      try {
+        const result = await importSharedLibrary(ownerId, userId, {
+          alreadyImported: imported,
+          onImported: (id) => setImported((previous) => [...previous, id]),
+          onProgress: setBatchProgress,
+        });
+        if (result.imported) onChanged();
+        setMessage(`${result.imported} mídia(s) importada(s). ${result.skipped} já importada(s) nesta sessão.`);
+        if (result.failures.length) setError(`${result.failures.length} mídia(s) não foram importadas. ${result.failures[0].message} Você pode tentar novamente; as cópias concluídas nesta sessão serão ignoradas.`);
+      } finally {
+        setImportingAll(false);
+        setBatchProgress(null);
+      }
     });
   }
   return <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
@@ -71,6 +93,11 @@ export function LibrarySharingDialog({ userId, onClose, onChanged }: { userId: s
           <option value="">Selecione uma biblioteca</option>
           {shares.data?.incoming.map((share) => <option key={share.owner_id} value={share.owner_id}>@{share.owner.handle}</option>)}
         </select>
+        {ownerId && <div className="space-y-2">
+          <Button disabled={busy || media.isPending || media.isError} onClick={importAll}>Importar todas as mídias</Button>
+          <p className="text-xs text-muted-foreground">Importa todas as páginas desta biblioteca. Mantenha esta janela aberta até concluir.</p>
+          {importingAll && <p role="status">{batchProgress ? `Importando mídias: ${batchProgress.completed} de ${batchProgress.total}` : "Buscando todas as mídias…"}</p>}
+        </div>}
         {shares.data?.incoming.length === 0 && <p className="text-sm text-muted-foreground">Peça ao dono da biblioteca para liberar acesso ao seu @.</p>}
         {ownerId && media.isPending && <p role="status">Carregando mídias…</p>}
         {ownerId && media.data?.length === 0 && <p>Nenhuma mídia nesta página.</p>}
