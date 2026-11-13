@@ -121,7 +121,6 @@ export default function Flows({
   const [folder, setFolder] = useState("*");
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolder, setNewFolder] = useState("");
-  const [moveFolder, setMoveFolder] = useState("");
   const [syncFlowId, setSyncFlowId] = useState<string | null>(null);
   const [syncAccountIds, setSyncAccountIds] = useState<string[]>([]);
 
@@ -297,9 +296,8 @@ export default function Flows({
     }
   }
 
-  function moveSelectedMedia() {
+  function moveSelectedMedia(destination: string) {
     const targets = selectedVisible.map(m => m.id);
-    const destination = moveFolder;
     if (!targets.length || busy || uploadInProgress) return;
     void perform(async () => {
       const moved: string[] = [];
@@ -1227,26 +1225,37 @@ export default function Flows({
               </DialogContent>
             </Dialog>
 
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-secondary/30 p-2" aria-label="Ações das mídias da pasta aberta">
-              <Button type="button" size="sm" variant="outline" className="h-8 text-xs" disabled={busy || uploadInProgress || !visible.length} onClick={() => setSelected(visible.map(m => m.id))}>
-                Selecionar todas as mídias
-              </Button>
-              <Button type="button" size="sm" variant="ghost" className="h-8 text-xs" disabled={busy || uploadInProgress || !selected.length} onClick={() => setSelected([])}>
-                Limpar seleção
-              </Button>
-              <span className="text-xs text-muted-foreground" role="status">{selectedVisible.length} de {visible.length} selecionadas nesta pasta</span>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <label className="sr-only" htmlFor="move-media-folder">Pasta de destino das mídias selecionadas</label>
-                <select id="move-media-folder" className="h-8 max-w-full rounded-md border border-input bg-background px-2 text-xs" value={moveFolder} disabled={busy || uploadInProgress} onChange={e => setMoveFolder(e.target.value)}>
-                  <option value="">Sem pasta</option>
-                  {destinationFolders.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <Button type="button" size="sm" className="h-8 text-xs" disabled={busy || uploadInProgress || !selectedVisible.length} onClick={moveSelectedMedia}>
-                  Mover selecionadas
-                </Button>
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground">Selecione uma ou várias mídias e escolha a pasta de destino acima. Novos arquivos enviados vão direto para {folder === "*" || !folder ? "Sem pasta" : `a pasta ${folder}`}.</p>
+            {visible.length > 0 && <div className="ig-media-selection" role="group" aria-label="Ações das mídias da pasta aberta">
+              <label className="ig-media-select-all">
+                <input
+                  type="checkbox"
+                  aria-label="Selecionar todas as mídias desta pasta"
+                  checked={selectedVisible.length === visible.length}
+                  ref={node => { if (node) node.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length; }}
+                  disabled={busy || uploadInProgress}
+                  onChange={e => setSelected(e.target.checked ? visible.map(m => m.id) : [])}
+                />
+                <span>Selecionar todas</span>
+              </label>
+              <span className="ig-media-selection-count" role="status">
+                {selectedVisible.length ? `${selectedVisible.length} selecionada${selectedVisible.length === 1 ? "" : "s"}` : `${visible.length} mídia${visible.length === 1 ? "" : "s"}`}
+              </span>
+              {selectedVisible.length > 0 && <div className="ig-media-selection-actions">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" size="sm" variant="outline" disabled={busy || uploadInProgress} className="h-8 gap-1.5 text-xs">
+                      <Folder size={13} aria-hidden="true" /> Mover para <ChevronDown size={12} aria-hidden="true" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => moveSelectedMedia("")}><Folder size={14} aria-hidden="true" />Sem pasta</DropdownMenuItem>
+                    {destinationFolders.map(f => <DropdownMenuItem key={f} onSelect={() => moveSelectedMedia(f)}><Folder size={14} aria-hidden="true" />{f}</DropdownMenuItem>)}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={busy || uploadInProgress} aria-label="Limpar seleção" title="Limpar seleção" onClick={() => setSelected([])}><X size={14} /></Button>
+              </div>}
+            </div>}
+            <p className="text-[11px] text-muted-foreground">Novos envios: {folder === "*" || !folder ? "Sem pasta" : folder}.</p>
 
             {/* Grade minimalista de miniaturas (borda única, zero dropdown por item) */}
             {visible.length > 0 ? (
