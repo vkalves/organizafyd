@@ -4,10 +4,45 @@ import { Button } from "@/components/ui/button";
 import { loginRequest } from "@/features/instagram-publisher/login";
 type AccountChoice = { id: string; username: string };
 type FinishResult = { username: string } | { selection: string; accounts: AccountChoice[] };
+function readBrowserAuthorization(key: string): { verifier: string; expiresAt: number } | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (typeof stored?.verifier === "string" && typeof stored.expiresAt === "number") {
+      return stored;
+    }
+  } catch {
+    // Ignore an unavailable storage area or a malformed entry.
+  }
+  return null;
+}
+
+function consumeBrowserAuthorization(state: string) {
+  const key = "ig-login:" + state;
+  const stored = readBrowserAuthorization(key);
+  if (stored) {
+    localStorage.removeItem(key);
+    return stored.expiresAt > Date.now() ? stored.verifier : null;
+  }
+  const tabVerifier = sessionStorage.getItem(key);
+  sessionStorage.removeItem(key);
+  return tabVerifier;
+}
+
 async function beginAuthorization(invite: string | null) {
   const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v => v.toString(16).padStart(2, "0")).join("");
   const result = await loginRequest<{ url: string; state: string }>("start", { invite, verifier });
-  sessionStorage.setItem("ig-login:" + result.state, verifier);
+  const key = "ig-login:" + result.state;
+  try {
+    const now = Date.now();
+    for (const storedKey of Object.keys(localStorage)) {
+      if (!storedKey.startsWith("ig-login:")) continue;
+      const stored = readBrowserAuthorization(storedKey);
+      if (!stored || stored.expiresAt <= now) localStorage.removeItem(storedKey);
+    }
+    localStorage.setItem(key, JSON.stringify({ verifier, expiresAt: now + 10 * 60 * 1000 }));
+  } catch {
+    sessionStorage.setItem(key, verifier);
+  }
   window.location.assign(result.url);
 }
 export default function InstagramConnect() {
@@ -34,12 +69,10 @@ export default function InstagramConnect() {
           );
         if (params.has("code")) {
           const state = params.get("state") || "";
-          const key = "ig-login:" + state;
-          const verifier = sessionStorage.getItem(key);
-          sessionStorage.removeItem(key);
+          const verifier = consumeBrowserAuthorization(state);
           if (!verifier)
             throw new Error(
-              "Abra a autorização no mesmo navegador em que iniciou a conexão. Solicite um novo link.",
+              "A validação da conexão expirou ou está em outro navegador. Gere um novo link e conclua a autorização no navegador em que você o abriu.",
             );
           const result = await loginRequest<FinishResult>("finish", {
             code: params.get("code"),
