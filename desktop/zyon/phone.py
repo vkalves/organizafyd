@@ -1,18 +1,29 @@
 # Python / zyon/phone.py / Python 3.11+ / reference Android workflow executor
 import base64
+import hashlib
 from datetime import date
 import os
 from pathlib import Path
 import re
 import subprocess
 import time
+import unicodedata
 from .android import Android, Screen, EDIT, NEXT, PACKAGE, xpath_literal
 from .errors import CompanionError
 
 class Phone(Android):
     def __init__(self, *args, gmail, pause, journal, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gmail, self.pause, self.journal = gmail, pause, journal
+        self.gmail, self.pause_callback, self.journal = gmail, pause, journal
+        self.pause_seconds = 0
+        self.media_albums = {}
+
+    def clock(self): return time.monotonic() - self.pause_seconds
+
+    def pause(self, reason, message):
+        started = time.monotonic()
+        try: return self.pause_callback(reason, message)
+        finally: self.pause_seconds += time.monotonic() - started
 
     def resource(self, name):
         elements = [e for e in self.driver.find_elements('id', PACKAGE + ':id/' + name) if e.is_displayed() and e.is_enabled()]
@@ -74,9 +85,62 @@ class Phone(Android):
             self.cancel.wait(.5)
         raise CompanionError('NATIVE_LOGIN_UNCONFIRMED', 'Native Instagram login did not reach a verified profile.')
 
+    def calendar_birthday(self, desired):
+        from appium.webdriver.common.appiumby import AppiumBy
+        def picker():
+            if self.cancel.is_set(): raise CompanionError('CANCELLED', 'Date selection stopped.')
+            if self.driver.current_package not in (PACKAGE, 'android'):
+                raise CompanionError('BIRTHDAY_PICKER_UNCERTAIN', 'The date picker is no longer the active application.')
+            return Screen(self.driver.page_source)
+        years = [e for e in self.driver.find_elements('id', 'android:id/date_picker_header_year') if e.is_displayed()]
+        if len(years) != 1: return False
+        years[0].click()
+        expression = 'new UiScrollable(new UiSelector().resourceId("android:id/date_picker_year_picker")).setMaxSearchSwipes(30).scrollIntoView(new UiSelector().text("' + str(desired.year) + '"))'
+        try: self.driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, expression)
+        except Exception: return False
+        xpath = '//*[@text=' + xpath_literal(str(desired.year)) + ' and not(@resource-id="android:id/date_picker_header_year")]'
+        choices = [e for e in self.driver.find_elements('xpath', xpath) if e.is_displayed() and e.is_enabled()]
+        if len(choices) != 1: return False
+        choices[0].click()
+        month_names = [('january','janeiro','jan'),('february','fevereiro','feb','fev'),('march','marco','mar'),('april','abril','apr','abr'),('may','maio','mai'),('june','junho','jun'),('july','julho','jul'),('august','agosto','aug','ago'),('september','setembro','sep','set'),('october','outubro','oct','out'),('november','novembro','nov'),('december','dezembro','dec','dez')]
+        for direction, attempts in ((('Next month', 'Próximo mês', 'Próximo'), 12), (('Previous month', 'Mês anterior', 'Anterior'), 24)):
+            for _ in range(attempts + 1):
+                current = picker()
+                matches = []
+                for node in current.nodes:
+                    label = node.get('content-desc', '')
+                    normalized = unicodedata.normalize('NFKD', label).encode('ascii', 'ignore').decode().lower()
+                    words = re.findall(r'[a-z]+|\d+', normalized)
+                    if str(desired.year) in words and str(desired.day) in words and any(m in words for m in month_names[desired.month-1]):
+                        matches.append(label)
+                if len(set(matches)) == 1:
+                    label = matches[0]
+                    days = [e for e in self.driver.find_elements('xpath', '//*[@content-desc=' + xpath_literal(label) + ']') if e.is_displayed() and e.is_enabled()]
+                    if len(days) != 1: return False
+                    days[0].click()
+                    selected = [e for e in self.driver.find_elements('xpath', '//*[@content-desc=' + xpath_literal(label) + ']') if e.is_displayed()]
+                    if len(selected) != 1 or selected[0].get_attribute('selected') != 'true': return False
+                    confirm = current.controls(('OK', 'Set', 'Definir'))
+                    if len(confirm) != 1: return False
+                    buttons = [e for e in self.driver.find_elements('xpath', '//*[@text=' + xpath_literal(confirm[0].get('text', 'OK')) + ']') if e.is_displayed() and e.is_enabled()]
+                    if len(buttons) != 1: return False
+                    buttons[0].click(); return True
+                controls = current.controls(direction)
+                if len(controls) != 1: return False
+                label = controls[0].get('content-desc') or controls[0].get('text')
+                controls = [e for e in self.driver.find_elements('xpath', '//*[@content-desc=' + xpath_literal(label) + ' or @text=' + xpath_literal(label) + ']') if e.is_displayed() and e.is_enabled()]
+                if len(controls) != 1: return False
+                controls[0].click(); self.cancel.wait(.2)
+        return False
+
     def birthday(self, birthday):
         desired = date.fromisoformat(birthday)
-        self.click(('Set date', 'Definir data', 'Date of birth', 'Data de nascimento'))
+        labels = ('Set date', 'Definir data', 'Date of birth', 'Data de nascimento')
+        if self.screen().has(labels): self.click(labels)
+        elif len(self.inputs()) == 1: self.inputs()[0].click()
+        else:
+            self.pause('birthday_picker', 'Set and confirm your configured date of birth (' + birthday + ') on the phone, then Continue.')
+            return
         # Date picker is an Android system dialog, so read only its known hierarchy.
         picker = Screen(self.driver.page_source)
         if self.driver.current_package not in (PACKAGE, 'android'):
@@ -89,7 +153,12 @@ class Phone(Android):
             fields = containers[0].find_elements('class name', 'android.widget.EditText')
             if len(fields) != 1: complete = False; break
             fields[0].clear(); fields[0].send_keys(value)
+            observed = (fields[0].get_attribute('text') or '').strip().lower().rstrip('.')
+            month_labels = [('jan','january','janeiro'),('feb','fev','february','fevereiro'),('mar','march','março'),('apr','abr','april','abril'),('may','mai','maio'),('jun','june','junho'),('jul','july','julho'),('aug','ago','august','agosto'),('sep','set','september','setembro'),('oct','out','october','outubro'),('nov','november','novembro'),('dec','dez','december','dezembro')]
+            valid = (str(desired.month), f'{desired.month:02d}', *month_labels[desired.month-1]) if name == 'month' else (value, value.zfill(2))
+            if observed not in valid: complete = False; break
         if not complete:
+            if self.calendar_birthday(desired): return
             self.pause('birthday_picker', 'Set your configured date of birth (' + birthday + ') in the Android date picker, confirm it, then Continue.')
             return
         labels = ('OK', 'Set', 'Definir')
@@ -111,8 +180,9 @@ class Phone(Android):
         }
         since = None
         handled = set()
-        deadline = time.monotonic() + 480
-        while time.monotonic() < deadline:
+        deadline = self.clock() + 480
+        unknown_since = None
+        while self.clock() < deadline:
             screen = self.screen()
             if screen.has(EDIT) or self.resource('profile_tab'):
                 self.profile(settings['username'])
@@ -138,8 +208,13 @@ class Phone(Android):
             elif screen.has(('Done', 'Concluir', 'Finish', 'Concluir configuração')): self.click(('Done', 'Concluir', 'Finish', 'Concluir configuração'))
             elif screen.has(('Email', 'E-mail')) and screen.has(('Phone', 'Telefone')): self.click(('Email', 'E-mail'))
             else:
+                if unknown_since is None: unknown_since = self.clock()
+                if self.clock() - unknown_since < 12:
+                    self.cancel.wait(.5); continue
                 self.pause('native_signup_screen', 'Instagram showed an unrecognized onboarding or permission screen. Complete it on the phone, then Continue.')
+                unknown_since = None
                 continue
+            unknown_since = None
             if current: handled.add(current)
             self.cancel.wait(.7)
             if current:
@@ -171,6 +246,10 @@ class Phone(Android):
             if screen.has((category,)):
                 self.click((category,))
                 self.click(('Done', 'Concluir', 'Next', 'Avançar'))
+                self.wait(lambda s: not s.has((category,)) or s.has(('Creator', 'Criador de conteúdo')), 'Professional category submission was not confirmed.')
+            elif screen.has(('What category best describes you?', 'Qual categoria mais bem descreve você?', 'Qual categoria melhor descreve você?')) and len(self.inputs()) == 1:
+                self.fill_one(category)
+                self.wait(lambda s: s.has((category,)), 'The configured professional category was not found.')
             elif screen.has(('Creator', 'Criador de conteúdo')):
                 self.click(('Creator', 'Criador de conteúdo')); self.click(NEXT)
             elif screen.has(('Professional dashboard', 'Painel profissional')):
@@ -185,16 +264,57 @@ class Phone(Android):
         if not self.screen().has(('Professional dashboard', 'Painel profissional')):
             raise CompanionError('PROFESSIONAL_UNCONFIRMED', 'Instagram professional-account conversion was not confirmed.')
 
-    def media(self, filename, kind, expected):
+    def media(self, filename, kind, expected, expected_digest=None):
         path = Path(filename)
         if not path.is_file() or path.stat().st_size > 50 * 1024 * 1024 or path.suffix.lower() not in ('.jpg', '.jpeg', '.png', '.mp4'):
             raise CompanionError('INVALID_MEDIA', 'Choose an existing JPG/PNG/MP4 file of at most 50 MiB.')
         remote_name = 'zyon_' + kind + '_' + expected.replace('.', '_') + path.suffix.lower()
-        remote = '/sdcard/Download/' + remote_name
-        self.driver.push_file(remote, base64.b64encode(path.read_bytes()).decode())
+        with path.open('rb') as source: data = source.read(50 * 1024 * 1024 + 1)
+        digest = hashlib.sha256(data).hexdigest()
+        if len(data) > 50 * 1024 * 1024 or expected_digest and digest != expected_digest:
+            raise CompanionError('MEDIA_CHANGED', 'The selected media changed after the workflow started. No transfer or publication was sent.')
+        album = 'Zyon_' + kind + '_' + hashlib.sha256((expected + ':' + digest).encode()).hexdigest()[:16]
+        remote_dir = '/sdcard/Pictures/' + album
+        remote = remote_dir + '/' + remote_name
+        subprocess.run([self.adb, '-s', self.serial, 'shell', 'mkdir', '-p', remote_dir], capture_output=True, timeout=15, check=True, creationflags=0x08000000 if os.name == 'nt' else 0)
+        self.driver.push_file(remote, base64.b64encode(data).decode())
+        self.media_albums[remote_name] = album
         command = [self.adb, '-s', self.serial, 'shell', 'am', 'broadcast', '-a', 'android.intent.action.MEDIA_SCANNER_SCAN_FILE', '-d', 'file://' + remote]
         subprocess.run(command, capture_output=True, timeout=20, check=True, creationflags=0x08000000 if os.name == 'nt' else 0)
         return remote_name
+
+    def choose_uploaded_album(self, album):
+        # A content-specific album contains only the uploaded configured asset.
+        # No arbitrary first/recent image or screen coordinate is selected.
+        from appium.webdriver.common.appiumby import AppiumBy
+        def matching(text):
+            return [e for e in self.driver.find_elements('xpath', '//*[@text=' + xpath_literal(text) + ' or @content-desc=' + xpath_literal(text) + ']') if e.is_displayed() and e.is_enabled()]
+        options = matching(album)
+        if not options and self.driver.current_package == PACKAGE:
+            menu = self.resource('gallery_folder_menu') or self.resource('gallery_folder_title')
+            if menu:
+                menu.click()
+                options = matching(album)
+                if not options:
+                    try:
+                        self.driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, 'new UiScrollable(new UiSelector().scrollable(true)).setMaxSearchSwipes(15).scrollIntoView(new UiSelector().text("' + album + '"))')
+                        options = matching(album)
+                    except Exception: return False
+        if len(options) != 1: return False
+        options[0].click()
+        end = time.monotonic() + 10
+        while time.monotonic() < end:
+            if self.cancel.is_set(): raise CompanionError('CANCELLED', 'Media selection stopped.')
+            current = Screen(self.driver.page_source)
+            if not current.has((album,)):
+                self.cancel.wait(.25); continue
+            for package in (PACKAGE, 'com.google.android.providers.media.module', 'com.android.providers.media.module'):
+                for rid in ('gallery_grid_item_thumbnail', 'media_grid_item', 'media_picker_item_image_view', 'icon_thumbnail'):
+                    cells = [e for e in self.driver.find_elements('id', package + ':id/' + rid) if e.is_displayed() and e.is_enabled()]
+                    if len(cells) == 1:
+                        cells[0].click(); return True
+            self.cancel.wait(.25)
+        return False
 
     def choose_media(self, filename):
         deadline = time.monotonic() + 20
@@ -208,11 +328,13 @@ class Phone(Android):
                 candidates[0].click(); return
             if len(candidates) > 1: raise CompanionError('MEDIA_PICKER_UNCERTAIN', 'More than one media control matches the selected file.')
             self.cancel.wait(.4)
+        album = self.media_albums.get(filename)
+        if album and self.choose_uploaded_album(album): return
         self.pause('media_picker', 'Select the uploaded file ' + filename + ' on the phone, then Continue. This picker did not expose its filename to Android accessibility.')
 
-    def photo(self, expected, filename):
+    def photo(self, expected, filename, expected_digest=None):
         if not filename: return
-        name = self.media(filename, 'profile', expected)
+        name = self.media(filename, 'profile', expected, expected_digest)
         self.profile(expected); self.click(EDIT)
         self.wait(lambda s: s.has(('Edit picture or avatar', 'Editar foto ou avatar', 'Edit photo or avatar')), 'Profile-photo control was not recognized.')
         self.click(('Edit picture or avatar', 'Editar foto ou avatar', 'Edit photo or avatar'))
@@ -226,11 +348,23 @@ class Phone(Android):
 
     def story(self, settings):
         if not settings.get('story_media'): return
+        record = self.journal
+        fingerprint = settings.get('story_fingerprint')
+        if fingerprint:
+            if self.journal.get('story') in ('submitted', 'uncertain', 'confirmed'):
+                raise CompanionError('STORY_HISTORY_REVIEW_REQUIRED', 'A previous Story record has no media fingerprint. Inspect it before another publication.')
+            stories = self.journal.setdefault('stories', {})
+            if any(r.get('story') in ('submitted', 'uncertain') for r in stories.values()):
+                raise CompanionError('STORY_REVIEW_REQUIRED', 'A previous Story result for this account remains uncertain. Inspect it before a new publication.')
+            record = stories.setdefault(fingerprint, {})
         expected = settings['username']
-        if self.journal.get('story') in ('submitted', 'uncertain'):
+        if record.get('story') in ('submitted', 'uncertain'):
             raise CompanionError('STORY_REVIEW_REQUIRED', 'A previous Story submission has an uncertain outcome. Inspect it before posting again.')
-        if self.journal.get('story') == 'confirmed': return
-        name = self.media(settings['story_media'], 'story', expected)
+        if record.get('story') == 'confirmed':
+            if settings.get('highlight') and (record.get('highlight') != 'confirmed' or record.get('highlightName') != settings['highlight']):
+                raise CompanionError('HIGHLIGHT_REVIEW_REQUIRED', 'The Story was confirmed but its highlight was not. Inspect the highlight before continuing; no duplicate Story was posted.')
+            return
+        name = self.media(settings['story_media'], 'story', expected, settings.get('story_media_digest'))
         self.profile(expected)
         create = self.resource('action_bar_create')
         if create: create.click()
@@ -249,10 +383,15 @@ class Phone(Android):
             self.fill_one(settings['story_link'])
             if settings.get('story_cta'):
                 self.click(('Customize sticker text', 'Personalizar o texto da figurinha'))
-                self.fill_one(settings['story_cta'])
+                self.screen()
+                fields = self.inputs()
+                if len(fields) == 2:
+                    fields[1].clear(); fields[1].send_keys(settings['story_cta'])
+                elif len(fields) == 1: self.fill_one(settings['story_cta'])
+                else: raise CompanionError('STICKER_FORM_UNCERTAIN', 'The link-sticker label field was not uniquely recognized.')
             self.click(('Done', 'Concluir'))
         self.wait(lambda s: s.has(('Your story', 'Seu story')), 'Story publish control was not recognized.')
-        self.journal['story'] = 'submitted'
+        record['story'] = 'submitted'
         self.progress('story_submitting', 'Submitting the configured Story once; an uncertain result will not be replayed.')
         self.click(('Your story', 'Seu story'))
         self.wait(lambda s: s.has(('Your story', 'Seu story')) or bool(self.resource('profile_tab')), 'Story submission outcome is uncertain.', seconds=45)
@@ -262,7 +401,7 @@ class Phone(Android):
         self.wait(lambda s: any(expected in s.labels(n) for n in s.nodes), 'Published own Story identity was not confirmed.')
         if settings.get('story_cta') and not self.screen().has((settings['story_cta'],)):
             raise CompanionError('STORY_UNCONFIRMED', 'The configured link sticker was not visible in the published Story. Inspect it before another submission.')
-        self.journal['story'] = 'confirmed'
+        record['story'] = 'confirmed'
         self.progress('story_confirmed', 'Published own Story and configured link label confirmed.')
         if settings.get('highlight'):
             self.click(('More', 'Mais'))
@@ -272,6 +411,9 @@ class Phone(Android):
             if self.screen().has(('New', 'Novo')): self.click(('New', 'Novo'))
             self.fill_one(settings['highlight']); self.click(('Add', 'Adicionar'))
             self.wait(lambda s: s.has(('Added to highlights', 'Adicionado aos destaques')), 'Highlight creation was not confirmed.')
+            record['highlight'] = 'confirmed'
+            record['highlightName'] = settings['highlight']
+            self.progress('highlight_confirmed', 'Instagram confirmed addition to the configured highlight.')
             if self.screen().has(('Done', 'Concluir')): self.click(('Done', 'Concluir'))
         self.profile(expected)
 
@@ -279,7 +421,7 @@ class Phone(Android):
         if settings.get('create_account'): self.create_account(settings)
         else: self.login_existing(settings)
         self.bio(settings['username'], settings.get('bio', ''))
-        self.photo(settings['username'], settings.get('profile_photo', ''))
+        self.photo(settings['username'], settings.get('profile_photo', ''), settings.get('profile_photo_digest'))
         self.professional(settings['username'], settings.get('category', ''))
         self.story(settings)
         self.profile(settings['username'])

@@ -35,3 +35,11 @@ class BrowserTests(unittest.TestCase):
   self.worker.page.goto('https://untrusted.example/accounts/login/')
   with self.assertRaises(CompanionError):self.worker.guard({'www.instagram.com'})
   self.assertEqual(self.worker.page.locator('input[name=password]').input_value(),'')
+ def test_selects_only_unambiguous_business_and_expected_instagram_assets(self):
+  self.worker.page.goto('https://www.instagram.com/same.account/')
+  self.worker.page.set_content('<select id="business"><option value="">Select</option><option value="owned">Owned portfolio</option></select><select id="instagram"><option value="wrong">other.account</option><option value="right">same.account</option></select>')
+  self.assertTrue(self.worker.choose_unique_assets());self.assertEqual(self.worker.page.locator('#business').input_value(),'owned');self.assertEqual(self.worker.page.locator('#instagram').input_value(),'right')
+ def test_ambiguous_business_assets_are_not_guessed(self):
+  self.worker.page.goto('https://www.instagram.com/same.account/')
+  self.worker.page.set_content('<select><option value="first">Portfolio one</option><option value="second">Portfolio two</option></select>same.account')
+  self.assertFalse(self.worker.choose_unique_assets())

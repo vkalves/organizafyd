@@ -147,7 +147,7 @@ class Avanca:
             raise CompanionError('AVANCA_NOT_APPROVED', 'This AVANCA user is not approved.')
         connections = self.function('instagram-publisher', 'status').get('accounts', [])
         available = {identifier(c['account_id']) for c in connections if c.get('paused') is False and c.get('reconnect_required') is False}
-        records = self._send('GET', '/rest/v1/instagram_accounts', params={'select': 'id,user_id,username', 'user_id': 'eq.' + owner, 'username': 'eq.' + expected})
+        records = self._send('GET', '/rest/v1/instagram_accounts', params={'select': 'id,user_id,username', 'user_id': 'eq.' + owner, 'username': 'ilike.' + expected.replace('_', r'\_')})
         candidates = [a for a in records if a.get('user_id') == owner and a.get('id') in available and str(a.get('username', '')).lower() == expected]
         if len(candidates) != 1:
             raise CompanionError('ACCOUNT_NOT_CONNECTED' if not candidates else 'AMBIGUOUS_ACCOUNT', 'The expected Instagram is not uniquely connected and available under this AVANCA user.')

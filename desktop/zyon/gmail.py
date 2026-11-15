@@ -72,6 +72,16 @@ class Gmail:
         data = self.vault.get("gmail")
         return {"connected": bool(data) and not self.reconnect, "mailbox": data.get("mailbox", "") if data else "", "reconnect": self.reconnect}
 
+    def verify(self):
+        with self.lock:
+            expected = self.status()
+            if not expected['connected']:
+                raise CompanionError('GMAIL_RECONNECT', 'Reconnect Gmail before starting the Android workflow.')
+            actual = self.request('profile')
+            if address(actual.get('emailAddress', '')) != expected['mailbox']:
+                raise CompanionError('WRONG_MAILBOX', 'Gmail returned a different mailbox. Reconnect the intended Gmail account.')
+            return {'mailbox': expected['mailbox'], 'connected': True}
+
     def connect(self, client, mailbox):
         from google_auth_oauthlib.flow import InstalledAppFlow
         mailbox = address(mailbox)

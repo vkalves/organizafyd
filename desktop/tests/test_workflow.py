@@ -12,6 +12,7 @@ class WorkflowTests(unittest.TestCase):
   calls=self.calls;vault=self.vault
   class Gmail:
    def status(self):return {'connected':True}
+   def verify(self):calls.append('gmail_verify');return {'connected':True}
   class Avanca:
    def restore(self,email):calls.append('avanca_restore');return True
    def catalog(self):return {'flows':[{'id':FLOW,'name':'Existing'}],'apps':[],'platformReady':True}
@@ -71,3 +72,17 @@ class WorkflowTests(unittest.TestCase):
    with self.assertRaises(CompanionError):configuration({**SETTINGS,'create_account':True,**extra})
  def test_story_scheme_validated(self):
   with self.assertRaises(CompanionError):configuration({**SETTINGS,'story_link':'javascript:alert(1)'})
+ def test_queue_advances_after_completed_account_and_requires_new_invitation_pause(self):
+  second={**SETTINGS,'username':'next.account'}
+  self.workflow.start_many([SETTINGS,second])
+  first=self.wait_state('paused');self.assertEqual(first['username'],'same.account');self.workflow.resume(first['pauseId'])
+  deadline=time.monotonic()+3
+  while time.monotonic()<deadline:
+   current=self.workflow.snapshot()
+   if current['status']=='paused' and current['username']=='next.account':break
+   time.sleep(.01)
+  else:self.fail('Second account did not reach its own invitation pause')
+  self.assertEqual(current['cycle'],2);self.assertNotEqual(first['pauseId'],current['pauseId'])
+  self.assertFalse(self.workflow.resume(first['pauseId']));self.assertEqual(self.calls.count('sync'),1)
+  self.workflow.resume(current['pauseId']);self.workflow.thread.join(timeout=3)
+  self.assertEqual(self.workflow.snapshot()['status'],'completed');self.assertEqual(self.calls.count('sync'),2)

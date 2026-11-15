@@ -23,10 +23,18 @@ def chrome_path():
 class Browser:
     def __init__(self, root, vault, gmail, cancel, progress, pause, context=None, executable=None):
         self.root, self.vault, self.gmail = Path(root), vault, gmail
-        self.cancel, self.progress, self.pause = cancel, progress, pause
+        self.cancel, self.progress, self.pause_callback = cancel, progress, pause
+        self.pause_seconds = 0
         self.context, self.page, self.playwright = context, None, None
         self.executable = executable
         self.username = None
+
+    def clock(self): return time.monotonic() - self.pause_seconds
+
+    def pause(self, reason, message):
+        started = time.monotonic()
+        try: return self.pause_callback(reason, message)
+        finally: self.pause_seconds += time.monotonic() - started
 
     def check(self):
         if self.cancel.is_set(): raise CompanionError('CANCELLED', 'Workflow stopped. No remaining browser step was executed.')
@@ -154,8 +162,8 @@ class Browser:
         stamp = time.time() * 1000
         submitted = False
         submitted_at = None
-        end = time.monotonic() + 120
-        while time.monotonic() < end:
+        end = self.clock() + 120
+        while self.clock() < end:
             self.guard(INSTAGRAM)
             users, passwords = self.visible('input[name="username"]'), self.visible('input[name="password"]')
             if users and passwords:
@@ -222,14 +230,38 @@ class Browser:
             self.page.reload(wait_until='domcontentloaded')
         raise CompanionError('INVITATION_NOT_FOUND', 'The exact expected Meta tester invitation was not found. No other invitation was accepted.')
 
+    def choose_unique_assets(self):
+        selects = self.visible('select')
+        for control in selects:
+            options = control.locator('option').all()
+            valid = [(o.get_attribute('value'), o.inner_text().strip()) for o in options
+                     if o.get_attribute('value') and o.get_attribute('disabled') is None]
+            expected = [(value, label) for value, label in valid if self.username.lower() in label.lower()]
+            choice = expected[0] if len(expected) == 1 else valid[0] if len(valid) == 1 else None
+            if choice is None: return False
+            control.select_option(choice[0])
+        custom = [c for c in self.visible('[role="combobox"]') if c.evaluate('e=>e.tagName') != 'SELECT']
+        for control in custom:
+            if not control.is_enabled(): continue
+            control.click()
+            options = self.page.get_by_role('option')
+            valid = [options.nth(i) for i in range(options.count()) if options.nth(i).is_visible() and options.nth(i).is_enabled()]
+            expected = [option for option in valid if self.username.lower() in option.inner_text().lower()]
+            choice = expected[0] if len(expected) == 1 else valid[0] if len(valid) == 1 else None
+            if choice is None:
+                self.page.keyboard.press('Escape')
+                return False
+            choice.click()
+        return bool(selects or custom) and self.username.lower() in self.text().lower()
+
     def authorize(self, url, avanca, recipient, sender):
         parsed = urlsplit(url)
         if parsed.hostname not in SITE or parsed.scheme != 'https' or parsed.path != '/instagram/conectar':
             raise CompanionError('INVALID_AUTHORIZATION_LINK', 'Unexpected AVANCA authorization link.')
         fragment = dict(parse_qsl(parsed.fragment)); fragment['direct'] = '1'
         self.page.goto(urlunsplit(parsed._replace(fragment=urlencode(fragment))), wait_until='domcontentloaded')
-        stamp, deadline = time.time() * 1000, time.monotonic() + 120
-        while time.monotonic() < deadline:
+        stamp, deadline = time.time() * 1000, self.clock() + 120
+        while self.clock() < deadline:
             self.check()
             try:
                 account = avanca.preflight(self.username)
@@ -243,13 +275,19 @@ class Browser:
             if host in INSTAGRAM and self.challenges(recipient, sender, stamp): continue
             text = self.text()
             if host in META:
+                if any(title in text.lower() for title in ('select the business assets', 'selecione os ativos de negócios')):
+                    if self.choose_unique_assets():
+                        button = self.button(('Continue', 'Continuar'))
+                        if button: button.click(); self.cancel.wait(1); continue
+                    self.pause('meta_assets', 'Select the intended business portfolio and this exact Instagram in Chrome, then Continue. Ambiguous assets were not selected automatically.')
+                    continue
                 # Account-specific continuation only; asset selection is never guessed.
                 labels = (f'Continue as {self.username}', f'Entrar como {self.username}', f'Continuar como {self.username}',
                           f'Continue as @{self.username}', f'Entrar como @{self.username}')
                 button = self.button(labels)
                 if button:
                     button.click(); self.cancel.wait(1); continue
-                if self.username.lower() in text.lower() and any(label in text.lower() for label in ('review', 'reveja', 'permissions', 'permissões', 'share', 'compartilhar')):
+                if self.username.lower() in text.lower() and any(label in text.lower() for label in ('review what', 'reveja o que', 'review your', 'revisar')):
                     button = self.button(('Continue', 'Continuar', 'Allow', 'Permitir', 'Save', 'Salvar'))
                     if button:
                         button.click(); self.cancel.wait(1); continue

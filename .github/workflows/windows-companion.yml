@@ -90,12 +90,22 @@ jobs:
           if ($gui.ExitCode -ne 0) { throw 'Native executable GUI smoke failed.' }
       - name: Package standalone native application
         run: python desktop/package-desktop.py
+      - name: Verify packaged launcher uses the bundled executable
+        shell: powershell
+        run: |
+          $launcher = Join-Path $PWD 'desktop/dist/Zyon/launch.ps1'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $launcher -Mode Prepare
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged launcher check failed.' }
+          if (Test-Path 'desktop/dist/Zyon/.venv') { throw 'Packaged app should not create a separate Python environment.' }
       - uses: actions/upload-artifact@v4
         with:
           name: Zyon-Desktop-Windows-2.0
-          path: |
-            desktop/dist/Zyon-Desktop-Windows-2.0.zip
-            desktop/dist/Zyon-Desktop-Windows-2.0.zip.sha256
-            desktop/dist/native-window.png
+          path: desktop/dist/Zyon/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zyon-Desktop-Preview-2.0
+          path: desktop/dist/native-window.png
           if-no-files-found: error
           retention-days: 30

@@ -44,7 +44,18 @@ def configuration(values):
         if parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password:
             raise CompanionError('INVALID_STORY_LINK', 'Enter a complete HTTP/HTTPS Story destination.')
     for field in ('profile_photo', 'story_media'):
-        if result.get(field) and not Path(result[field]).is_file(): raise CompanionError('MEDIA_MISSING', 'Selected media file is missing: ' + field)
+        if result.get(field):
+            path = Path(result[field])
+            allowed = ('.jpg', '.jpeg', '.png') if field == 'profile_photo' else ('.jpg', '.jpeg', '.png', '.mp4')
+            if not path.is_file() or path.stat().st_size > 50 * 1024 * 1024 or path.suffix.lower() not in allowed:
+                raise CompanionError('MEDIA_MISSING', 'Choose a supported existing media file of at most 50 MiB: ' + field)
+            digest = hashlib.sha256()
+            with path.open('rb') as media:
+                while chunk := media.read(1024 * 1024): digest.update(chunk)
+            result[field + '_digest'] = digest.hexdigest()
+            if field == 'story_media':
+                digest.update(json.dumps([result.get('story_link', ''), result.get('story_cta', '')]).encode())
+                result['story_fingerprint'] = digest.hexdigest()
     return result
 
 class Workflow:
@@ -75,7 +86,7 @@ class Workflow:
     def persist(self):
         if self.journal_path is None: return
         data = {'username': self.state['username'], 'phase': self.state['phase'], 'status': self.state['status'],
-                'story': self.journal.get('story'), 'result': self.state.get('result')}
+                'story': self.journal.get('story'), 'highlight': self.journal.get('highlight'), 'stories': self.journal.get('stories', {}), 'result': self.state.get('result')}
         temp = self.journal_path.with_suffix('.tmp')
         temp.write_text(json.dumps(data), encoding='utf-8')
         temp.replace(self.journal_path)
@@ -111,8 +122,14 @@ class Workflow:
             if self.thread is not None and self.thread.is_alive(): raise CompanionError('BUSY', 'A workflow is already running.')
             if not self.gmail.status().get('connected'): raise CompanionError('GMAIL_REQUIRED', 'Connect Gmail once before starting automatic email verification.')
             self.cancel.clear(); self.continue_event.clear()
-            self.thread = threading.Thread(target=self._run_many, args=(copy.deepcopy(settings),), daemon=True)
+            self.thread = threading.Thread(target=self._execute_many, args=(copy.deepcopy(settings),), daemon=True)
             self.thread.start()
+
+    def _execute_many(self, profiles):
+        try: self._run_many(profiles)
+        except Exception:
+            with self.lock:
+                self.state.update(status='needs_attention', phase='CHECKPOINT_UNAVAILABLE', message='The workflow checkpoint could not be read or saved. Inspect local storage and external state before another run.', pauseId=None)
 
     def _run_many(self, profiles):
         results = []
@@ -151,6 +168,8 @@ class Workflow:
                 raise CompanionError('META_APP_REQUIRED', 'Select an active owned Meta app. The platform app is not configured.')
             if settings.get('meta_app_id') is not None and not any(a['id'] == settings['meta_app_id'] for a in catalog['apps']):
                 raise CompanionError('META_APP_UNAVAILABLE', 'The selected Meta app is not active under this AVANCA user.')
+            self.progress('gmail_preflight', 'Renewing Gmail access and verifying the configured mailbox before Android account actions.')
+            self.gmail.verify()
             self.progress('android_connect', 'Starting the local Android controller and opening Instagram.')
             self.runtime.ensure()
             phone = self.phone_factory(settings['serial'], 'http://127.0.0.1:4723', self.vault, self.cancel, self.progress,

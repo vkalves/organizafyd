@@ -22,9 +22,10 @@ $companion = $null
 try {
     $controller = Start-Process -FilePath 'powershell.exe' -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $desktop 'launch.ps1') + '" -Mode Appium') -PassThru -NoNewWindow
     Wait-Ready 'http://127.0.0.1:4723/status' -Appium
-    $companion = Start-Process -FilePath (Join-Path $desktop '.venv\Scripts\python.exe') -WorkingDirectory $desktop -ArgumentList '-m zyon.server --no-browser --port 8788' -PassThru -NoNewWindow
-    Wait-Ready 'http://127.0.0.1:8788/'
-    Write-Host 'Installed Appium and companion both started and passed local HTTP readiness checks.'
+    $companion = Start-Process -FilePath (Join-Path $desktop '.venv\Scripts\python.exe') -WorkingDirectory $desktop -ArgumentList '-m zyon.desktop --smoke-test' -PassThru -NoNewWindow
+    if (-not $companion.WaitForExit(30000)) { throw 'Native desktop smoke did not exit.' }
+    if ($companion.ExitCode -ne 0) { throw 'Native desktop window failed its smoke check.' }
+    Write-Host 'Installed Appium passed HTTP readiness and the native desktop window opened successfully.'
 } finally {
     foreach ($process in @($controller, $companion)) {
         if ($process -and -not $process.HasExited) {

@@ -61,6 +61,25 @@ class Screen:
     def matches(self, labels):
         return [n for n in self.nodes if n.get("displayed", "true") != "false" and any(v in labels for v in self.labels(n) if v)]
 
+    def controls(self, labels):
+        grouped = {}
+        for node in self.matches(labels):
+            target = node
+            ancestor = self.parents.get(node)
+            for _ in range(4):
+                if target.get('clickable') == 'true': break
+                if ancestor is None: break
+                if ancestor.get('clickable') == 'true':
+                    target = ancestor
+                    break
+                ancestor = self.parents.get(ancestor)
+            prior = grouped.get(target)
+            # Click the labelled descendant while grouping duplicate labels from
+            # its single clickable container. Distinct buttons stay ambiguous.
+            if prior is None or node.get('text') and not prior.get('text'):
+                grouped[target] = node
+        return list(grouped.values())
+
     def has(self, labels): return bool(self.matches(labels))
 
     def method_active(self):
@@ -172,7 +191,7 @@ class Android:
 
     def click(self, labels):
         screen = self.screen()
-        candidates = screen.matches(labels)
+        candidates = screen.controls(labels)
         if len(candidates) != 1:
             raise CompanionError("CONTROL_UNCERTAIN", "Expected one matching Instagram control. Inspect the screen, then retry from the profile.")
         node = candidates[0]

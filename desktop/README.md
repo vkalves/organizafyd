@@ -4,7 +4,7 @@ This release is a native **Windows desktop application** named **Zyon.exe**, wit
 
 ## Download and start
 
-Download the **Zyon-Desktop-Windows-2.0** artifact from the successful Windows workflow. Extract the outer download, then extract `Zyon-Desktop-Windows-2.0.zip`. Keep the whole **Zyon** folder together and double-click **Zyon.exe**. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
+Download the **Zyon-Desktop-Windows-2.0** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
 
 On first launch, missing Android runtime tools trigger the included installer. It installs/configures isolated Node.js 22, Temurin Java 17, Android SDK and Appium/UiAutomator2, and installs Chrome if necessary. Windows can request installation approval. Internet access and several gigabytes of disk space are needed for the toolchain and download cache. WinGet/App Installer is needed if Chrome is missing. The **PROGRAMA** tab can run the installer again. Existing system Node/Java/SDK settings are preserved.
 
