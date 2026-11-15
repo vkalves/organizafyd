@@ -1,3 +1,4 @@
+import { workerPartition, type WorkerPartition } from "../_shared/publisher-workers.ts";
 import { integrationOrigins, connectionSiteOrigin } from "../_shared/integration-origins.ts";
 import {
   librarySharing,
@@ -16,6 +17,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { type Draft, mediaParams, validate } from "./model.ts";
 import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
 import { drainQueue, readPages, stageJobs } from "./queue.ts";
+import { publishContainer } from "./publication.ts";
 import {
   checkProfile,
   connectionInput,
@@ -70,7 +72,7 @@ async function graph(
     body: post
       ? new URLSearchParams({ ...params, access_token: token })
       : undefined,
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(post && path.endsWith("/media_publish") ? 60_000 : 20_000),
   });
   const data = await res.json();
   if (!res.ok || data.error) {
@@ -166,7 +168,7 @@ async function enqueuePlan(
 }
 async function advanceCampaigns() {
   const due = checked(await db.rpc("ig_campaign_due"));
-  for (const flow of due) {
+  for (const flow of due.slice(0, 5)) {
     try {
       const input = flow.settings as FlowInput;
       const runtime = checked(
@@ -270,7 +272,32 @@ async function advanceCampaigns() {
     }
   }
 }
+async function reconcilePublications() {
+  const jobs = checked(await db.from("ig_publication_jobs")
+    .select("id,account_id,container_id,lock_token")
+    .eq("status", "uncertain").eq("publish_started", true)
+    .not("container_id", "is", null)
+    .lte("next_attempt_at", new Date().toISOString())
+    .order("next_attempt_at").limit(4)) ?? [];
+  await Promise.all(jobs.map(async (job) => {
+    try {
+      const { c, token } = await credential(job.account_id);
+      const state = await graph(job.container_id, token, { fields: "status_code" }, false, c.provider);
+      const confirmed = state.status_code === "PUBLISHED";
+      checked(await db.from("ig_publication_jobs").update({
+        ...(confirmed ? { status: "published", published_at: new Date().toISOString(), error_code: null } : {}),
+        next_attempt_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }).eq("id", job.id).eq("status", "uncertain").eq("lock_token", job.lock_token));
+    } catch {
+      // A failed confirmation never causes a second publication.
+      await db.from("ig_publication_jobs").update({
+        next_attempt_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }).eq("id", job.id).eq("status", "uncertain").eq("lock_token", job.lock_token);
+    }
+  }));
+}
 async function maintenance() {
+  await reconcilePublications();
   await advanceCampaigns();
   // Delete only abandoned preparation, never queued publications.
   checked(
@@ -301,9 +328,9 @@ async function maintenance() {
     }
   } catch { /* Retry cleanup on the next tick. */ }
 }
-async function processJob() {
+async function processJob(partition: WorkerPartition) {
   const lock = crypto.randomUUID();
-  const job = checked(await db.rpc("ig_claim_job", { p_token: lock }))?.[0];
+  const job = checked(await db.rpc("ig_claim_job_partition", { p_token: lock, p_shard: partition.shard, p_shards: partition.shards }))?.[0];
   if (!job) return { processed: 0 };
   let publishing = job.publish_started;
   async function update(values: Record<string, unknown>) {
@@ -423,16 +450,14 @@ async function processJob() {
     );
     if (!canPublish) return { processed: 0 };
     publishing = true;
-    const result = await accountGraph(
-      c.graph_id + "/media_publish",
-      token,
-      { creation_id: container },
-      true,
+    const result = await publishContainer(
+      (path, params, post) => accountGraph(path, token, params, post),
+      c.graph_id,
+      container,
     );
-    if (!result.id) throw new Error("missing_publication_id");
     await update({
       status: "published",
-      media_id: result.id,
+      media_id: result.mediaId,
       published_at: new Date().toISOString(),
       error_code: null,
     });
@@ -464,16 +489,16 @@ async function processJob() {
         "meta_613",
         "meta_429",
       ].includes(code);
+    const retryAt = new Date(Date.now() + Math.min(900_000, 30_000 * 2 ** Math.min(job.attempts, 5)) + Math.floor(Math.random() * 10_000)).toISOString();
+    if (transient && ["meta_4", "meta_17", "meta_32", "meta_613", "meta_429"].includes(code)) {
+      checked(await db.from("ig_publisher_connections").update({ publish_retry_at: retryAt }).eq("account_id", job.account_id));
+    }
     await update({
       status: publishing ? "uncertain" : transient ? "scheduled" : "failed",
       error_code: code,
       ...(transient
         ? {
-          next_attempt_at: new Date(
-            Date.now() +
-              Math.min(900_000, 30_000 * 2 ** Math.min(job.attempts, 5)) +
-              Math.floor(Math.random() * 10_000),
-          ).toISOString(),
+          next_attempt_at: retryAt,
         }
         : {}),
     });
@@ -503,7 +528,7 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 100000) return reply({ error: "request_too_large" }, 413);
     const body = JSON.parse(raw);
-    if (body.action === "worker" || body.action === "health") {
+    if (["worker", "maintenance", "health"].includes(body.action)) {
       const key = checked(await db.rpc("ig_worker_key"));
       const supplied = req.headers.get("x-worker-secret");
       if (!key || !supplied || supplied !== key) {
@@ -532,12 +557,19 @@ Deno.serve(async (req) => {
           username: profile.username,
         });
       }
-      try {
-        await maintenance();
-      } catch {
-        console.error("instagram_maintenance_failed");
+      if (body.action === "maintenance") {
+        const lock = crypto.randomUUID();
+        const claimed = checked(await db.rpc("publisher_claim_maintenance", { p_token: lock }));
+        if (!claimed) return reply({ skipped: true });
+        try { await maintenance(); }
+        finally { checked(await db.rpc("publisher_release_maintenance", { p_token: lock })); }
+        return reply({ ok: true });
       }
-      return reply(await drainQueue(processJob));
+      let partition: WorkerPartition;
+      try { partition = workerPartition(body); } catch { return reply({ error: "invalid_worker_partition" }, 400); }
+      const result = await drainQueue(() => processJob(partition), { maxJobs: 120, budgetMs: 35_000 });
+      console.info(JSON.stringify({ event: "publisher_tick", platform: "instagram", ...partition, ...result }));
+      return reply(result);
     }
     const jwt = req.headers.get("authorization")?.replace(/^Bearer /i, "");
     if (!jwt) return reply({ error: "unauthorized" }, 401);

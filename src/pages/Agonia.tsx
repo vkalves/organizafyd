@@ -988,7 +988,6 @@ export default function Agonia() {
 
           {/* 2. RANKING DE CONTAS POR VISUALIZAÇÃO TOTAL DE REELS */}
           <div className="dash-main-grid">
-          <InsightsPermissionNotice report={viewsReport.data} accounts={accounts} />
           <section className="panel performance-panel analytics-ranking">
             <div className="panel-header performance-header">
               <div>
@@ -1009,6 +1008,7 @@ export default function Agonia() {
               </div>
             </div>
 
+            <InsightsPermissionNotice report={viewsReport.data} accounts={accounts} />
             <div className="dash-ranking-data">
             <DashboardViewsChart report={viewsReport.data} accountIds={accountViewsMetrics.accountIds} />
             <div className="dash-ranking-detail">

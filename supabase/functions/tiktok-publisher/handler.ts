@@ -1,3 +1,4 @@
+import { workerPartition, runAccountBatch, type WorkerPartition } from "../_shared/publisher-workers.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.98.0";
 import {
   decrypt,
@@ -149,12 +150,12 @@ export function createTikTokHandler(
       /* Local removal still stops publishing; user can revoke in TikTok too. */
     }
   }
-  async function processQueue() {
-    const due = checked(await db.rpc("tiktok_due_accounts"));
+  async function processQueue(partition: WorkerPartition) {
+    const due = checked(await db.rpc("tiktok_due_accounts_partition", { p_shard: partition.shard, p_shards: partition.shards }));
     const deadline = Date.now() + 90000;
     let processed = 0;
-    for (const row of due ?? []) {
-      if (Date.now() + 35000 > deadline) break;
+    await runAccountBatch<{ account_id: string; user_id: string }>(due ?? [], async (row) => {
+      if (Date.now() + 35000 > deadline) return;
       try {
         await lock(row.account_id, async () => {
           const a = await account(row.account_id, row.user_id);
@@ -170,7 +171,7 @@ export function createTikTokHandler(
               .limit(2),
           );
           for (const post of pending ?? []) {
-            if (Date.now() + 35000 > deadline) break;
+            if (Date.now() + 35000 > deadline) return;
             try {
               const s = await tiktok(
                 fetcher,
@@ -299,7 +300,8 @@ export function createTikTokHandler(
       } catch {
         console.error("tiktok_worker_account_failed");
       }
-    }
+    });
+    console.info(JSON.stringify({ event: "publisher_tick", platform: "tiktok", ...partition, processed }));
     return { processed };
   }
   return async (request: Request): Promise<Response> => {
@@ -367,7 +369,9 @@ export function createTikTokHandler(
         )
           throw new TikTokError("unauthorized", 401);
         if (!ready) throw new TikTokError("not_configured", 503);
-        return reply(await processQueue());
+        let partition: WorkerPartition;
+        try { partition = workerPartition(p); } catch { throw new TikTokError("invalid_request"); }
+        return reply(await processQueue(partition));
       }
       const auth = await db.auth.getUser(
         request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "",

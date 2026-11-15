@@ -18,10 +18,13 @@ it("names accounts missing insights permission without claiming their likes are 
       }}
     />,
   );
-  expect(screen.getByRole("status")).toHaveTextContent(
+  expect(screen.getByText(/Algumas contas precisam/)).toHaveTextContent(
     "As curtidas disponíveis continuam aparecendo",
   );
-  expect(screen.getByText("@alfa")).toBeInTheDocument();
+  expect(screen.getByText("Métricas parciais")).toBeInTheDocument();
+  expect(screen.getByText("@alfa").closest("details")).not.toHaveAttribute("open");
+  screen.getByText("@alfa").closest("details")!.open = true;
+  expect(screen.getByText("@alfa")).toBeVisible();
   expect(screen.getByRole("link")).toHaveAttribute("href", "/avanca/conectar");
 });
 it("does not ask for renewed authorization when metrics are authorized", () => {
@@ -31,5 +34,5 @@ it("does not ask for renewed authorization when metrics are authorized", () => {
       report={{ checked_at: "now", accounts: [] }}
     />,
   );
-  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.queryByText("Métricas parciais")).not.toBeInTheDocument();
 });

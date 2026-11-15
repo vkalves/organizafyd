@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import {
   validatePost,
@@ -303,7 +304,7 @@ async function workerSetup(fetcher: typeof fetch) {
   const db = {
     rpc: vi.fn(async (name: string) => ({
       data:
-        name === "tiktok_due_accounts"
+        name === "tiktok_due_accounts_partition"
           ? [{ account_id: accountId, user_id: user }]
           : true,
       error: null,
