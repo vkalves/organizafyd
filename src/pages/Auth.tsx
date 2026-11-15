@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { PublicLinks } from "./PublicInfo";
+import { integrationReturnPath } from "@/lib/integration-return";
 import AuthLayout from "@/components/layout/AuthLayout";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const destination = "/avanca";
+  const location = useLocation();
+  const destination = integrationReturnPath(location.state?.returnTo);
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");

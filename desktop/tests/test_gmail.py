@@ -62,6 +62,14 @@ class GmailRequestTests(unittest.TestCase):
         self.assertEqual(gmail.request('profile'), {'emailAddress':'owner@gmail.com'})
         self.assertEqual(self.vault.get('gmail')['credentials']['token'], 'renewed-token')
         self.assertNotIn('credentials', gmail.status())
+    def test_expired_deadline_does_not_send_network_request(self):
+        session=__import__('unittest.mock',fromlist=['Mock']).Mock()
+        session.__enter__=lambda s:s
+        session.__exit__=lambda *args:None
+        gmail=Gmail(self.vault,lambda credentials:session)
+        with self.assertRaises(CompanionError) as caught: gmail.request('messages',deadline=time.monotonic()-1)
+        self.assertEqual(caught.exception.code,'EMAIL_TIMEOUT')
+        session.get.assert_not_called()
     def test_invalid_grant_requires_reconnect(self):
         class Session:
             def __init__(self, credentials): pass
@@ -98,7 +106,7 @@ class GmailRequestTests(unittest.TestCase):
     def test_message_retrieved_once(self):
         gmail=Gmail(self.vault)
         raw=base64.urlsafe_b64encode(raw_mail()).decode().rstrip('=')
-        def request(path, params=None):
+        def request(path, params=None, deadline=None):
             if path=='messages': return {'messages':[{'id':'m1'}]}
             return {'raw':raw,'internalDate':str(int(time.time()*1000))}
         gmail.request=request
@@ -107,7 +115,7 @@ class GmailRequestTests(unittest.TestCase):
     def test_multiple_messages_rejected(self):
         gmail=Gmail(self.vault)
         raw=base64.urlsafe_b64encode(raw_mail()).decode()
-        gmail.request=lambda path,params=None: {'messages':[{'id':'a'},{'id':'b'}]} if path=='messages' else {'raw':raw,'internalDate':str(int(time.time()*1000))}
+        gmail.request=lambda path,params=None,deadline=None: {'messages':[{'id':'a'},{'id':'b'}]} if path=='messages' else {'raw':raw,'internalDate':str(int(time.time()*1000))}
         with self.assertRaises(CompanionError) as caught: gmail.wait_code('security@mail.instagram.com','owner@gmail.com',time.time()*1000-500,threading.Event(),1)
         self.assertEqual(caught.exception.code,'AMBIGUOUS_CODE')
     def test_cancel_does_not_query_gmail(self):

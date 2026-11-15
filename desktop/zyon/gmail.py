@@ -106,7 +106,7 @@ class Gmail:
         with self.lock:
             self.vault.delete("gmail"); self.used.clear(); self.reconnect = False
 
-    def request(self, path, params=None):
+    def request(self, path, params=None, deadline=None):
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import AuthorizedSession
         from google.auth.exceptions import RefreshError, TransportError
@@ -115,11 +115,14 @@ class Gmail:
         if not data or self.reconnect:
             raise CompanionError("GMAIL_RECONNECT", "Connect Gmail in this companion first.")
         credentials = Credentials.from_authorized_user_info(data["credentials"], SCOPES)
-        factory = self.session_factory or AuthorizedSession
+        factory = self.session_factory or (lambda credential: AuthorizedSession(credential, refresh_timeout=15, max_refresh_attempts=1))
         try:
             with factory(credentials) as session:
                 for attempt in range(3):
-                    response = session.get(API + path, params=params, timeout=20)
+                    remaining = deadline - time.monotonic() if deadline is not None else 20
+                    if remaining <= 0:
+                        raise CompanionError("EMAIL_TIMEOUT", "Email retrieval deadline reached. Start a fresh challenge.")
+                    response = session.get(API + path, params=params, timeout=min(20, remaining))
                     if response.status_code == 200: return response.json()
                     if response.status_code == 401:
                         self.reconnect = True
@@ -128,7 +131,9 @@ class Gmail:
                         raise CompanionError("GMAIL_API_FAILED", "Gmail rejected the request. Check Gmail API access and OAuth permissions.")
                     if attempt < 2:
                         delay = response.headers.get("Retry-After", "")
-                        time.sleep(min(5, max(1, int(delay))) if delay.isdigit() else 2 ** attempt)
+                        pause = min(5, max(1, int(delay))) if delay.isdigit() else 2 ** attempt
+                        if deadline is not None: pause = min(pause, max(0, deadline - time.monotonic()))
+                        time.sleep(pause)
                 raise CompanionError("GMAIL_RETRY", "Gmail is temporarily unavailable. Retry this verification request.")
         except RefreshError:
             self.reconnect = True
@@ -153,14 +158,14 @@ class Gmail:
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 if cancel.is_set(): raise CompanionError("CANCELLED", "Email retrieval cancelled.")
-                listing = self.request("messages", {"q": f"in:anywhere from:{sender} to:{recipient} after:{int(since_ms / 1000) - 1}", "maxResults": 25})
+                listing = self.request("messages", {"q": f"in:anywhere from:{sender} to:{recipient} after:{int(since_ms / 1000) - 1}", "maxResults": 25}, deadline=deadline)
                 if listing.get("nextPageToken"):
                     raise CompanionError("TOO_MANY_MESSAGES", "Too many matching emails; start a fresh challenge.")
                 found = []
                 for item in listing.get("messages", []):
                     if cancel.is_set(): raise CompanionError("CANCELLED", "Email retrieval cancelled.")
                     if item["id"] in self.used: continue
-                    message = self.request("messages/" + item["id"], {"format": "raw"})
+                    message = self.request("messages/" + item["id"], {"format": "raw"}, deadline=deadline)
                     encoded = message.get("raw", "")
                     if len(encoded) > 3 * 1024 * 1024:
                         raise CompanionError("MESSAGE_TOO_LARGE", "Candidate email exceeds 2 MiB.")
@@ -174,5 +179,5 @@ class Gmail:
                     self.used.add(message_id)
                     return {"code": code, "recipient": recipient, "expiresInSeconds": 60,
                             "note": "Retrieved only. Confirm acceptance in Instagram before continuing."}
-                cancel.wait(2)
+                cancel.wait(min(2, max(0, deadline - time.monotonic())))
         raise CompanionError("EMAIL_TIMEOUT", "No matching fresh email arrived. Request a new Instagram code and retry.")
