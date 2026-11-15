@@ -57,6 +57,8 @@ function Accept-AndroidSdkLicenses([string]$SdkManager, [string]$SdkRoot) {
     $info.Arguments = '/d /s /c ""{0}" "--sdk_root={1}" --licenses"' -f $SdkManager, $SdkRoot
     $info.UseShellExecute = $false
     $info.RedirectStandardInput = $true
+    # Java reads literal y/yes: a UTF-8/UTF-16 preamble rejects the first answer.
+    $info.StandardInputEncoding = [Text.Encoding]::ASCII
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $info
     try {

@@ -26,6 +26,19 @@ try {
     $rejected = $false
     try { Get-VerifiedDownload 'https://invalid.test/package.zip' $cached 'bad-checksum' @('invalid.test') } catch { $rejected = $true }
     if (-not $rejected) { throw 'Missing checksum was accepted.' }
+    $probeDir = Join-Path $temp 'stdin probe with spaces'
+    New-Item -ItemType Directory -Path $probeDir | Out-Null
+    $pythonPath = Find-CompanionPython
+    $probe = Join-Path $probeDir 'probe.py'
+    Set-Content -LiteralPath $probe -Encoding ASCII -Value @'
+import sys
+answer = sys.stdin.buffer.readline()
+print("SDK stdin bytes:", answer.hex())
+sys.exit(0 if answer in (b"y\r\n", b"y\n") else 42)
+'@
+    $batch = Join-Path $probeDir 'sdkmanager.bat'
+    Set-Content -LiteralPath $batch -Encoding ASCII -Value ('@echo off' + [Environment]::NewLine + '"' + $pythonPath + '" "' + $probe + '"')
+    Accept-AndroidSdkLicenses $batch $probeDir
     $originalLocal = $env:LOCALAPPDATA
     $originalPath = $env:PATH
     $originalJava = $env:JAVA_HOME
