@@ -1,15 +1,25 @@
-# Zyon Windows companion 1.0
+# Zyon Windows companion 1.1
 
 Local software for the same Instagram account on Android 14, Chrome on Windows 10, and AVANÇA. This package adds Gmail desktop OAuth with refresh, Android UI execution through Appium, and an explicit Meta invitation pause. Existing AVANÇA owner checks, official Meta authorization and verified flow association remain in the website.
 
 ## Start on Windows 10
 
-1. Download this repository ZIP, extract it, and open **desktop**. Do not run scripts from inside the ZIP.
-2. Install **Python 3.12**, including the Python launcher, from <https://www.python.org/downloads/windows/>. Install **Google Chrome**.
-3. Double-click **start.cmd**. The first launch installs the pinned Python dependencies in `desktop/.venv`, then opens the local control page. Keep its console open. Press Enter in that console to reopen the page if needed. Do not refresh the browser page: its per-launch access token is deliberately removed from the address bar.
-4. Configure Gmail and Android below. The UI gives the next action and stops on uncertain state.
+1. Download the **Windows companion 1.1** package, extract the ZIP, then extract the inner ZIP and open **ZyonCompanion**. For a repository download, open **desktop**. Do not run scripts from inside a ZIP.
+2. Double-click **install-requirements.cmd**. It installs missing Python/Chrome using Windows App Installer (WinGet), downloads an isolated Node.js 22 and Java 17, configures Android SDK, installs Python/Appium dependencies and runs diagnostics. Allow Windows installer prompts. Initial downloads can take several minutes and several hundred megabytes. The installer accepts the software/package and Android SDK licenses.
+3. Double-click **start-appium.cmd**, then **start.cmd**. Leave both windows open. The companion opens in the browser. Press Enter in its console to reopen the page if needed. Do not refresh the page: its per-launch access token is deliberately removed from the address bar.
+4. Connect your phone and complete the USB and Google consent steps below.
 
-No `.exe` is included. `start.cmd` runs the Python application; it is not a signed Windows installer.
+Windows 10/11 **x64** and internet access are required. If WinGet is missing, install/update Microsoft's [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1) and rerun the installer. Some Windows editions restrict software installation; any required approval is shown by Windows.
+
+The downloaded toolchains live under `%LOCALAPPDATA%\ZyonCompanion\runtime`. SHA-256 is checked before extracting Node, Java and Android tools. The launchers load these paths for the companion only; existing system Node/Java/SDK settings are not replaced. Python and Chrome installations are managed by WinGet. Successful steps are reused when you rerun after a download or setup failure.
+
+For a terminal installation, run this from the extracted **ZyonCompanion** / **desktop** folder:
+
+```cmd
+install-requirements.cmd
+```
+
+No `.exe` is included. The CMD launchers run Windows PowerShell and Python. Installation does not configure Google Cloud OAuth, enable USB debugging or accept the phone's USB authorization prompt. Those require your interaction.
 
 ## Gmail: one initial authorization, automatic renewal
 
@@ -30,14 +40,14 @@ To receive an Instagram code:
 
 ## Android controller setup
 
-Install these prerequisites on Windows:
+The installer supplies these tools. For a manual installation:
 
 - Node.js **22 LTS**, version 22.12 or newer within 22.x, including npm 10+.
 - **JDK 17**, with `JAVA_HOME` set to its installation directory.
 - Android SDK Command-line Tools / Platform Tools, with `ANDROID_HOME` pointing to the SDK. Put `platform-tools` on `PATH`; `adb devices -l` must work in a fresh terminal. UiAutomator2 doctor reports any remaining SDK components.
 - On the Android 14 phone, enable Developer options and USB debugging, connect USB, unlock it, and accept the Windows computer's debugging key. Device-specific USB drivers may be necessary.
 
-Run **setup-appium.cmd** once. It installs local Appium **3.9.1** from the npm lockfile and UiAutomator2 **5.0.7** under a companion-specific `APPIUM_HOME`, then runs driver diagnostics. Run **start-appium.cmd** and leave that window open. It binds Appium to `127.0.0.1:4723`, uses error-level logs and does not enable relaxed security. Never turn on debug/request logging during credential screens; UI hierarchies can contain secrets.
+If you used **install-requirements.cmd**, Appium setup is already complete. For a manual installation, run **setup-appium.cmd** once. It installs local Appium **3.9.1** from the npm lockfile and UiAutomator2 **5.0.7** under a companion-specific `APPIUM_HOME`, then runs driver diagnostics. Run **start-appium.cmd** and leave that window open. It binds Appium to `127.0.0.1:4723`, uses error-level logs and does not enable relaxed security. Never turn on debug/request logging during credential screens; UI hierarchies can contain secrets.
 
 Open Instagram on the phone and navigate to the intended **own profile**, where **Editar perfil / Edit profile** is visible. In the companion, enter its exact @, query USB devices, select the correct serial, and click **Verificar / ativar 2FA**.
 
@@ -65,7 +75,7 @@ From `desktop`:
 .venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Tests cover exact account checks, TOTP generation, enrollment activation/pending state, 2FA-before-logout, unknown controls, stale/ambiguous mail, persisted renewal, revoked grants, invitation gating, interrupted workflow, secret redaction and HTTP origin/Host/bearer restrictions. Windows CI also exercises actual DPAPI encrypt/decrypt and parses the PowerShell setup script. No real Google account, Meta invitation or production publishing job is used by tests.
+Tests cover exact account checks, TOTP generation, enrollment activation/pending state, 2FA-before-logout, unknown controls, stale/ambiguous mail, persisted renewal, revoked grants, invitation gating, interrupted workflow, secret redaction and HTTP origin/Host/bearer restrictions. Windows CI also exercises actual DPAPI encrypt/decrypt and checks PowerShell scripts. A separate Windows installer job performs the real dependency installation and verifies rerun behavior without a phone or Google credentials. No real Google account, Meta invitation or production publishing job is used by tests.
 
 The GitHub Actions **Windows companion** workflow builds a source ZIP and SHA-256 checksum after Windows and Linux tests. The ZIP excludes virtual environments, dependency directories, credentials and caches. It is a runnable source package with launchers, not evidence that a specific phone completed the workflow.
 

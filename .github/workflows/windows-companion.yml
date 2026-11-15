@@ -26,21 +26,35 @@ jobs:
       - name: Companion tests (includes real Windows DPAPI on Windows)
         working-directory: desktop
         run: python -m unittest discover -s tests -v
-      - name: Parse Windows setup script
+      - name: Verify installer scripts and runtime contracts
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $parseErrors = $null
-          $tokens = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'desktop/setup-appium.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count) { $parseErrors | Format-List; exit 1 }
+        shell: powershell
+        run: ./desktop/tests/installer-check.ps1
       - name: Package Windows source and checksum
         if: runner.os == 'Windows'
         run: python desktop/package.py
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: ZyonCompanion-Windows-1.0
+          name: ZyonCompanion-Windows-1.1
           path: desktop/dist/*
           if-no-files-found: error
           retention-days: 30
+
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual isolated toolchain and companion requirements
+        shell: powershell
+        run: ./desktop/install-requirements.ps1
+      - name: Verify rerun and dependency checks
+        shell: powershell
+        run: |
+          ./desktop/install-requirements.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./desktop/launch.ps1 -Mode Prepare
