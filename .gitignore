@@ -25,3 +25,14 @@ dist-ssr
 
 # Supabase CLI temporary project metadata
 /supabase/.temp/
+
+# Windows companion: dependencies, caches, local credentials and package output
+/desktop/.venv/
+/desktop/build/
+/desktop/dist/
+**/__pycache__/
+*.pyc
+/desktop/client_secret*.json
+/desktop/credentials*.json
+/desktop/token*.json
+*.dpapi
