@@ -139,9 +139,10 @@ function Install-CompanionRequirements {
     try {
         Write-Host 'Installing companion requirements. Large downloads may take several minutes.'
         Write-Host 'This installs software and accepts the package/Android SDK licenses. Windows may request installation approval.'
-        $python = Find-CompanionPython
-        if (-not $python) { Install-WinGetPackage 'Python.Python.3.12' -UserScope; $python = Find-CompanionPython }
-        if (-not $python) { throw 'Python installation was not confirmed. Restart Windows if requested, then rerun.' }
+        $frozen = Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Zyon.exe')
+        $python = if ($frozen) { $null } else { Find-CompanionPython }
+        if (-not $frozen -and -not $python) { Install-WinGetPackage 'Python.Python.3.12' -UserScope; $python = Find-CompanionPython }
+        if (-not $frozen -and -not $python) { throw 'Python installation was not confirmed. Restart Windows if requested, then rerun.' }
         if (-not (Find-CompanionChrome)) { Install-WinGetPackage 'Google.Chrome' }
         if (-not (Find-CompanionChrome)) { throw 'Chrome installation was not confirmed. Restart if requested, then rerun.' }
 
@@ -191,7 +192,7 @@ function Install-CompanionRequirements {
             Move-Item -LiteralPath (Join-Path $stage 'cmdline-tools') -Destination (Join-Path $sdkRoot 'cmdline-tools\latest')
             Remove-Item -LiteralPath $stage -Recurse -Force
         }
-        $paths = @{ Node = $nodeRoot; Java = $javaRoot; Android = $sdkRoot; Python = (Split-Path $python -Parent) }
+        $paths = @{ Node = $nodeRoot; Java = $javaRoot; Android = $sdkRoot; Python = $(if ($python) { Split-Path $python -Parent } else { $null }) }
         $paths | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'paths.json') -Encoding UTF8
         . (Join-Path $PSScriptRoot 'runtime.ps1')
         Set-CompanionRuntime

@@ -13,6 +13,15 @@ try {
         & $appium --address 127.0.0.1 --port 4723 --log-level error --log-no-colors
         exit $LASTEXITCODE
     }
+    $executable = Join-Path $PSScriptRoot 'Zyon.exe'
+    if (Test-Path -LiteralPath $executable) {
+        if ($Mode -eq 'Prepare') {
+            $check = Start-Process -FilePath $executable -ArgumentList '--self-test' -Wait -PassThru
+            exit $check.ExitCode
+        }
+        $application = Start-Process -FilePath $executable -Wait -PassThru
+        exit $application.ExitCode
+    }
     $venv = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
     if (-not (Test-Path -LiteralPath $venv)) {
         $python = Get-Command python.exe -ErrorAction SilentlyContinue
@@ -41,6 +50,6 @@ try {
     }
     if ($Mode -eq 'Prepare') { exit 0 }
     $ErrorActionPreference = 'Continue'
-    & $venv -m zyon.server
+    & $venv -m zyon.desktop
     exit $LASTEXITCODE
 } catch { Write-Host $_.Exception.Message -ForegroundColor Red; exit 1 }
