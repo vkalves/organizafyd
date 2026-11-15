@@ -194,6 +194,7 @@ export function* buildFlowJobs(
       )
       : [...media]
     : shuffle(media);
+  const variations = input.variations.filter((caption) => caption.trim());
   let count = 0;
   for (const [accountIndex, accountId] of input.accountIds.entries()) {
     if (context.disabledAccounts?.includes(accountId)) continue;
@@ -239,10 +240,10 @@ export function* buildFlowJobs(
         id: crypto.randomUUID(),
         account_id: accountId,
         format,
-        caption: format === "Story" ? "" : item.caption ||
-          folderCaption ||
-          input.variations[index % (input.variations.length || 1)] ||
-          input.caption,
+        caption: format === "Story" ? "" : [
+          item.caption, folderCaption,
+          variations[index % (variations.length || 1)], input.caption,
+        ].find((caption) => caption?.trim()) ?? "",
         media_urls: [item.url],
         scheduled_at: new Date(baseAt + delayMs).toISOString(),
         ...(delayed ? { flow_base_at: new Date(baseAt).toISOString() } : {}),

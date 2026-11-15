@@ -31,6 +31,13 @@ const input: FlowInput = {
   coverId: null,
 };
 describe("Fluxos de publicação", () => {
+  it("ignores whitespace captions and empty variations when choosing a fallback", () => {
+    const media = library.map((item) => ({ ...item, caption: "  \n " }));
+    const jobs = buildFlow({ ...input, variations: [" ", "Variação", ""], caption: "Padrão" }, media, user, 0);
+    expect(jobs.every((job) => job.caption === "Variação")).toBe(true);
+    const fallback = buildFlow({ ...input, variations: [" "], caption: "Padrão" }, media, user, 0);
+    expect(fallback.every((job) => job.caption === "Padrão")).toBe(true);
+  });
   it("draws a fresh 1–5 minute delay for every GAP post, including the same account", () => {
     let draw = 0;
     const samples = [0, 0.5, 0.999999, 0.25];

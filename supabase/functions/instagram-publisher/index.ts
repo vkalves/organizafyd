@@ -16,6 +16,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import { type Draft, mediaParams, validate } from "./model.ts";
 import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
 import { drainQueue, readPages, stageJobs } from "./queue.ts";
+import { publishContainer } from "./publication.ts";
 import {
   checkProfile,
   connectionInput,
@@ -70,7 +71,7 @@ async function graph(
     body: post
       ? new URLSearchParams({ ...params, access_token: token })
       : undefined,
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(post && path.endsWith("/media_publish") ? 60_000 : 20_000),
   });
   const data = await res.json();
   if (!res.ok || data.error) {
@@ -270,7 +271,32 @@ async function advanceCampaigns() {
     }
   }
 }
+async function reconcilePublications() {
+  const jobs = checked(await db.from("ig_publication_jobs")
+    .select("id,account_id,container_id,lock_token")
+    .eq("status", "uncertain").eq("publish_started", true)
+    .not("container_id", "is", null)
+    .lte("next_attempt_at", new Date().toISOString())
+    .order("next_attempt_at").limit(4)) ?? [];
+  await Promise.all(jobs.map(async (job) => {
+    try {
+      const { c, token } = await credential(job.account_id);
+      const state = await graph(job.container_id, token, { fields: "status_code" }, false, c.provider);
+      const confirmed = state.status_code === "PUBLISHED";
+      checked(await db.from("ig_publication_jobs").update({
+        ...(confirmed ? { status: "published", published_at: new Date().toISOString(), error_code: null } : {}),
+        next_attempt_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }).eq("id", job.id).eq("status", "uncertain").eq("lock_token", job.lock_token));
+    } catch {
+      // A failed confirmation never causes a second publication.
+      await db.from("ig_publication_jobs").update({
+        next_attempt_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }).eq("id", job.id).eq("status", "uncertain").eq("lock_token", job.lock_token);
+    }
+  }));
+}
 async function maintenance() {
+  await reconcilePublications();
   await advanceCampaigns();
   // Delete only abandoned preparation, never queued publications.
   checked(
@@ -423,16 +449,14 @@ async function processJob() {
     );
     if (!canPublish) return { processed: 0 };
     publishing = true;
-    const result = await accountGraph(
-      c.graph_id + "/media_publish",
-      token,
-      { creation_id: container },
-      true,
+    const result = await publishContainer(
+      (path, params, post) => accountGraph(path, token, params, post),
+      c.graph_id,
+      container,
     );
-    if (!result.id) throw new Error("missing_publication_id");
     await update({
       status: "published",
-      media_id: result.id,
+      media_id: result.mediaId,
       published_at: new Date().toISOString(),
       error_code: null,
     });
