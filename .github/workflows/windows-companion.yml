@@ -58,3 +58,6 @@ jobs:
           ./desktop/install-requirements.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./desktop/launch.ps1 -Mode Prepare
+      - name: Start Appium and companion using the installed dependencies
+        shell: powershell
+        run: ./desktop/tests/installer-smoke.ps1

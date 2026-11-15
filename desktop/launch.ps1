@@ -9,6 +9,7 @@ try {
         $appium = Join-Path $PSScriptRoot 'tools\node_modules\.bin\appium.cmd'
         if (-not (Test-Path -LiteralPath $appium)) { throw 'Run install-requirements.cmd first.' }
         $env:APPIUM_HOME = Join-Path $env:LOCALAPPDATA 'ZyonCompanion\appium'
+        $ErrorActionPreference = 'Continue'
         & $appium --address 127.0.0.1 --port 4723 --log-level error --log-no-colors
         exit $LASTEXITCODE
     }
@@ -39,6 +40,7 @@ try {
         Set-Content -LiteralPath $marker -Value $digest -Encoding ASCII
     }
     if ($Mode -eq 'Prepare') { exit 0 }
+    $ErrorActionPreference = 'Continue'
     & $venv -m zyon.server
     exit $LASTEXITCODE
 } catch { Write-Host $_.Exception.Message -ForegroundColor Red; exit 1 }
