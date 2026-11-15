@@ -1,3 +1,4 @@
+import { workerPartition, runAccountBatch, type WorkerPartition } from "../_shared/publisher-workers.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.98.0";
 import {
   challenge,
@@ -77,14 +78,14 @@ export function createXHandler(
     if (!row) throw new XError("account_missing", 404);
     return row;
   }
-  async function processQueue() {
-    const due = checked(await db.rpc("x_due_accounts"));
+  async function processQueue(partition: WorkerPartition) {
+    const due = checked(await db.rpc("x_due_accounts_partition", { p_shard: partition.shard, p_shards: partition.shards }));
     const deadline = Date.now() + 90000;
     let processed = 0;
     const seen = new Set<string>();
-    for (const row of due ?? []) {
-      if (Date.now() + 25000 > deadline) break;
-      if (seen.has(row.account_id)) continue;
+    await runAccountBatch<{ account_id: string; user_id: string }>(due ?? [], async (row) => {
+      if (Date.now() + 25000 > deadline) return;
+      if (seen.has(row.account_id)) return;
       seen.add(row.account_id);
       try {
         await withLock(row.account_id, async () => {
@@ -220,7 +221,8 @@ export function createXHandler(
         if (!(error instanceof XError && error.code === "account_busy"))
           console.error("x_worker_account_failed");
       }
-    }
+    });
+    console.info(JSON.stringify({ event: "publisher_tick", platform: "x", ...partition, processed }));
     return { processed };
   }
   return async (request: Request): Promise<Response> => {
@@ -286,7 +288,9 @@ export function createXHandler(
         )
           throw new XError("unauthorized", 401);
         if (!ready) throw new XError("not_configured", 503);
-        return reply(await processQueue());
+        let partition: WorkerPartition;
+        try { partition = workerPartition(payload); } catch { throw new XError("invalid_request"); }
+        return reply(await processQueue(partition));
       }
       const bearer =
         request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { validatePost, textWeight } from "./model.ts";
 import { publish, tokens, uploadMedia } from "./x-api.ts";
