@@ -63,13 +63,13 @@ function Find-CompanionPython {
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) {
             $prior = $ErrorActionPreference
-            try { $ErrorActionPreference = 'Continue'; $result = & $candidate -c 'import sys; print(sys.executable if sys.version_info >= (3,11) else "")' 2>$null; $probeResult = $LASTEXITCODE } finally { $ErrorActionPreference = $prior }
+            try { $ErrorActionPreference = 'Continue'; $result = & $candidate -c 'import sys; sys.exit(1) if sys.version_info < (3,11) else print(sys.executable)' 2>$null; $probeResult = $LASTEXITCODE } finally { $ErrorActionPreference = $prior }
             if ($probeResult -eq 0 -and $result -and (Test-Path -LiteralPath $result)) { return [string]$result }
         }
     }
     if (Get-Command py -ErrorAction SilentlyContinue) {
         $prior = $ErrorActionPreference
-        try { $ErrorActionPreference = 'Continue'; $result = & py -3 -c 'import sys; print(sys.executable if sys.version_info >= (3,11) else "")' 2>$null; $probeResult = $LASTEXITCODE } finally { $ErrorActionPreference = $prior }
+        try { $ErrorActionPreference = 'Continue'; $result = & py -3 -c 'import sys; sys.exit(1) if sys.version_info < (3,11) else print(sys.executable)' 2>$null; $probeResult = $LASTEXITCODE } finally { $ErrorActionPreference = $prior }
         if ($probeResult -eq 0 -and $result -and (Test-Path -LiteralPath $result)) { return [string]$result }
     }
     return $null

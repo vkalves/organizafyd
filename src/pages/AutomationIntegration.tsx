@@ -63,7 +63,7 @@ export default function AutomationIntegration() {
       <p className="text-sm text-muted-foreground">Conclua a configuração no Android, a 2FA e o logout nativo. No Chrome, use o mesmo @, aceite o convite do testador quando necessário e conclua a autorização Meta.</p>
       <p className="text-sm text-muted-foreground">A verificação abaixo consulta a identidade ao vivo na Meta. Ela não controla o aparelho nem comprova automaticamente a configuração da 2FA.</p>
       <p className="text-sm text-muted-foreground">Companion para Windows: Gmail OAuth, verificação da conta no Android e pausa para o convite Meta. A configuração inicial exige consentimento Google e conexão USB.</p>
-      <a href="https://github.com/vkalves/organizafyd/tree/feat/windows-companion/desktop" target="_blank" rel="noreferrer" className="inline-block text-sm underline">Baixar e configurar o companion Windows</a>
+      <a href="https://github.com/vkalves/organizafyd/tree/main/desktop" target="_blank" rel="noreferrer" className="inline-block text-sm underline">Baixar e configurar o companion Windows</a>
       <Link to="/avanca/conectar" className="inline-block text-sm underline">Conectar ou autorizar meu Instagram</Link>
     </section>
     <form className="panel space-y-5 p-5" onSubmit={event => { event.preventDefault(); void execute(true); }}>

@@ -7,6 +7,7 @@ foreach ($file in Get-ChildItem -LiteralPath $desktop -Filter '*.ps1') {
     if ($parseErrors.Count) { throw ($file.Name + ': ' + ($parseErrors | Out-String)) }
 }
 . (Join-Path $desktop 'install-requirements.ps1')
+if (-not (Find-CompanionPython)) { throw 'An existing compatible Python was not detected.' }
 if (@(Get-InstallPlan).Count -lt 7) { throw 'Incomplete install plan.' }
 Assert-DownloadUrl 'https://nodejs.org/dist/test.zip' @('nodejs.org')
 foreach ($url in @('http://nodejs.org/file.zip', 'https://nodejs.org.evil.test/file.zip', 'https://user:password@nodejs.org/file.zip', 'file:///C:/test.zip')) {
