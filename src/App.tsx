@@ -4,11 +4,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { WelcomeAnimation } from "@/components/common/WelcomeAnimation";
+import { integrationReturnPath } from "@/lib/integration-return";
 import { LegacyWorkspaceRedirect } from "@/components/common/LegacyWorkspaceRedirect";
 
 const PublicInfo = lazy(() => import("./pages/PublicInfo"));
@@ -27,8 +28,9 @@ function AppLoading() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <AppLoading />;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth" replace state={{ returnTo: integrationReturnPath(location.pathname + location.search) }} />;
   return <AccountApprovalGate><AppLayout>{children}</AppLayout></AccountApprovalGate>;
 }
 

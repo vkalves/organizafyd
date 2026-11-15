@@ -1,0 +1,46 @@
+name: Windows companion
+on:
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/windows-companion.yml']
+  push:
+    branches: [main, feat/windows-companion]
+    paths: ['desktop/**', '.github/workflows/windows-companion.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  companion:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: desktop/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r desktop/requirements.txt
+      - name: Companion tests (includes real Windows DPAPI on Windows)
+        working-directory: desktop
+        run: python -m unittest discover -s tests -v
+      - name: Parse Windows setup script
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $parseErrors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'desktop/setup-appium.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count) { $parseErrors | Format-List; exit 1 }
+      - name: Package Windows source and checksum
+        if: runner.os == 'Windows'
+        run: python desktop/package.py
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: ZyonCompanion-Windows-1.0
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 30

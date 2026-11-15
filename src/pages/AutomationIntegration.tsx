@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -15,7 +15,11 @@ type Schema = { public: { Tables: { ig_flows: { Row: FlowChoice; Insert: Partial
 const db = supabase as unknown as SupabaseClient<Schema>;
 export default function AutomationIntegration() {
   const { user } = useAuth();
-  const [expectedUsername, setExpectedUsername] = useState("");
+  const [searchParams] = useSearchParams();
+  const [expectedUsername, setExpectedUsername] = useState(() => {
+    const candidate = (searchParams.get("expected_username") || "").trim().replace(/^@/, "").toLowerCase();
+    return /^[a-z0-9._]{1,30}$/.test(candidate) ? candidate : "";
+  });
   const [flowId, setFlowId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,6 +62,8 @@ export default function AutomationIntegration() {
       <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck size={18} /> Antes de sincronizar</h2>
       <p className="text-sm text-muted-foreground">Conclua a configuração no Android, a 2FA e o logout nativo. No Chrome, use o mesmo @, aceite o convite do testador quando necessário e conclua a autorização Meta.</p>
       <p className="text-sm text-muted-foreground">A verificação abaixo consulta a identidade ao vivo na Meta. Ela não controla o aparelho nem comprova automaticamente a configuração da 2FA.</p>
+      <p className="text-sm text-muted-foreground">Companion para Windows: Gmail OAuth, verificação da conta no Android e pausa para o convite Meta. A configuração inicial exige consentimento Google e conexão USB.</p>
+      <a href="https://github.com/vkalves/organizafyd/tree/feat/windows-companion/desktop" target="_blank" rel="noreferrer" className="inline-block text-sm underline">Baixar e configurar o companion Windows</a>
       <Link to="/avanca/conectar" className="inline-block text-sm underline">Conectar ou autorizar meu Instagram</Link>
     </section>
     <form className="panel space-y-5 p-5" onSubmit={event => { event.preventDefault(); void execute(true); }}>

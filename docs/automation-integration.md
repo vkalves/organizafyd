@@ -109,3 +109,9 @@ The GitHub change does not apply migrations, set production secrets, merge to ma
 ### In-flight legacy selection upgrade
 
 The compatibility path reads an old selection without consuming it, verifies its browser proof and authenticated ciphertext, then re-encrypts the grant for the recovery ledger. `ig_upgrade_legacy_selection` compares the original ciphertext, proof, pending status, owner-bound record, app metadata and expiry in PostgreSQL. Ciphertext is sent in an authenticated service-side RPC POST body instead of a potentially oversized URL filter. A concurrent winner is read back; a selection already consumed by an old request is never recreated. No account is connected during this representation upgrade. The selection result nonce is bound to the existing hash using PostgreSQL's built-in SHA-256, and result fields are allowlisted before storage.
+
+## Windows companion implementation
+
+`desktop/README.md` describes the runnable Windows companion and setup. It adds Gmail Desktop OAuth + PKCE, automatic grant renewal with current-user DPAPI storage, conservative six-digit email extraction, Android UI execution through local Appium/UiAutomator2, native identity/2FA/logout gates and the explicit tester-invitation pause. The website accepts `expected_username` as a validated prefill only; it does not trust query parameters as identity evidence or confirmation.
+
+This supersedes the earlier statement that no native/Gmail executor is implemented. Live phone compatibility, the initial Google consent, Google OAuth production configuration and the real browser authorization path still require operator setup/validation. Supported Android accessibility layouts are tested with fixtures. Chrome login, invitation acceptance and email-code entry remain supervised actions in this release. No database migration or publishing-job mutation is introduced by the desktop package.

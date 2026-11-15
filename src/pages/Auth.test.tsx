@@ -10,9 +10,10 @@ const notifications = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast: notifications }));
 import Auth from "./Auth";
 
-function show() {
-  return render(<MemoryRouter initialEntries={["/auth"]}><Routes>
+function show(returnTo?: string) {
+  return render(<MemoryRouter initialEntries={[{ pathname: "/auth", state: { returnTo } }]}><Routes>
     <Route path="/auth" element={<Auth />} />
+    <Route path="/avanca/integracao" element={<h1>Integração retomada</h1>} />
     <Route path="/avanca" element={<h1>Workspace autenticado</h1>} />
   </Routes></MemoryRouter>);
 }
@@ -60,4 +61,12 @@ describe("Avança — contrato do formulário de acesso", () => {
     await waitFor(() => expect(notifications.error).toHaveBeenCalledWith("Credenciais inválidas"));
     expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
   });
+});
+
+it("resumes the companion integration after signing in", async () => {
+  show("/avanca/integracao?expected_username=same.account");
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "qa@example.test" } });
+  fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "test-only-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+  await screen.findByRole("heading", { name: "Integração retomada" });
 });

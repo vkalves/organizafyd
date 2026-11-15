@@ -1,0 +1,5 @@
+# Python 3.11+; direct dependencies pinned, installed into a dedicated venv.
+google-auth==2.62.2
+google-auth-oauthlib==1.5.0
+requests==2.34.2
+Appium-Python-Client==6.1.6
