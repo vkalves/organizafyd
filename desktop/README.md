@@ -5,7 +5,7 @@ Local software for the same Instagram account on Android 14, Chrome on Windows 1
 ## Start on Windows 10
 
 1. Download the **Windows companion 1.1** package, extract the ZIP, then extract the inner ZIP and open **ZyonCompanion**. For a repository download, open **desktop**. Do not run scripts from inside a ZIP.
-2. Double-click **install-requirements.cmd**. It installs missing Python/Chrome using Windows App Installer (WinGet), downloads an isolated Node.js 22 and Java 17, configures Android SDK, installs Python/Appium dependencies and runs diagnostics. Allow Windows installer prompts. Initial downloads can take several minutes and several hundred megabytes. The installer accepts the software/package and Android SDK licenses.
+2. Double-click **install-requirements.cmd**. It installs missing Python/Chrome using Windows App Installer (WinGet), downloads an isolated Node.js 22 and Java 17, configures Android SDK (including emulator tools required by Appium diagnostics, without creating a virtual phone), installs Python/Appium dependencies and runs diagnostics. Allow Windows installer prompts. Initial downloads can take several minutes and several hundred megabytes. The installer accepts the software/package and Android SDK licenses.
 3. Double-click **start-appium.cmd**, then **start.cmd**. Leave both windows open. The companion opens in the browser. Press Enter in its console to reopen the page if needed. Do not refresh the page: its per-launch access token is deliberately removed from the address bar.
 4. Connect your phone and complete the USB and Google consent steps below.
 

@@ -7,7 +7,7 @@ $ProgressPreference = 'SilentlyContinue'
 function Get-InstallPlan {
     return @('Python 3.11+ (install Python 3.12 with WinGet if missing)',
         'Isolated Node.js 22 LTS and npm', 'Isolated Temurin JDK 17',
-        'Android command-line tools 19.0, platform-tools, Android 34, build-tools 35.0.0',
+        'Android command-line tools 19.0, platform-tools, emulator tools, Android 34, build-tools 35.0.0',
         'Google Chrome (install with WinGet if missing)',
         'Python requirements, Appium 3.9.1 and UiAutomator2 5.0.7',
         'Android SDK license acceptance and Appium diagnostics')
@@ -199,8 +199,8 @@ function Install-CompanionRequirements {
         Invoke-Checked (Join-Path $javaRoot 'bin\java.exe') @('-version')
         Write-Host 'Accepting Android SDK licenses and installing device tools...'
         Accept-AndroidSdkLicenses $sdkManager $sdkRoot
-        Invoke-Checked $sdkManager @("--sdk_root=$sdkRoot", 'platform-tools', 'platforms;android-34', 'build-tools;35.0.0')
-        foreach ($required in @('platform-tools\adb.exe', 'platforms\android-34\android.jar', 'build-tools\35.0.0\aapt2.exe')) {
+        Invoke-Checked $sdkManager @("--sdk_root=$sdkRoot", 'platform-tools', 'emulator', 'platforms;android-34', 'build-tools;35.0.0')
+        foreach ($required in @('platform-tools\adb.exe', 'emulator\emulator.exe', 'platforms\android-34\android.jar', 'build-tools\35.0.0\aapt2.exe')) {
             if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $required))) { throw ('Android SDK component was not installed: ' + $required + '. Check SDK licenses and connectivity, then rerun.') }
         }
         Invoke-Checked (Join-Path $sdkRoot 'platform-tools\adb.exe') @('version')

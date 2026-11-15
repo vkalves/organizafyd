@@ -16,6 +16,7 @@ function Set-CompanionRuntime {
         $env:ANDROID_HOME = $config.Android
         $env:ANDROID_SDK_ROOT = $config.Android
         $extra += Join-Path $config.Android 'platform-tools'
+        $extra += Join-Path $config.Android 'emulator'
         $extra += Join-Path $config.Android 'cmdline-tools\latest\bin'
     }
     $env:PATH = ($extra -join ';') + ';' + $env:PATH
