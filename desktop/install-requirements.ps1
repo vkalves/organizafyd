@@ -49,6 +49,30 @@ function Invoke-Checked([string]$File, [string[]]$Arguments) {
     if ($result -ne 0) { throw ('A required command failed (exit ' + $result + '): ' + (Split-Path $File -Leaf)) }
 }
 
+function Accept-AndroidSdkLicenses([string]$SdkManager, [string]$SdkRoot) {
+    # Feed the real SDK CLI directly. Windows PowerShell pipelines into .bat
+    # wrappers can drop stdin; send one flushed answer at a time instead.
+    $info = New-Object System.Diagnostics.ProcessStartInfo
+    $info.FileName = $env:ComSpec
+    $info.Arguments = '/d /s /c ""{0}" "--sdk_root={1}" --licenses"' -f $SdkManager, $SdkRoot
+    $info.UseShellExecute = $false
+    $info.RedirectStandardInput = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $info
+    try {
+        if (-not $process.Start()) { throw 'Could not start Android SDK license setup.' }
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while (-not $process.HasExited) {
+            if ($timer.Elapsed.TotalSeconds -gt 180) { $process.Kill(); throw 'Android SDK license setup timed out. Check connectivity and rerun.' }
+            try { $process.StandardInput.WriteLine('y'); $process.StandardInput.Flush() }
+            catch [IO.IOException] { break }
+            Start-Sleep -Milliseconds 150
+        }
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) { throw 'Android SDK licenses were not accepted. Rerun the installer.' }
+    } finally { $process.Dispose() }
+}
+
 function Refresh-InstallPath {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -167,14 +191,11 @@ function Install-CompanionRequirements {
         Invoke-Checked (Join-Path $nodeRoot 'node.exe') @('--version')
         Invoke-Checked (Join-Path $javaRoot 'bin\java.exe') @('-version')
         Write-Host 'Accepting Android SDK licenses and installing device tools...'
-        $prior = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = 'Continue'
-            1..100 | ForEach-Object { 'y' } | & $sdkManager "--sdk_root=$sdkRoot" --licenses
-            $licenseResult = $LASTEXITCODE
-        } finally { $ErrorActionPreference = $prior }
-        if ($licenseResult -ne 0) { throw 'Android SDK licenses were not accepted. Rerun the installer and complete the prompts.' }
+        Accept-AndroidSdkLicenses $sdkManager $sdkRoot
         Invoke-Checked $sdkManager @("--sdk_root=$sdkRoot", 'platform-tools', 'platforms;android-34', 'build-tools;35.0.0')
+        foreach ($required in @('platform-tools\adb.exe', 'platforms\android-34\android.jar', 'build-tools\35.0.0\aapt2.exe')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $required))) { throw ('Android SDK component was not installed: ' + $required + '. Check SDK licenses and connectivity, then rerun.') }
+        }
         Invoke-Checked (Join-Path $sdkRoot 'platform-tools\adb.exe') @('version')
         Invoke-Checked 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'launch.ps1'), '-Mode', 'Prepare')
         Invoke-Checked 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'setup-appium.ps1'))
