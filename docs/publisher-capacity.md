@@ -18,6 +18,8 @@ source of truth for exclusivity.
   resources, rate limits and account publishing quotas determine actual capacity.
 - X and TikTok select up to 120 accounts per partition and process four at a time,
   retaining their 90-second acquisition budget and existing provider safeguards.
+  Accounts visited least recently are selected first, so long-running submitted
+  posts and large account backlogs do not starve other accounts in a partition.
 - Instagram maintenance runs separately once a minute. A five-minute, token-owned
   lease prevents overlapping maintenance; release by a stale worker cannot remove
   another worker's lease. At most five campaign cycles are prepared per pass.
@@ -48,7 +50,8 @@ every queued video. Existing ordering, gap and account ownership rules remain.
 1. Apply `publisher_capacity` (compatible RPCs and indexes; legacy claims still work).
 2. Deploy Instagram, X and TikTok functions, including `_shared/publisher-workers.ts`.
 3. Apply `publisher_dispatch` to activate adaptive cron and separate maintenance.
-4. Verify `net._http_response` for completed worker requests and inspect queue lag.
+4. Apply `publisher_account_fairness` for fair X/TikTok account rotation.
+5. Verify `net._http_response` for completed worker requests and inspect queue lag.
 
 Worker responses and `publisher_tick` logs contain platform/partition/processed
 counts and no credentials. Cron success means the HTTP request was enqueued, so

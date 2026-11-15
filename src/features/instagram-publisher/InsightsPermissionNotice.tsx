@@ -7,9 +7,9 @@ export function InsightsPermissionNotice({ report, accounts }: {
 }) {
   const blocked = report?.accounts.filter((account) => account.insights_error === "permission_required") ?? [];
   if (!blocked.length) return null;
-  const names = blocked.map((account) =>
-    accounts.find((item) => item.id === account.account_id)?.username
-  ).filter((name): name is string => !!name);
+  const usernames = new Map(accounts.map((account) => [account.id, account.username]));
+  const names = blocked.map((account) => usernames.get(account.account_id))
+    .filter((name): name is string => !!name);
   return (
     <details className="group my-3 rounded-xl border border-white/10 bg-white/[0.025] text-xs text-muted-foreground">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">

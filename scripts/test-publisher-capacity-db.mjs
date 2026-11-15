@@ -27,7 +27,7 @@ try {
  psql(migration('_gap_account_delay.sql'));
  psql(migration('_scalable_instagram_flows.sql'));
  psql(`alter table ig_publication_jobs add column container_id text;
- create table x_accounts(id uuid primary key,user_id uuid,paused boolean default false,reconnect_required boolean default false,locked_until timestamptz);
+ create table x_accounts(id uuid primary key,user_id uuid,paused boolean default false,reconnect_required boolean default false,locked_until timestamptz,lock_token uuid);
  create table tiktok_accounts(like x_accounts including all);
  create table x_posts(id uuid primary key default gen_random_uuid(),account_id uuid,status text,scheduled_at timestamptz,started_at timestamptz,error_code text);
  create table tiktok_posts(like x_posts including all);
@@ -41,12 +41,13 @@ try {
  create function net.http_post(url text,headers jsonb,body jsonb,timeout_milliseconds integer) returns bigint language plpgsql as $$ declare result bigint; begin insert into net.requests(url,body) values($1,$3) returning id into result; return result; end; $$;`);
  psql(migration('_publisher_capacity.sql'));
  psql(migration('_publisher_dispatch.sql'));
+ psql(migration('_publisher_account_fairness.sql'));
  psql(`insert into ig_publisher_connections(account_id,user_id) select gen_random_uuid(),gen_random_uuid() from generate_series(1,1000);
  insert into ig_flows(id,user_id,settings) select account_id,user_id,'{"gapMinutes":3}' from ig_publisher_connections;
  insert into ig_publication_jobs(user_id,account_id,flow_id,caption,format,media_urls,scheduled_at)
  select c.user_id,c.account_id,c.account_id,'Synthetic caption','Reel',array['synthetic-'||i||'.mp4'],now()-interval '1 day'+i*interval '1 second'
  from ig_publisher_connections c cross join generate_series(1,100)i;
- insert into x_accounts select account_id,user_id,false,false,null from ig_publisher_connections;
+ insert into x_accounts(id,user_id,paused,reconnect_required,locked_until) select account_id,user_id,false,false,null from ig_publisher_connections;
  insert into tiktok_accounts select * from x_accounts;
  insert into x_posts(account_id,status,scheduled_at) select id,'scheduled',now()-interval '1 day' from x_accounts;
  insert into tiktok_posts(account_id,status,scheduled_at) select id,'submitted',now()-interval '1 day' from tiktok_accounts;
@@ -91,6 +92,11 @@ try {
   const [all,distinct]=counts.split('|').map(Number);
   assert.equal(all,distinct); assert.ok(all>900&&all<=960);
  }
+ // Recently visited accounts rotate behind accounts awaiting their first visit.
+ for(const platform of ['x','tiktok']) {
+  psql(`update ${platform}_accounts set last_worker_at=now() where id in(select account_id from ${platform}_due_accounts_partition(0,1))`);
+  assert.equal(psql(`select count(*) from ${platform}_due_accounts_partition(0,1) d join ${platform}_accounts a on a.id=d.account_id where a.last_worker_at is not null`),'0');
+ }
  assert.equal(psql("select has_function_privilege('anon','ig_claim_job_partition(uuid,integer,integer)','execute')"),'f');
  assert.equal(psql("select has_function_privilege('authenticated','publisher_dispatch(text)','execute')"),'f');
  const dispatch=JSON.parse(psql("select publisher_dispatch('instagram')")); assert.equal(dispatch.workers,8);
@@ -116,5 +122,5 @@ try {
  update ig_flows set state='active' where id=a.account_id;
  if not exists(select 1 from ig_claim_job_partition(gen_random_uuid(),0,1)) then raise exception 'Active flow not claimed'; end if;
  end; $$;`);
- console.log(JSON.stringify({accounts:1000,queuedJobs:100000,concurrentWorkers:32,claims:claimed,elapsedMs:Math.round(elapsedMs),...timings,duplicateClaims:0,partitionOverlap:0,maintenanceLease:'passed',perAccountBackoff:'passed',accessControl:'passed',adaptiveDispatch:'passed',campaignScheduling:'passed'},null,2));
+ console.log(JSON.stringify({accounts:1000,queuedJobs:100000,concurrentWorkers:32,claims:claimed,elapsedMs:Math.round(elapsedMs),...timings,duplicateClaims:0,partitionOverlap:0,maintenanceLease:'passed',perAccountBackoff:'passed',accessControl:'passed',adaptiveDispatch:'passed',campaignScheduling:'passed',accountFairness:'passed'},null,2));
 } finally { spawnSync('docker',['rm','-f',name],{stdio:'ignore'}); }
