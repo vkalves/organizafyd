@@ -57,16 +57,21 @@ function Accept-AndroidSdkLicenses([string]$SdkManager, [string]$SdkRoot) {
     $info.Arguments = '/d /s /c ""{0}" "--sdk_root={1}" --licenses"' -f $SdkManager, $SdkRoot
     $info.UseShellExecute = $false
     $info.RedirectStandardInput = $true
-    # Java reads literal y/yes: a UTF-8/UTF-16 preamble rejects the first answer.
-    $info.StandardInputEncoding = [Text.Encoding]::ASCII
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $info
     try {
-        if (-not $process.Start()) { throw 'Could not start Android SDK license setup.' }
+        # .NET Framework uses Console.InputEncoding for redirected stdin and
+        # immediately writes its preamble. Use BOM-free UTF-8 while starting.
+        $priorEncoding = [Console]::InputEncoding
+        try {
+            [Console]::InputEncoding = New-Object System.Text.UTF8Encoding -ArgumentList $false
+            if (-not $process.Start()) { throw 'Could not start Android SDK license setup.' }
+        } finally { [Console]::InputEncoding = $priorEncoding }
+        $answer = [Text.Encoding]::ASCII.GetBytes("y`r`n")
         $timer = [Diagnostics.Stopwatch]::StartNew()
         while (-not $process.HasExited) {
             if ($timer.Elapsed.TotalSeconds -gt 180) { $process.Kill(); throw 'Android SDK license setup timed out. Check connectivity and rerun.' }
-            try { $process.StandardInput.WriteLine('y'); $process.StandardInput.Flush() }
+            try { $process.StandardInput.BaseStream.Write($answer, 0, $answer.Length); $process.StandardInput.BaseStream.Flush() }
             catch [IO.IOException] { break }
             Start-Sleep -Milliseconds 150
         }
