@@ -39,6 +39,9 @@ export type Connection = {
   reconnect_required: boolean;
 };
 const messages: Record<string, string> = {
+  storage_quota_exceeded: "Limite de armazenamento atingido. Exclua mídias ou solicite mais espaço ao administrador.",
+  copy_failed: "Não foi possível copiar esta mídia. Tente novamente.",
+  library_import_failed: "Não foi possível registrar a cópia na sua biblioteca. Tente novamente.",
   account_connection_disabled: "O administrador não liberou novas conexões para seu usuário.",
   account_limit_reached: "Você atingiu o limite de contas permitido. Solicite um aumento ao administrador.",
   campaign_not_active: "Só é possível adicionar contas a uma campanha ativa.",

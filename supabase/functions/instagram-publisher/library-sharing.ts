@@ -11,6 +11,7 @@ export interface LibrarySharingDatabase {
     select(columns: string): Query;
     upsert(values: Record<string, unknown>, options?: { onConflict: string }): Query;
     delete(): Query;
+    insert(values: Record<string, unknown>): PromiseLike<Result>;
   };
 }
 
@@ -20,7 +21,12 @@ export function normalizeHandle(value: unknown): string {
   return handle;
 }
 
-export async function librarySharing(db: LibrarySharingDatabase, userId: string, body: Record<string, unknown>, sign: (url: string) => Promise<string>) {
+type SharedMedia = { url: string; kind: string; folder: string; caption: string };
+export type SharedMediaStorage = {
+  copy(source: string, path: string): Promise<{ error: { message: string } | null }>;
+  remove(paths: string[]): Promise<unknown>;
+};
+export async function librarySharing(db: LibrarySharingDatabase, userId: string, body: Record<string, unknown>, sign: (url: string) => Promise<string>, storage?: SharedMediaStorage) {
   async function checked<T = unknown>(query: PromiseLike<Result>): Promise<T> {
     const { data, error } = await query;
     if (error) throw new Error(error.code === "23505" ? "handle_unavailable" : "database_error");
@@ -57,11 +63,28 @@ export async function librarySharing(db: LibrarySharingDatabase, userId: string,
   if (body.action === "library_browse") {
     const offset = Number(body.offset ?? 0);
     if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("invalid_offset");
-    return checked(db.from("ig_flow_library").select("id,kind,folder,caption,created_at").eq("user_id", access.owner_id).eq("retired", false).order("created_at").order("id").range(offset, offset + 49));
+    const idsOnly = body.ids_only === true;
+    return checked(db.from("ig_flow_library").select(idsOnly ? "id" : "id,kind,folder,caption,created_at").eq("user_id", access.owner_id).eq("retired", false).order("created_at").order("id").range(offset, offset + (idsOnly ? 499 : 49)));
   }
-  if (body.action === "library_download") {
-    const media = await checked<{ url: string; kind: string; folder: string; caption: string } | null>(db.from("ig_flow_library").select("url,kind,folder,caption").eq("id", body.media_id).eq("user_id", access.owner_id).eq("retired", false).maybeSingle());
+  if (body.action === "library_download" || body.action === "library_import") {
+    const media = await checked<SharedMedia | null>(db.from("ig_flow_library").select("url,kind,folder,caption").eq("id", body.media_id).eq("user_id", access.owner_id).eq("retired", false).maybeSingle());
     if (!media) throw new Error("media_unavailable");
+    if (body.action === "library_import") {
+      if (!storage) throw new Error("copy_unavailable");
+      if (!media.url.startsWith(`storage://${access.owner_id}/`) || media.url.includes("..")) throw new Error("invalid_media_owner");
+      const extension = /\.(jpg|jpeg|mp4)$/i.exec(media.url)?.[1].toLowerCase();
+      if (!extension) throw new Error("invalid_media_format");
+      const path = `${userId}/${crypto.randomUUID()}.${extension}`;
+      const copied = await storage.copy(media.url.slice(10), path);
+      if (copied.error) throw new Error(copied.error.message.includes("Limite de armazenamento") || copied.error.message === "storage_quota_exceeded" ? "storage_quota_exceeded" : "copy_failed");
+      try {
+        await checked(db.from("ig_flow_library").insert({ user_id: userId, url: `storage://${path}`, kind: media.kind, folder: media.folder, caption: media.caption }));
+      } catch {
+        await storage.remove([path]).catch(() => {});
+        throw new Error("library_import_failed");
+      }
+      return { ok: true };
+    }
     return { ...media, url: await sign(media.url) };
   }
   throw new Error("unknown_action");

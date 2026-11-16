@@ -95,6 +95,10 @@ export function hybridStorage(client: Client, baseUrl: string, enabled = true) {
         createSignedUrl(path: string, expiresIn: number) {
           return request(bucket, "signed", { path, expiresIn });
         },
+        // Server-only operation; the gateway rejects non-service credentials.
+        copy(source: string, path: string) {
+          return request(bucket, "copy", { source, path });
+        },
         getPublicUrl(path: string) {
           const query = new URLSearchParams({ bucket, path });
           return {
