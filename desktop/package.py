@@ -10,12 +10,12 @@ ALLOWED_ROOT = {'README.md','requirements.txt','start.cmd','setup-appium.cmd','s
 
 def build():
     OUTPUT.mkdir(exist_ok=True)
-    target = OUTPUT / 'Zyon-Desktop-Source-2.0.4.zip'
+    target = OUTPUT / 'Zyon-Desktop-Source-2.1.0.zip'
     paths = sorted(path for path in ROOT.rglob('*') if path.is_file()
         and (path.relative_to(ROOT).as_posix() in ALLOWED_ROOT
-             or path.relative_to(ROOT).parts[0] in ('zyon','tests') and path.suffix in ('.py','.html','.js','.css','.ps1','.json')
+             or path.relative_to(ROOT).parts[0] in ('zyon','tests') and path.suffix in ('.py','.html','.js','.css','.ps1','.json','.java','.xml','.sh')
              or path.relative_to(ROOT).as_posix() in ('tools/package.json','tools/package-lock.json'))
-        and '__pycache__' not in path.parts)
+        and '__pycache__' not in path.parts and 'build' not in path.relative_to(ROOT).parts)
     with zipfile.ZipFile(target,'w',compression=zipfile.ZIP_DEFLATED) as archive:
         for path in paths:
             entry=zipfile.ZipInfo('ZyonCompanion/' + path.relative_to(ROOT).as_posix(),date_time=(2026,11,15,0,0,0))

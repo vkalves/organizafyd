@@ -10,10 +10,13 @@ import time
 import unicodedata
 from .android import Android, Screen, EDIT, NEXT, PACKAGE, xpath_literal
 from .errors import CompanionError
+from .native_forms import NativeForms
 
 SIGNUP_PHONE = ("What's your mobile number?", "What's your phone number?", 'Qual é o número do seu celular?', 'Qual é seu número de celular?', 'Qual é o seu número de celular?')
 SIGNUP_EMAIL = ("What's your email?", "What's your email address?", 'Qual é seu email?', 'Qual é seu e-mail?', 'Qual é o seu email?', 'Qual é o seu e-mail?', 'Qual é o seu endereço de email?', 'Qual é o seu endereço de e-mail?')
 SIGNUP_WITH_EMAIL = ('Cadastrar-se com o email', 'Cadastrar-se com o e-mail', 'Cadastrar-se com email', 'Cadastrar-se com e-mail', 'Cadastre-se com email', 'Sign up with email', 'Sign up with email address')
+SIGNUP_ENTRY = ('Create new account', 'Create account', 'Create an account', 'Sign up', 'Criar nova conta', 'Criar conta', 'Cadastre-se', 'Cadastrar-se')
+SIGNUP_WITH_PHONE = ('Cadastrar-se com o número do celular', 'Cadastrar-se com número do celular', 'Cadastrar-se com telefone', 'Sign up with mobile number', 'Sign up with phone number')
 
 class Phone(Android):
     def __init__(self, *args, gmail, pause, journal, **kwargs):
@@ -21,6 +24,7 @@ class Phone(Android):
         self.gmail, self.pause_callback, self.journal = gmail, pause, journal
         self.pause_seconds = 0
         self.media_albums = {}
+        self.forms = NativeForms(self)
 
     def clock(self): return time.monotonic() - self.pause_seconds
 
@@ -50,7 +54,9 @@ class Phone(Android):
     def inputs(self):
         return [e for e in self.driver.find_elements('class name', 'android.widget.EditText') if e.is_displayed() and e.is_enabled()]
 
-    def fill_one(self, value):
+    def fill_one(self, value, purpose=None, guard=None):
+        if purpose:
+            return self.forms.fill(value, purpose, guard=guard)
         self.screen()
         fields = self.inputs()
         if len(fields) != 1: raise CompanionError('NATIVE_FORM_UNCERTAIN', 'Android did not expose one expected input field.')
@@ -69,23 +75,31 @@ class Phone(Android):
         if screen.has(EDIT): self.assert_profile(settings['username']); return
         if self.resource('profile_tab'):
             self.profile(settings['username']); return
-        login = self.resource('login_username')
-        password = self.resource('password') or self.resource('login_password')
+        login = self.forms.select('login', allow_generic=False)
+        password = self.forms.select('password', allow_generic=False)
+        if (not login or not password) and self.forms.has(screen, ('Log in', 'Entrar')):
+            login = self.forms.wait_field('login', None, allow_generic=False)
+            password = self.forms.wait_field('password', None, allow_generic=False)
         if not login or not password:
             self.pause('native_login', 'Open the intended Instagram login/profile on the phone, then Continue. The app will verify its @.')
             self.profile(settings['username']); return
-        login.send_keys(settings['username']); password.send_keys(settings['instagram_password'])
+        guard = lambda s: self.forms.has(s, ('Log in', 'Entrar')) and self.forms.select('password', allow_generic=False) is not None
+        self.forms.fill(settings['username'], 'login', guard); self.forms.fill(settings['instagram_password'], 'password', guard)
         since = time.time() * 1000
-        self.click(('Log in', 'Entrar'))
-        end = time.monotonic() + 100
-        while time.monotonic() < end:
+        self.forms.click(('Log in', 'Entrar'))
+        end = self.clock() + 100
+        while self.clock() < end:
             screen = self.screen()
+            if self.forms.security(screen):
+                self.pause('native_security_challenge', 'O Instagram solicitou confirmação de identidade. Complete essa confirmação no telefone e clique em Continuar.')
+                continue
             if screen.has(EDIT) or self.resource('profile_tab'):
                 self.profile(settings['username']); return
             if screen.has(('Enter confirmation code', 'Insira o código de confirmação', 'Enter security code', 'Insira o código de segurança')):
                 code = self.gmail.wait_code(settings['email_sender'], settings['recipient'], since, self.cancel)
-                self.fill_code(code['code']); code.clear(); self.click(NEXT)
-            elif screen.has(('Not now', 'Agora não')): self.click(('Not now', 'Agora não'))
+                self.fill_code(code['code']); code.clear(); self.forms.click(NEXT)
+                self.forms.wait_for(lambda s: not self.forms.has(s, ('Enter confirmation code', 'Insira o código de confirmação', 'Enter security code', 'Insira o código de segurança')), 'O Instagram não confirmou o código. Ele não será enviado repetidamente.')
+            elif self.forms.has(screen, ('Not now', 'Agora não')): self.forms.click(('Not now', 'Agora não'))
             self.cancel.wait(.5)
         raise CompanionError('NATIVE_LOGIN_UNCONFIRMED', 'Native Instagram login did not reach a verified profile.')
 
@@ -186,39 +200,54 @@ class Phone(Android):
         handled = set()
         deadline = self.clock() + 480
         unknown_since = None
+        signup_context = False
         while self.clock() < deadline:
             screen = self.screen()
+            if self.forms.security(screen):
+                self.pause('native_security_challenge', 'O Instagram solicitou confirmação de identidade. Complete essa confirmação no telefone e clique em Continuar.')
+                continue
             if screen.has(EDIT) or self.resource('profile_tab'):
                 self.profile(settings['username'])
                 self.progress('native_created' if 'terms' in handled else 'native_identity', 'The configured Instagram account was confirmed from its own profile.')
                 return
-            if screen.has(('Create new account', 'Criar nova conta')):
-                self.click(('Create new account', 'Criar nova conta')); self.cancel.wait(.5); continue
-            if screen.has(SIGNUP_PHONE) and screen.has(SIGNUP_WITH_EMAIL):
+            current = next((name for name, labels in headings.items() if self.forms.has(screen, labels)), None)
+            if self.forms.has(screen, SIGNUP_WITH_PHONE): signup_context = True
+            if not current and signup_context and self.forms.has(screen, NEXT) and not self.forms.has(screen, ('Log in', 'Entrar')):
+                current = self.forms.infer()
+            if not current and self.forms.has(screen, SIGNUP_ENTRY):
+                self.forms.navigate(SIGNUP_ENTRY, lambda s: self.forms.has(s, SIGNUP_PHONE) or any(self.forms.has(s, labels) for labels in headings.values()))
+                signup_context = True
+                self.cancel.wait(.3); continue
+            if self.forms.has(screen, SIGNUP_PHONE) and self.forms.has(screen, SIGNUP_WITH_EMAIL):
                 self.progress('native_signup_email_method', 'Selecionando o cadastro por email no Instagram.')
-                self.click(SIGNUP_WITH_EMAIL)
-                self.wait(lambda s: s.has(SIGNUP_EMAIL) and not s.has(SIGNUP_PHONE), 'O cadastro por email não abriu. Confira a tela do Instagram antes de tentar novamente.', seconds=20)
+                self.forms.navigate(SIGNUP_WITH_EMAIL, lambda s: self.forms.has(s, SIGNUP_EMAIL) and not self.forms.has(s, SIGNUP_PHONE))
+                signup_context = True
                 unknown_since = None
                 continue
-            current = next((name for name, labels in headings.items() if screen.has(labels)), None)
+            if current: signup_context = True
             if current and current in handled:
                 raise CompanionError('SIGNUP_INPUT_REJECTED', 'Instagram kept the same signup step after submission (' + current + '). Inspect its validation before retrying.')
+            guard = lambda s: self.forms.has(s, headings[current]) or self.forms.infer() == current
             if current == 'email':
-                self.fill_one(settings['recipient']); since = time.time() * 1000; self.click(NEXT)
+                self.fill_one(settings['recipient'], 'email', guard); since = time.time() * 1000; self.forms.click(NEXT)
             elif current == 'code':
                 if since is None: raise CompanionError('EMAIL_CHALLENGE_UNBOUND', 'The native email challenge has no fresh request timestamp.')
                 code = self.gmail.wait_code(settings['email_sender'], settings['recipient'], since, self.cancel)
-                self.fill_code(code['code']); code.clear(); self.click(NEXT)
-            elif current == 'password': self.fill_one(settings['instagram_password']); self.click(NEXT)
-            elif current == 'birthday': self.birthday(settings['birthday']); self.click(NEXT)
-            elif current == 'name': self.fill_one(settings['full_name']); self.click(NEXT)
-            elif current == 'username': self.fill_one(settings['username']); self.click(NEXT)
-            elif current == 'terms': self.click(('I agree', 'Concordo', 'Agree', 'Concordar'))
-            elif screen.has(('Skip', 'Pular')): self.click(('Skip', 'Pular'))
-            elif screen.has(('Done', 'Concluir', 'Finish', 'Concluir configuração')): self.click(('Done', 'Concluir', 'Finish', 'Concluir configuração'))
-            elif screen.has(('Email', 'E-mail')) and screen.has(('Phone', 'Telefone')): self.click(('Email', 'E-mail'))
+                self.fill_code(code['code']); code.clear(); self.forms.click(NEXT)
+            elif current == 'password': self.fill_one(settings['instagram_password'], 'password', guard); self.forms.click(NEXT)
+            elif current == 'birthday': self.birthday(settings['birthday']); self.forms.click(NEXT)
+            elif current == 'name': self.fill_one(settings['full_name'], 'name', guard); self.forms.click(NEXT)
+            elif current == 'username': self.fill_one(settings['username'], 'username', guard); self.forms.click(NEXT)
+            elif current == 'terms': self.forms.click(('I agree', 'Concordo', 'Agree', 'Concordar'))
+            elif self.forms.has(screen, ('Skip', 'Pular')): self.forms.click(('Skip', 'Pular'))
+            elif self.forms.has(screen, ('Done', 'Concluir', 'Finish', 'Concluir configuração')): self.forms.click(('Done', 'Concluir', 'Finish', 'Concluir configuração'))
+            elif self.forms.has(screen, ('Email', 'E-mail')) and self.forms.has(screen, ('Phone', 'Telefone')):
+                self.forms.navigate(('Email', 'E-mail'), lambda s: self.forms.has(s, SIGNUP_EMAIL)); signup_context = True
             else:
                 if unknown_since is None: unknown_since = self.clock()
+                if self.forms.hide_keyboard():
+                    self.progress('native_keyboard_recovery', 'Fechando o teclado para reavaliar os controles visíveis do cadastro.')
+                    self.cancel.wait(.3); continue
                 if self.clock() - unknown_since < 12:
                     self.cancel.wait(.5); continue
                 self.pause('native_signup_screen', 'Instagram showed an unrecognized onboarding or permission screen. Complete it on the phone, then Continue.')
@@ -228,7 +257,7 @@ class Phone(Android):
             if current: handled.add(current)
             self.cancel.wait(.7)
             if current:
-                self.wait(lambda s: not s.has(headings[current]), 'Instagram did not accept the ' + current + ' step.', seconds=30)
+                self.forms.wait_for(lambda s: not self.forms.has(s, headings[current]), 'O Instagram não confirmou a etapa ' + current + '. O envio não será repetido sem confirmação.', seconds=30)
         raise CompanionError('SIGNUP_UNCONFIRMED', 'Account creation did not reach a verified own profile.')
 
     def bio(self, expected, value):

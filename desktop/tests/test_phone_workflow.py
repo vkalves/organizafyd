@@ -27,7 +27,6 @@ class PhoneWorkflowTests(unittest.TestCase):
   controls=Screen(data).controls(('Next',))
   self.assertEqual(len(controls),1);self.assertEqual(controls[0].get('text'),'Next')
  def test_signup_enters_configured_fields_and_email_code_until_verified_profile(self):
-  import re,xml.etree.ElementTree as ET
   from helpers import node,screen
   stages=[screen(node('Qual é seu email?'),node(cls='android.widget.EditText'),node('Avançar')),
    screen(node('Insira o código de confirmação'),*(node(cls='android.widget.EditText') for _ in range(6)),node('Avançar')),
@@ -37,27 +36,8 @@ class PhoneWorkflowTests(unittest.TestCase):
    screen(node('Crie um nome de usuário'),node(cls='android.widget.EditText'),node('Avançar')),
    screen(node('Concorde com os termos e políticas do Instagram'),node('Concordo')),
    screen(node('Edit profile'),node('same.account','com.instagram.android:id/profile_header_username'))]
-  class Element:
-   def __init__(self,driver,data):self.driver,self.data=driver,data
-   def is_displayed(self):return True
-   def is_enabled(self):return True
-   def clear(self):pass
-   def send_keys(self,value):self.driver.typed.append((self.driver.index,value))
-   def click(self):self.driver.index+=1
-  class Driver:
-   current_package='com.instagram.android'
-   def __init__(self):self.index=0;self.typed=[]
-   @property
-   def page_source(self):return stages[self.index]
-   def find_elements(self,kind,value):
-    nodes=list(ET.fromstring(self.page_source).iter('node'))
-    if kind=='id':matches=[n for n in nodes if n.get('resource-id')==value]
-    elif kind=='class name':matches=[n for n in nodes if n.get('class')==value]
-    else:
-     text=re.search("@text='([^']*)'",value)
-     matches=[n for n in nodes if text and n.get('text')==text.group(1)]
-    return [Element(self,n) for n in matches]
-  driver=Driver();self.phone.driver=driver
+  from test_signup_email_method import SignupDriver
+  driver=SignupDriver(stages);self.phone.driver=driver
   self.phone.gmail.wait_code.return_value={'code':'123456'}
   settings={'username':'same.account','recipient':'owner@example.com','email_sender':'security@mail.instagram.com','instagram_password':'fixture-password','birthday':'2000-01-02','full_name':'Configured Profile'}
   with patch.object(self.phone,'birthday') as birthday,patch('zyon.phone.time.sleep'):
