@@ -18,6 +18,7 @@ import { type Draft, mediaParams, validate } from "./model.ts";
 import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
 import { drainQueue, readPages, stageJobs } from "./queue.ts";
 import { publishContainer } from "./publication.ts";
+import { campaignMediaUrl } from "../instagram-media/token.ts";
 import {
   checkProfile,
   connectionInput,
@@ -366,7 +367,13 @@ async function processJob(partition: WorkerPartition) {
     }
     let container = job.container_id;
     if (!container) {
-      const urls = await Promise.all(job.media_urls.map(signed));
+      // A new capability per publication makes Meta download through a fresh
+      // server-side cleaning pass, including existing flows and later cycles.
+      // Polling an existing container must never recreate it or publish twice.
+      const deliveryUrl = job.flow_id
+        ? (value: string) => campaignMediaUrl(value, job.id, Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+        : signed;
+      const urls = await Promise.all(job.media_urls.map(deliveryUrl));
       let params: Record<string, string>;
       if (job.format === "Carrossel") {
         const children = [];
@@ -388,7 +395,7 @@ async function processJob(partition: WorkerPartition) {
       } else {
         params = mediaParams(job.format, urls[0], job.media_urls[0]);
         if (job.format === "Reel" && job.cover_url) {
-          params.cover_url = await signed(job.cover_url);
+          params.cover_url = await deliveryUrl(job.cover_url);
         }
         if (job.format !== "Story") params.caption = job.caption;
       }

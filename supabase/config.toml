@@ -25,6 +25,10 @@ verify_jwt = false
 [functions.instagram-publisher]
 verify_jwt = false
 
+# Meta downloads only with a short-lived HMAC capability issued by the worker.
+[functions.instagram-media]
+verify_jwt = false
+
 [functions.instagram-login]
 verify_jwt = false
 
