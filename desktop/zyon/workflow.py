@@ -20,25 +20,47 @@ from .runtime import Runtime
 def configuration(values):
     result = dict(values)
     if not isinstance(result.get('create_account', False), bool): raise CompanionError('INVALID_CONFIGURATION', 'Account creation must be explicitly selected or cleared.')
-    result['username'] = handle(result.get('username'))
-    result['recipient'] = address(result.get('recipient'))
-    result['email_sender'] = address(result.get('email_sender', 'security@mail.instagram.com'))
-    result['avanca_email'] = address(result.get('avanca_email'))
-    result['flow_id'] = identifier(result.get('flow_id'))
-    if result.get('meta_app_id') is not None: result['meta_app_id'] = identifier(result['meta_app_id'])
-    for field in ('instagram_password', 'tester_app_name', 'serial'):
+    checks = (
+        ('username', handle, 'Na aba DADOS, informe o @ esperado do Instagram.'),
+        ('recipient', address, 'Na aba DADOS, informe um email válido para a conta Instagram.'),
+        ('email_sender', address, 'Na aba EMAIL, informe o remetente exato dos códigos.'),
+        ('avanca_email', address, 'Na aba FLUXO, informe um email AVANÇA válido.'),
+        ('flow_id', identifier, 'Na aba FLUXO, entre no AVANÇA, consulte seus fluxos e selecione um fluxo ativo.'),
+    )
+    result.setdefault('email_sender', 'security@mail.instagram.com')
+    for field, validate, message in checks:
+        try: result[field] = validate(result.get(field))
+        except CompanionError as error:
+            raise CompanionError(error.code, message, field=field) from None
+    if result.get('meta_app_id') is not None:
+        try: result['meta_app_id'] = identifier(result['meta_app_id'])
+        except CompanionError:
+            raise CompanionError('INVALID_IDENTIFIER', 'Na aba FLUXO, selecione um aplicativo Meta disponível.', field='meta_app_id') from None
+    required = {
+        'instagram_password': 'Na aba DADOS, preencha a senha do Instagram.',
+        'tester_app_name': 'Na aba FLUXO, preencha “Nome do app no convite”. Informe o nome público do aplicativo no Meta Developers, como ele aparecerá no convite de testador do Instagram. Ele pode ser diferente do nome no AVANÇA.',
+        'serial': 'Na aba ADB, consulte os dispositivos e selecione seu telefone autorizado.',
+    }
+    for field, message in required.items():
         if not isinstance(result.get(field), str) or not result[field].strip():
-            raise CompanionError('CONFIGURATION_REQUIRED', 'Complete the required field: ' + field)
+            raise CompanionError('CONFIGURATION_REQUIRED', message, field=field)
+    result['tester_app_name'] = result['tester_app_name'].strip()
     for field in ('full_name', 'bio', 'category', 'profile_photo', 'story_media', 'story_link', 'story_cta', 'highlight', 'birthday'):
         if not isinstance(result.get(field, ''), str): raise CompanionError('INVALID_CONFIGURATION', 'Invalid field: ' + field)
     if len(result.get('bio', '')) > 150: raise CompanionError('INVALID_BIO', 'Instagram bio must contain at most 150 characters.')
     if result.get('create_account'):
-        try: born = date.fromisoformat(result.get('birthday', ''))
-        except ValueError: raise CompanionError('BIRTHDAY_REQUIRED', 'Enter your actual date of birth as YYYY-MM-DD.') from None
+        raw_birthday = result.get('birthday', '').strip()
+        try:
+            if '/' in raw_birthday:
+                born = datetime.strptime(raw_birthday, '%d/%m/%Y').date()
+            else: born = date.fromisoformat(raw_birthday)
+        except ValueError:
+            raise CompanionError('BIRTHDAY_REQUIRED', 'Na aba DADOS, informe sua data de nascimento real como DD/MM/AAAA ou AAAA-MM-DD.', field='birthday') from None
+        result['birthday'] = born.isoformat()
         today = date.today()
         age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-        if age < 18 or age > 120: raise CompanionError('INVALID_BIRTHDAY', 'Configure an adult date of birth for this account.')
-        if not result.get('full_name', '').strip(): raise CompanionError('NAME_REQUIRED', 'Enter the account profile name.')
+        if age < 18 or age > 120: raise CompanionError('INVALID_BIRTHDAY', 'Na aba DADOS, informe uma data de nascimento real de uma pessoa adulta.', field='birthday')
+        if not result.get('full_name', '').strip(): raise CompanionError('NAME_REQUIRED', 'Na aba DADOS, preencha o nome do perfil.', field='full_name')
     if result.get('proxy'):
         try:
             proxy = urlsplit(result['proxy'].get('server', ''))

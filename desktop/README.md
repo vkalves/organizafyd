@@ -1,10 +1,10 @@
-# Zyon Desktop 2.0 — Windows Android automation
+# Zyon Desktop 2.0.1 — Windows Android automation
 
 This release is a native **Windows desktop application** named **Zyon.exe**, with Tk controls and a background execution controller. It does not open a website or localhost dashboard as its user interface. Chrome is controlled for the Instagram browser and official Meta authorization stages that the reference workflow requires.
 
 ## Download and start
 
-Download the **Zyon-Desktop-Windows-2.0** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
+Download the **Zyon-Desktop-Windows-2.0.1** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
 
 On first launch, missing Android runtime tools trigger the included installer. It installs/configures isolated Node.js 22, Temurin Java 17, Android SDK and Appium/UiAutomator2, and installs Chrome if necessary. Windows can request installation approval. Internet access and several gigabytes of disk space are needed for the toolchain and download cache. WinGet/App Installer is needed if Chrome is missing. The **PROGRAMA** tab can run the installer again. Existing system Node/Java/SDK settings are preserved.
 
@@ -12,12 +12,12 @@ The application is unsigned. No signing certificate was supplied for this build.
 
 ## Initial configuration
 
-- **DADOS:** enter the intended @, profile name, actual birthdate (YYYY-MM-DD), Instagram password and verification-email recipient. Select creation for a new native account; clear it to prepare an existing account. Generated usernames are candidates; Instagram must accept them and the resulting native profile must match exactly.
+- **DADOS:** enter the intended @, profile name, actual birthdate (DD/MM/YYYY or YYYY-MM-DD), Instagram password and verification-email recipient. Brazilian dates are interpreted as day/month/year and normalized before execution. Select creation for a new native account; clear it to prepare an existing account. Generated usernames are candidates; Instagram must accept them and the resulting native profile must match exactly.
 - **PERFIL:** configure bio, the supplied profile image and professional category. Empty values skip optional changes. The reference category is Artista.
 - **PUBLICAR:** configure the Story file, link, sticker text and highlight name. Selecting media authorizes this publication when starting the workflow. An empty Story file skips publication. Previously uncertain submissions are never blindly replayed.
 - **EMAIL:** select your own Google Desktop OAuth client JSON, enter the exact mailbox and connect once. Enable Gmail API in that Google Cloud project. The Google consent screen must be completed interactively. Configure the exact sender found in your actual Instagram emails; `security@mail.instagram.com` is an editable default. The recipient must match the intended address/alias exactly.
 - **ADB:** connect the Android 14 phone, enable USB debugging, unlock it and authorize this computer. Query devices and select the intended serial. Some phone manufacturers require their own Windows USB driver.
-- **FLUXO:** enter your AVANÇA login, load your owned active flows/apps, select the existing destination and Meta app, and enter the exact tester-invitation app name shown in Instagram. The tester invitation display name can differ from AVANÇA's app name.
+- **FLUXO:** enter your AVANÇA login, load your owned active flows/apps, select the existing destination and Meta app, and fill **Nome do app no convite** with the public app display name from Meta Developers, exactly as it will appear in Instagram’s tester invitation. This does not require sending the invitation yet; send it when the workflow pauses. The tester invitation display name can differ from AVANÇA's app name; it is never guessed from the selected app. Missing required fields open the relevant tab and focus the field before a run starts or its profile is automatically saved.
 - **CONTAS:** save/load profiles. Passwords and local refresh grants are encrypted with current-Windows-user DPAPI. They are never written to the readable workflow journal or log.
 
 Gmail `gmail.readonly` is a restricted scope. External Google OAuth applications in Testing generally receive seven-day refresh grants for this scope. Configure the intended production audience/status and Google's applicable verification requirements for long-lived unattended renewal. Revoked grants always need renewed consent.

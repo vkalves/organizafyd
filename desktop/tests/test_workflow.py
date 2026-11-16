@@ -88,3 +88,22 @@ class WorkflowTests(unittest.TestCase):
   self.assertEqual(self.workflow.snapshot()['status'],'completed');self.assertEqual(self.calls.count('sync'),2)
  def test_bad_proxy_is_rejected_before_any_external_stage(self):
   with self.assertRaises(CompanionError):configuration({**SETTINGS,'proxy':{'server':'http://proxy.example/path?token=value'}})
+ def test_missing_invitation_name_identifies_visible_field_before_actions(self):
+  with self.assertRaises(CompanionError) as caught:self.workflow.start({**SETTINGS,'tester_app_name':'  '})
+  error=caught.exception
+  self.assertEqual(error.field,'tester_app_name');self.assertIn('FLUXO',str(error));self.assertIn('Nome do app no convite',str(error));self.assertNotIn('tester_app_name',str(error))
+  self.assertEqual(self.calls,[]);self.assertIsNone(self.workflow.thread)
+ def test_brazilian_birthday_is_normalized_without_changing_input(self):
+  values={**SETTINGS,'create_account':True,'birthday':'04/09/2006','full_name':'Configured Name'}
+  result=configuration(values)
+  self.assertEqual(result['birthday'],'2006-09-04');self.assertEqual(values['birthday'],'04/09/2006')
+  self.assertEqual(configuration({**values,'birthday':'2006-09-04'})['birthday'],'2006-09-04')
+ def test_invalid_brazilian_calendar_date_is_rejected(self):
+  for birthday in ('31/02/2006','09/30/2006','04/09/2020'):
+   with self.subTest(birthday=birthday),self.assertRaises(CompanionError) as caught:
+    configuration({**SETTINGS,'create_account':True,'birthday':birthday,'full_name':'Configured Name'})
+   self.assertEqual(caught.exception.field,'birthday')
+ def test_required_config_fields_have_actionable_locations(self):
+  for field,tab in (('username','DADOS'),('recipient','DADOS'),('avanca_email','FLUXO'),('flow_id','FLUXO'),('serial','ADB'),('instagram_password','DADOS')):
+   with self.subTest(field=field),self.assertRaises(CompanionError) as caught:configuration({**SETTINGS,field:''})
+   self.assertEqual(caught.exception.field,field);self.assertIn(tab,str(caught.exception))
