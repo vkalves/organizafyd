@@ -238,10 +238,15 @@ class Workflow:
         except CompanionError as failure:
             with self.lock:
                 self.state.update(status='stopped' if failure.code == 'CANCELLED' else 'needs_attention', phase=failure.code, message=str(failure), pauseId=None)
+                self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': failure.code, 'message': str(failure)})
                 self.persist()
-        except Exception:
+        except Exception as failure:
             with self.lock:
-                self.state.update(status='needs_attention', phase='UNCONFIRMED_OPERATION', message='An external operation was not confirmed. Inspect the phone or Chrome and the current step in Logs before retrying.', pauseId=None)
+                failed_step = self.state['phase']
+                kind = type(failure).__name__
+                message = 'Falha interna na etapa ' + failed_step + ' (' + kind + '). A operação não foi confirmada. O conteúdo da exceção foi omitido para proteger as credenciais.'
+                self.state.update(status='needs_attention', phase='INTERNAL_OPERATION_ERROR', message=message, pauseId=None)
+                self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': 'INTERNAL_OPERATION_ERROR', 'message': message})
                 self.persist()
         finally:
             self.avanca.cancel = None

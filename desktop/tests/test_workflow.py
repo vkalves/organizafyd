@@ -107,3 +107,11 @@ class WorkflowTests(unittest.TestCase):
   for field,tab in (('username','DADOS'),('recipient','DADOS'),('avanca_email','FLUXO'),('flow_id','FLUXO'),('serial','ADB'),('instagram_password','DADOS')):
    with self.subTest(field=field),self.assertRaises(CompanionError) as caught:configuration({**SETTINGS,field:''})
    self.assertEqual(caught.exception.field,field);self.assertIn(tab,str(caught.exception))
+ def test_unexpected_connection_failure_logs_stage_and_type_without_secret(self):
+  factory=self.workflow.phone_factory
+  class BrokenPhone(factory):
+   def open(self):raise RuntimeError('sensitive-provider-fixture')
+  self.workflow.phone_factory=BrokenPhone
+  self.workflow.start(SETTINGS);state=self.wait_state('needs_attention')
+  self.assertEqual(state['phase'],'INTERNAL_OPERATION_ERROR');self.assertIn('android_connect',state['message']);self.assertIn('RuntimeError',state['message'])
+  self.assertEqual(state['events'][-1]['phase'],'INTERNAL_OPERATION_ERROR');self.assertNotIn('sensitive-provider-fixture',str(state));self.assertNotIn('chrome_open',self.calls)

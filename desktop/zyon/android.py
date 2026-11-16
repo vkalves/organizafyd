@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import hmac
+from importlib.metadata import PackageNotFoundError, version
 import re
 import shutil
 import struct
@@ -129,7 +130,7 @@ def devices(adb="adb"):
     if not executable:
         raise CompanionError("ADB_MISSING", "Install Android SDK Platform Tools and add adb to PATH, then restart the companion.")
     try:
-        result = subprocess.run([executable, "devices", "-l"], capture_output=True, text=True, timeout=15, check=True, creationflags=0x08000000 if __import__('os').name == 'nt' else 0)
+        result = subprocess.run([executable, "devices", "-l"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15, check=True, creationflags=0x08000000 if __import__('os').name == 'nt' else 0)
     except (OSError, subprocess.SubprocessError):
         raise CompanionError("ADB_FAILED", "ADB could not list devices. Check USB debugging and the cable.") from None
     found = []
@@ -137,6 +138,36 @@ def devices(adb="adb"):
         parts = line.split()
         if len(parts) >= 2: found.append({"serial": parts[0], "state": parts[1]})
     return found
+
+
+def client_components():
+    try:
+        # Appium reads its distribution metadata while importing WebDriver.
+        version('Appium-Python-Client')
+        from appium import webdriver
+        from appium.options.android import UiAutomator2Options
+        from appium.webdriver.client_config import AppiumClientConfig
+        from selenium.webdriver.common.proxy import Proxy
+        return webdriver, UiAutomator2Options, AppiumClientConfig, Proxy
+    except (ImportError, PackageNotFoundError):
+        raise CompanionError('ANDROID_CLIENT_INCOMPLETE', 'O cliente Android do executável está incompleto. Instale a versão corrigida do Zyon; reinstalar o SDK não corrige os arquivos internos do app.') from None
+
+
+def session_failure(error):
+    # Classify locally; never put raw driver responses or command arguments in logs.
+    text = str(error).lower()
+    checks = (
+        (('install_failed_user_restricted',), 'DEVICE_INSTALL_BLOCKED', 'O Android bloqueou a instalação dos componentes UiAutomator2. Desbloqueie o telefone, autorize a instalação por USB e confirme os diálogos no aparelho.'),
+        (('unauthorized',), 'DEVICE_UNAUTHORIZED', 'Autorize a depuração USB deste computador no telefone desbloqueado.'),
+        (('device offline',), 'DEVICE_OFFLINE', 'O telefone ficou offline. Reconecte o cabo USB e consulte os dispositivos na aba ADB.'),
+        (('could not find a driver', 'uiautomator2 driver is not installed'), 'UIAUTOMATOR2_MISSING', 'Instale / verifique todos os requisitos na aba PROGRAMA para registrar o UiAutomator2.'),
+        (('install_failed',), 'ANDROID_HELPER_INSTALL_FAILED', 'A instalação dos componentes Android falhou. Confira espaço livre e os diálogos de instalação no telefone.'),
+        (('securityexception', 'permission denial'), 'ANDROID_PERMISSION_REQUIRED', 'O Android recusou uma permissão necessária. Confira os diálogos e as opções de depuração USB no telefone.'),
+        (('timed out', 'timeout'), 'ANDROID_SESSION_TIMEOUT', 'A sessão Android excedeu o tempo limite. Desbloqueie o telefone e confirme os diálogos de instalação/depuração antes de tentar novamente.'),
+    )
+    for patterns, code, message in checks:
+        if any(pattern in text for pattern in patterns): return CompanionError(code, message)
+    return CompanionError('ANDROID_SESSION_FAILED', 'A sessão UiAutomator2 ou a abertura do Instagram falhou. Confira o telefone desbloqueado, a instalação do Instagram e os requisitos Android.')
 
 
 def xpath_literal(value):
@@ -156,22 +187,29 @@ class Android:
 
     def open(self):
         if self.driver is not None: return
-        ready = [d for d in devices(self.adb) if d["state"] == "device"]
-        if not self.serial or not any(d["serial"] == self.serial for d in ready):
-            raise CompanionError("DEVICE_NOT_READY", "Select an authorized device serial. Unlock Android and accept its USB debugging prompt.")
-        from appium import webdriver
-        from appium.options.android import UiAutomator2Options
-        from appium.webdriver.client_config import AppiumClientConfig
-        options = UiAutomator2Options().load_capabilities({"platformName": "Android", "appium:automationName": "UiAutomator2",
-            "appium:udid": self.serial, "appium:noReset": True, "appium:newCommandTimeout": 120,
-            "appium:appPackage": PACKAGE, "appium:autoLaunch": False, "appium:dontStopAppOnReset": True,
-            "appium:skipLogcatCapture": True, "appium:settings[ignoreUnimportantViews]": False})
+        self.progress('android_client_loading', 'Carregando o cliente Android e verificando seus arquivos internos.')
+        webdriver, UiAutomator2Options, AppiumClientConfig, Proxy = client_components()
+        self.progress('adb_device_check', 'Verificando a autorização USB do telefone selecionado.')
+        selected = next((d for d in devices(self.adb) if d['serial'] == self.serial), None)
+        if selected and selected['state'] == 'unauthorized':
+            raise CompanionError('DEVICE_UNAUTHORIZED', 'Desbloqueie o telefone e aceite a autorização de depuração USB deste computador.')
+        if selected and selected['state'] == 'offline':
+            raise CompanionError('DEVICE_OFFLINE', 'O telefone está offline. Reconecte o cabo USB e consulte os dispositivos na aba ADB.')
+        if not selected or selected['state'] != 'device':
+            raise CompanionError('DEVICE_NOT_READY', 'Selecione seu telefone autorizado na aba ADB. Desbloqueie o Android e aceite a autorização USB.')
         try:
-            config = AppiumClientConfig(remote_server_addr=self.endpoint, timeout=60)
+            options = UiAutomator2Options().load_capabilities({"platformName": "Android", "appium:automationName": "UiAutomator2",
+                "appium:udid": self.serial, "appium:noReset": True, "appium:newCommandTimeout": 120,
+                "appium:appPackage": PACKAGE, "appium:autoLaunch": False, "appium:dontStopAppOnReset": True,
+                "appium:skipLogcatCapture": True, "appium:settings[ignoreUnimportantViews]": False})
+            config = AppiumClientConfig(remote_server_addr=self.endpoint, timeout=60, proxy=Proxy({'proxyType': 'direct'}))
+            self.progress('android_session_start', 'Criando a sessão UiAutomator2. Confirme as permissões solicitadas no telefone.')
             self.driver = webdriver.Remote(options=options, client_config=config)
+            self.progress('instagram_launch', 'Abrindo o Instagram nativo no telefone selecionado.')
             self.driver.activate_app(PACKAGE)
-        except Exception:
-            raise CompanionError("APPIUM_UNAVAILABLE", "Could not open Instagram. Check local Appium, UiAutomator2, Android SDK and device status.") from None
+        except CompanionError: raise
+        except Exception as error:
+            raise session_failure(error) from None
 
     def screen(self):
         if self.cancel.is_set(): raise CompanionError("CANCELLED", "Stopped. Inspect the phone before starting again.")
