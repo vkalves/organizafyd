@@ -23,6 +23,7 @@ def data_dir(): return Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 
 
 def load_runtime(root=None):
     root = Path(root or data_dir())
+    os.environ['APPIUM_HOME'] = str(root / 'appium')
     config = root / 'runtime' / 'paths.json'
     if not config.exists(): return
     paths = json.loads(config.read_text(encoding='utf-8-sig'))
@@ -36,7 +37,6 @@ def load_runtime(root=None):
         os.environ['ANDROID_HOME'] = str(sdk); os.environ['ANDROID_SDK_ROOT'] = str(sdk)
         additions.extend(str(sdk / p) for p in ('platform-tools', 'emulator', 'cmdline-tools/latest/bin'))
     os.environ['PATH'] = os.pathsep.join(dict.fromkeys(additions + os.environ.get('PATH', '').split(os.pathsep)))
-    os.environ['APPIUM_HOME'] = str(root / 'appium')
 
 
 class Runtime:

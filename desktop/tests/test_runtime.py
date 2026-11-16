@@ -33,12 +33,12 @@ class RuntimeTests(unittest.TestCase):
         driver = self.root / 'appium/node_modules/appium-uiautomator2-driver'; driver.mkdir(parents=True)
         (driver / 'package.json').write_text('{}')
         self.runtime = Runtime(threading.Event(), self.root, self.app)
-        self.addCleanup(self.runtime.close)
         self.platform = patch('zyon.runtime.sys.platform', 'win32'); self.platform.start(); self.addCleanup(self.platform.stop)
         self.loader = patch('zyon.runtime.load_runtime'); self.loader.start(); self.addCleanup(self.loader.stop)
         self.node = patch('zyon.runtime.shutil.which', return_value=str(self.root / 'node/node.exe')); self.node.start(); self.addCleanup(self.node.stop)
         self.kill = patch('zyon.runtime.subprocess.run'); self.kill.start(); self.addCleanup(self.kill.stop)
         self.port = patch.object(self.runtime, 'port_busy', return_value=False); self.port.start(); self.addCleanup(self.port.stop)
+        self.addCleanup(self.runtime.close)
 
     def diagnostic(self): return json.loads(self.runtime.diagnostic_path.read_text())
 
@@ -127,3 +127,8 @@ class RuntimeTests(unittest.TestCase):
         with patch.dict(os.environ, {'PATH': os.pathsep.join([str(node), '/original'])}):
             load_runtime(self.root); first = os.environ['PATH']; load_runtime(self.root)
             self.assertEqual(os.environ['PATH'], first); self.assertEqual(first.split(os.pathsep).count(str(node)), 1)
+
+    def test_manual_setup_still_uses_the_app_owned_driver_home(self):
+        with patch.dict(os.environ, {'APPIUM_HOME': 'external-driver-home'}):
+            load_runtime(self.root)
+            self.assertEqual(os.environ['APPIUM_HOME'], str(self.root / 'appium'))
