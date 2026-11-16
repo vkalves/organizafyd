@@ -18,6 +18,7 @@ import { type Draft, mediaParams, validate } from "./model.ts";
 import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
 import { drainQueue, readPages, stageJobs } from "./queue.ts";
 import { publishContainer } from "./publication.ts";
+import { GraphFailure, canRetryBeforePublication, quotaExhausted } from "./publication-policy.ts";
 import { campaignMediaUrl } from "../instagram-media/token.ts";
 import {
   checkProfile,
@@ -77,7 +78,7 @@ async function graph(
   });
   const data = await res.json();
   if (!res.ok || data.error) {
-    throw new Error(`meta_${data.error?.code || res.status}`);
+    throw new GraphFailure(res.status, data.error || {}, token, path);
   }
   return data;
 }
@@ -298,6 +299,8 @@ async function reconcilePublications() {
   }));
 }
 async function maintenance() {
+  // Dispatch may start zero workers when the last job was interrupted.
+  checked(await db.rpc("ig_recover_publication_leases"));
   await reconcilePublications();
   await advanceCampaigns();
   // Delete only abandoned preparation, never queued publications.
@@ -365,8 +368,28 @@ async function processJob(partition: WorkerPartition) {
       await update({ status: "scheduled" });
       return { processed: 0 };
     }
+    let quotaChecked = false;
+    async function quotaAvailable() {
+      if (quotaChecked) return true;
+      quotaChecked = true;
+      let report;
+      try {
+        report = await accountGraph(c.graph_id + "/content_publishing_limit", token, { fields: "quota_usage,config" });
+      } catch (error) {
+        // Older connections can publish without exposing this optional read.
+        // An actual publishing-permission error is still handled on /media.
+        if (error instanceof GraphFailure && [100, 10, 200].includes(error.details.code || 0)) return true;
+        throw error;
+      }
+      if (!quotaExhausted(report)) return true;
+      const retryAt = new Date(Date.now() + 15 * 60_000).toISOString();
+      checked(await db.from("ig_publisher_connections").update({ publish_retry_at: retryAt }).eq("account_id", job.account_id));
+      await update({ status: "scheduled", next_attempt_at: retryAt, error_code: "publishing_quota_wait" });
+      return false;
+    }
     let container = job.container_id;
     if (!container) {
+      if (!await quotaAvailable()) return { processed: 1 };
       // A new capability per publication makes Meta download through a fresh
       // server-side cleaning pass, including existing flows and later cycles.
       // Polling an existing container must never recreate it or publish twice.
@@ -413,9 +436,11 @@ async function processJob(partition: WorkerPartition) {
       fields: "status_code",
     });
     if (state.status_code === "IN_PROGRESS") {
-      if (job.attempts >= 30) throw new Error("media_processing_timeout");
+      const checks = (job.container_checks || 0) + 1;
+      if (checks >= 30) throw new Error("media_processing_timeout");
       await update({
         status: "scheduled",
+        container_checks: checks,
         // A batch worker can claim again during this tick; defer polling so one
         // processing video cannot consume the whole batch or exhaust attempts.
         next_attempt_at: new Date(Date.now() + 60_000).toISOString(),
@@ -425,6 +450,7 @@ async function processJob(partition: WorkerPartition) {
     if (state.status_code !== "FINISHED") {
       throw new Error("container_" + String(state.status_code));
     }
+    if (!await quotaAvailable()) return { processed: 1 };
     const current = checked(
       await db
         .from("ig_publisher_connections")
@@ -467,6 +493,7 @@ async function processJob(partition: WorkerPartition) {
       media_id: result.mediaId,
       published_at: new Date().toISOString(),
       error_code: null,
+      last_error_details: null,
     });
   } catch (err) {
     const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
@@ -480,29 +507,19 @@ async function processJob(partition: WorkerPartition) {
         .update({ reconnect_required: true })
         .eq("account_id", job.account_id);
     }
-    const transient = !publishing && job.attempts < 30 &&
-      [
-        "network_error",
-        "database_error",
-        "meta_500",
-        "meta_502",
-        "meta_503",
-        "meta_504",
-        "meta_1",
-        "meta_2",
-        "meta_4",
-        "meta_17",
-        "meta_32",
-        "meta_613",
-        "meta_429",
-      ].includes(code);
+    const transient = canRetryBeforePublication(err, code, publishing);
     const retryAt = new Date(Date.now() + Math.min(900_000, 30_000 * 2 ** Math.min(job.attempts, 5)) + Math.floor(Math.random() * 10_000)).toISOString();
-    if (transient && ["meta_4", "meta_17", "meta_32", "meta_613", "meta_429"].includes(code)) {
+    if (code === "meta_4") {
+      checked(await db.rpc("ig_defer_publication_app", { p_account: job.account_id, p_retry_at: retryAt }));
+    } else if (["meta_17", "meta_32", "meta_613", "meta_429"].includes(code)) {
       checked(await db.from("ig_publisher_connections").update({ publish_retry_at: retryAt }).eq("account_id", job.account_id));
     }
+    const details = err instanceof GraphFailure ? err.details : null;
+    console.warn(JSON.stringify({ event: "instagram_publication_error", job_id: job.id, account_id: job.account_id, code, publishing, details }));
     await update({
       status: publishing ? "uncertain" : transient ? "scheduled" : "failed",
       error_code: code,
+      last_error_details: details,
       ...(transient
         ? {
           next_attempt_at: retryAt,
