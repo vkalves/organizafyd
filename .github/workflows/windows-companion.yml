@@ -40,7 +40,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: Zyon-Desktop-Source-2.0
+          name: Zyon-Desktop-Source-2.0.1
           path: desktop/dist/*
           if-no-files-found: error
           retention-days: 30
@@ -99,13 +99,13 @@ jobs:
           if (Test-Path 'desktop/dist/Zyon/.venv') { throw 'Packaged app should not create a separate Python environment.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: Zyon-Desktop-Windows-2.0
+          name: Zyon-Desktop-Windows-2.0.1
           path: desktop/dist/Zyon/
           if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@v4
         with:
-          name: Zyon-Desktop-Preview-2.0
+          name: Zyon-Desktop-Preview-2.0.1
           path: desktop/dist/native-window.png
           if-no-files-found: error
           retention-days: 30

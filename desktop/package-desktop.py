@@ -16,7 +16,7 @@ for path in sorted(bundle.rglob('*')):
     if path.is_file() and path.name != 'SHA256SUMS.txt':
         manifest.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.relative_to(bundle).as_posix())
 (bundle / 'SHA256SUMS.txt').write_text('\n'.join(manifest) + '\n', encoding='utf-8')
-target = root / 'dist' / 'Zyon-Desktop-Windows-2.0.zip'
+target = root / 'dist' / 'Zyon-Desktop-Windows-2.0.1.zip'
 with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as archive:
     for path in sorted(bundle.rglob('*')):
         if path.is_file(): archive.write(path,'Zyon/' + path.relative_to(bundle).as_posix())

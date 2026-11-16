@@ -19,7 +19,7 @@ from .errors import CompanionError
 from .gmail import Gmail
 from .runtime import application_dir, data_dir, load_runtime
 from .vault import Vault
-from .workflow import Workflow
+from .workflow import Workflow, configuration
 
 BG, PANEL, INPUT, FG, MUTED, CYAN, GREEN, RED = '#08091c', '#11132d', '#090b20', '#e9edff', '#98a4c7', '#1de5eb', '#15e891', '#ed4679'
 
@@ -33,6 +33,7 @@ class Desktop:
         self.workflow = Workflow(self.storage, self.vault, avanca=self.avanca, gmail=self.gmail)
         self.responses = queue.Queue(); self.task = None
         self.values, self.entries = {}, []
+        self.field_targets, self.tab_pages = {}, {}
         self.flow_map, self.app_map, self.device_map = {}, {}, {}
         self.pause_id, self.last_event = None, None
         self.saved = {}
@@ -78,6 +79,7 @@ class Desktop:
         scrollbar = ttk.Scrollbar(outer, orient='vertical', command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set); scrollbar.pack(side='right', fill='y'); canvas.pack(side='left', fill='both', expand=True)
         body = ttk.Frame(canvas, padding=22); window = canvas.create_window((0, 0), window=body, anchor='nw')
+        self.tab_pages[body] = (outer, canvas)
         body.bind('<Configure>', lambda event: canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>', lambda event: canvas.itemconfigure(window, width=event.width))
         ttk.Label(body, text=title, font=('Segoe UI', 19, 'bold'), foreground=CYAN).pack(anchor='w', pady=(0, 6))
@@ -92,6 +94,7 @@ class Desktop:
             entry = ttk.Combobox(row, textvariable=value, values=choices, state='readonly')
         else: entry = ttk.Entry(row, textvariable=value, show='●' if secret else '')
         entry.pack(side='left', fill='x', expand=True); self.entries.append(entry)
+        self.field_targets[name] = (entry, parent, *self.tab_pages[parent])
         return entry
 
     def check(self, parent, label, name, default=False):
@@ -119,7 +122,7 @@ class Desktop:
         self.check(data, 'Criar uma nova conta no Instagram nativo antes de preparar o perfil', 'create_account', True)
         self.field(data, 'Nome do perfil', 'full_name')
         self.field(data, 'Data de nascimento real', 'birthday', '')
-        ttk.Label(data, text='Formato AAAA-MM-DD. O executor valida a data antes de enviar.', style='Muted.TLabel').pack(anchor='w')
+        ttk.Label(data, text='DD/MM/AAAA ou AAAA-MM-DD (ex.: 04/09/2006 = 4 de setembro de 2006).', style='Muted.TLabel').pack(anchor='w')
         self.field(data, '@ esperado', 'username')
         self.field(data, 'Senha do Instagram', 'instagram_password', secret=True)
         ttk.Button(data, text='Gerar senha forte e candidato de @ a partir do nome', command=self.generate).pack(anchor='w', pady=12)
@@ -164,7 +167,8 @@ class Desktop:
         self.avanca_button = ttk.Button(flow, text='Entrar e consultar meus fluxos / apps', command=self.connect_avanca); self.avanca_button.pack(anchor='w', pady=8); self.entries.append(self.avanca_button)
         self.flow_combo = self.field(flow, 'Fluxo ativo existente', 'flow_choice', choices=[])
         self.app_combo = self.field(flow, 'Aplicativo Meta', 'app_choice', choices=[])
-        self.field(flow, 'Nome exato no convite Instagram', 'tester_app_name')
+        self.field(flow, 'Nome do app no convite', 'tester_app_name')
+        ttk.Label(flow, text='Obrigatório: copie o nome exibido no convite de testador, na área de convites de aplicativos do Instagram. Pode ser diferente do nome cadastrado no AVANÇA.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=(0, 8))
         ttk.Label(flow, text='A automação pausará antes de aceitar o convite. O @ verificado aparecerá na janela; envie o convite pela Meta e clique em Continuar aqui.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=12)
 
         program = self.tab('PROGRAMA', 'Instalação e execução', 'Aplicativo nativo para Windows. Os componentes de controle são gerenciados pelo próprio programa.')
@@ -243,11 +247,27 @@ class Desktop:
     def start(self):
         if self.busy(): return
         try:
-            data = self.settings()
+            data = configuration(self.settings())
+            if data.get('create_account'): self.values['birthday'].set(data['birthday'])
             if data.get('save_secrets'): self.save_profile(silent=True)
             self.workflow.start(data)
-        except CompanionError as failure: messagebox.showerror('Configuração necessária', str(failure), parent=self.root)
+        except CompanionError as failure: self.configuration_error(failure)
         except Exception: messagebox.showerror('Configuração', 'Confira os campos e o cofre Windows.', parent=self.root)
+
+    def configuration_error(self, failure):
+        field = {'serial': 'device_choice', 'flow_id': 'flow_choice', 'meta_app_id': 'app_choice'}.get(failure.field, failure.field)
+        target = self.field_targets.get(field)
+        if target:
+            entry, body, tab, canvas = target
+            self.notebook.select(tab)
+            self.root.update_idletasks()
+            position = (entry.winfo_rooty() - body.winfo_rooty()) / max(1, body.winfo_height())
+            canvas.yview_moveto(max(0, position - .1))
+        self.status.configure(text=str(failure))
+        messagebox.showerror('Configuração necessária', str(failure), parent=self.root)
+        if target:
+            entry.focus_set()
+            entry.selection_range(0, 'end')
 
     def start_selected(self):
         if self.busy(): return

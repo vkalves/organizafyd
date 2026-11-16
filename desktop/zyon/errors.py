@@ -1,5 +1,6 @@
 # Python / zyon/errors.py / Python 3.11+ / Windows 10 companion
 class CompanionError(Exception):
-    def __init__(self, code, message, status=400):
+    def __init__(self, code, message, status=400, *, field=None):
         super().__init__(message)
         self.code, self.status = code, status
+        self.field = field
