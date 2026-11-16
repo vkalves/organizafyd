@@ -6,11 +6,12 @@ Set-Location $PSScriptRoot
 Set-CompanionRuntime
 try {
     if ($Mode -eq 'Appium') {
-        $appium = Join-Path $PSScriptRoot 'tools\node_modules\.bin\appium.cmd'
+        $appium = Join-Path $PSScriptRoot 'tools\node_modules\appium\index.js'
         if (-not (Test-Path -LiteralPath $appium)) { throw 'Run install-requirements.cmd first.' }
         $env:APPIUM_HOME = Join-Path $env:LOCALAPPDATA 'ZyonCompanion\appium'
         $ErrorActionPreference = 'Continue'
-        & $appium --address 127.0.0.1 --port 4723 --log-level error --log-no-colors
+        $node = (Get-Command node.exe -ErrorAction Stop).Source
+        & $node $appium --address 127.0.0.1 --port 4723 --log-level error --log-no-colors
         exit $LASTEXITCODE
     }
     $executable = Join-Path $PSScriptRoot 'Zyon.exe'

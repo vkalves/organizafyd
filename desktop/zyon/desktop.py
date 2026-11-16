@@ -173,6 +173,7 @@ class Desktop:
 
         program = self.tab('PROGRAMA', 'Instalação e execução', 'Aplicativo nativo para Windows. Os componentes de controle são gerenciados pelo próprio programa.')
         self.install_button = ttk.Button(program, text='Instalar / verificar todos os requisitos', style='Action.TButton', command=self.install_requirements); self.install_button.pack(anchor='w', pady=12); self.entries.append(self.install_button)
+        ttk.Button(program, text='Ver diagnóstico Appium', command=self.show_runtime_diagnostic).pack(anchor='w', pady=8)
         self.check(program, 'Guardar esta configuração e senhas criptografadas para este usuário Windows', 'save_secrets', True)
         ttk.Label(program, text='O consentimento inicial Google, a autorização USB e desafios que exigem sua presença continuam interativos. Telas desconhecidas param com diagnóstico, sem inventar conclusão.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=18)
 
@@ -234,6 +235,15 @@ class Desktop:
 
     def install_requirements(self):
         self.background('Instalação aberta. Aguarde a verificação concluir na janela de instalação.', self.workflow.runtime.install, 'installed')
+
+    def show_runtime_diagnostic(self):
+        path = self.workflow.runtime.diagnostic_path
+        try:
+            if path.stat().st_size > 16000: raise ValueError()
+            data = json.loads(path.read_text(encoding='utf-8'))
+            message = '\n'.join(str(key) + ': ' + str(data[key]) for key in ('time', 'outcome', 'port', 'exit_code', 'elapsed_seconds', 'node_present', 'appium_present', 'reused') if key in data)
+        except (OSError, ValueError): message = 'Nenhum diagnóstico disponível. Inicie o fluxo para verificar o controlador.'
+        messagebox.showinfo('Diagnóstico Appium', message, parent=self.root)
 
     def settings(self):
         data = {name: value.get() for name, value in self.values.items()}
@@ -372,7 +382,24 @@ def main():
     parser.add_argument('--self-test', action='store_true')
     parser.add_argument('--smoke-test', action='store_true')
     parser.add_argument('--capture-to', default=None)
+    parser.add_argument('--runtime-test', action='store_true')
+    parser.add_argument('--report-to', default=None)
     args = parser.parse_args()
+    if args.runtime_test:
+        from .runtime import Runtime
+        runtime = Runtime(threading.Event())
+        process = None
+        report = {'ready': False, 'owned': False, 'stopped': False}
+        try:
+            runtime.ensure(); process = runtime.process
+            report.update(ready=runtime.ready(), owned=process is not None)
+        except CompanionError as failure:
+            report.update(code=failure.code, message=str(failure))
+        finally:
+            runtime.close()
+            report['stopped'] = process is not None and process.poll() is not None
+            if args.report_to: Path(args.report_to).write_text(json.dumps(report), encoding='utf-8')
+        return 0 if report['ready'] and report['owned'] and report['stopped'] else 1
     if args.self_test:
         import appium
         import google_auth_oauthlib.flow

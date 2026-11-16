@@ -18,13 +18,15 @@ try {
         & npm.cmd ci --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'Appium npm installation failed.' }
         $env:APPIUM_HOME = Join-Path $env:LOCALAPPDATA 'ZyonCompanion\appium'
-        $appium = Join-Path $PSScriptRoot 'tools\node_modules\.bin\appium.cmd'
-        & $appium driver list --installed --json | Out-String | Set-Variable installedDrivers
+        $node = (Get-Command node.exe -ErrorAction Stop).Source
+        $appium = Join-Path $PSScriptRoot 'tools\node_modules\appium\index.js'
+        & $node $appium driver list --installed --json | Out-String | Set-Variable installedDrivers
+        if ($LASTEXITCODE -ne 0) { throw 'Appium driver inventory failed.' }
         if ($installedDrivers -notmatch 'uiautomator2') {
-            & $appium driver install 'uiautomator2@5.0.7'
+            & $node $appium driver install 'uiautomator2@5.0.7'
             if ($LASTEXITCODE -ne 0) { throw 'UiAutomator2 driver installation failed.' }
         }
-        & $appium driver doctor uiautomator2
+        & $node $appium driver doctor uiautomator2
         if ($LASTEXITCODE -ne 0) { throw 'Appium doctor reported missing Android dependencies.' }
     } finally { $ErrorActionPreference = 'Stop'; Pop-Location }
     Write-Host 'Appium setup finished. Start start-appium.cmd, then start.cmd.'
