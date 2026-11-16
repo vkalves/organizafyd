@@ -1,10 +1,10 @@
-# Zyon Desktop 2.0.4 — Windows Android automation
+# Zyon Desktop 2.1.0 — Windows Android automation
 
 This release is a native **Windows desktop application** named **Zyon.exe**, with Tk controls and a background execution controller. It does not open a website or localhost dashboard as its user interface. Chrome is controlled for the Instagram browser and official Meta authorization stages that the reference workflow requires.
 
 ## Download and start
 
-Download the **Zyon-Desktop-Windows-2.0.4** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
+Download the **Zyon-Desktop-Windows-2.1.0** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
 
 On first launch, missing Android runtime tools trigger the included installer. It installs/configures isolated Node.js 22, Temurin Java 17, Android SDK and Appium/UiAutomator2, and installs Chrome if necessary. Windows can request installation approval. Internet access and several gigabytes of disk space are needed for the toolchain and download cache. WinGet/App Installer is needed if Chrome is missing. The **PROGRAMA** tab can run the installer again. Existing system Node/Java/SDK settings are preserved.
 
@@ -45,11 +45,17 @@ For multiple configured accounts, select their saved profiles in **CONTAS** and 
 
 Normal execution continues between steps. Initial USB/Google permissions, the requested invitation pause, Meta asset selection/consent that cannot be resolved uniquely, and unrecognized/security challenge screens can require interaction. The desktop window explains the reason and resumes from its current in-memory pause after Continue. It does not equate a click or redirect with successful account integration.
 
-Native signup recognizes the phone-first screen **Qual é o número do seu celular?** and automatically chooses **Cadastrar-se com o email** (including supported English/e-mail variants). It waits for a recognized email heading before filling the configured recipient and requesting a fresh verification code. It does not fill that email into the phone-number input, repeat an uncertain method switch, or choose between ambiguous controls. Portuguese email/name/birthdate headings with or without their articles are recognized.
+Native signup recognizes the phone-first screen **Qual é o número do seu celular?** and automatically chooses **Cadastrar-se com o email** (including supported English/e-mail variants). It waits for a recognized email heading before filling the configured recipient and requesting a fresh verification code. It does not fill that email into the phone-number input or choose between ambiguous controls. Portuguese email/name/birthdate headings with or without their articles are recognized.
+
+Version 2.1 adds semantic form recovery. It finds ordinary, autocomplete and accessible editable inputs, uses hints/input types to distinguish email, login and password fields, focuses the target and verifies the entered value before submission. It waits for late fields, reacquires stale elements and makes at most three entry attempts. Recovery can dismiss a keyboard overlay, use UiAutomator2's element tap gesture, or replace a partial value directly. Log messages describe recovery without recording credentials. Labels tolerate case, accents, whitespace, e-mail spelling and apostrophe variations. A signup request can navigate from a recognized login screen to account creation, and explicit field hints can identify a changed heading once signup context is established.
+
+Only reversible navigation may receive one alternate gesture after an unchanged screen is confirmed. Submit, verification, terms and publishing actions are not blindly repeated. Security challenges, ambiguous fields, configuration errors and unrecognized screens that remain after bounded recovery still require interaction. There is no guarantee of uninterrupted execution across arbitrary future Instagram interfaces.
 
 ## Important validation boundary
 
 The executable is built and checked on Windows. Native GUI, browser automation against intercepted fixtures, the orchestration, Gmail handling, DPAPI and owner-scoped platform adapters have automated checks. **A real Android/Instagram/Meta run has not been certified on your phone.** Android selectors are based on Portuguese/English accessibility labels and known resource IDs. Different Instagram builds, gallery pickers, date pickers and consent layouts can pause for inspection. The application should not be represented as universally unattended or already verified end-to-end on your accounts.
+
+CI additionally runs the shared input/recovery code against an isolated native fixture APK on an Android 14 emulator through real Appium/UiAutomator2. That check exercises email focus/read-back, verified submission, delayed field recreation, direct replacement and element gestures. The fixture makes no network requests and uses no real Instagram account; live Instagram compatibility still requires device validation.
 
 In particular, an Android date/gallery picker that does not expose the configured values to accessibility requests supervised completion. A pre-existing external authenticator without a locally enrolled seed may need its code/recovery confirmation. A security challenge requires your action. Uncertain Story submissions remain blocked for review instead of being posted twice. These are explicit unresolved/live-compatibility boundaries, not simulated successes.
 

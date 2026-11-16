@@ -36,3 +36,5 @@ dist-ssr
 /desktop/credentials*.json
 /desktop/token*.json
 *.dpapi
+
+desktop/tests/android-form-fixture/build/

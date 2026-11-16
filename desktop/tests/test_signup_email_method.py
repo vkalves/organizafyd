@@ -13,14 +13,21 @@ SETTINGS = {'username': 'same.account', 'recipient': 'owner@example.com', 'email
 
 
 class Element:
-    def __init__(self, driver, data): self.driver, self.data = driver, data
-    def is_displayed(self): return True
-    def is_enabled(self): return True
-    def clear(self): pass
-    def send_keys(self, value): self.driver.typed.append((self.driver.index, value))
+    def __init__(self, driver, data, identity): self.driver, self.data, self.id = driver, data, identity
+    def is_displayed(self): return self.data.get('displayed') != 'false'
+    def is_enabled(self): return self.data.get('enabled') != 'false'
+    def get_attribute(self, name):
+        if name == 'text': return self.driver.values.get(self.id, self.data.get('text', ''))
+        if name == 'focused': return 'true' if self.driver.focused == self.id else 'false'
+        return self.data.get({'resourceId': 'resource-id', 'contentDescription': 'content-desc', 'className': 'class'}.get(name, name), '')
+    def clear(self): self.driver.values[self.id] = ''
+    def send_keys(self, value):
+        self.driver.typed.append((self.driver.index, value))
+        self.driver.values[self.id] = self.driver.values.get(self.id, '') + value
     def click(self):
         self.driver.clicks.append((self.driver.index, self.data.get('text')))
-        if self.driver.transition: self.driver.index += 1
+        if self.data.get('class') in ('android.widget.EditText', 'android.widget.AutoCompleteTextView') or self.data.get('editable') == 'true': self.driver.focused = self.id
+        elif self.driver.transition: self.driver.index += 1
 
 
 class SignupDriver:
@@ -28,16 +35,31 @@ class SignupDriver:
     def __init__(self, stages):
         self.stages, self.index = stages, 0
         self.typed, self.clicks, self.transition = [], [], True
+        self.values, self.elements, self.scripts = {}, {}, []
+        self.focused, self.keyboard = None, False
     @property
     def page_source(self): return self.stages[self.index]
     def find_elements(self, kind, value):
         nodes = list(ET.fromstring(self.page_source).iter('node'))
         if kind == 'id': matches = [n for n in nodes if n.get('resource-id') == value]
         elif kind == 'class name': matches = [n for n in nodes if n.get('class') == value]
+        elif '@editable=' in value: matches = [n for n in nodes if n.get('editable') == 'true' and n.get('class') not in ('android.widget.EditText', 'android.widget.AutoCompleteTextView')]
         else:
             text = re.search("@text='([^']*)'", value)
             matches = [n for n in nodes if text and n.get('text') == text.group(1)]
-        return [Element(self, n) for n in matches]
+        result = []
+        for n in matches:
+            identity = str(self.index) + ':' + str(nodes.index(n))
+            element = Element(self, n, identity); self.elements[identity] = element; result.append(element)
+        return result
+    def is_keyboard_shown(self): return self.keyboard
+    def hide_keyboard(self): self.keyboard = False
+    def execute_script(self, name, args):
+        self.scripts.append((name, args))
+        element = self.elements[args['elementId']]
+        if name == 'mobile: clickGesture': element.click()
+        elif name == 'mobile: replaceElementValue':
+            self.values[element.id] = args['text']; self.typed.append((self.index, args['text']))
 
 
 class SignupEmailMethodTests(unittest.TestCase):
@@ -94,4 +116,4 @@ class SignupEmailMethodTests(unittest.TestCase):
         clock = count()
         with patch('zyon.android.time.monotonic', side_effect=lambda: next(clock)), patch.object(phone.cancel, 'wait', return_value=False):
             with self.assertRaises(CompanionError) as caught: phone.create_account(SETTINGS)
-        self.assertEqual(caught.exception.code, 'SCREEN_NOT_RECOGNIZED'); self.assertEqual(len(driver.clicks), 1); self.assertEqual(driver.typed, [])
+        self.assertEqual(caught.exception.code, 'NATIVE_TRANSITION_UNCONFIRMED'); self.assertEqual(len(driver.clicks), 2); self.assertEqual(len(driver.scripts), 1); self.assertEqual(driver.typed, [])
