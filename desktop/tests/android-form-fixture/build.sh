@@ -7,7 +7,9 @@ fixture_sdk="${ANDROID_HOME:?Android SDK is required}"
 fixture_tools="$fixture_sdk/build-tools/35.0.0"
 mkdir -p "$fixture_out/classes" "$fixture_out/dex"
 javac -encoding UTF-8 -source 8 -target 8 -classpath "$fixture_sdk/platforms/android-34/android.jar" -d "$fixture_out/classes" "$fixture_root/MainActivity.java"
-mapfile -t fixture_classes < <(rg --files "$fixture_out/classes" -g '*.class')
+shopt -s globstar nullglob
+fixture_classes=("$fixture_out/classes"/**/*.class)
+if (( ${#fixture_classes[@]} == 0 )); then echo 'Fixture compilation produced no classes.' >&2; exit 1; fi
 "$fixture_tools/d8" --min-api 23 --lib "$fixture_sdk/platforms/android-34/android.jar" --output "$fixture_out/dex" "${fixture_classes[@]}"
 "$fixture_tools/aapt2" link -o "$fixture_out/unsigned.apk" --manifest "$fixture_root/AndroidManifest.xml" -I "$fixture_sdk/platforms/android-34/android.jar"
 (cd "$fixture_out/dex" && zip -q -j "$fixture_out/unsigned.apk" classes.dex)
