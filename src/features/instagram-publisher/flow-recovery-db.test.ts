@@ -26,7 +26,7 @@ beforeAll(async()=>{
  const old=file("migrations/20261112020647_isolate_flow_account_and_media_failures.sql");
  for(const name of ['ig_flow_account_ready','ig_flow_media_skipped']) await db.exec(definition(old,name));
  await db.exec(definition(file("migrations/20261113085700_share_active_instagram_flows.sql"),'ig_flow_destination_ready'));
- await db.exec(file("migrations/20261116190813_flow_queue_recovery.sql"));
+ await db.exec(file("migrations/20261116191940_flow_queue_recovery.sql"));
 },30000);
 beforeEach(async()=>{
  await db.exec('truncate ig_publication_jobs,ig_flows,ig_publisher_connections,ig_account_health,ig_flow_shared_accounts,ig_meta_apps,ig_flow_library');
