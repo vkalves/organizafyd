@@ -10,7 +10,7 @@ ALLOWED_ROOT = {'README.md','requirements.txt','start.cmd','setup-appium.cmd','s
 
 def build():
     OUTPUT.mkdir(exist_ok=True)
-    target = OUTPUT / 'Zyon-Desktop-Source-2.0.1.zip'
+    target = OUTPUT / 'Zyon-Desktop-Source-2.0.2.zip'
     paths = sorted(path for path in ROOT.rglob('*') if path.is_file()
         and (path.relative_to(ROOT).as_posix() in ALLOWED_ROOT
              or path.relative_to(ROOT).parts[0] in ('zyon','tests') and path.suffix in ('.py','.html','.js','.css','.ps1','.json')

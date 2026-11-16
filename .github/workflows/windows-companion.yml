@@ -40,31 +40,36 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: Zyon-Desktop-Source-2.0.1
+          name: Zyon-Desktop-Source-2.0.2
           path: desktop/dist/*
           if-no-files-found: error
           retention-days: 30
 
   installer:
+    needs: desktop-executable
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/download-artifact@v4
         with:
-          python-version: '3.12'
-      - name: Install actual isolated toolchain and companion requirements
+          name: Zyon-Desktop-Windows-2.0.2
+          path: ${{ runner.temp }}/Zyon Desktop & runtime check
+      - name: Install actual isolated toolchain from packaged application
         shell: powershell
-        run: ./desktop/install-requirements.ps1
+        run: '& (Join-Path $env:RUNNER_TEMP ''Zyon Desktop & runtime check\install-requirements.ps1'')'
       - name: Verify rerun and dependency checks
         shell: powershell
         run: |
-          ./desktop/install-requirements.ps1
+          $folder = Join-Path $env:RUNNER_TEMP 'Zyon Desktop & runtime check'
+          & (Join-Path $folder 'install-requirements.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./desktop/launch.ps1 -Mode Prepare
-      - name: Start Appium and companion using the installed dependencies
+          & (Join-Path $folder 'launch.ps1') -Mode Prepare
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path (Join-Path $folder '.venv')) { throw 'Packaged install should not create a separate Python environment.' }
+      - name: Start real Appium through the packaged desktop runtime
         shell: powershell
-        run: ./desktop/tests/installer-smoke.ps1
+        run: ./desktop/tests/installer-smoke.ps1 -AppDirectory (Join-Path $env:RUNNER_TEMP 'Zyon Desktop & runtime check')
 
   desktop-executable:
     runs-on: windows-latest
@@ -99,13 +104,13 @@ jobs:
           if (Test-Path 'desktop/dist/Zyon/.venv') { throw 'Packaged app should not create a separate Python environment.' }
       - uses: actions/upload-artifact@v4
         with:
-          name: Zyon-Desktop-Windows-2.0.1
+          name: Zyon-Desktop-Windows-2.0.2
           path: desktop/dist/Zyon/
           if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@v4
         with:
-          name: Zyon-Desktop-Preview-2.0.1
+          name: Zyon-Desktop-Preview-2.0.2
           path: desktop/dist/native-window.png
           if-no-files-found: error
           retention-days: 30

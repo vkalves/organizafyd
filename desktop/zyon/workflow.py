@@ -95,7 +95,7 @@ class Workflow:
         self.phone_factory, self.browser_factory = phone_factory, browser_factory
         self.lock = threading.RLock()
         self.cancel = threading.Event(); self.continue_event = threading.Event()
-        self.runtime = runtime or Runtime(self.cancel)
+        self.runtime = runtime or Runtime(self.cancel, root=self.root)
         self.state = {'status': 'idle', 'phase': 'ready', 'message': 'Ready to configure a workflow.', 'username': '', 'pauseId': None, 'events': [], 'result': None}
         self.thread = None
         self.journal = {}
