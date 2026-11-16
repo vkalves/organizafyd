@@ -125,3 +125,12 @@ class GmailRequestTests(unittest.TestCase):
             request.assert_not_called()
 
 if __name__=='__main__': unittest.main()
+
+class GmailPreflightTests(unittest.TestCase):
+    def test_live_profile_must_match_cached_authorized_mailbox(self):
+        from unittest.mock import Mock
+        vault=MemoryVault();vault.put('gmail',{'mailbox':'owner@gmail.com','credentials':{}})
+        client=Gmail(vault);client.request=Mock(return_value={'emailAddress':'other@gmail.com'})
+        with self.assertRaises(CompanionError) as caught:client.verify()
+        self.assertEqual(caught.exception.code,'WRONG_MAILBOX')
+        client.request.assert_called_once_with('profile')
