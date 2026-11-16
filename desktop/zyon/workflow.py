@@ -38,7 +38,7 @@ def configuration(values):
             raise CompanionError('INVALID_IDENTIFIER', 'Na aba FLUXO, selecione um aplicativo Meta disponível.', field='meta_app_id') from None
     required = {
         'instagram_password': 'Na aba DADOS, preencha a senha do Instagram.',
-        'tester_app_name': 'Na aba FLUXO, preencha “Nome do app no convite”. Copie o nome exibido no convite de testador do Instagram; ele pode ser diferente do nome no AVANÇA.',
+        'tester_app_name': 'Na aba FLUXO, preencha “Nome do app no convite”. Informe o nome público do aplicativo no Meta Developers, como ele aparecerá no convite de testador do Instagram. Ele pode ser diferente do nome no AVANÇA.',
         'serial': 'Na aba ADB, consulte os dispositivos e selecione seu telefone autorizado.',
     }
     for field, message in required.items():

@@ -168,7 +168,7 @@ class Desktop:
         self.flow_combo = self.field(flow, 'Fluxo ativo existente', 'flow_choice', choices=[])
         self.app_combo = self.field(flow, 'Aplicativo Meta', 'app_choice', choices=[])
         self.field(flow, 'Nome do app no convite', 'tester_app_name')
-        ttk.Label(flow, text='Obrigatório: copie o nome exibido no convite de testador, na área de convites de aplicativos do Instagram. Pode ser diferente do nome cadastrado no AVANÇA.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=(0, 8))
+        ttk.Label(flow, text='Obrigatório: informe o nome público do app no Meta Developers, como aparecerá no convite de testador do Instagram. O convite será enviado na pausa do fluxo. O nome pode diferir do cadastro no AVANÇA.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=(0, 8))
         ttk.Label(flow, text='A automação pausará antes de aceitar o convite. O @ verificado aparecerá na janela; envie o convite pela Meta e clique em Continuar aqui.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=12)
 
         program = self.tab('PROGRAMA', 'Instalação e execução', 'Aplicativo nativo para Windows. Os componentes de controle são gerenciados pelo próprio programa.')
