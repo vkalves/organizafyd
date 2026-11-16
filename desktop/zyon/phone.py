@@ -10,7 +10,9 @@ import time
 import unicodedata
 from .android import Android, Screen, EDIT, NEXT, PACKAGE, xpath_literal
 from .errors import CompanionError
-from .native_forms import NativeForms
+from .native_forms import NativeForms, attribute
+
+EMAIL_CODE = ('Enter confirmation code', 'Insira o código de confirmação', 'Enter security code', 'Insira o código de segurança', 'Enter code', 'Insira o código', 'Digite o código', 'Código de confirmação', 'Confirmation code')
 
 SIGNUP_PHONE = ("What's your mobile number?", "What's your phone number?", 'Qual é o número do seu celular?', 'Qual é seu número de celular?', 'Qual é o seu número de celular?')
 SIGNUP_EMAIL = ("What's your email?", "What's your email address?", 'Qual é seu email?', 'Qual é seu e-mail?', 'Qual é o seu email?', 'Qual é o seu e-mail?', 'Qual é o seu endereço de email?', 'Qual é o seu endereço de e-mail?')
@@ -25,6 +27,39 @@ class Phone(Android):
         self.pause_seconds = 0
         self.media_albums = {}
         self.forms = NativeForms(self)
+
+    def screen(self):
+        # Handle only recognized interruptions, with a finite action budget per read.
+        permission_packages = ('com.android.permissioncontroller', 'com.google.android.permissioncontroller', 'com.android.packageinstaller')
+        for _ in range(4):
+            if self.cancel.is_set(): raise CompanionError('CANCELLED', 'Workflow stopped.')
+            package = self.driver.current_package
+            if package in permission_packages:
+                current = Screen(self.driver.page_source)
+                # A notification permission is optional. Other permissions are left unchanged.
+                text = ' '.join(t for n in current.nodes for t in current.labels(n)).casefold()
+                if not any(word in text for word in ('notification', 'notifica')): return super().screen()
+                buttons = [e for e in self.driver.find_elements('id', package + ':id/permission_deny_button') if e.is_displayed() and e.is_enabled()]
+                if len(buttons) != 1: return super().screen()
+                buttons[0].click(); self.cancel.wait(.2); continue
+            current = super().screen()
+            if self.forms.security(current): return current
+            contexts = (
+                (('Save your login info?', 'Save your login information?', 'Salvar suas informações de login?', 'Salvar informações de login?'), ('Not now', 'Agora não')),
+                (('Turn on notifications', 'Ativar notificações', 'Ative as notificações'), ('Not now', 'Agora não')),
+                (('Find Facebook friends', 'Encontrar amigos do Facebook', 'Find contacts', 'Encontrar contatos'), ('Skip', 'Pular', 'Not now', 'Agora não')),
+            )
+            action = next((labels for headings, labels in contexts if self.forms.has(current, headings)), None)
+            controls = current.controls(self.forms.actual_labels(current, action)) if action else []
+            if len(controls) != 1: return current
+            node = controls[0]
+            terms = ['@' + key + '=' + xpath_literal(node.get(key)) for key in ('resource-id', 'text', 'content-desc') if node.get(key)]
+            elements = [e for e in self.driver.find_elements('xpath', '//*[' + ' and '.join(terms) + ']') if e.is_displayed() and e.is_enabled()]
+            if len(elements) != 1: return current
+            elements[0].click()
+            self.progress('native_interruption_recovered', 'Dismissed a recognized optional Instagram prompt.')
+            self.cancel.wait(.2)
+        raise CompanionError('INTERRUPTION_LIMIT', 'The same interruption persisted after bounded recovery.')
 
     def clock(self): return time.monotonic() - self.pause_seconds
 
@@ -63,12 +98,16 @@ class Phone(Android):
         fields[0].clear(); fields[0].send_keys(value)
 
     def fill_code(self, value):
+        if not isinstance(value, str) or not re.fullmatch(r'[0-9]{6}', value):
+            raise CompanionError('INVALID_EMAIL_CODE', 'Expected a six-digit email code.')
         self.screen()
-        fields = self.inputs()
-        if len(fields) == 1: fields[0].send_keys(value)
-        elif len(fields) == 6:
-            for field, digit in zip(fields, value): field.send_keys(digit)
-        else: raise CompanionError('NATIVE_CODE_UNCERTAIN', 'Instagram code fields were not uniquely recognized.')
+        fields = self.forms.inputs()
+        if len(fields) not in (1, 6):
+            raise CompanionError('NATIVE_CODE_UNCERTAIN', 'Instagram code fields were not uniquely recognized.')
+        for field, text in zip(fields, (value,) if len(fields) == 1 else value):
+            field.click(); field.clear(); field.send_keys(text)
+            if attribute(field, 'text').strip() != text:
+                raise CompanionError('NATIVE_INPUT_UNCONFIRMED', 'Verification code input was not confirmed; no submission was sent.')
 
     def login_existing(self, settings):
         screen = self.screen()
@@ -95,10 +134,10 @@ class Phone(Android):
                 continue
             if screen.has(EDIT) or self.resource('profile_tab'):
                 self.profile(settings['username']); return
-            if screen.has(('Enter confirmation code', 'Insira o código de confirmação', 'Enter security code', 'Insira o código de segurança')):
+            if self.forms.has(screen, EMAIL_CODE):
                 code = self.gmail.wait_code(settings['email_sender'], settings['recipient'], since, self.cancel)
                 self.fill_code(code['code']); code.clear(); self.forms.click(NEXT)
-                self.forms.wait_for(lambda s: not self.forms.has(s, ('Enter confirmation code', 'Insira o código de confirmação', 'Enter security code', 'Insira o código de segurança')), 'O Instagram não confirmou o código. Ele não será enviado repetidamente.')
+                self.forms.wait_for(lambda s: not self.forms.has(s, EMAIL_CODE), 'O Instagram não confirmou o código. Ele não será enviado repetidamente.')
             elif self.forms.has(screen, ('Not now', 'Agora não')): self.forms.click(('Not now', 'Agora não'))
             self.cancel.wait(.5)
         raise CompanionError('NATIVE_LOGIN_UNCONFIRMED', 'Native Instagram login did not reach a verified profile.')
@@ -153,16 +192,32 @@ class Phone(Android):
 
     def birthday(self, birthday):
         desired = date.fromisoformat(birthday)
-        labels = ('Set date', 'Definir data', 'Date of birth', 'Data de nascimento')
+        labels = ('Set date', 'Definir data', 'Date of birth', 'Data de nascimento', 'Birthday', 'Aniversário')
         if self.screen().has(labels): self.click(labels)
         elif len(self.inputs()) == 1: self.inputs()[0].click()
         else:
             self.pause('birthday_picker', 'Set and confirm your configured date of birth (' + birthday + ') on the phone, then Continue.')
             return
+        self.cancel.wait(.3)
         # Date picker is an Android system dialog, so read only its known hierarchy.
         picker = Screen(self.driver.page_source)
         if self.driver.current_package not in (PACKAGE, 'android'):
             raise CompanionError('BIRTHDAY_PICKER_UNCERTAIN', 'An unexpected date-picker application opened.')
+        # Prefer the Android text-entry picker when exposed; it avoids year scrolling.
+        toggles = [e for e in self.driver.find_elements('id', 'android:id/toggle_mode') if e.is_displayed() and e.is_enabled()]
+        if len(toggles) == 1:
+            toggles[0].click()
+            fields = [e for e in self.driver.find_elements('id', 'android:id/date_picker_input') if e.is_displayed() and e.is_enabled()]
+            if len(fields) == 1:
+                hint = attribute(fields[0], 'hint').upper()
+                if hint in ('MM/DD/YYYY', 'DD/MM/YYYY', 'DD/MM/AAAA'):
+                    value = desired.strftime('%m/%d/%Y' if hint == 'MM/DD/YYYY' else '%d/%m/%Y')
+                    fields[0].clear(); fields[0].send_keys(value)
+                    if attribute(fields[0], 'text') == value:
+                        buttons = [e for e in self.driver.find_elements('id', 'android:id/button1') if e.is_displayed() and e.is_enabled()]
+                        if len(buttons) == 1: buttons[0].click(); return
+            toggles = self.driver.find_elements('id', 'android:id/toggle_mode')
+            if len(toggles) == 1: toggles[0].click()
         values = {'year': str(desired.year), 'month': str(desired.month), 'day': str(desired.day)}
         complete = True
         for name, value in values.items():
@@ -189,7 +244,7 @@ class Phone(Android):
     def create_account(self, settings):
         headings = {
             'email': SIGNUP_EMAIL,
-            'code': ('Enter confirmation code', 'Insira o código de confirmação'),
+            'code': EMAIL_CODE,
             'password': ('Create a password', 'Crie uma senha'),
             'birthday': ("What's your birthday?", 'Qual é sua data de nascimento?', 'Qual é a sua data de nascimento?'),
             'name': ("What's your name?", 'Qual é seu nome?', 'Qual é o seu nome?'),
@@ -231,7 +286,13 @@ class Phone(Android):
             if current == 'email':
                 self.fill_one(settings['recipient'], 'email', guard); since = time.time() * 1000; self.forms.click(NEXT)
             elif current == 'code':
-                if since is None: raise CompanionError('EMAIL_CHALLENGE_UNBOUND', 'The native email challenge has no fresh request timestamp.')
+                if since is None:
+                    resend = ('Resend code', 'Resend confirmation code', 'Reenviar código', 'Reenviar código de confirmação')
+                    if not self.forms.has(screen, resend):
+                        raise CompanionError('EMAIL_CHALLENGE_UNBOUND', 'The native email challenge has no fresh request timestamp or available resend control.')
+                    since = time.time() * 1000
+                    self.forms.click(resend)
+                    self.progress('native_email_requested', 'Requested one fresh code for the existing email screen.')
                 code = self.gmail.wait_code(settings['email_sender'], settings['recipient'], since, self.cancel)
                 self.fill_code(code['code']); code.clear(); self.forms.click(NEXT)
             elif current == 'password': self.fill_one(settings['instagram_password'], 'password', guard); self.forms.click(NEXT)
@@ -266,11 +327,19 @@ class Phone(Android):
         self.wait(lambda s: s.has(('Bio', 'Biografia')), 'Edit-profile bio control was not recognized.')
         self.click(('Bio', 'Biografia'))
         self.wait(lambda s: bool(self.inputs()), 'Bio input did not open.')
-        self.fill_one(value)
-        self.click(('Done', 'Concluir', 'Save', 'Salvar'))
-        self.wait(lambda s: s.has(('Bio', 'Biografia')), 'Bio save was not confirmed.')
-        self.driver.back(); self.profile(expected)
-        if value not in ' '.join(v for n in self.screen().nodes for v in self.screen().labels(n)):
+        field = self.inputs()
+        if len(field) != 1: raise CompanionError('BIO_FIELD_UNCERTAIN', 'Bio input is ambiguous.')
+        field[0].click(); field[0].clear(); field[0].send_keys(value)
+        if attribute(field[0], 'text').replace('\r\n', '\n') != value.replace('\r\n', '\n'):
+            raise CompanionError('BIO_INPUT_UNCONFIRMED', 'Bio text did not match; save was not submitted.')
+        self.forms.click(('Done', 'Concluir', 'Save', 'Salvar', 'Concluído'))
+        self.wait(lambda s: s.has(('Bio', 'Biografia')) or s.has(EDIT), 'Bio save was not confirmed.')
+        current = self.screen()
+        if not current.has(EDIT) and self.forms.has(current, ('Done', 'Concluir', 'Save', 'Salvar', 'Concluído')):
+            self.forms.click(('Done', 'Concluir', 'Save', 'Salvar', 'Concluído'))
+            self.wait(lambda s: s.has(EDIT), 'Edit-profile save was not confirmed.')
+        self.profile(expected)
+        if ' '.join(value.split()) not in ' '.join(v for n in self.screen().nodes for v in self.screen().labels(n)).replace('\n', ' '):
             raise CompanionError('BIO_UNCONFIRMED', 'Saved bio was not visible on the profile.')
 
     def professional(self, expected, category):

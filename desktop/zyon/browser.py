@@ -195,6 +195,20 @@ class Browser:
             self.cancel.wait(.5)
         raise CompanionError('INSTAGRAM_LOGIN_UNCONFIRMED', 'Chrome login was not confirmed within the deadline.')
 
+    def invitation_pending(self, app_name):
+        """Read-only polling while the invitation is sent from Meta Developers."""
+        self.guard(INSTAGRAM)
+        self.page.goto('https://www.instagram.com/accounts/manage_access/', wait_until='domcontentloaded')
+        tab = self.page.get_by_text(re.compile('^(Tester invites|Tester invitations|Convites do testador)$', re.I))
+        if tab.count() == 1 and tab.is_visible(): tab.click()
+        label = self.page.get_by_text(app_name, exact=True)
+        if label.count() != 1 or not label.is_visible(): return False
+        row = label
+        for _ in range(5):
+            row = row.locator('..')
+            if self.button(('Accept', 'Aceitar'), row) or self.button(('Remove', 'Remover'), row): return True
+        return False
+
     def tester_invitation(self, app_name):
         if not isinstance(app_name, str) or not app_name.strip() or len(app_name) > 150:
             raise CompanionError('TESTER_APP_REQUIRED', 'Enter the exact tester-invitation app name from Meta.')

@@ -16,7 +16,7 @@ from . import __version__
 from .android import devices
 from .avanca import Avanca
 from .errors import CompanionError
-from .gmail import Gmail
+from .hostinger import Mailbox as Gmail
 from .runtime import application_dir, data_dir, load_runtime
 from .vault import Vault
 from .workflow import Workflow, configuration
@@ -123,7 +123,7 @@ class Desktop:
         self.field(data, 'Nome do perfil', 'full_name')
         self.field(data, 'Data de nascimento real', 'birthday', '')
         ttk.Label(data, text='DD/MM/AAAA ou AAAA-MM-DD (ex.: 04/09/2006 = 4 de setembro de 2006).', style='Muted.TLabel').pack(anchor='w')
-        self.field(data, '@ esperado', 'username')
+        self.field(data, '@ base (novas contas recebem 3 dígitos)', 'username')
         self.field(data, 'Senha do Instagram', 'instagram_password', secret=True)
         ttk.Button(data, text='Gerar senha forte e candidato de @ a partir do nome', command=self.generate).pack(anchor='w', pady=12)
         self.field(data, 'Email da conta Instagram', 'recipient')
@@ -142,7 +142,11 @@ class Desktop:
         self.field(publish, 'Nome do destaque', 'highlight')
         ttk.Label(publish, text='Sem mídia selecionada, a etapa de publicação é pulada. Uma submissão incerta fica bloqueada para revisão e não é reenviada automaticamente.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=15)
 
-        mail = self.tab('EMAIL', 'Verificação automática por Gmail', 'Autorize uma vez. Durante a execução, o app recupera o código fresco e o preenche no Instagram automaticamente.')
+        mail = self.tab('EMAIL', 'Verificação automática de email', 'Autorize uma vez. Durante a execução, o app recupera o código fresco e o preenche no Instagram automaticamente.')
+        self.field(mail, 'Caixa Hostinger', 'hostinger_mailbox')
+        self.field(mail, 'Senha da caixa Hostinger', 'hostinger_password', secret=True)
+        hostinger_button = ttk.Button(mail, text='Conectar Hostinger', command=self.connect_hostinger)
+        hostinger_button.pack(anchor='w'); self.entries.append(hostinger_button)
         self.field(mail, 'Caixa Gmail autorizada', 'gmail_mailbox')
         self.pick(mail, 'Cliente OAuth Google Desktop', 'google_client_file', [('JSON OAuth', '*.json')])
         self.field(mail, 'Remetente exato do código', 'email_sender', 'security@mail.instagram.com')
@@ -201,7 +205,7 @@ class Desktop:
         self.values['instagram_password'].set(secrets.token_urlsafe(20))
         name = unicodedata.normalize('NFKD', self.values['full_name'].get()).encode('ascii', 'ignore').decode().lower()
         base = re.sub('[^a-z0-9]', '', name)[:22]
-        if base: self.values['username'].set(base + str(secrets.randbelow(90000) + 10000))
+        if base: self.values['username'].set(base)
 
     def busy(self):
         return (self.workflow.thread is not None and self.workflow.thread.is_alive()) or self.workflow.snapshot()['status'] in ('running', 'paused', 'resuming') or self.task is not None and self.task.is_alive()
@@ -215,12 +219,22 @@ class Desktop:
             except Exception: self.responses.put((kind, None, 'Operação não confirmada. Confira os requisitos e a conexão; dados sensíveis não foram registrados.'))
         self.task = threading.Thread(target=run, daemon=True); self.task.start()
 
+    def connect_hostinger(self):
+        mailbox, password = self.values['hostinger_mailbox'].get(), self.values['hostinger_password'].get()
+        def work():
+            result = self.gmail.hostinger.connect(mailbox, password)
+            self.gmail.use('hostinger')
+            return result
+        self.background('Verificando Hostinger IMAP…', work, 'gmail')
+
     def connect_gmail(self):
         path, mailbox = self.values['google_client_file'].get(), self.values['gmail_mailbox'].get()
         def work():
             file = Path(path)
             if not file.is_file() or file.stat().st_size > 20000: raise CompanionError('CLIENT_REQUIRED', 'Selecione o JSON OAuth Desktop do Google.')
-            return self.gmail.connect(json.loads(file.read_text(encoding='utf-8-sig')), mailbox)
+            result = self.gmail.connect(json.loads(file.read_text(encoding='utf-8-sig')), mailbox)
+            self.gmail.use('gmail')
+            return result
         self.background('Conclua o consentimento Google no navegador que abrir.', work, 'gmail')
 
     def connect_avanca(self):
@@ -292,8 +306,8 @@ class Desktop:
         try:
             self.saved = self.vault.get('desktop-profiles') or {}
             status = self.gmail.status()
-            self.gmail_label.configure(text=('Gmail conectado: ' + status['mailbox']) if status['connected'] else 'Conecte o Gmail antes de iniciar.')
-            if status.get('mailbox'): self.values['gmail_mailbox'].set(status['mailbox'])
+            self.gmail_label.configure(text=('Email conectado: ' + status['mailbox']) if status['connected'] else 'Conecte Gmail ou Hostinger antes de iniciar.')
+            if status.get('mailbox'): self.values['hostinger_mailbox' if self.gmail.provider == 'hostinger' else 'gmail_mailbox'].set(status['mailbox'])
         except CompanionError:
             self.saved = {}; self.gmail_label.configure(text='Cofre Windows indisponível neste ambiente.')
         self.paint_library()
@@ -339,7 +353,7 @@ class Desktop:
             try: kind, result, failure = self.responses.get_nowait()
             except queue.Empty: break
             if failure: self.status.configure(text=failure); messagebox.showerror('Operação interrompida', failure, parent=self.root)
-            elif kind == 'gmail': self.gmail_label.configure(text='Gmail conectado: ' + result['mailbox']); self.status.configure(text='Gmail pronto para recuperar códigos automaticamente.')
+            elif kind == 'gmail': self.gmail_label.configure(text='Email conectado: ' + result['mailbox']); self.status.configure(text='Email pronto para recuperar códigos automaticamente.')
             elif kind == 'catalog':
                 self.flow_map = {f['name'] + ' · ' + f['id'][:8]: f['id'] for f in result['flows']}
                 self.app_map = {a['name'] + ' · ' + a['id'][:8]: a['id'] for a in result['apps']}
