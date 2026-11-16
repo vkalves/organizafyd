@@ -274,6 +274,13 @@ class Browser:
             host = urlsplit(self.page.url).hostname
             if host in INSTAGRAM and self.challenges(recipient, sender, stamp): continue
             text = self.text()
+            if host in SITE:
+                choices = self.page.get_by_role('radio', name='@' + self.username, exact=True)
+                if choices.count() == 1 and choices.is_visible():
+                    choices.check()
+                    button = self.button(('Conectar perfil escolhido',))
+                    if button:
+                        button.click(); self.cancel.wait(1); continue
             if host in META:
                 if any(title in text.lower() for title in ('select the business assets', 'selecione os ativos de negócios')):
                     if self.choose_unique_assets():

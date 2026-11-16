@@ -39,6 +39,13 @@ def configuration(values):
         age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
         if age < 18 or age > 120: raise CompanionError('INVALID_BIRTHDAY', 'Configure an adult date of birth for this account.')
         if not result.get('full_name', '').strip(): raise CompanionError('NAME_REQUIRED', 'Enter the account profile name.')
+    if result.get('proxy'):
+        try:
+            proxy = urlsplit(result['proxy'].get('server', ''))
+            valid = proxy.scheme in ('http', 'https', 'socks5') and proxy.hostname and not proxy.username and not proxy.password and proxy.path in ('', '/') and not proxy.query and not proxy.fragment
+            if proxy.port is not None and not 1 <= proxy.port <= 65535: valid = False
+        except (ValueError, AttributeError): valid = False
+        if not valid: raise CompanionError('INVALID_PROXY', 'Configure a plain HTTP/HTTPS/SOCKS5 proxy server URL; keep credentials in the separate fields.')
     if result.get('story_link'):
         parsed = urlsplit(result['story_link'])
         if parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password:

@@ -186,7 +186,7 @@ class Phone(Android):
             screen = self.screen()
             if screen.has(EDIT) or self.resource('profile_tab'):
                 self.profile(settings['username'])
-                self.progress('native_created', 'Created Instagram account confirmed from its own profile.')
+                self.progress('native_created' if 'terms' in handled else 'native_identity', 'The configured Instagram account was confirmed from its own profile.')
                 return
             if screen.has(('Create new account', 'Criar nova conta')):
                 self.click(('Create new account', 'Criar nova conta')); self.cancel.wait(.5); continue

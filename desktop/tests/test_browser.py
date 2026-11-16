@@ -43,3 +43,15 @@ class BrowserTests(unittest.TestCase):
   self.worker.page.goto('https://www.instagram.com/same.account/')
   self.worker.page.set_content('<select><option value="first">Portfolio one</option><option value="second">Portfolio two</option></select>same.account')
   self.assertFalse(self.worker.choose_unique_assets())
+ def test_callback_selects_only_the_expected_instagram_profile(self):
+  from zyon.errors import CompanionError
+  def serve(route):
+   route.fulfill(status=200,content_type='text/html',body='''<label><input id="same" type="radio" name="profile">@same.account</label><label><input type="radio" name="profile">@other.account</label><button onclick="if(document.querySelector('#same').checked)document.body.innerHTML='Connected'">Conectar perfil escolhido</button>''')
+  self.context.unroute('**/*');self.context.route('**/*',serve)
+  worker=self.worker
+  class Platform:
+   def preflight(self,username):
+    if 'Connected' not in worker.page.locator('body').inner_text():raise CompanionError('ACCOUNT_NOT_CONNECTED','Pending connection')
+    return {'username':username,'graphId':'12345678'}
+  result=worker.authorize('https://www.organizafy.site/instagram/conectar#invite=fixture',Platform(),'owner@example.com','security@mail.instagram.com')
+  self.assertEqual(result['username'],'same.account')

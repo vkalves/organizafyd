@@ -86,3 +86,5 @@ class WorkflowTests(unittest.TestCase):
   self.assertFalse(self.workflow.resume(first['pauseId']));self.assertEqual(self.calls.count('sync'),1)
   self.workflow.resume(current['pauseId']);self.workflow.thread.join(timeout=3)
   self.assertEqual(self.workflow.snapshot()['status'],'completed');self.assertEqual(self.calls.count('sync'),2)
+ def test_bad_proxy_is_rejected_before_any_external_stage(self):
+  with self.assertRaises(CompanionError):configuration({**SETTINGS,'proxy':{'server':'http://proxy.example/path?token=value'}})
