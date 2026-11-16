@@ -15,6 +15,18 @@ class Hostinger:
         self.vault, self.factory = vault, factory or imaplib.IMAP4_SSL
         self.used = set()
 
+    @staticmethod
+    def release(client, timeout=1):
+        # A slow LOGOUT must not delay code entry or hold a failed TLS socket open.
+        try:
+            client.sock.settimeout(timeout)
+            client.logout()
+        except Exception:
+            pass
+        finally:
+            try: client.shutdown()
+            except Exception: pass
+
     def status(self):
         data = self.vault.get('hostinger') or {}
         return {'connected': bool(data.get('password')), 'mailbox': data.get('mailbox', '')}
@@ -28,8 +40,7 @@ class Hostinger:
             client.login(data['mailbox'], data['password'])
             return client
         except Exception:
-            try: client.logout()
-            except Exception: pass
+            self.release(client)
             raise
 
     def connect(self, mailbox, password):
@@ -56,9 +67,7 @@ class Hostinger:
         except (imaplib.IMAP4.error, OSError):
             raise CompanionError('HOSTINGER_CONNECTION', 'Hostinger IMAP login failed. Check mailbox credentials and IMAP access.') from None
         finally:
-            if client:
-                try: client.logout()
-                except Exception: pass
+            if client: self.release(client)
 
     @staticmethod
     def folders(client, request):
@@ -101,8 +110,7 @@ class Hostinger:
         def close():
             nonlocal client
             if client:
-                try: client.logout()
-                except Exception: pass
+                self.release(client, timeout=min(1, max(.1, deadline-time.monotonic())))
                 client = None
 
         def request(method, *args, **kwargs):

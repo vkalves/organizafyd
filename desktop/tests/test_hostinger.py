@@ -184,3 +184,10 @@ class HostingerTests(unittest.TestCase):
         bodies = [call for call in self.client.uid.call_args_list if call.args == ('fetch', b'7', '(BODY.PEEK[]<0.2097153>)')]
         self.assertEqual(len(bodies), 1)
         self.client.logout.assert_called_once()
+
+    def test_slow_logout_has_short_timeout_and_always_closes_socket(self):
+        self.client.logout.side_effect = OSError('fixture logout timeout')
+        result = self.mail.wait_code('security@mail.instagram.com', 'owner@example.com', time.time()*1000-2000, threading.Event())
+        self.assertEqual(result['code'], '123456')
+        self.client.sock.settimeout.assert_called_with(1)
+        self.client.shutdown.assert_called_once()
