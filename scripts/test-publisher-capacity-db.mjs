@@ -42,6 +42,13 @@ try {
  psql(migration('_publisher_capacity.sql'));
  psql(migration('_publisher_dispatch.sql'));
  psql(migration('_publisher_account_fairness.sql'));
+ psql(`alter table ig_publication_jobs add column created_at timestamptz default now(),add column media_id text;
+ alter table ig_flows add column created_at timestamptz default now();
+ alter table ig_publisher_connections add column provider text default 'facebook',add column meta_app_id uuid;
+ create table ig_meta_apps(id uuid,user_id uuid,app_id text);
+ create table ig_flow_shared_accounts(flow_id uuid,account_id uuid,account_owner uuid);
+ create function avanca_account_status(uuid) returns text language sql as $$ select 'approved'::text $$;`);
+ psql(migration('_flow_queue_recovery.sql'));
  psql(`insert into ig_publisher_connections(account_id,user_id) select gen_random_uuid(),gen_random_uuid() from generate_series(1,1000);
  insert into ig_flows(id,user_id,settings) select account_id,user_id,'{"gapMinutes":3}' from ig_publisher_connections;
  insert into ig_publication_jobs(user_id,account_id,flow_id,caption,format,media_urls,scheduled_at)
