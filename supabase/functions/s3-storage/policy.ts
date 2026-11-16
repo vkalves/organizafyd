@@ -31,6 +31,9 @@ export function validPath(value: unknown): value is string {
 export function ownsPath(user: string, path: string) {
   return path.startsWith(user + "/");
 }
+export function validServerCopy(admin: boolean, source: unknown, path: unknown) {
+  return admin && validPath(source) && validPath(path) && source !== path;
+}
 export function uploadAllowed(bucket: Bucket, type: string, size: number) {
   const policy = buckets[bucket];
   return Number.isSafeInteger(size) && size > 0 && size <= policy.max &&

@@ -594,6 +594,7 @@ Deno.serve(async (req) => {
         "library_revoke",
         "library_browse",
         "library_download",
+        "library_import",
       ].includes(body.action)
     ) {
       return reply(
@@ -602,6 +603,7 @@ Deno.serve(async (req) => {
           user.id,
           body,
           signed,
+          fileStorage.from("instagram-publisher"),
         ),
       );
     }

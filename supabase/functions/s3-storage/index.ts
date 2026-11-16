@@ -1,6 +1,7 @@
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 import {
+  CopyObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -15,8 +16,11 @@ import {
   uploadAllowed,
   validBucket,
   validPath,
+  validServerCopy,
 } from "./policy.ts";
 import { reserveStorage, syncStorageInventory } from "./quota.ts";
+import { copyStoredObject, recentInventories } from "./copy.ts";
+const copyInventory = recentInventories();
 const base = Deno.env.get("SUPABASE_URL")!;
 const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db = createClient(base, service, {
@@ -125,6 +129,9 @@ Deno.serve(async (req) => {
       ) return reply({ error: "unauthorized" }, 401);
       admin = true;
     }
+    if (body.action === "copy" && !validServerCopy(admin, body.source, body.path)) {
+      return reply({ error: "forbidden" }, 403);
+    }
     const paths = body.action === "remove" ? body.paths : [body.path];
     if (
       body.action !== "list" &&
@@ -154,6 +161,37 @@ Deno.serve(async (req) => {
     const inventory = (owner: string) => syncStorageInventory(db, owner, (prefix, continuation) => s3.send(new ListObjectsV2Command({
       Bucket: cfg.bucket, Prefix: prefix, ContinuationToken: continuation,
     })));
+    if (body.action === "copy") {
+      const owner = body.path.split("/")[0];
+      await copyStoredObject(bucket, {
+        inspect: async () => {
+          const object = await head(s3, cfg.bucket, `${bucket}/${body.source}`);
+          return object ? { size: object.ContentLength!, type: object.ContentType || "", etag: object.ETag || "" } : null;
+        },
+        inventory: () => copyInventory(owner, () => inventory(owner)),
+        reserve: size => reserveStorage(db, owner, bucket, body.path, size),
+        copy: async source => {
+          await s3.send(new CopyObjectCommand({
+            Bucket: cfg.bucket, Key: key,
+            CopySource: `${cfg.bucket}/${`${bucket}/${body.source}`.split("/").map(encodeURIComponent).join("/")}`,
+            CopySourceIfMatch: source.etag,
+            MetadataDirective: "REPLACE", ContentType: source.type,
+            CacheControl: buckets[bucket].public ? "public,max-age=300" : "no-store",
+          }));
+        },
+        legacyCopy: async () => {
+          const result = await db.storage.from(bucket).copy(body.source, body.path);
+          if (result.error) throw new Error(result.error.message.includes("storage_quota_exceeded") ? "storage_quota_exceeded" : "copy_failed");
+        },
+        cleanup: async () => {
+          const removed = await s3.send(new DeleteObjectsCommand({ Bucket: cfg.bucket, Delete: { Objects: [{ Key: key }] } }));
+          if (removed.Errors?.length) throw new Error("delete_failed");
+          const released = await db.rpc("avanca_storage_removed", { p_bucket: bucket, p_paths: [body.path] });
+          if (released.error) throw new Error("storage_release_failed");
+        },
+      });
+      return reply({ path: body.path });
+    }
     if (body.action === "quota") {
       const owner = body.path.split("/")[0];
       await inventory(owner);
@@ -370,6 +408,9 @@ Deno.serve(async (req) => {
     }
     return reply({ error: "invalid_action" }, 400);
   } catch (e) {
+    if (e instanceof Error && ["storage_quota_exceeded", "upload_pending", "invalid_upload"].includes(e.message)) {
+      return reply({ error: e.message }, e.message === "storage_quota_exceeded" ? 413 : 409);
+    }
     console.error(
       "aws_storage_request_failed",
       e instanceof Error ? e.name : "unknown",

@@ -9,10 +9,10 @@ export async function importSharedLibrary(ownerId: string, userId: string, optio
   // Collect every page before copying so deleting/retiring source rows during
   // uploads cannot shift pagination and silently skip a page of media.
   const ids = new Set<string>();
-  for (let offset = 0; ; offset += 50) {
-    const page = await publisherRequest<{ id: string }[]>("library_browse", { owner_id: ownerId, offset });
+  for (let offset = 0; ; offset += 500) {
+    const page = await publisherRequest<{ id: string }[]>("library_browse", { owner_id: ownerId, offset, ids_only: true });
     for (const media of page) ids.add(media.id);
-    if (page.length < 50) break;
+    if (page.length < 500) break;
   }
   const existing = new Set(options.alreadyImported);
   const pending = [...ids].filter((id) => !existing.has(id));
@@ -20,16 +20,21 @@ export async function importSharedLibrary(ownerId: string, userId: string, optio
   let completed = 0;
   let imported = 0;
   options.onProgress({ completed, total: pending.length });
-  // Keep only one media file in memory at a time, including large videos.
-  for (const id of pending) {
-    try {
-      await importSharedMedia(ownerId, id, userId);
-      imported++;
-      options.onImported(id);
-    } catch (error) {
-      failures.push({ id, message: error instanceof Error ? error.message : "Não foi possível importar esta mídia." });
+  // Only IDs cross the browser. Bound server-side copies to three lanes so
+  // large libraries move quickly without overwhelming Storage or Postgres.
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(3, pending.length) }, async () => {
+    while (cursor < pending.length) {
+      const id = pending[cursor++];
+      try {
+        await importSharedMedia(ownerId, id, userId);
+        imported++;
+        options.onImported(id);
+      } catch (error) {
+        failures.push({ id, message: error instanceof Error ? error.message : "Não foi possível importar esta mídia." });
+      }
+      options.onProgress({ completed: ++completed, total: pending.length });
     }
-    options.onProgress({ completed: ++completed, total: pending.length });
-  }
+  }));
   return { imported, skipped: ids.size - pending.length, failures };
 }
