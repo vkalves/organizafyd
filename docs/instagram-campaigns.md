@@ -32,6 +32,33 @@ a proteção usa o endereço da mídia e a conta no histórico armazenado.
 
 ## Instalação e validação
 
+### Limpeza em cada publicação
+
+Cada nova publicação de um fluxo entrega a mídia à Meta por `instagram-media`,
+com endereço assinado exclusivo do job e validade de uma hora. Cada download
+executa novamente a remoção de metadados: EXIF/comentários em fotos e capas;
+tags, datas e nomes do contêiner MP4 em vídeos. Os vídeos já passaram pela remoção
+de SEI do codec no upload; esta segunda passagem preserva áudio, quadros e offsets,
+sem nova recodificação. Não altera os arquivos da biblioteca nem cria cópias.
+
+Vale também para campanhas ativas já existentes, próximas horas e novos ciclos.
+Não muda o intervalo configurado: uma campanha de hora em hora faz a nova limpeza
+em cada envio. Contêineres que a Meta já recebeu antes da atualização continuam
+seu processamento; a consulta de status não recria uma postagem.
+
+Publique **primeiro** a nova Edge Function `instagram-media` com `verify_jwt=false`
+conforme `supabase/config.toml`, e depois `instagram-publisher`. O endpoint público
+valida HMAC e expiração antes de acessar Storage; não aceita URLs externas. Reutiliza
+os secrets existentes, sem migração SQL, novo cron ou alteração do frontend.
+Falhas nunca redirecionam para o arquivo original. A entrega suporta HEAD e ranges,
+aplicados após a limpeza, e impede cache. O processamento de MP4 é em streaming,
+com limite de 100 MB por arquivo e 8 MB para o índice `moov`.
+
+Testes locais: `npx vitest run src/features/instagram-publisher/media-delivery.test.ts src/features/x/strip-metadata.test.ts`.
+Antes de ativar em produção, valide a criação e o processamento de um contêiner
+com mídia autorizada na Meta; os testes locais simulam o download da Meta e não
+publicam em contas reais.
+
 1. Faça um backup do banco e Storage de produção pelo painel Supabase antes de
    aplicar migrações. O backup criado nesta tarefa é do código/checkout local;
    ele não contém uma cópia do banco nem dos arquivos remotos de produção.
