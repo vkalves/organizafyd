@@ -293,7 +293,7 @@ class Phone(Android):
                     since = time.time() * 1000
                     self.forms.click(resend)
                     self.progress('native_email_requested', 'Requested one fresh code for the existing email screen.')
-                code = self.gmail.wait_code(settings['email_sender'], settings['recipient'], since, self.cancel)
+                code = self.gmail.wait_code(settings.get('signup_email_sender') or settings['email_sender'], settings['recipient'], since, self.cancel)
                 self.fill_code(code['code']); code.clear(); self.forms.click(NEXT)
             elif current == 'password': self.fill_one(settings['instagram_password'], 'password', guard); self.forms.click(NEXT)
             elif current == 'birthday': self.birthday(settings['birthday']); self.forms.click(NEXT)
@@ -316,9 +316,10 @@ class Phone(Android):
                 continue
             unknown_since = None
             if current: handled.add(current)
-            self.cancel.wait(.7)
             if current:
                 self.forms.wait_for(lambda s: not self.forms.has(s, headings[current]), 'O Instagram não confirmou a etapa ' + current + '. O envio não será repetido sem confirmação.', seconds=30)
+            else:
+                self.cancel.wait(.25)
         raise CompanionError('SIGNUP_UNCONFIRMED', 'Account creation did not reach a verified own profile.')
 
     def bio(self, expected, value):

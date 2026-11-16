@@ -34,6 +34,9 @@ def configuration(values):
         try: result[field] = validate(result.get(field))
         except CompanionError as error:
             raise CompanionError(error.code, message, field=field) from None
+    try: result['signup_email_sender'] = address(result.get('signup_email_sender') or result['email_sender'])
+    except CompanionError:
+        raise CompanionError('INVALID_EMAIL', 'Na aba EMAIL, informe o remetente exato dos códigos de cadastro.', field='signup_email_sender') from None
     if result.get('meta_app_id') is not None:
         try: result['meta_app_id'] = identifier(result['meta_app_id'])
         except CompanionError:

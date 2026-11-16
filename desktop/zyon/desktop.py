@@ -149,8 +149,10 @@ class Desktop:
         hostinger_button.pack(anchor='w'); self.entries.append(hostinger_button)
         self.field(mail, 'Caixa Gmail autorizada', 'gmail_mailbox')
         self.pick(mail, 'Cliente OAuth Google Desktop', 'google_client_file', [('JSON OAuth', '*.json')])
-        self.field(mail, 'Remetente exato do código', 'email_sender', 'security@mail.instagram.com')
-        self.gmail_label = ttk.Label(mail, text='Gmail: verificação pendente', foreground=MUTED); self.gmail_label.pack(anchor='w', pady=12)
+        self.field(mail, 'Remetente exato do código de login', 'email_sender', 'security@mail.instagram.com')
+        self.field(mail, 'Remetente do cadastro (opcional, se diferente)', 'signup_email_sender')
+        ttk.Label(mail, text='Use o remetente real das mensagens recebidas. Sem valor separado, o cadastro usa o remetente de login.', style='Muted.TLabel', wraplength=1000).pack(anchor='w')
+        self.gmail_label = ttk.Label(mail, text='Email: verificação pendente', foreground=MUTED); self.gmail_label.pack(anchor='w', pady=12)
         self.gmail_button = ttk.Button(mail, text='Conectar Gmail', style='Action.TButton', command=self.connect_gmail); self.gmail_button.pack(anchor='w')
         self.entries.append(self.gmail_button)
 
@@ -321,6 +323,8 @@ class Desktop:
         try:
             data = self.settings(); name = handle(data.get('username'))
             data.pop('google_client_file', None)
+            # Mail credentials belong only to the connected provider vault record.
+            data.pop('hostinger_password', None)
             if not data.get('save_secrets'):
                 for field in ('instagram_password', 'avanca_password', 'proxy_password', 'proxy'): data.pop(field, None)
             self.saved[name] = data; self.vault.put('desktop-profiles', self.saved); self.paint_library()

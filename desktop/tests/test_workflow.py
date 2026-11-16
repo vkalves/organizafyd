@@ -136,3 +136,11 @@ class AutomaticWorkflowTests(unittest.TestCase):
   result=self.wait_state('completed')
   self.assertEqual(result['result']['username'],'same.account')
   self.assertEqual(self.calls.count('invitation_accept'),1)
+ def test_signup_sender_can_differ_from_login_sender(self):
+  from zyon.workflow import configuration
+  values=configuration({**SETTINGS,'signup_email_sender':'signup@example.com'})
+  self.assertEqual(values['signup_email_sender'],'signup@example.com')
+  self.assertEqual(values['email_sender'],'security@mail.instagram.com')
+  self.assertEqual(configuration(SETTINGS)['signup_email_sender'],'security@mail.instagram.com')
+  with self.assertRaises(CompanionError) as caught:configuration({**SETTINGS,'signup_email_sender':'invalid'})
+  self.assertEqual(caught.exception.field,'signup_email_sender')

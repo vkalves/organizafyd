@@ -67,3 +67,40 @@ class InterruptionTests(unittest.TestCase):
         self.assertEqual(driver.index, 2)
         self.assertEqual(driver.clicks.count((0, 'Reenviar código')), 1)
         phone.gmail.wait_code.assert_called_once()
+
+    def test_signup_uses_its_configured_sender_and_advances_without_fixed_sleep(self):
+        from unittest.mock import patch
+        phone, driver = self.make_phone([
+            screen(node('Digite o código'), node('Reenviar código')),
+            screen(node('Digite o código'), node(cls='android.widget.EditText'), node('Avançar')),
+            screen(node('Edit profile'), node('same.account', rid='com.instagram.android:id/profile_header_username')),
+        ])
+        phone.gmail.wait_code.return_value = {'code': '123456'}
+        with patch.object(phone.cancel, 'wait', return_value=False) as wait:
+            phone.create_account({'username':'same.account','email_sender':'security@mail.instagram.com','signup_email_sender':'signup@example.com','recipient':'owner@example.com'})
+        self.assertEqual(phone.gmail.wait_code.call_args.args[0], 'signup@example.com')
+        self.assertEqual(driver.index, 2)
+        self.assertFalse(wait.called)
+
+    def test_delayed_screen_still_waits_for_confirmation_without_resubmission(self):
+        from unittest.mock import patch
+        from test_signup_email_method import SignupDriver
+        class DelayedDriver(SignupDriver):
+            reads = 0
+            @property
+            def page_source(self):
+                if self.index == 1:
+                    self.reads += 1
+                    if self.reads < 4: return self.stages[0]
+                return self.stages[self.index]
+        phone, _ = self.make_phone([])
+        driver = DelayedDriver([
+            screen(node('Qual é seu nome?'), node(cls='android.widget.EditText'), node('Avançar')),
+            screen(node('Edit profile'), node('same.account', rid='com.instagram.android:id/profile_header_username')),
+        ])
+        phone.driver = driver
+        with patch.object(phone.cancel, 'wait', return_value=False) as wait:
+            phone.create_account({'username':'same.account','full_name':'Configured Name'})
+        wait.assert_any_call(.25)
+        self.assertEqual(driver.clicks.count((0, 'Avançar')), 1)
+        phone.pause_callback.assert_not_called()

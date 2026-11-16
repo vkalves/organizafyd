@@ -222,7 +222,7 @@ class NativeForms:
             self.check()
             screen = self.phone.screen()
             if predicate(screen) or self.security(screen): return screen
-            self.phone.cancel.wait(.35)
+            self.phone.cancel.wait(.25)
         raise CompanionError('NATIVE_TRANSITION_UNCONFIRMED', message)
 
     def navigate(self, labels, expected):
