@@ -11,6 +11,10 @@ import unicodedata
 from .android import Android, Screen, EDIT, NEXT, PACKAGE, xpath_literal
 from .errors import CompanionError
 
+SIGNUP_PHONE = ("What's your mobile number?", "What's your phone number?", 'Qual é o número do seu celular?', 'Qual é seu número de celular?', 'Qual é o seu número de celular?')
+SIGNUP_EMAIL = ("What's your email?", "What's your email address?", 'Qual é seu email?', 'Qual é seu e-mail?', 'Qual é o seu email?', 'Qual é o seu e-mail?', 'Qual é o seu endereço de email?', 'Qual é o seu endereço de e-mail?')
+SIGNUP_WITH_EMAIL = ('Cadastrar-se com o email', 'Cadastrar-se com o e-mail', 'Cadastrar-se com email', 'Cadastrar-se com e-mail', 'Cadastre-se com email', 'Sign up with email', 'Sign up with email address')
+
 class Phone(Android):
     def __init__(self, *args, gmail, pause, journal, **kwargs):
         super().__init__(*args, **kwargs)
@@ -170,11 +174,11 @@ class Phone(Android):
 
     def create_account(self, settings):
         headings = {
-            'email': ("What's your email?", 'Qual é seu email?', 'Qual é seu e-mail?'),
+            'email': SIGNUP_EMAIL,
             'code': ('Enter confirmation code', 'Insira o código de confirmação'),
             'password': ('Create a password', 'Crie uma senha'),
-            'birthday': ("What's your birthday?", 'Qual é sua data de nascimento?'),
-            'name': ("What's your name?", 'Qual é seu nome?'),
+            'birthday': ("What's your birthday?", 'Qual é sua data de nascimento?', 'Qual é a sua data de nascimento?'),
+            'name': ("What's your name?", 'Qual é seu nome?', 'Qual é o seu nome?'),
             'username': ('Create a username', 'Crie um nome de usuário'),
             'terms': ("Agree to Instagram's terms and policies", 'Concorde com os termos e políticas do Instagram'),
         }
@@ -190,6 +194,12 @@ class Phone(Android):
                 return
             if screen.has(('Create new account', 'Criar nova conta')):
                 self.click(('Create new account', 'Criar nova conta')); self.cancel.wait(.5); continue
+            if screen.has(SIGNUP_PHONE) and screen.has(SIGNUP_WITH_EMAIL):
+                self.progress('native_signup_email_method', 'Selecionando o cadastro por email no Instagram.')
+                self.click(SIGNUP_WITH_EMAIL)
+                self.wait(lambda s: s.has(SIGNUP_EMAIL) and not s.has(SIGNUP_PHONE), 'O cadastro por email não abriu. Confira a tela do Instagram antes de tentar novamente.', seconds=20)
+                unknown_since = None
+                continue
             current = next((name for name, labels in headings.items() if screen.has(labels)), None)
             if current and current in handled:
                 raise CompanionError('SIGNUP_INPUT_REJECTED', 'Instagram kept the same signup step after submission (' + current + '). Inspect its validation before retrying.')
