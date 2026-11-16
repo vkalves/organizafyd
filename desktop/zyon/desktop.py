@@ -401,7 +401,11 @@ def main():
             if args.report_to: Path(args.report_to).write_text(json.dumps(report), encoding='utf-8')
         return 0 if report['ready'] and report['owned'] and report['stopped'] else 1
     if args.self_test:
-        import appium
+        from .android import client_components
+        webdriver, UiAutomator2Options, AppiumClientConfig, Proxy = client_components()
+        assert callable(webdriver.Remote)
+        assert UiAutomator2Options().load_capabilities({'platformName': 'Android'}).to_capabilities()['platformName'] == 'Android'
+        assert AppiumClientConfig(remote_server_addr='http://127.0.0.1:4723', proxy=Proxy({'proxyType': 'direct'})).remote_server_addr == 'http://127.0.0.1:4723'
         import google_auth_oauthlib.flow
         from playwright.sync_api import sync_playwright
         from .browser import chrome_path

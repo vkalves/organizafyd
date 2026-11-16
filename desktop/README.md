@@ -1,16 +1,18 @@
-# Zyon Desktop 2.0.2 — Windows Android automation
+# Zyon Desktop 2.0.3 — Windows Android automation
 
 This release is a native **Windows desktop application** named **Zyon.exe**, with Tk controls and a background execution controller. It does not open a website or localhost dashboard as its user interface. Chrome is controlled for the Instagram browser and official Meta authorization stages that the reference workflow requires.
 
 ## Download and start
 
-Download the **Zyon-Desktop-Windows-2.0.2** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
+Download the **Zyon-Desktop-Windows-2.0.3** artifact from the successful Windows workflow. Extract the download completely and double-click **Zyon.exe** in the extracted folder. Keep all files, including the **_internal** folder, together. The main Windows artifact requires only one extraction. The `_internal` folder contains the bundled Python/Tk/automation libraries; Python is not required separately for this executable.
 
 On first launch, missing Android runtime tools trigger the included installer. It installs/configures isolated Node.js 22, Temurin Java 17, Android SDK and Appium/UiAutomator2, and installs Chrome if necessary. Windows can request installation approval. Internet access and several gigabytes of disk space are needed for the toolchain and download cache. WinGet/App Installer is needed if Chrome is missing. The **PROGRAMA** tab can run the installer again. Existing system Node/Java/SDK settings are preserved.
 
 Appium is started directly with the installed Node executable, without a Windows command shell. Startup supports application folders containing spaces or `&`. Readiness checks stay on loopback and ignore HTTP proxy settings. A busy port 4723 is reported without terminating an external process. Failed startup and cancellation stop the process owned by this application before another attempt. Cold startup has a 90-second readiness limit.
 
 If Android startup stops, choose **PROGRAMA → Ver diagnóstico Appium**. The same nonsecret summary is saved in `%LOCALAPPDATA%\ZyonCompanion\runtime\appium-startup.json`: outcome, exit code, timing and tool availability. Raw Appium output is used only for bounded startup classification in memory and discarded before device actions. Run the requirement installer for missing dependencies; inspect Windows execution blocks or an occupied port when those are reported.
+
+The executable includes Appium-Python-Client's distribution metadata, which its WebDriver import requires. Its dependency smoke check loads the actual Android SDK classes and metadata, rather than importing only the top-level `appium` namespace. Android connection logs distinguish loading the client, checking the selected USB device, starting UiAutomator2 and activating Instagram. Unauthorized/offline phones and common helper-installation/permission/session failures have separate messages. Driver connections to loopback also bypass system proxies. Unexpected internal failures report their step and exception type without writing the raw exception or credentials.
 
 The application is unsigned. No signing certificate was supplied for this build.
 
