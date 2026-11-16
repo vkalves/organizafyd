@@ -13,6 +13,7 @@ from .android import handle
 from .avanca import Avanca, identifier
 from .browser import Browser
 from .errors import CompanionError
+from .diagnostics import write_report
 from .gmail import address
 from .hostinger import Mailbox as Gmail
 from .phone import Phone
@@ -22,6 +23,8 @@ from .runtime import Runtime
 def configuration(values):
     result = dict(values)
     if not isinstance(result.get('create_account', False), bool): raise CompanionError('INVALID_CONFIGURATION', 'Account creation must be explicitly selected or cleared.')
+    result.setdefault('auto_reset', True)
+    if not isinstance(result['auto_reset'], bool): raise CompanionError('INVALID_CONFIGURATION', 'A recuperação automática deve estar ativada ou desativada.', field='auto_reset')
     checks = (
         ('username', handle, 'Na aba DADOS, informe o @ esperado do Instagram.'),
         ('recipient', address, 'Na aba DADOS, informe um email válido para a conta Instagram.'),
@@ -105,6 +108,7 @@ class Workflow:
         self.thread = None
         self.journal = {}
         self.journal_path = None
+        self.last_progress_time = time.monotonic()
 
     def snapshot(self):
         with self.lock: return copy.deepcopy(self.state)
@@ -113,14 +117,17 @@ class Workflow:
         if self.cancel.is_set(): raise CompanionError('CANCELLED', 'Workflow stopped. Inspect external state before another run.')
         with self.lock:
             self.state.update(phase=phase, message=message)
-            self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': phase, 'message': message})
+            now = time.monotonic()
+            elapsed = round((now-self.last_progress_time)*1000)
+            self.last_progress_time = now
+            self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': phase, 'message': message, 'durationMs': elapsed})
             self.state['events'] = self.state['events'][-300:]
             self.persist()
 
     def persist(self):
         if self.journal_path is None: return
         data = {'username': self.state['username'], 'phase': self.state['phase'], 'status': self.state['status'],
-                'story': self.journal.get('story'), 'highlight': self.journal.get('highlight'), 'stories': self.journal.get('stories', {}), 'result': self.state.get('result')}
+                'signup_state': self.journal.get('signup_state'), 'recovery_attempts': self.journal.get('recovery_attempts', 0), 'story': self.journal.get('story'), 'highlight': self.journal.get('highlight'), 'stories': self.journal.get('stories', {}), 'result': self.state.get('result')}
         temp = self.journal_path.with_suffix('.tmp')
         temp.write_text(json.dumps(data), encoding='utf-8')
         temp.replace(self.journal_path)
@@ -199,7 +206,9 @@ class Workflow:
                     except ValueError:
                         self.state.update(status='needs_attention', phase='JOURNAL_UNREADABLE', message='Previous workflow state could not be read. Inspect it before another run.')
                         return
-                self.state.update(status='running', phase='preflight', message='Validating configured identities and services.', username=settings['username'], pauseId=None, result=None, events=[], cycle=index+1, cycles=len(profiles))
+                self.journal['recovery_attempts'] = 0
+                self.last_progress_time = time.monotonic()
+                self.state.update(failures=[], diagnosticPath=None, diagnosticPrompt=None, status='running', phase='preflight', message='Validating configured identities and services.', username=settings['username'], pauseId=None, result=None, events=[], cycle=index+1, cycles=len(profiles))
             self._run(settings)
             with self.lock:
                 if self.state['status'] != 'completed': return
@@ -208,6 +217,43 @@ class Workflow:
             self.state['queueResults'] = results
             if self.cancel.is_set() and self.state['status'] == 'completed':
                 self.state.update(status='stopped', message='Queue stopped before the next account.')
+
+    def diagnostic(self, settings, failure, phone=None):
+        if getattr(failure, '_diagnostic_saved', False): return
+        try:
+            with self.lock:
+                failures = self.state.setdefault('failures', [])
+                failures.append({'stage': self.state.get('phase'), 'errorCode': getattr(failure, 'code', 'INTERNAL_OPERATION_ERROR'), 'type': type(failure).__name__})
+                self.state['failures'] = failures[-20:]
+            path, prompt = write_report(self.root, settings, self.snapshot(), failure, phone)
+            failure._diagnostic_saved = True
+            with self.lock:
+                self.state.update(diagnosticPath=path, diagnosticPrompt=prompt)
+                self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': 'correction_prompt', 'message': prompt})
+                self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': 'diagnostic_saved', 'message': 'Prompt de correção salvo em ' + path})
+        except Exception:
+            with self.lock:
+                self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': 'diagnostic_unavailable', 'message': 'Não foi possível salvar o relatório local. Nenhuma credencial foi exportada.'})
+
+    def prepare_with_recovery(self, phone, settings):
+        recoverable = {'NATIVE_LOGIN_UNRECOGNIZED', 'PROFESSIONAL_SCREEN_UNRECOGNIZED', 'MEDIA_PICKER_UNRECOGNIZED', 'UNKNOWN_SIGNUP_SCREEN', 'NATIVE_TRANSITION_UNCONFIRMED', 'NATIVE_CONTROL_MISSING', 'NATIVE_INPUT_UNCONFIRMED', 'NATIVE_FORM_CHANGED', 'NATIVE_CONTROL_BLOCKED', 'SCREEN_NOT_RECOGNIZED', 'SCREEN_UNREADABLE', 'BIRTHDAY_PICKER_UNCERTAIN', 'BIRTHDAY_INPUT_UNCONFIRMED', 'BIO_UNCONFIRMED', 'BIO_INPUT_UNCONFIRMED', 'PROFILE_UNAVAILABLE', 'INTERRUPTION_LIMIT'}
+        effective = dict(settings)
+        # A confirmed account already exists remotely, even after clearing Android data.
+        if self.journal.get('signup_state') == 'confirmed': effective['create_account'] = False
+        try: phone.prepare(effective)
+        except CompanionError as failure:
+            self.diagnostic(settings, failure, phone)
+            stories = list(self.journal.get('stories', {}).values())
+            uncertain = self.journal.get('story') in ('submitted', 'uncertain') or any(r.get('story') in ('submitted', 'uncertain') for r in stories)
+            attempts = self.journal.get('recovery_attempts', 0)
+            allowed = (settings.get('auto_reset', True) and failure.code in recoverable and not self.cancel.is_set()
+                       and attempts < 1 and self.journal.get('signup_state') != 'submission_pending' and not uncertain)
+            if not allowed: raise
+            self.journal['recovery_attempts'] = attempts + 1
+            self.progress('automatic_recovery', 'Falha de reconhecimento registrada. Reiniciando uma vez o Instagram com os dados locais limpos.')
+            phone.reset_instagram()
+            if self.journal.get('signup_state') == 'confirmed': effective['create_account'] = False
+            phone.prepare(effective)
 
     def _run(self, settings):
         phone, browser = None, None
@@ -231,7 +277,7 @@ class Workflow:
                                        gmail=self.gmail, pause=self.pause, journal=self.journal)
             phone.open()
             self.progress('native_prepare', 'Running the configured native Instagram preparation steps.')
-            phone.prepare(settings)
+            self.prepare_with_recovery(phone, settings)
             self.progress('native_two_factor', 'Enabling or verifying 2FA for the same native Instagram account.')
             phone.ensure_two_factor(settings['username'])
             phone.collect_recovery(settings['username'])
@@ -263,11 +309,13 @@ class Workflow:
                 self.state['status'] = 'completed'
                 self.progress('completed', '@' + settings['username'] + ' is confirmed in flow ' + result['flowName'] + '.')
         except CompanionError as failure:
+            if failure.code != 'CANCELLED': self.diagnostic(settings, failure, phone)
             with self.lock:
                 self.state.update(status='stopped' if failure.code == 'CANCELLED' else 'needs_attention', phase=failure.code, message=str(failure), pauseId=None)
                 self.state['events'].append({'time': datetime.now(timezone.utc).isoformat(), 'phase': failure.code, 'message': str(failure)})
                 self.persist()
         except Exception as failure:
+            self.diagnostic(settings, failure, phone)
             with self.lock:
                 failed_step = self.state['phase']
                 kind = type(failure).__name__

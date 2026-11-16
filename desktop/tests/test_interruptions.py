@@ -104,3 +104,36 @@ class InterruptionTests(unittest.TestCase):
         wait.assert_any_call(.25)
         self.assertEqual(driver.clicks.count((0, 'Avançar')), 1)
         phone.pause_callback.assert_not_called()
+
+    def test_birthday_fills_inline_day_month_year_by_their_roles(self):
+        from test_native_form_recovery import field
+        phone, driver = self.make_phone([screen(node('Qual é sua data de nascimento?'), field('Dia'), field('Mês'), field('Ano'))])
+        phone.birthday('2000-02-29')
+        self.assertEqual(sorted(driver.values.values()), ['2','2000','29'])
+        phone.pause_callback.assert_not_called()
+
+    def test_birthday_inline_format_is_filled_without_manual_pause(self):
+        from test_native_form_recovery import field
+        phone, driver = self.make_phone([screen(node('Qual é sua data de nascimento?'), field('DD/MM/AAAA'))])
+        phone.birthday('2000-09-04')
+        self.assertIn('04/09/2000', driver.values.values())
+        phone.pause_callback.assert_not_called()
+
+    def test_birthday_opens_the_displayed_date_and_fills_android_input(self):
+        phone, driver = self.make_phone([
+            screen(node('Qual é sua data de nascimento?'), node('15/06/2001')),
+            screen(node(cls='android.widget.EditText', rid='android:id/input').replace('/>', ' hint="DD/MM/AAAA"/>'), node('OK', rid='android:id/button1')),
+            screen(node('Qual é sua data de nascimento?')),
+        ])
+        phone.birthday('2000-09-04')
+        self.assertEqual(driver.index, 2)
+        self.assertIn((1,'04/09/2000'), driver.typed)
+        phone.pause_callback.assert_not_called()
+
+    def test_unknown_birthday_control_reports_failure_instead_of_manual_date_pause(self):
+        from zyon.errors import CompanionError
+        phone, driver = self.make_phone([screen(node('Qual é sua data de nascimento?'))])
+        with self.assertRaises(CompanionError) as caught: phone.birthday('2000-09-04')
+        self.assertEqual(caught.exception.code, 'BIRTHDAY_PICKER_UNCERTAIN')
+        phone.pause_callback.assert_not_called()
+        self.assertFalse(driver.clicks)

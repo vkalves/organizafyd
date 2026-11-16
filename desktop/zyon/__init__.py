@@ -1,2 +1,4 @@
 # Python / zyon/__init__.py / Python 3.11+ / Windows 10 companion
 __version__ = "2.1.0"
+
+BUILD_TAG = 'TELAS-R1'

@@ -12,7 +12,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import unicodedata
 import re
-from . import __version__
+from . import __version__, BUILD_TAG
 from .android import devices
 from .avanca import Avanca
 from .errors import CompanionError
@@ -116,7 +116,7 @@ class Desktop:
         header = tk.Frame(self.root, bg=BG, padx=24, pady=15); header.pack(fill='x')
         tk.Label(header, text='ZYON', bg=BG, fg=CYAN, font=('Segoe UI', 23, 'bold')).pack(side='left')
         tk.Label(header, text='  CONTROLE ANDROID  /  INSTAGRAM  /  AVANÇA', bg=BG, fg=MUTED, font=('Segoe UI', 10)).pack(side='left')
-        tk.Label(header, text='DESKTOP ' + __version__, bg=BG, fg=GREEN, font=('Segoe UI', 10, 'bold')).pack(side='right')
+        tk.Label(header, text='DESKTOP ' + __version__ + ' / ' + BUILD_TAG, bg=BG, fg=GREEN, font=('Segoe UI', 10, 'bold')).pack(side='right')
         self.notebook = ttk.Notebook(self.root); self.notebook.pack(fill='both', expand=True, padx=18)
         data = self.tab('DADOS', 'Dados da conta', 'Configure o mesmo Instagram que será usado no Android, Chrome e AVANÇA.')
         self.check(data, 'Criar uma nova conta no Instagram nativo antes de preparar o perfil', 'create_account', True)
@@ -180,6 +180,7 @@ class Desktop:
         program = self.tab('PROGRAMA', 'Instalação e execução', 'Aplicativo nativo para Windows. Os componentes de controle são gerenciados pelo próprio programa.')
         self.install_button = ttk.Button(program, text='Instalar / verificar todos os requisitos', style='Action.TButton', command=self.install_requirements); self.install_button.pack(anchor='w', pady=12); self.entries.append(self.install_button)
         ttk.Button(program, text='Ver diagnóstico Appium', command=self.show_runtime_diagnostic).pack(anchor='w', pady=8)
+        self.check(program, 'Reiniciar uma vez após falha de reconhecimento (limpa sessões e rascunhos locais do Instagram)', 'auto_reset', True)
         self.check(program, 'Guardar esta configuração e senhas criptografadas para este usuário Windows', 'save_secrets', True)
         ttk.Label(program, text='O consentimento inicial Google, a autorização USB e desafios que exigem sua presença continuam interativos. Telas desconhecidas param com diagnóstico, sem inventar conclusão.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=18)
 
@@ -192,6 +193,7 @@ class Desktop:
             button = ttk.Button(actions, text=label, command=callback); button.pack(side='left', padx=(0, 10)); self.entries.append(button)
 
         logs = self.tab('LOGS', 'Execução real', 'Acompanhe as etapas confirmadas, pausas e erros. Senhas, tokens, chaves e códigos não são registrados aqui.')
+        ttk.Button(logs, text='Copiar prompt da última falha', command=self.copy_failure_prompt).pack(anchor='w', pady=8)
         self.logs = tk.Text(logs, bg=INPUT, fg='#b6efd8', insertbackground=FG, relief='flat', font=('Consolas', 10), height=18, state='disabled', wrap='word')
         self.logs.pack(fill='both', expand=True)
 
@@ -352,6 +354,13 @@ class Desktop:
         if messagebox.askyesno('Excluir configuração local', 'Excluir o perfil local @' + name + '? A conta Instagram e o fluxo AVANÇA permanecem no serviço.', parent=self.root):
             self.saved.pop(name, None); self.vault.put('desktop-profiles', self.saved); self.paint_library()
 
+    def copy_failure_prompt(self):
+        prompt = self.workflow.snapshot().get('diagnosticPrompt')
+        if not prompt:
+            self.status.configure(text='Ainda não há relatório de falha nesta execução.'); return
+        self.root.clipboard_clear(); self.root.clipboard_append(prompt)
+        self.status.configure(text='Prompt copiado. Ele inclui a tela sanitizada, ações e falha observada.')
+
     def poll(self):
         while True:
             try: kind, result, failure = self.responses.get_nowait()
@@ -385,7 +394,7 @@ class Desktop:
         events = state['events']
         if events and events[-1] != self.last_event:
             self.logs.configure(state='normal'); self.logs.delete('1.0', 'end')
-            self.logs.insert('end', '\n'.join(e['time'][11:19] + '  [' + e['phase'] + '] ' + e['message'] for e in events)); self.logs.see('end'); self.logs.configure(state='disabled')
+            self.logs.insert('end', '\n'.join(e['time'][11:19] + '  [' + e['phase'] + '] ' + ('(+' + str(e['durationMs']) + ' ms) ' if 'durationMs' in e else '') + e['message'] for e in events)); self.logs.see('end'); self.logs.configure(state='disabled')
             self.last_event = events[-1]
         self.status.configure(wraplength=max(500, self.root.winfo_width() - 70))
         self.root.after(200, self.poll)
