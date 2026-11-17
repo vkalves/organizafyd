@@ -94,7 +94,6 @@ body .workspace-shell .agonia-root .dash-ranking-detail .performance-row { grid-
   .dash-connect-arrow { width: 30px; height: 30px; }
 }
 /* Reference composition: 1672 × 941. Decorative artwork never contains controls. */
-body .workspace-shell:has(.agonia-root[data-section="dashboard"]) { background: #080909; }
 body .workspace-shell .agonia-root[data-section="dashboard"] { gap: 14px; }
 body .workspace-shell .agonia-root[data-section="dashboard"] .dash-hero { min-height: 139px; align-items: flex-start; padding-top: 1px; flex-wrap: nowrap; }
 body .workspace-shell .agonia-root .dash-hero .page-title { font-size: clamp(28px, 2.5vw, 42px); line-height: 1.2; letter-spacing: -.035em; font-weight: 650; }
@@ -168,25 +167,6 @@ body .workspace-shell .agonia-root[data-section="dashboard"] .dash-overview > .p
 @media (min-width: 1200px) {
  body .workspace-shell .agonia-root[data-section="dashboard"] .stats-grid { grid-template-columns: repeat(6,minmax(0,1fr)); }
  .dash-main-grid { grid-template-columns: minmax(0,1.77fr) minmax(0,1fr); }
-}
-@media (min-width: 1024px) {
- body .workspace-shell.shell-expanded { --sidebar-w: clamp(250px,18.42vw,308px); }
- body .workspace-shell { --header-h: 57px; }
- body .workspace-shell .app-page-frame { padding: 30px 24px 24px 40px; max-width: none; }
- body .workspace-shell .shell-header { padding-inline: 40px 24px; }
- body .workspace-shell .shell-current-page { font-size: 16px; }
- body .workspace-shell .shell-rail { padding: 20px 14px 20px 21px; background: radial-gradient(ellipse at 12% 94%, #ffffff06, transparent 28%), linear-gradient(135deg, #101113, #0b0c0e); border-right-color: #333; }
- body .workspace-shell .shell-rail-top { padding: 0 8px 24px 23px; min-height: 72px; }
- body .workspace-shell .silver-brand.avanca-brand:not(.is-compact) img { width: 142px; }
- body .workspace-shell .shell-nav-link { min-height: 46px; padding-inline: 24px; font-size: 16px; border-radius: 14px; color: #eee; gap: 20px; }
- body .workspace-shell .shell-nav-icon svg { width: 22px; height: 22px; stroke-width: 1.6; }
- body .workspace-shell .shell-nav-section + .shell-nav-section { border-top: 1px solid #ffffff0c; margin-top: 20px; padding-top: 16px; }
- body .workspace-shell .shell-nav-section-label { font-size: 12px; letter-spacing: .13em; padding: 0 20px 10px; }
- body .workspace-shell .shell-rail-footer { border: 0; border-top: 1px solid #333; border-radius: 14px 14px 0 0; padding: 20px 8px 8px; background: transparent; }
- body .workspace-shell .shell-avatar { width: 46px; height: 46px; border: 1px solid #aaa; background: #0c0d0d; }
- body .workspace-shell .shell-nav-link.is-collapsed { padding: 0; }
- body .workspace-shell:not(.shell-expanded) .shell-rail { padding-inline: 8px; }
- body .workspace-shell:not(.shell-expanded) .shell-rail-top { padding-inline: 0; }
 }
 @media (max-width: 1400px) {
  body .workspace-shell .agonia-root .dash-hero .button { font-size: 13px; padding-inline: 14px; }
@@ -279,7 +259,6 @@ body .workspace-shell .shell-nav-create:not(.is-active) { border-color: transpar
 }
 @media (min-width: 1401px) {
  body .workspace-shell .agonia-root .dash-hero-art { top: -83px; right: 27.2%; }
- body .workspace-shell:has(.agonia-root[data-section="dashboard"]) .shell-header { background: linear-gradient(90deg, #080909 48%, #08090900 66%, #080909 88%); backdrop-filter: none; }
 }
 body .workspace-shell .agonia-root[data-section="dashboard"] .dash-ranking-detail .empty { min-height: 74px; padding: 8px 10px; font-size: 12px; line-height: 1.5; }
 body .workspace-shell .agonia-root[data-section="dashboard"] .dash-views-chart .dash-empty { min-height: 132px; margin-top: 4px; }
@@ -288,7 +267,6 @@ body .workspace-shell .agonia-root[data-section="dashboard"] .stats-grid .stat-c
 @media (min-width: 1200px) {
  body .workspace-shell .agonia-root .dash-hero .page-subtitle { width: max-content; max-width: calc(100vw - var(--sidebar-w) - 64px); font-size: 13px; text-wrap: wrap; }
  body .workspace-shell .agonia-root .dash-hero-art { top: -83px; right: 27.2%; }
- body .workspace-shell:has(.agonia-root[data-section="dashboard"]) .shell-header { background: linear-gradient(90deg, #080909 48%, #08090900 66%, #080909 88%); backdrop-filter: none; }
  body .workspace-shell .agonia-root[data-section="dashboard"] .dash-ranking-detail .performance-row { padding-block: 4px; }
  body .workspace-shell .agonia-root[data-section="dashboard"] .dash-views-chart svg { height: 125px; }
  body .workspace-shell .agonia-root[data-section="dashboard"] .dash-chart-labels { font-size: 11px; }
