@@ -1,12 +1,35 @@
 @media (pointer: fine) {
-  html { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='28'%3E%3Cpath d='M4 2L4 23L10 17L14 25L18 23L14 15L22 15Z' fill='%23e9ecf6' stroke='%233f424a' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 2, auto; }
+  html { cursor: default; }
   button, a, [role="button"], label[for], summary, select { cursor: pointer; }
   input, textarea { cursor: text; }
   button:disabled { cursor: not-allowed; }
 }
-@media (pointer: fine) {
-  :root body :is(a[href],button:not(:disabled),[role="button"]:not([aria-disabled="true"]),[role="tab"]:not([aria-disabled="true"]),[role="menuitem"],summary,select:not(:disabled),label:has(input:not(:disabled)),input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled)) {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%23eef2ff18' stroke='%23151b28' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23f4f6ff' stroke-width='1.2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23edf3ff' stroke='%23283244' stroke-width='1'/%3E%3C/svg%3E") 16 16, pointer;
-  }
-  :root body :is(button:disabled,[aria-disabled="true"],input:disabled,select:disabled) { cursor: not-allowed; }
+.avanca-cursor {
+  position: fixed; top: 0; left: 0; width: 0; height: 0;
+  z-index: 2147483647; pointer-events: none; opacity: 0;
+  transition: opacity 120ms ease; will-change: transform;
+}
+.avanca-cursor[data-visible="true"] { opacity: 1; }
+.avanca-cursor-arrow {
+  position: absolute; left: -4px; top: -2px; transform-origin: 4px 2px;
+  transition: opacity 220ms ease, transform 280ms cubic-bezier(.2,.8,.2,1);
+}
+.avanca-cursor-ring {
+  position: absolute; left: -10px; top: -10px; width: 20px; height: 20px;
+  border: 1.5px solid #f4f6ff; border-radius: 50%;
+  background: #eef2ff18; box-shadow: 0 0 0 1.5px #151b28b3, inset 0 0 0 1px #151b2840;
+  opacity: 0; transform: scale(.35);
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), background-color 220ms ease;
+}
+.avanca-cursor-ring::after {
+  content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #edf3ff;
+}
+.avanca-cursor[data-interactive="true"] .avanca-cursor-arrow { opacity: 0; transform: scale(.65) rotate(-8deg); }
+.avanca-cursor[data-interactive="true"] .avanca-cursor-ring { opacity: 1; transform: scale(1); }
+.avanca-cursor[data-interactive="true"][data-pressed="true"] .avanca-cursor-ring { transform: scale(.82); background: #eef2ff35; }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html[data-avanca-cursor], html[data-avanca-cursor] * { cursor: none !important; }
+}
+@media (prefers-reduced-motion: reduce), (pointer: coarse), (hover: none) {
+  .avanca-cursor { display: none; }
 }

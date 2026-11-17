@@ -20,7 +20,7 @@ body .workspace-shell.avanca-glass-shell {
   font-family: var(--avanca-font);
 }
 .avanca-brand-depth { display: inline-flex; align-items: center; gap: 10px; overflow: visible; }
-.avanca-wordmark { font: 600 28px/1 var(--avanca-font); color: #f5f5f7; letter-spacing: -1.2px; }
+.avanca-wordmark { transform: translateY(4px); font: 600 28px/1 var(--avanca-font); color: #f5f5f7; letter-spacing: -1.2px; }
 .shell-brand .avanca-wordmark { font-size: 27px; }
 /* Floating macOS sidebar and title bar. Blur is confined to major surfaces. */
 body .workspace-shell.avanca-glass-shell .shell-rail {
