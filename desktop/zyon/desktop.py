@@ -12,11 +12,11 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import unicodedata
 import re
-from . import __version__
+from . import __version__, BUILD_TAG
 from .android import devices
 from .avanca import Avanca
 from .errors import CompanionError
-from .gmail import Gmail
+from .hostinger import Mailbox as Gmail
 from .runtime import application_dir, data_dir, load_runtime
 from .vault import Vault
 from .workflow import Workflow, configuration
@@ -116,14 +116,14 @@ class Desktop:
         header = tk.Frame(self.root, bg=BG, padx=24, pady=15); header.pack(fill='x')
         tk.Label(header, text='ZYON', bg=BG, fg=CYAN, font=('Segoe UI', 23, 'bold')).pack(side='left')
         tk.Label(header, text='  CONTROLE ANDROID  /  INSTAGRAM  /  AVANÇA', bg=BG, fg=MUTED, font=('Segoe UI', 10)).pack(side='left')
-        tk.Label(header, text='DESKTOP ' + __version__, bg=BG, fg=GREEN, font=('Segoe UI', 10, 'bold')).pack(side='right')
+        tk.Label(header, text='DESKTOP ' + __version__ + ' / ' + BUILD_TAG, bg=BG, fg=GREEN, font=('Segoe UI', 10, 'bold')).pack(side='right')
         self.notebook = ttk.Notebook(self.root); self.notebook.pack(fill='both', expand=True, padx=18)
         data = self.tab('DADOS', 'Dados da conta', 'Configure o mesmo Instagram que será usado no Android, Chrome e AVANÇA.')
         self.check(data, 'Criar uma nova conta no Instagram nativo antes de preparar o perfil', 'create_account', True)
         self.field(data, 'Nome do perfil', 'full_name')
         self.field(data, 'Data de nascimento real', 'birthday', '')
         ttk.Label(data, text='DD/MM/AAAA ou AAAA-MM-DD (ex.: 04/09/2006 = 4 de setembro de 2006).', style='Muted.TLabel').pack(anchor='w')
-        self.field(data, '@ esperado', 'username')
+        self.field(data, '@ base (novas contas recebem 3 dígitos)', 'username')
         self.field(data, 'Senha do Instagram', 'instagram_password', secret=True)
         ttk.Button(data, text='Gerar senha forte e candidato de @ a partir do nome', command=self.generate).pack(anchor='w', pady=12)
         self.field(data, 'Email da conta Instagram', 'recipient')
@@ -142,11 +142,17 @@ class Desktop:
         self.field(publish, 'Nome do destaque', 'highlight')
         ttk.Label(publish, text='Sem mídia selecionada, a etapa de publicação é pulada. Uma submissão incerta fica bloqueada para revisão e não é reenviada automaticamente.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=15)
 
-        mail = self.tab('EMAIL', 'Verificação automática por Gmail', 'Autorize uma vez. Durante a execução, o app recupera o código fresco e o preenche no Instagram automaticamente.')
+        mail = self.tab('EMAIL', 'Verificação automática de email', 'Autorize uma vez. Durante a execução, o app recupera o código fresco e o preenche no Instagram automaticamente.')
+        self.field(mail, 'Caixa Hostinger', 'hostinger_mailbox')
+        self.field(mail, 'Senha da caixa Hostinger', 'hostinger_password', secret=True)
+        hostinger_button = ttk.Button(mail, text='Conectar Hostinger', command=self.connect_hostinger)
+        hostinger_button.pack(anchor='w'); self.entries.append(hostinger_button)
         self.field(mail, 'Caixa Gmail autorizada', 'gmail_mailbox')
         self.pick(mail, 'Cliente OAuth Google Desktop', 'google_client_file', [('JSON OAuth', '*.json')])
-        self.field(mail, 'Remetente exato do código', 'email_sender', 'security@mail.instagram.com')
-        self.gmail_label = ttk.Label(mail, text='Gmail: verificação pendente', foreground=MUTED); self.gmail_label.pack(anchor='w', pady=12)
+        self.field(mail, 'Remetente exato do código de login', 'email_sender', 'security@mail.instagram.com')
+        self.field(mail, 'Remetente do cadastro (opcional, se diferente)', 'signup_email_sender')
+        ttk.Label(mail, text='Use o remetente real das mensagens recebidas. Sem valor separado, o cadastro usa o remetente de login.', style='Muted.TLabel', wraplength=1000).pack(anchor='w')
+        self.gmail_label = ttk.Label(mail, text='Email: verificação pendente', foreground=MUTED); self.gmail_label.pack(anchor='w', pady=12)
         self.gmail_button = ttk.Button(mail, text='Conectar Gmail', style='Action.TButton', command=self.connect_gmail); self.gmail_button.pack(anchor='w')
         self.entries.append(self.gmail_button)
 
@@ -174,6 +180,7 @@ class Desktop:
         program = self.tab('PROGRAMA', 'Instalação e execução', 'Aplicativo nativo para Windows. Os componentes de controle são gerenciados pelo próprio programa.')
         self.install_button = ttk.Button(program, text='Instalar / verificar todos os requisitos', style='Action.TButton', command=self.install_requirements); self.install_button.pack(anchor='w', pady=12); self.entries.append(self.install_button)
         ttk.Button(program, text='Ver diagnóstico Appium', command=self.show_runtime_diagnostic).pack(anchor='w', pady=8)
+        self.check(program, 'Reiniciar uma vez após falha de reconhecimento (limpa sessões e rascunhos locais do Instagram)', 'auto_reset', True)
         self.check(program, 'Guardar esta configuração e senhas criptografadas para este usuário Windows', 'save_secrets', True)
         ttk.Label(program, text='O consentimento inicial Google, a autorização USB e desafios que exigem sua presença continuam interativos. Telas desconhecidas param com diagnóstico, sem inventar conclusão.', style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=18)
 
@@ -186,6 +193,7 @@ class Desktop:
             button = ttk.Button(actions, text=label, command=callback); button.pack(side='left', padx=(0, 10)); self.entries.append(button)
 
         logs = self.tab('LOGS', 'Execução real', 'Acompanhe as etapas confirmadas, pausas e erros. Senhas, tokens, chaves e códigos não são registrados aqui.')
+        ttk.Button(logs, text='Copiar prompt da última falha', command=self.copy_failure_prompt).pack(anchor='w', pady=8)
         self.logs = tk.Text(logs, bg=INPUT, fg='#b6efd8', insertbackground=FG, relief='flat', font=('Consolas', 10), height=18, state='disabled', wrap='word')
         self.logs.pack(fill='both', expand=True)
 
@@ -201,7 +209,7 @@ class Desktop:
         self.values['instagram_password'].set(secrets.token_urlsafe(20))
         name = unicodedata.normalize('NFKD', self.values['full_name'].get()).encode('ascii', 'ignore').decode().lower()
         base = re.sub('[^a-z0-9]', '', name)[:22]
-        if base: self.values['username'].set(base + str(secrets.randbelow(90000) + 10000))
+        if base: self.values['username'].set(base)
 
     def busy(self):
         return (self.workflow.thread is not None and self.workflow.thread.is_alive()) or self.workflow.snapshot()['status'] in ('running', 'paused', 'resuming') or self.task is not None and self.task.is_alive()
@@ -215,12 +223,22 @@ class Desktop:
             except Exception: self.responses.put((kind, None, 'Operação não confirmada. Confira os requisitos e a conexão; dados sensíveis não foram registrados.'))
         self.task = threading.Thread(target=run, daemon=True); self.task.start()
 
+    def connect_hostinger(self):
+        mailbox, password = self.values['hostinger_mailbox'].get(), self.values['hostinger_password'].get()
+        def work():
+            result = self.gmail.hostinger.connect(mailbox, password)
+            self.gmail.use('hostinger')
+            return result
+        self.background('Verificando Hostinger IMAP…', work, 'gmail')
+
     def connect_gmail(self):
         path, mailbox = self.values['google_client_file'].get(), self.values['gmail_mailbox'].get()
         def work():
             file = Path(path)
             if not file.is_file() or file.stat().st_size > 20000: raise CompanionError('CLIENT_REQUIRED', 'Selecione o JSON OAuth Desktop do Google.')
-            return self.gmail.connect(json.loads(file.read_text(encoding='utf-8-sig')), mailbox)
+            result = self.gmail.connect(json.loads(file.read_text(encoding='utf-8-sig')), mailbox)
+            self.gmail.use('gmail')
+            return result
         self.background('Conclua o consentimento Google no navegador que abrir.', work, 'gmail')
 
     def connect_avanca(self):
@@ -292,8 +310,8 @@ class Desktop:
         try:
             self.saved = self.vault.get('desktop-profiles') or {}
             status = self.gmail.status()
-            self.gmail_label.configure(text=('Gmail conectado: ' + status['mailbox']) if status['connected'] else 'Conecte o Gmail antes de iniciar.')
-            if status.get('mailbox'): self.values['gmail_mailbox'].set(status['mailbox'])
+            self.gmail_label.configure(text=('Email conectado: ' + status['mailbox']) if status['connected'] else 'Conecte Gmail ou Hostinger antes de iniciar.')
+            if status.get('mailbox'): self.values['hostinger_mailbox' if self.gmail.provider == 'hostinger' else 'gmail_mailbox'].set(status['mailbox'])
         except CompanionError:
             self.saved = {}; self.gmail_label.configure(text='Cofre Windows indisponível neste ambiente.')
         self.paint_library()
@@ -307,6 +325,8 @@ class Desktop:
         try:
             data = self.settings(); name = handle(data.get('username'))
             data.pop('google_client_file', None)
+            # Mail credentials belong only to the connected provider vault record.
+            data.pop('hostinger_password', None)
             if not data.get('save_secrets'):
                 for field in ('instagram_password', 'avanca_password', 'proxy_password', 'proxy'): data.pop(field, None)
             self.saved[name] = data; self.vault.put('desktop-profiles', self.saved); self.paint_library()
@@ -334,12 +354,19 @@ class Desktop:
         if messagebox.askyesno('Excluir configuração local', 'Excluir o perfil local @' + name + '? A conta Instagram e o fluxo AVANÇA permanecem no serviço.', parent=self.root):
             self.saved.pop(name, None); self.vault.put('desktop-profiles', self.saved); self.paint_library()
 
+    def copy_failure_prompt(self):
+        prompt = self.workflow.snapshot().get('diagnosticPrompt')
+        if not prompt:
+            self.status.configure(text='Ainda não há relatório de falha nesta execução.'); return
+        self.root.clipboard_clear(); self.root.clipboard_append(prompt)
+        self.status.configure(text='Prompt copiado. Ele inclui a tela sanitizada, ações e falha observada.')
+
     def poll(self):
         while True:
             try: kind, result, failure = self.responses.get_nowait()
             except queue.Empty: break
             if failure: self.status.configure(text=failure); messagebox.showerror('Operação interrompida', failure, parent=self.root)
-            elif kind == 'gmail': self.gmail_label.configure(text='Gmail conectado: ' + result['mailbox']); self.status.configure(text='Gmail pronto para recuperar códigos automaticamente.')
+            elif kind == 'gmail': self.gmail_label.configure(text='Email conectado: ' + result['mailbox']); self.status.configure(text='Email pronto para recuperar códigos automaticamente.')
             elif kind == 'catalog':
                 self.flow_map = {f['name'] + ' · ' + f['id'][:8]: f['id'] for f in result['flows']}
                 self.app_map = {a['name'] + ' · ' + a['id'][:8]: a['id'] for a in result['apps']}
@@ -367,7 +394,7 @@ class Desktop:
         events = state['events']
         if events and events[-1] != self.last_event:
             self.logs.configure(state='normal'); self.logs.delete('1.0', 'end')
-            self.logs.insert('end', '\n'.join(e['time'][11:19] + '  [' + e['phase'] + '] ' + e['message'] for e in events)); self.logs.see('end'); self.logs.configure(state='disabled')
+            self.logs.insert('end', '\n'.join(e['time'][11:19] + '  [' + e['phase'] + '] ' + ('(+' + str(e['durationMs']) + ' ms) ' if 'durationMs' in e else '') + e['message'] for e in events)); self.logs.see('end'); self.logs.configure(state='disabled')
             self.last_event = events[-1]
         self.status.configure(wraplength=max(500, self.root.winfo_width() - 70))
         self.root.after(200, self.poll)

@@ -24,7 +24,13 @@ def attribute(element, name):
 
 
 class NativeForms:
-    def __init__(self, phone): self.phone = phone
+    def __init__(self, phone):
+        self.phone = phone
+        self.actions = []
+
+    def record(self, action):
+        self.actions.append(action)
+        self.actions = self.actions[-30:]
 
     def check(self):
         if self.phone.cancel.is_set(): raise CompanionError('CANCELLED', 'Operação cancelada antes da próxima ação no formulário.')
@@ -33,7 +39,7 @@ class NativeForms:
     def labels(self, screen):
         return [text for node in screen.nodes if node.get('displayed', 'true') != 'false'
             and node.get('package', 'com.instagram.android') == 'com.instagram.android'
-            and node.get('class') not in ('android.widget.EditText', 'android.widget.AutoCompleteTextView')
+            and (node.get('class') or node.tag) not in ('android.widget.EditText', 'android.widget.AutoCompleteTextView')
             and node.get('editable') != 'true'
             for text in screen.labels(node) if text]
 
@@ -153,6 +159,7 @@ class NativeForms:
         return unicodedata.normalize('NFC', observed).strip() == unicodedata.normalize('NFC', value).strip()
 
     def fill(self, value, purpose, guard=None):
+        self.record('preencher campo: ' + purpose)
         if not isinstance(value, str) or '\n' in value or '\r' in value:
             raise CompanionError('INVALID_FORM_VALUE', 'O valor configurado para este campo é inválido.')
         for attempt in range(3):
@@ -194,6 +201,7 @@ class NativeForms:
         raise CompanionError('NATIVE_INPUT_UNCONFIRMED', 'Não foi possível confirmar o conteúdo do campo após três tentativas de foco e digitação. Nenhum botão de envio foi pressionado.')
 
     def click(self, labels):
+        self.record('clicar: ' + ' / '.join(labels))
         self.check()
         self.hide_keyboard()
         for attempt in range(2):
@@ -219,10 +227,9 @@ class NativeForms:
     def wait_for(self, predicate, message, seconds=30):
         deadline = self.phone.clock() + seconds
         while self.phone.clock() < deadline:
-            self.check()
             screen = self.phone.screen()
             if predicate(screen) or self.security(screen): return screen
-            self.phone.cancel.wait(.35)
+            self.phone.cancel.wait(.25)
         raise CompanionError('NATIVE_TRANSITION_UNCONFIRMED', message)
 
     def navigate(self, labels, expected):

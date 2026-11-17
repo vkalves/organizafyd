@@ -201,6 +201,7 @@ class Android:
             options = UiAutomator2Options().load_capabilities({"platformName": "Android", "appium:automationName": "UiAutomator2",
                 "appium:udid": self.serial, "appium:noReset": True, "appium:newCommandTimeout": 120,
                 "appium:appPackage": PACKAGE, "appium:autoLaunch": False, "appium:dontStopAppOnReset": True,
+                "appium:settings[waitForIdleTimeout]": 1000, "appium:settings[waitForSelectorTimeout]": 1000,
                 "appium:skipLogcatCapture": True, "appium:settings[ignoreUnimportantViews]": False})
             config = AppiumClientConfig(remote_server_addr=self.endpoint, timeout=60, proxy=Proxy({'proxyType': 'direct'}))
             self.progress('android_session_start', 'Criando a sessão UiAutomator2. Confirme as permissões solicitadas no telefone.')

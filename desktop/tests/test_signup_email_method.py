@@ -102,12 +102,12 @@ class SignupEmailMethodTests(unittest.TestCase):
         with self.assertRaises(CompanionError) as caught: phone.create_account(SETTINGS)
         self.assertEqual(caught.exception.code, 'CONTROL_UNCERTAIN'); self.assertEqual(driver.typed, []); self.assertEqual(driver.clicks, [])
 
-    def test_missing_email_choice_pauses_without_using_the_phone_field(self):
+    def test_missing_email_choice_reports_unknown_without_using_the_phone_field(self):
         phone, driver = self.make_phone([screen(node('Qual é o número do seu celular?'), node(cls='android.widget.EditText'), node('Avançar'))])
         clock = count(0, 13)
         with patch.object(phone, 'clock', side_effect=lambda: next(clock)), patch.object(phone, 'pause', side_effect=CompanionError('FIXTURE_PAUSED', 'pause')) as pause:
             with self.assertRaises(CompanionError) as caught: phone.create_account(SETTINGS)
-        self.assertEqual(caught.exception.code, 'FIXTURE_PAUSED'); self.assertEqual(pause.call_args.args[0], 'native_signup_screen')
+        self.assertEqual(caught.exception.code, 'UNKNOWN_SIGNUP_SCREEN'); pause.assert_not_called()
         self.assertEqual(driver.typed, []); self.assertEqual(driver.clicks, [])
 
     def test_unconfirmed_method_switch_is_not_clicked_repeatedly(self):
