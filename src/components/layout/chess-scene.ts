@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CHESS_TILT, CHESS_TRAVEL, fitChessCamera } from "./chess-framing";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 /** A solid, lathed king with a beveled cross. No model download or render loop at rest. */
@@ -11,8 +12,6 @@ export function mountChess(canvas: HTMLCanvasElement, animated: boolean) {
   renderer.toneMappingExposure = 1.25;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 30);
-  camera.position.set(0, 0.25, 4.5);
-  camera.lookAt(0, 0.15, 0);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
@@ -52,6 +51,7 @@ export function mountChess(canvas: HTMLCanvasElement, animated: boolean) {
   crossGeometry.translate(0, .73, -.055);
   king.add(new THREE.Mesh(crossGeometry, material));
 
+  const modelBounds = new THREE.Box3().setFromObject(king);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let frame = 0, disposed = false;
   const started = performance.now();
@@ -59,8 +59,8 @@ export function mountChess(canvas: HTMLCanvasElement, animated: boolean) {
   const pose = (progress: number) => {
     const ease = 1 - (1 - progress) ** 3;
     king.rotation.y = -.35 + (animated && !reduced.matches ? (1 - ease) * Math.PI * 2 : 0);
-    king.rotation.x = .06;
-    king.position.y = animated && !reduced.matches ? -.18 * (1 - ease) : 0;
+    king.rotation.x = CHESS_TILT;
+    king.position.y = animated && !reduced.matches ? -CHESS_TRAVEL * (1 - ease) : 0;
     renderer.render(scene, camera);
     canvas.style.opacity = "1";
   };
@@ -75,7 +75,11 @@ export function mountChess(canvas: HTMLCanvasElement, animated: boolean) {
     const { width, height } = canvas.getBoundingClientRect();
     if (!width || !height) return;
     renderer.setSize(width, height, false);
-    camera.aspect = width / height; camera.updateProjectionMatrix();
+    camera.aspect = width / height;
+    const framing = fitChessCamera(modelBounds, camera.aspect, animated ? CHESS_TRAVEL : 0);
+    camera.position.set(0, framing.targetY, framing.distance);
+    camera.lookAt(0, framing.targetY, 0);
+    camera.updateProjectionMatrix();
     pose(Math.min(1, (performance.now() - started) / duration));
   };
   const observer = new ResizeObserver(resize);
