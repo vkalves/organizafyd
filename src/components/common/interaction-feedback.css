@@ -1,38 +1,9 @@
+/* Native cursors move independently of React, animation frames and WebGL. */
 @media (pointer: fine) {
-  html { cursor: default; }
-  button, a, [role="button"], label[for], summary, select { cursor: pointer; }
-  input, textarea { cursor: text; }
-  :is(button,input,select,textarea):disabled, [aria-disabled="true"] { cursor: not-allowed; }
-}
-.avanca-cursor {
-  position: fixed; top: 0; left: 0; width: 0; height: 0;
-  z-index: 2147483647; pointer-events: none; opacity: 0;
-  transition: opacity 120ms ease; will-change: transform;
-}
-.avanca-cursor[data-visible="true"] { opacity: 1; }
-.avanca-cursor-arrow {
-  position: absolute; left: -4px; top: -2px; transform-origin: 4px 2px;
-  transition: opacity 220ms ease, transform 280ms cubic-bezier(.2,.8,.2,1);
-}
-.avanca-cursor-ring {
-  position: absolute; left: -10px; top: -10px; width: 20px; height: 20px;
-  border: 1.5px solid #f4f6ff; border-radius: 50%;
-  background: #eef2ff18; box-shadow: 0 0 0 1.5px #151b28b3, inset 0 0 0 1px #151b2840;
-  opacity: 0; transform: scale(.35);
-  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), background-color 220ms ease;
-}
-.avanca-cursor-ring::after {
-  content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #edf3ff;
-}
-.avanca-cursor[data-interactive="true"] .avanca-cursor-arrow { opacity: 0; transform: scale(.65) rotate(-8deg); }
-.avanca-cursor[data-interactive="true"] .avanca-cursor-ring { opacity: 1; transform: scale(1); }
-.avanca-cursor[data-interactive="true"][data-pressed="true"] .avanca-cursor-ring { transform: scale(.82); background: #eef2ff35; }
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  html[data-avanca-cursor] { cursor: none; }
-  :root[data-avanca-cursor] :is(a[href]:not([aria-disabled="true"]),button:not(:disabled):not([aria-disabled="true"]),[role="button"]:not([aria-disabled="true"]),[role="tab"]:not([aria-disabled="true"]),[role="menuitem"]:not([aria-disabled="true"]),summary,select:not(:disabled),label[for],label:has(input:not(:disabled)),input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled),.cursor-pointer,.cursor-default) { cursor: none; }
-  :root[data-avanca-cursor] :is(input:not([type="checkbox"]):not([type="radio"]),textarea,[contenteditable="true"]) { cursor: text; }
-  :root[data-avanca-cursor] :is(:disabled,[aria-disabled="true"]) { cursor: not-allowed; }
-}
-@media (prefers-reduced-motion: reduce), (pointer: coarse), (hover: none) {
-  .avanca-cursor { display: none; }
+  html { cursor: url("/branding/cursor-arrow.svg") 4 2, auto; }
+  :root body :is(a[href],button:not(:disabled),[role="button"],[role="tab"],[role="menuitem"],summary,select:not(:disabled),label[for],label:has(input:not(:disabled)),input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled),.cursor-pointer) {
+    cursor: url("/branding/cursor-ring.svg") 16 16, pointer;
+  }
+  :root body :is(input:not([type="checkbox"]):not([type="radio"]),textarea,[contenteditable="true"]) { cursor: text; }
+  :root body :is(:disabled,[aria-disabled="true"]), :root body :is(:disabled,[aria-disabled="true"]) * { cursor: not-allowed !important; }
 }
