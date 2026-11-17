@@ -1,7 +1,7 @@
 /* AVANÇA / smoked Liquid Glass. This is the final theme layer, after legacy styles. */
 :root {
   --avanca-wallpaper: radial-gradient(ellipse at 78% 6%,#aab3cd30,transparent 48%), radial-gradient(ellipse at 10% 84%,#909bb729,transparent 52%), linear-gradient(135deg,#0d0f15,#20232d 54%,#101218);
-  --avanca-glass: linear-gradient(145deg,#ffffff0e,#ffffff02 50%),#181b2466;
+  --avanca-glass: linear-gradient(145deg,#ffffff0e,#ffffff02 50%),#505b7166;
   --avanca-glass-line: #ffffff22;
   --avanca-glass-shadow: inset 0 1px 0 #ffffff1c,inset 0 -1px 0 #00000012,0 16px 48px #00000024;
   --avanca-font: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
@@ -44,7 +44,7 @@ body .workspace-shell.avanca-glass-shell .shell-avatar { background: #ffffff12; 
 body .workspace-shell.avanca-glass-shell .shell-header {
   top: calc(14px + env(safe-area-inset-top)); left: calc(var(--sidebar-w) + 16px); right: 24px;
   height: 54px; padding: 0 18px; border: 1px solid #ffffff24; border-radius: 18px;
-  background: linear-gradient(120deg,#ffffff0e,#ffffff04),#20232b66;
+  background: linear-gradient(120deg,#ffffff12,#ffffff06),#343e50c4;
   backdrop-filter: blur(28px) saturate(145%); -webkit-backdrop-filter: blur(28px) saturate(145%);
   box-shadow: inset 0 1px #ffffff14,0 8px 24px #00000014;
 }
@@ -169,3 +169,33 @@ body .auth-layout .auth-showcase-copy h1 span { color: #b0b9cb; }
   :root body .workspace-shell.avanca-glass-shell .agonia-root[data-section] :is(.panel,.stat-card) { background: #202530f5; backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 body .workspace-shell.avanca-glass-shell .video-thumb.scheduled-cover { width: 40px; height: 56px; flex: 0 0 40px; border-radius: 11px; overflow: hidden; background: #ffffff06; border: 1px solid #ffffff14; }
+
+/* Inner surfaces use the same illuminated glass instead of legacy black blocks. */
+:root body .workspace-shell.avanca-glass-shell :is(.ig-account-list,.ig-campaign-row) {
+  background: linear-gradient(145deg,#ffffff0c,#ffffff03),#71809b18;
+  border-color: #ffffff26; box-shadow: inset 0 1px #ffffff0d;
+}
+:root body .workspace-shell.avanca-glass-shell .ig-account-list { border-radius: 20px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+:root body .workspace-shell.avanca-glass-shell .ig-account-item { background: transparent; }
+:root body .workspace-shell.avanca-glass-shell .ig-account-item + .ig-account-item { border-color: #ffffff12; }
+:root body .workspace-shell.avanca-glass-shell :is(.ig-account-item.is-selected,.ig-campaign-row:hover) { background: #d8e3ff12; }
+:root body .workspace-shell.avanca-glass-shell :is(.ig-account-details,.ig-tool-drawer,.meta-guide-card,.ig-check-row,.ig-flow-options label) { background: #d8e3ff09; border-color: #ffffff1c; }
+:root body .workspace-shell.avanca-glass-shell :is(.ig-account-details .ig-account-notes textarea,.ig-account-edit-fields input,.ig-account-edit-fields select) { background: #d8e3ff08; border-color: #ffffff26; }
+:root body .workspace-shell.avanca-glass-shell .shell-header { z-index: 55; }
+:root body .workspace-shell.avanca-glass-shell .shell-brand { gap: 0; }
+:root body .workspace-shell.avanca-glass-shell .avanca-brand-depth { display: inline-flex; flex-direction: row; align-items: center; gap: 10px; }
+:root body .workspace-shell.avanca-glass-shell .avanca-wordmark { position: static; flex: 0 0 auto; }
+:root body .workspace-shell.avanca-glass-shell .chess-perspective { width: 36px; min-width: 36px; height: 44px; overflow: hidden; flex: 0 0 36px; }
+:root body .workspace-shell.avanca-glass-shell .chess-perspective .chess-fallback { width: 76%; height: 76%; inset: 12%; object-fit: contain; }
+/* The floating title bar keeps a clear reading area while the dashboard scrolls. */
+:root body .workspace-shell.avanca-glass-shell .app-body::before {
+  content: ''; position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: calc(84px + env(safe-area-inset-top));
+  z-index: 54; pointer-events: none;
+  background: linear-gradient(180deg,#293140f5 0%,#293140eb 76%,#29314000 100%);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(#000 0% 78%,transparent 100%);
+}
+:root body .workspace-shell.avanca-glass-shell :is(.shell-rail-account,.performance-total,.dash-ranking-link) { background: #d8e3ff0b; border-color: #ffffff1e; box-shadow: inset 0 1px #ffffff08; }
+@media(max-width:1023px) { :root body .workspace-shell.avanca-glass-shell .app-body::before { left: 0; } }
+:root body .workspace-shell.avanca-glass-shell :is(.shell-rail-footer,.quick-actions-minimal) { background: #d8e3ff08; border-color: #ffffff1c; box-shadow: inset 0 1px #ffffff09; }
+:root body .workspace-shell.avanca-glass-shell .quick-action-mini-btn { background: #d8e3ff08; border-color: #ffffff20; }

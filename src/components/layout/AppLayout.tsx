@@ -13,7 +13,6 @@ import {
   Instagram,
   X,
   PlugZap,
-  Image,
   CalendarClock,
   Film,
   UserRound,
@@ -61,7 +60,6 @@ const agoniaSections: NavSection[] = [
     label: "Publicação",
     items: [
       { title: "Instagram", path: "/avanca/instagram", icon: Instagram },
-      { title: "Stories", path: "/avanca/stories", icon: Image },
       { title: "Agendamentos", path: "/avanca/scheduled", icon: CalendarClock },
       { title: "Publicações", path: "/avanca/reels", icon: Film, matchPaths: ["/avanca/reels", "/avanca/reels-test", "/avanca/reels-new"] },
     ],
@@ -223,6 +221,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const currentPage = useMemo(() => {
     if (location.pathname === "/avanca/alertas") return "Notificações";
     if (location.pathname === "/avanca/reels-new") return "Criar publicação";
+    if (location.pathname === "/avanca/stories") return "Stories";
     if (location.pathname === "/avanca/admin") return "Administração";
     if (location.pathname === "/avanca/reels-test") return "Diagnóstico de Publicação";
     const match = agoniaNavItems.find((item) =>
