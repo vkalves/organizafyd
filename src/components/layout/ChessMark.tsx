@@ -3,7 +3,7 @@ import "./chess-mark.css";
 export function ChessMark({ animated = false, onReady }: { animated?: boolean; onReady?: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    if (!ref.current || typeof WebGLRenderingContext === "undefined") { onReady?.(); return; }
+    if (!ref.current || typeof WebGLRenderingContext === "undefined" || typeof IntersectionObserver === "undefined") { onReady?.(); return; }
     let active = true;
     let dispose: (() => void) | undefined;
     // Keep Three.js off the initial application bundle. Icons mount only near the viewport.
