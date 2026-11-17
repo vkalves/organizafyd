@@ -1,3 +1,4 @@
+import { mediaLabel } from "./media-label";
 import { importReelFile, parseReelUrl } from "./reel-import";
 import { LocalMediaPreviews } from "./LocalMediaPreviews";
 import { MediaPreview } from "./MediaPreview";
@@ -424,7 +425,7 @@ export default function Flows({
             ? { ...entry, status: "error", message } : entry));
         } finally {
           // Release previews as each file leaves the queue instead of holding the whole batch.
-          if (job.file) setChosenFiles(previous => previous.slice(1));
+          if (job.file) setChosenFiles(previous => previous.filter(file => file !== job.file));
         }
       }
       if (savedCount) toast.success(`${savedCount} mídia(s) pronta(s) para publicar.`);
@@ -1351,9 +1352,9 @@ export default function Flows({
             {/* Grade minimalista de miniaturas (borda única, zero dropdown por item) */}
             {visible.length > 0 ? (
               <div className="ig-library-grid">
-                {visible.map((m, i) => {
+                {visible.map((m) => {
                   const isVideo = m.url.endsWith(".mp4");
-                  const itemName = `${isVideo ? "Vídeo" : "Foto"} ${i + 1}`;
+                  const itemName = mediaLabel({ ...m, format: isVideo ? "Reel" : "Foto" });
                   const isSelected = selected.includes(m.id);
 
                   return (
@@ -1363,7 +1364,7 @@ export default function Flows({
                     >
                       <MediaPreview
                         url={m.url}
-                        label={`Prévia de ${isVideo ? "vídeo" : "foto"} ${i + 1}`}
+                        label={`Prévia de ${itemName}`}
                         minimal
                       />
 
@@ -1407,7 +1408,7 @@ export default function Flows({
                         className="ig-thumb-inspect-btn"
                         disabled={busy}
                         title="Detalhes, pasta e legenda"
-                        aria-label={`Visualizar ${isVideo ? "vídeo" : "foto"} ${i + 1}`}
+                        aria-label={`Visualizar ${itemName}`}
                         onClick={() =>
                           void perform(async () => {
                             const url = m.url.startsWith("storage://")
@@ -1430,7 +1431,7 @@ export default function Flows({
                         className="ig-thumb-delete-btn"
                         disabled={busy}
                         title="Excluir mídia"
-                        aria-label={`Excluir ${isVideo ? "vídeo" : "foto"} ${i + 1}`}
+                        aria-label={`Excluir ${itemName}`}
                         onClick={() => { setDeleteProgress(0); setMediaToDelete([m]); }}
                       >
                         <Trash2 size={12} />

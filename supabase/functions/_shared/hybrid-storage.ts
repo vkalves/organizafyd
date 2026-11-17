@@ -16,6 +16,7 @@ export function hybridStorage(client: Client, baseUrl: string, enabled = true) {
     try {
       const result = await client.functions.invoke("s3-storage", {
         body: { action, bucket, ...payload },
+        timeout: 60_000,
       });
       if (result.error) {
         const details = await result.error.context?.json?.().catch(() => null);
@@ -65,10 +66,13 @@ export function hybridStorage(client: Client, baseUrl: string, enabled = true) {
             form.append(key, String(value));
           }
           form.append("file", body);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 180_000);
           try {
             const response = await fetch(result.data.url, {
               method: "POST",
               body: form,
+              signal: controller.signal,
             });
             if (!response.ok) {
               return {
@@ -87,9 +91,13 @@ export function hybridStorage(client: Client, baseUrl: string, enabled = true) {
             return {
               data: null,
               error: {
-                message: "Falha ao enviar o arquivo. Verifique sua conexão.",
+                message: controller.signal.aborted
+                  ? "O envio demorou demais. Confira a conexão e tente este arquivo novamente."
+                  : "Falha ao enviar o arquivo. Verifique sua conexão.",
               },
             };
+          } finally {
+            clearTimeout(timer);
           }
         },
         createSignedUrl(path: string, expiresIn: number) {

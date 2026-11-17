@@ -29,6 +29,7 @@ describe("library sharing dialog", () => {
       return { imported: 1, skipped: 0, failures: [{ id: "failed", message: "Limite de armazenamento atingido." }] };
     });
     const changed = show();
+    fireEvent.click(screen.getByRole("tab", { name: /Recebidas/ }));
     await screen.findByRole("option", { name: "@ana" });
     fireEvent.change(screen.getByLabelText("Bibliotecas compartilhadas comigo"), { target: { value: "owner" } });
     await screen.findByRole("button", { name: "Importar" });
@@ -50,6 +51,7 @@ describe("library sharing dialog", () => {
   });
   it("imports shared media and refreshes the user's library", async () => {
     const changed = show();
+    fireEvent.click(screen.getByRole("tab", { name: /Recebidas/ }));
     await screen.findByRole("option", { name: "@ana" });
     fireEvent.change(screen.getByLabelText("Bibliotecas compartilhadas comigo"), { target: { value: "owner" } });
     fireEvent.click(await screen.findByRole("button", { name: "Importar" }));
@@ -60,6 +62,7 @@ describe("library sharing dialog", () => {
   it("shows import failures without marking media as copied", async () => {
     mocks.importMedia.mockRejectedValue(new Error("Limite de armazenamento atingido."));
     const changed = show();
+    fireEvent.click(screen.getByRole("tab", { name: /Recebidas/ }));
     await screen.findByRole("option", { name: "@ana" });
     fireEvent.change(screen.getByLabelText("Bibliotecas compartilhadas comigo"), { target: { value: "owner" } });
     fireEvent.click(await screen.findByRole("button", { name: "Importar" }));

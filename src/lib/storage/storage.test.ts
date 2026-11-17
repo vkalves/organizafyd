@@ -58,6 +58,7 @@ describe("hybrid storage compatibility", () => {
       )).data.signedUrl,
     ).toBe("https://signed.example");
     expect(invoke).toHaveBeenCalledWith("s3-storage", {
+      timeout: 60_000,
       body: {
         action: "signed",
         bucket: "instagram-publisher",
@@ -128,4 +129,17 @@ describe("hybrid storage compatibility", () => {
         .getPublicUrl(`${user}/a & b.jpg`).data.publicUrl;
     expect(new URL(url).searchParams.get("path")).toBe(`${user}/a & b.jpg`);
   });
+});
+
+it("aborts a stalled S3 transfer so a batch can continue", async () => {
+  vi.useFakeTimers();
+  try {
+    const invoke = vi.fn().mockResolvedValue({ data: { url: "https://bucket.example", fields: {} }, error: null });
+    const fetcher = vi.fn((_url, options) => new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")))));
+    vi.stubGlobal("fetch", fetcher);
+    const upload = hybridStorage({ storage: {}, functions: { invoke } }, "").from("media").upload(`${user}/file.jpg`, new Blob(["image"]));
+    await vi.advanceTimersByTimeAsync(180_001);
+    expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
+    expect((await upload).error.message).toMatch(/demorou demais/);
+  } finally { vi.useRealTimers(); }
 });

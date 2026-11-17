@@ -1,5 +1,6 @@
 import { usePreviewVisibility } from "./usePreviewVisibility";
 import { VideoPreview } from "./VideoPreview";
+import { VideoPoster } from "./VideoPoster";
 import { useQuery } from "@tanstack/react-query";
 import { memo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +36,7 @@ export const MediaPreview = memo(function MediaPreview({
 
   if (minimal) {
     return (
-      <div
+      <section
         ref={ref}
         className="relative h-full w-full overflow-hidden bg-secondary/40"
       >
@@ -53,14 +54,7 @@ export const MediaPreview = memo(function MediaPreview({
             <span>Sem prévia</span>
           </div>
         ) : video ? (
-          <VideoPreview
-            src={src}
-            visible={visible}
-            label={label}
-            controls={false}
-            onError={() => setFailedUrl(src)}
-            className="pointer-events-none h-full w-full object-cover"
-          />
+          <VideoPoster src={src} visible={visible} label={label} />
         ) : (
           <img
             src={src}
@@ -71,7 +65,7 @@ export const MediaPreview = memo(function MediaPreview({
             className="pointer-events-none h-full w-full object-cover"
           />
         )}
-      </div>
+      </section>
     );
   }
 

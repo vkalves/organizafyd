@@ -146,7 +146,7 @@ describe("Fluxos interface", () => {
       name: "Criar fluxo e iniciar",
     });
     expect(submit).toBeDisabled();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto · M" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
     expect(submit).toBeEnabled();
     fireEvent.change(screen.getByLabelText("Nome do fluxo (opcional)"), {
@@ -173,7 +173,7 @@ describe("Fluxos interface", () => {
   it("envia horários fixos sem transformar o GAP em espaçamento", async () => {
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto · M" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
     fireEvent.click(screen.getByRole("button", { name: "Horários fixos" }));
     fireEvent.click(
@@ -194,7 +194,7 @@ describe("Fluxos interface", () => {
   it("envia loop, descanso e legendas da pasta na criação da campanha", async () => {
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("checkbox", { name: "Foto 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto · M" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Repetir campanha em loop" }),
@@ -237,7 +237,7 @@ describe("Fluxos interface", () => {
 
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("button", { name: /Visualizar (vídeo|foto) 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Visualizar Foto · M" }));
     fireEvent.change(
       await screen.findByLabelText(/Pasta desta mídia/i),
       { target: { value: "Ofertas" } },
@@ -274,7 +274,7 @@ describe("Fluxos interface", () => {
     expect(within(actions).getByRole("status")).toHaveTextContent("1 mídia");
     expect(within(actions).queryByRole("button", { name: "Mover para" })).not.toBeInTheDocument();
     fireEvent.click(within(actions).getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
-    expect(screen.getByRole("checkbox", { name: "Foto 1" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Foto · M" })).toBeChecked();
     expect(within(actions).getByRole("status")).toHaveTextContent("1 selecionada");
     fireEvent.keyDown(within(actions).getByRole("button", { name: "Mover para" }), { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Ofertas" }));
@@ -282,7 +282,7 @@ describe("Fluxos interface", () => {
     await waitFor(() => expect(within(actions).queryByRole("button", { name: "Mover para" })).not.toBeInTheDocument());
     fireEvent.click(within(actions).getByRole("checkbox", { name: "Selecionar todas as mídias desta pasta" }));
     fireEvent.click(within(actions).getByRole("button", { name: "Limpar seleção" }));
-    expect(screen.getByRole("checkbox", { name: "Foto 1" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Foto · M" })).not.toBeChecked();
   });
 
   it("exclui somente as mídias selecionadas e permite cancelar antes de apagar", async () => {
@@ -323,7 +323,7 @@ describe("Fluxos interface", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(mocks.deleteMedia).toHaveBeenCalledTimes(2);
     expect(library.map(item => item.id)).toEqual(["m"]);
-    expect(screen.getByRole("checkbox", { name: "Foto 1" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Foto · M" })).toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Excluir selecionadas" }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir mídia" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -334,7 +334,7 @@ describe("Fluxos interface", () => {
   it("mantém a exclusão individual com confirmação", async () => {
     show();
     await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
-    fireEvent.click(screen.getByRole("button", { name: "Excluir foto 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir Foto · M" }));
     expect(mocks.deleteMedia).not.toHaveBeenCalled();
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir mídia" }));
     await waitFor(() => expect(mocks.deleteMedia).toHaveBeenCalledWith("m", media.url, "u"));

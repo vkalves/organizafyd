@@ -199,7 +199,7 @@ export function* buildFlowJobs(
   for (const [accountIndex, accountId] of input.accountIds.entries()) {
     if (context.disabledAccounts?.includes(accountId)) continue;
     const items = input.distribution === "split"
-      ? split.filter((_, i) => i % input.accountIds.length === accountIndex)
+      ? shuffle(split.filter((_, i) => i % input.accountIds.length === accountIndex))
       : shuffle(media);
     const fresh = items.filter(
       (item) =>

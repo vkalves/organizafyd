@@ -1,5 +1,6 @@
+import "@/components/layout/avanca-glass.css";
 import { AccountApprovalGate } from "@/features/administration/AccountApprovalGate";
-import { BackgroundMusic } from "@/components/audio/BackgroundMusic";
+import { InteractionFeedback } from "@/components/common/InteractionFeedback";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -61,7 +62,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-          <BackgroundMusic />
+          <InteractionFeedback />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

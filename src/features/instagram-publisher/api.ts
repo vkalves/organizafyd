@@ -146,7 +146,7 @@ export async function listPosts(userId: string): Promise<Post[]> {
   }>;
   const jobs = await readPages<Post>(async (from, to) => {
     const result = await jobsDb.from("ig_publication_jobs")
-      .select("id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id,flow_id")
+      .select("id,user_id,account_id,caption,format,media_urls,scheduled_at,status,created_at,published_at,error_code,media_id,flow_id,cover_url,next_attempt_at")
       .eq("user_id", userId).order("created_at", { ascending: false })
       .order("id", { ascending: false }).range(from, to);
     if (result.error || !result.data) throw new Error("Não foi possível carregar a fila.");
@@ -259,7 +259,7 @@ export async function uploadMedia(
     const { error } = await storage
       .from("instagram-publisher")
       .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
-    if (error) throw new Error("Falha no upload. Tente novamente.");
+    if (error) throw new Error(error.message || "Falha no upload. Tente novamente.");
     result.push("storage://" + path);
   }
   return result;
