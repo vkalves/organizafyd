@@ -1,0 +1,241 @@
+/* AVANÇA — matte black and white. Explicit scopes keep the palette stable
+   when feature styles load later, without changing the existing layout. */
+:root {
+  --avanca-canvas: #090909;
+  --avanca-panel: #111111;
+  --avanca-panel-line: #2a2a2a;
+  --avanca-font: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+}
+body .workspace-shell.avanca-dark-shell {
+  --header-h: 84px;
+  --background: 0 0% 3.5%;
+  --card: 0 0% 6.7%;
+  --border: 0 0% 16.5%;
+  --muted-foreground: 0 0% 66%;
+  --font-display: var(--avanca-font);
+  --font-body: var(--avanca-font);
+  --shell-line: #ffffff14;
+  background: var(--avanca-canvas);
+  font-family: var(--avanca-font);
+}
+.avanca-brand-depth { display: inline-flex; align-items: flex-end; gap: 10px; overflow: visible; }
+.avanca-wordmark { transform: none; font: 600 28px/1 var(--avanca-font); color: #f5f5f5; letter-spacing: -1.2px; }
+.shell-brand .avanca-wordmark { font-size: 27px; }
+body .workspace-shell.avanca-dark-shell .shell-rail {
+  top: 14px; bottom: 14px; left: 14px; width: calc(var(--sidebar-w) - 14px);
+  border: 1px solid #ffffff24; border-radius: 16px; padding: 16px 10px 10px;
+  background: #101010;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .shell-rail-top { min-height: 62px; padding: 0 6px 16px; }
+body .workspace-shell.avanca-dark-shell .shell-nav-section + .shell-nav-section { margin-top: 16px; }
+body .workspace-shell.avanca-dark-shell .shell-nav-section-label { font-size: 10px; text-transform: none; letter-spacing: .015em; color: #aeaeae; padding-bottom: 6px; }
+body .workspace-shell.avanca-dark-shell .shell-nav-link { min-height: 39px; border-radius: 12px; font-size: 13px; font-weight: 450; color: #a6a6a6; }
+body .workspace-shell.avanca-dark-shell .shell-nav-link:hover { background: #ffffff09; color: #ffffff; }
+body .workspace-shell.avanca-dark-shell .shell-nav-link.is-active {
+  background: #252525; color: #ffffff;
+  border-color: #383838; box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .shell-rail-footer { border-color: #ffffff10; }
+body .workspace-shell.avanca-dark-shell .shell-avatar { background: #ffffff12; border-color: #ffffff28; }
+body .workspace-shell.avanca-dark-shell .shell-header {
+  top: calc(14px + env(safe-area-inset-top)); left: calc(var(--sidebar-w) + 16px); right: 24px;
+  height: 54px; padding: 0 18px; border: 1px solid #ffffff24; border-radius: 18px;
+  background: #111111;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .shell-current-page { font-size: 12px; font-weight: 500; color: #d8d8d8; }
+body .workspace-shell.avanca-dark-shell .shell-icon-button { width: 34px; height: 34px; border-radius: 11px; color: #bebebe; }
+body .workspace-shell.avanca-dark-shell .shell-icon-button:hover { background: #ffffff0d; color: #ffffff; }
+body .workspace-shell.avanca-dark-shell .app-page-frame { padding: 24px 28px 48px; }
+body .workspace-shell.avanca-dark-shell .agonia-root {
+  --paper: #111111; --cloud: #090909; --line: #ffffff17; --workspace-muted-ink: #b4b4b4;
+  --dash-surface: #111111; --dash-border: #ffffff1c;
+  gap: 24px;
+}
+body .workspace-shell.avanca-dark-shell :is(.agonia-root .panel,.agonia-root .stat-card,.operation-panel,.ig-stat,.ig-flows .ig-panel) {
+  background: var(--avanca-panel); border: 1px solid var(--avanca-panel-line); border-radius: 16px;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .agonia-root .panel { padding: 24px; }
+body .workspace-shell.avanca-dark-shell .agonia-root .page-title { font: 600 clamp(27px,3vw,36px)/1.2 var(--avanca-font); letter-spacing: -.045em; color: #f6f6f6; }
+body .workspace-shell.avanca-dark-shell .agonia-root .page-subtitle { color: #b5b5b5; font-size: 13px; line-height: 1.6; }
+body .workspace-shell.avanca-dark-shell .agonia-root .eyebrow { display: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root .dash-hero-art { display: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root .dash-hero { min-height: 90px; }
+body .workspace-shell.avanca-dark-shell .agonia-root .stat-icon { border: 1px solid #ffffff1c; border-radius: 13px; background: #ffffff09; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root .stat-card .label { text-transform: none; letter-spacing: 0; color: #bcbcbc; }
+body .workspace-shell.avanca-dark-shell .agonia-root .stat-card .value { font-weight: 550; }
+body .workspace-shell.avanca-dark-shell .agonia-root a.stat-card:hover { background: #ffffff0d; border-color: #ffffff35; }
+body .workspace-shell.avanca-dark-shell .agonia-root .button {
+  min-height: 40px; border-radius: 13px; font-size: 12px; font-weight: 500;
+  transition: background-color 160ms,border-color 160ms,box-shadow 160ms;
+}
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.button-primary,.button-mint,.button-coral) {
+  background: #f5f5f5; border-color: #ffffffb3; color: #232323;
+  box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.button-primary,.button-mint,.button-coral):hover:not(:disabled) { background: #ffffff; border-color: #ffffff; }
+body .workspace-shell.avanca-dark-shell .agonia-root .button-secondary { background: #ffffff07; border-color: #ffffff20; color: #dedede; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root .button-secondary:hover:not(:disabled) { background: #ffffff12; border-color: #ffffff38; }
+body .workspace-shell.avanca-dark-shell .agonia-root .field :is(input,select,textarea),
+body .workspace-shell.avanca-dark-shell :is(.ig-accounts-search,.ig-account-notes textarea,.ig-account-edit-fields input) {
+  background: #191919; border: 1px solid #ffffff1d; border-radius: 13px; color: #f4f4f4; box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .agonia-root .field :is(input,select,textarea):focus { border-color: #cacaca99; box-shadow: 0 0 0 3px #cacaca12; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.period-tabs,.ranking-filter-tabs,.ig-segmented-tabs,.ig-segmented-full) { padding: 4px; background: #08080830; border-color: #ffffff12; border-radius: 14px; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.period-tabs button.is-active,.ranking-filter-tab.is-active,.filter-tab.active,.ig-tab-pill.is-active,.ig-segmented-full button[aria-pressed="true"]) {
+  border-color: #ffffff26; background: #161616; color: #ffffff; border-radius: 11px; box-shadow: none;
+}
+body .workspace-shell.avanca-dark-shell .agonia-root .filter-tab { background: none; border: 1px solid transparent; font-size: 12px; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.reel-media-card,.wizard-step,.account-option,.list-row,.settings-toggle,.reel-composer-summary,.stories-account-panel,.ig-tool-drawer,.ig-check-row,.ig-flow-options label,.ig-account-details,.meta-guide-card) { background: #ffffff04; border-color: #ffffff14; border-radius: 16px; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.table th,.ig-table th,.data-table th) { background: transparent; color: #a7a7a7; font-size: 11px; font-weight: 500; letter-spacing: 0; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.table td,.ig-table td,.data-table td) { border-color: #ffffff0c; padding-block: 16px; font-size: 12px; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.table tbody tr:hover,.ig-table tbody tr:hover,.data-table tbody tr:hover) { background: #ffffff04; }
+body .workspace-shell.avanca-dark-shell .video-thumb.publication-cover { width: 44px; height: 62px; flex: 0 0 44px; overflow: hidden; border-radius: 12px; border: 1px solid #ffffff18; background: #ffffff05; color: #b3b3b3; }
+body .workspace-shell.avanca-dark-shell :is(.ig-accounts-manage,.ig-folder-tag,.ig-slot-chip,.ig-preset-pill,.ig-folder-picker-btn,.ops-filter) { background: #ffffff06; border: 1px solid #ffffff18; border-radius: 12px; box-shadow: none; color: #d1d1d1; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.upload-drop,.ig-upload-dropzone,.ig-empty-dropzone) { border-color: #ffffff28; background: #ffffff03; border-radius: 18px; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .agonia-root :is(.upload-drop,.ig-upload-dropzone,.ig-empty-dropzone):hover { background: #ffffff08; border-color: #ffffff48; }
+body .workspace-shell.avanca-dark-shell .ig-library-grid .ig-media-tile { border-radius: 18px; border-color: #ffffff1a; background: #ffffff05; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .ig-library-grid .ig-media-tile.is-selected { border-color: #e5e5e5b3; box-shadow: 0 0 0 2px #e5e5e515; }
+.ig-media-tile-bar { background: linear-gradient(transparent, #000b); padding-top: 28px; }
+.ig-media-tile-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avanca-secondary-actions { position: relative; color: #bcbcbc; font-size: 12px; }
+.avanca-secondary-actions > summary { cursor: pointer; list-style: none; padding: 10px 12px; border: 1px solid #ffffff16; border-radius: 12px; background: #ffffff03; }
+.avanca-secondary-actions > summary::-webkit-details-marker { display: none; }
+.avanca-secondary-actions > summary::after { content: " ···"; letter-spacing: 1px; }
+.avanca-secondary-actions[open] > summary { background: #ffffff0e; color: #ffffff; }
+.avanca-secondary-menu { position: absolute; z-index: 40; min-width: 190px; top: calc(100% + 8px); right: 0; padding: 6px; border: 1px solid #ffffff24; border-radius: 16px; background: #171717; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+.avanca-secondary-menu a, .avanca-secondary-menu button { display: flex; width: 100%; justify-content: flex-start; }
+body .library-sharing-dialog { background: #141414; border-color: #ffffff30; border-radius: 16px; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+body .library-sharing-dialog :is(input,select) { background: #191919; border-color: #ffffff20; }
+body .library-sharing-dialog .library-sharing-tabs { background: #08080830; border-color: #ffffff12; }
+body [data-radix-popper-content-wrapper] > [role="menu"] { background: #171717; border-color: #ffffff26; border-radius: 16px; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+body .auth-layout { background: var(--avanca-canvas); font-family: var(--avanca-font); }
+body .auth-layout .auth-shell { background: var(--avanca-panel); border: 1px solid #ffffff26; border-radius: 16px; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+body .auth-layout .auth-showcase { background: #ffffff02; }
+body .auth-layout .auth-showcase::after { border: 0; background: none; }
+body .auth-layout .auth-form-area { background: #ffffff02; border-color: #ffffff12; }
+body .auth-layout .auth-card { border: 0; border-radius: 0; background: none; box-shadow: none; padding: 0; }
+body .auth-layout .auth-input-wrap { border-color: #ffffff25; background: #191919; border-radius: 14px; }
+body .auth-layout .auth-submit { background: #f5f5f5; border-color: #ffffffb3; color: #222222; border-radius: 15px; box-shadow: none; }
+body .auth-layout :is(.auth-showcase-footer,.auth-public-links) { border-color: #ffffff14; }
+body .auth-layout .auth-showcase-copy h1 span { color: #b8b8b8; }
+@media(max-width:1023px) {
+  body .workspace-shell.avanca-dark-shell .shell-header { left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); padding-inline: 12px; border-radius: 18px; }
+  body .workspace-shell.avanca-dark-shell .app-page-frame { padding: 14px 16px 32px; }
+  body .workspace-shell.avanca-dark-shell .app-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  body .workspace-shell.avanca-dark-shell .mobile-bottom-nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); height: 64px; padding: 5px 8px; border: 1px solid #ffffff2c; border-radius: 16px; background: #111111; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+  body .workspace-shell.avanca-dark-shell .shell-bottom-icon { width: 42px; height: 30px; border-radius: 13px; }
+  body .workspace-shell.avanca-dark-shell .shell-bottom-link.is-active .shell-bottom-icon { background: #ffffff19; box-shadow: none; }
+  body .workspace-shell.avanca-dark-shell .shell-bottom-link { font-size: 10px; }
+  body .workspace-shell.avanca-dark-shell .shell-mobile-menu { margin: 10px; height: calc(100% - 20px); border: 1px solid #ffffff24; border-radius: 16px; background: #111111; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+  body .workspace-shell.avanca-dark-shell :is(.agonia-root .panel,.agonia-root .stat-card,.operation-panel,.ig-stat,.ig-flows .ig-panel) { backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 16px; }
+}
+@media(max-width:720px) {
+  body .auth-layout { padding: 20px 16px; }
+  body .auth-layout .auth-shell { background: var(--avanca-panel); border: 1px solid #ffffff26; border-radius: 16px; padding: 28px 22px; }
+  body .auth-layout .auth-form-area { padding: 0; background: none; border: 0; }
+  body .workspace-shell.avanca-dark-shell .agonia-root .panel { padding: 18px; }
+  body .workspace-shell.avanca-dark-shell .agonia-root .topbar .actions { gap: 8px; }
+}
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] :is(.panel,.stat-card) {
+  background: var(--avanca-panel); border: 1px solid var(--avanca-panel-line); border-radius: 16px;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+@media(max-width:1023px) {
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] :is(.panel,.stat-card) { backdrop-filter: none; -webkit-backdrop-filter: none; border-radius: 16px; }
+}
+body .workspace-shell.avanca-dark-shell .video-thumb.scheduled-cover { width: 40px; height: 56px; flex: 0 0 40px; border-radius: 11px; overflow: hidden; background: #ffffff06; border: 1px solid #ffffff14; }
+
+:root body .workspace-shell.avanca-dark-shell :is(.ig-account-list,.ig-campaign-row) {
+  background: #161616;
+  border-color: #ffffff26; box-shadow: none;
+}
+:root body .workspace-shell.avanca-dark-shell .ig-account-list { border-radius: 16px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+:root body .workspace-shell.avanca-dark-shell .ig-account-item { background: transparent; }
+:root body .workspace-shell.avanca-dark-shell .ig-account-item + .ig-account-item { border-color: #ffffff12; }
+:root body .workspace-shell.avanca-dark-shell :is(.ig-account-item.is-selected,.ig-campaign-row:hover) { background: #e3e3e312; }
+:root body .workspace-shell.avanca-dark-shell :is(.ig-account-details,.ig-tool-drawer,.meta-guide-card,.ig-check-row,.ig-flow-options label) { background: #e3e3e309; border-color: #ffffff1c; }
+:root body .workspace-shell.avanca-dark-shell :is(.ig-account-details .ig-account-notes textarea,.ig-account-edit-fields input,.ig-account-edit-fields select) { background: #e3e3e308; border-color: #ffffff26; }
+:root body .workspace-shell.avanca-dark-shell .shell-header { z-index: 55; }
+:root body .workspace-shell.avanca-dark-shell .shell-brand { gap: 0; }
+:root body .workspace-shell.avanca-dark-shell .avanca-brand-depth { display: inline-flex; flex-direction: row; align-items: flex-end; gap: 10px; }
+:root body .workspace-shell.avanca-dark-shell .avanca-wordmark { position: static; flex: 0 0 auto; }
+:root body .workspace-shell.avanca-dark-shell .chess-perspective { width: 36px; min-width: 36px; height: 44px; overflow: hidden; flex: 0 0 36px; }
+:root body .workspace-shell.avanca-dark-shell .chess-perspective .chess-fallback { width: 76%; height: 76%; inset: 12%; object-fit: contain; }
+:root body .workspace-shell.avanca-dark-shell .app-body::before {
+  content: ''; position: fixed; top: 0; left: var(--sidebar-w); right: 0; height: calc(84px + env(safe-area-inset-top));
+  z-index: 54; pointer-events: none;
+  background: var(--avanca-canvas);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+:root body .workspace-shell.avanca-dark-shell :is(.shell-rail-account,.performance-total,.dash-ranking-link) { background: #e3e3e30b; border-color: #ffffff1e; box-shadow: none; }
+@media(max-width:1023px) { :root body .workspace-shell.avanca-dark-shell .app-body::before { left: 0; } }
+:root body .workspace-shell.avanca-dark-shell :is(.shell-rail-footer,.quick-actions-minimal) { background: #e3e3e308; border-color: #ffffff1c; box-shadow: none; }
+:root body .workspace-shell.avanca-dark-shell .quick-action-mini-btn { background: #e3e3e308; border-color: #ffffff20; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] :is(.stat-icon,.performance-total,.dash-entry-icon,.dash-step-marker,.dash-ranking-link,.rank-pos-badge) {
+  background: #161616;
+  border-color: #e8e8e830; color: #e9e9e9; box-shadow: none;
+}
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] .badge-gray { background: #e3e3e312; color: #dbdbdb; border-color: #ffffff22; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] .badge-yellow { background: #fbbf2414; color: #f9dda0; border-color: #fbbf2438; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] .badge-green { background: #34d39914; color: #baf4dc; border-color: #34d39938; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section] .badge-red { background: #f8717114; color: #fecaca; border-color: #f8717140; }
+:root body .workspace-shell.avanca-dark-shell .dash-media-cover { overflow: hidden; }
+:root body .workspace-shell.avanca-dark-shell .dash-media-cover :is(img,video) { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Flat accents keep the dashboard hierarchy quiet. Status labels and media
+   keep their original colours so their meaning and content stay readable. */
+body .workspace-shell.avanca-dark-shell .shell-desktop-brand { background: #191919; border-color: #333; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .period-tabs button.is-active { background: #f5f5f5; border-color: #f5f5f5; color: #111; box-shadow: none; }
+body .workspace-shell.avanca-dark-shell .shell-icon-button { min-width: 44px; min-height: 44px; }
+@media (max-width: 640px) {
+  body .workspace-shell.avanca-dark-shell .agonia-root .button { min-height: 44px; }
+}
+
+body .auth-layout .auth-submit:hover:not(:disabled) { background: #dedede; border-color: #dedede; }
+
+/* Dashboard-specific legacy selectors also arrive with the lazy page chunk. */
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .dash-hero .button-primary {
+  background: #f5f5f5;
+  border-color: #f5f5f5;
+  color: #111;
+  box-shadow: none;
+}
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .dash-hero .button-primary:hover:not(:disabled) { background: #dedede; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .stat-card::after { content: none; }
+:root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .stat-card .label {
+  color: #b5b5b5;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+:root body .workspace-shell.avanca-dark-shell .quick-action-mini-btn svg { color: #b5b5b5; }
+@media (min-width: 1024px) {
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .stats-grid .stat-card {
+    padding: 18px;
+    gap: 12px;
+  }
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .stat-icon {
+    width: 34px;
+    height: 34px;
+  }
+}
+@media (max-width: 640px) {
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .dash-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .dash-hero > * { min-width: 0; }
+  :root body .workspace-shell.avanca-dark-shell .agonia-root[data-section="dashboard"] .dash-hero .button-primary {
+    width: 100%;
+    min-width: 0;
+  }
+}

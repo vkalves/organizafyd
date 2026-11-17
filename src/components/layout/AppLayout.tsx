@@ -242,7 +242,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <AppLayoutContext.Provider value={layoutContext}>
       <div
         className={cn(
-          "workspace-shell avanca-glass-shell min-h-[100dvh] min-w-0 shell-agonia-mode",
+          "workspace-shell avanca-dark-shell min-h-[100dvh] min-w-0 shell-agonia-mode",
           desktopSidebarOpen && "shell-expanded",
           mobileFocusMode && "shell-mobile-focus",
         )}
