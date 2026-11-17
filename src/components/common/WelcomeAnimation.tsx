@@ -18,8 +18,10 @@ export function WelcomeAnimation() {
   return <Dialog.Root open={visible} onOpenChange={setVisible}>
     <Dialog.Portal>
       <Dialog.Content className="welcome-stage" data-ready={ready}>
-        <div className="welcome-stage-emblem"><ChessMark animated onReady={onReady} /></div>
-        <Dialog.Title className="welcome-stage-title">AVANÇA</Dialog.Title>
+        <div className="welcome-stage-brand">
+          <div className="welcome-stage-emblem"><ChessMark animated onReady={onReady} /></div>
+          <Dialog.Title className="welcome-stage-title">AVANÇA</Dialog.Title>
+        </div>
         <Dialog.Description className="sr-only">Sua próxima jogada começa aqui.</Dialog.Description>
         <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">Pular</Dialog.Close>
       </Dialog.Content>

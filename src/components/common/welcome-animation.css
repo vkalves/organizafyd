@@ -1,13 +1,22 @@
 .welcome-stage {
-  position: fixed; inset: 0; z-index: 200; display: grid; grid-template-rows: minmax(0, auto) auto;
-  justify-content: center; align-content: center; justify-items: center; gap: clamp(24px, 4vh, 40px);
+  position: fixed; inset: 0; z-index: 200; display: grid; grid-template-columns: minmax(0, 1fr);
+  place-items: center;
   padding: max(48px, env(safe-area-inset-top)) 20px max(48px, env(safe-area-inset-bottom));
   background: transparent; color: #f4f5f7; outline: none; pointer-events: none;
 }
-.welcome-stage-emblem { grid-row: 1; width: min(260px, 52vw); height: min(320px, 44dvh); min-height: 0; display: grid; place-items: center; }
+.welcome-stage-brand {
+  display: flex; flex-direction: column; align-items: center;
+  width: min(100%, 360px); min-width: 0; gap: clamp(32px, 6dvh, 56px);
+}
+.welcome-stage-emblem { width: min(260px, 52vw); height: min(320px, 44dvh); min-height: 0; display: grid; place-items: center; }
 .welcome-stage-emblem .chess-perspective.is-animated { width: 100%; height: 100%; }
 .welcome-stage-emblem .chess-fallback { animation: none; width: 76%; height: 76%; }
-.welcome-stage-title { grid-row: 2; position: relative; margin: 0; padding-left: .16em; font: 600 clamp(32px,6vw,64px)/1.2 -apple-system,BlinkMacSystemFont,Inter,sans-serif; letter-spacing: .16em; text-shadow: 0 2px 24px #0005; }
+.welcome-stage-title {
+  position: static; box-sizing: border-box; width: 100%; min-width: 0; margin: 0;
+  padding-inline-start: .12em; text-align: center; white-space: nowrap;
+  font: 600 clamp(22px,6vw,48px)/1.2 -apple-system,BlinkMacSystemFont,Inter,sans-serif;
+  letter-spacing: .12em; color: #f4f5f7; text-shadow: 0 2px 24px #0005;
+}
 .welcome-stage[data-ready="false"] .welcome-stage-emblem, .welcome-stage[data-ready="false"] .welcome-stage-title { opacity: 0; }
 .welcome-stage[data-state="open"][data-ready="true"] .welcome-stage-emblem { animation: welcome-piece-in 600ms ease-out both; }
 .welcome-stage[data-state="open"][data-ready="true"] .welcome-stage-title { animation: welcome-text-in 650ms 180ms ease-out both; }
@@ -17,7 +26,7 @@
 .welcome-stage-skip { position: fixed; right: 18px; top: max(16px, env(safe-area-inset-top)); opacity: .65; pointer-events: auto; padding: 6px 11px; border: 1px solid #ffffff20; border-radius: 999px; background: #ffffff08; font: 400 11px/14px -apple-system, BlinkMacSystemFont, sans-serif; }
 .welcome-stage-skip:focus-visible { opacity: 1; outline: 2px solid #eee; outline-offset: 4px; }
 @keyframes welcome-piece-in { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes welcome-text-in { from { opacity: 0; transform: translateY(10px); letter-spacing: .25em; } to { opacity: 1; transform: translateY(0); letter-spacing: .16em; } }
+@keyframes welcome-text-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes welcome-object-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes welcome-presence { from { visibility: visible; } to { visibility: visible; } }
 @media(prefers-reduced-motion:reduce) {
