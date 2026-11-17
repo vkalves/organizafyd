@@ -31,3 +31,13 @@ it("does not announce read or resolved problems", async () => {
  show(); await waitFor(() => expect(mocks.request).toHaveBeenCalled());
  expect(mocks.warning).not.toHaveBeenCalled(); expect(mocks.sound).not.toHaveBeenCalled();
 });
+
+it("deduplicates more than 200 simultaneous problems across remounts", async () => {
+ mocks.request.mockResolvedValue({ health: [], alerts: Array.from({length: 250}, (_, i) => ({ id: `alert-${i}`, state: 'unavailable', read_at: null, resolved_at: null })) });
+ const {unmount} = show();
+ await screen.findByRole('link', {name: /250 não lidos/});
+ expect(mocks.warning).toHaveBeenCalledOnce();
+ unmount(); show();
+ await screen.findByRole('link', {name: /250 não lidos/});
+ expect(mocks.warning).toHaveBeenCalledOnce();
+});

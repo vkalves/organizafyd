@@ -1,3 +1,4 @@
+import "./account-alerts.css";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -5,613 +6,587 @@ import {
   ArrowRight,
   Bell,
   CheckCheck,
-  CheckCircle2,
   ExternalLink,
   Instagram,
   Loader2,
-  Plus,
   RefreshCw,
-  ShieldAlert,
-  ShieldCheck,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import {
+  accountHealthState,
+  confirmedHealthy,
   healthDetails,
   healthLabels,
-  monitorRequest,
-  type AccountAlert,
   type HealthState,
+  monitorRequest,
+  needsNewCheck,
 } from "@/features/instagram-publisher/monitor";
 import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
 import type { Connection } from "@/features/instagram-publisher/api";
 
-type TabFilter = "pending" | "all" | "resolved" | "matrix";
-
-export function AgoniaAlerts({
-  accounts,
-  connections,
-  onRefresh,
-}: {
-  accounts: { id: string; username: string }[];
-  connections: Connection[];
-  onRefresh: () => Promise<unknown>;
-}) {
-  const monitor = useInstagramMonitor();
-  const [readingId, setReadingId] = useState<string | null>(null);
-  const [markingAll, setMarkingAll] = useState(false);
-  const [tab, setTab] = useState<TabFilter>("pending");
-
-  const alerts = useMemo(
-    () => monitor.data?.alerts ?? [],
-    [monitor.data?.alerts],
+type Tab = "pending" | "matrix" | "all" | "resolved";
+function date(value?: string | null) {
+  return value && Number.isFinite(Date.parse(value))
+    ? new Date(value).toLocaleString("pt-BR")
+    : "Ainda não verificada";
+}
+function StateBadge(
+  { state, resolved = false }: { state: HealthState; resolved?: boolean },
+) {
+  const tone = resolved || state === "healthy"
+    ? "green"
+    : state === "reconnect" || state === "permissions"
+    ? "red"
+    : state === "unknown"
+    ? "gray"
+    : "yellow";
+  return (
+    <span className={`badge badge-${tone}`}>
+      {resolved ? "Encerrado" : healthLabels[state]}
+    </span>
   );
-  const healthList = useMemo(
-    () => monitor.data?.health ?? [],
+}
+export function AgoniaAlerts(
+  {
+    accounts,
+    connections,
+    onRefresh,
+    accountsPending = false,
+    accountsError = false,
+  }: {
+    accounts: { id: string; username: string }[];
+    connections: Connection[];
+    onRefresh: () => Promise<unknown>;
+    accountsPending?: boolean;
+    accountsError?: boolean;
+  },
+) {
+  const monitor = useInstagramMonitor();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("pending");
+  const [search, setSearch] = useState("");
+  const alerts = monitor.data?.alerts ?? [];
+  const healthMap = useMemo(
+    () => new Map((monitor.data?.health ?? []).map((h) => [h.account_id, h])),
     [monitor.data?.health],
   );
-
-  const activeAlerts = useMemo(
-    () => alerts.filter((a) => !a.resolved_at),
-    [alerts],
+  const connectionMap = useMemo(
+    () => new Map(connections.map((c) => [c.account_id, c])),
+    [connections],
   );
-  const unreadAlerts = useMemo(
-    () => alerts.filter((a) => !a.read_at && !a.resolved_at),
-    [alerts],
-  );
-  const resolvedAlerts = useMemo(
-    () => alerts.filter((a) => !!a.resolved_at),
-    [alerts],
-  );
-
   const accountMap = useMemo(
-    () =>
-      new Map(
-        accounts.map((a) => [a.id, a.username.replace(/^@/, "")]),
-      ),
+    () => new Map(accounts.map((a) => [a.id, a.username.replace(/^@/, "")])),
     [accounts],
   );
-
-  const healthMap = useMemo(
-    () => new Map(healthList.map((h) => [h.account_id, h])),
-    [healthList],
+  const pending = alerts.filter((a) => !a.resolved_at);
+  const unread = pending.filter((a) => !a.read_at);
+  const resolved = alerts.filter((a) => a.resolved_at);
+  const degraded = accounts.filter((a) =>
+    !["healthy", "unknown"].includes(
+      accountHealthState(
+        healthMap.get(a.id),
+        connectionMap.get(a.id)?.reconnect_required,
+      ),
+    )
   );
+  const healthy = accounts.filter((a) =>
+    confirmedHealthy(
+      healthMap.get(a.id),
+      connectionMap.get(a.id)?.reconnect_required,
+    )
+  ).length;
+  const waiting = accounts.length - degraded.length - healthy;
+  const unavailable = monitor.isError || accountsError;
+  const loading = monitor.isPending || accountsPending;
+  const uncertain = unavailable || loading;
+  const query = search.trim().replace(/^@/, "").toLocaleLowerCase("pt-BR");
+  const matches = (accountId: string) =>
+    (accountMap.get(accountId) ?? "").toLocaleLowerCase("pt-BR").includes(
+      query,
+    );
+  const displayed =
+    (tab === "pending" ? pending : tab === "resolved" ? resolved : alerts)
+      .filter((a) => matches(a.account_id));
+  const filteredAccounts = accounts.filter((a) => matches(a.id));
 
-  const degradedAccounts = useMemo(() => {
-    return accounts.filter((a) => {
-      const h = healthMap.get(a.id);
-      const c = connections.find((conn) => conn.account_id === a.id);
-      return (
-        (h && h.state !== "healthy" && h.state !== "unknown") ||
-        c?.reconnect_required
-      );
-    });
-  }, [accounts, healthMap, connections]);
-
-  async function handleMarkRead(id: string) {
-    setReadingId(id);
+  async function reload() {
+    setBusy("reload");
     try {
-      await monitorRequest("read", id);
-      await monitor.refetch();
-      toast.success("Alerta marcado como lido.");
+      await onRefresh();
+      await monitor.refetch({ throwOnError: true });
+      toast.success("Lista de alertas atualizada.");
     } catch {
-      toast.error("Não foi possível marcar o alerta.");
+      toast.error("Não foi possível atualizar os dados. Tente novamente.");
     } finally {
-      setReadingId(null);
+      setBusy(null);
     }
   }
-
-  async function handleMarkAllRead() {
-    const unread = alerts.filter((a) => !a.read_at);
-    if (!unread.length) {
-      toast.info("Não há alertas não lidos.");
-      return;
-    }
-    setMarkingAll(true);
+  async function markRead(id?: string) {
+    setBusy(id ?? "read_all");
     try {
-      await Promise.allSettled(
-        unread.map((alert) => monitorRequest("read", alert.id)),
+      const result = id
+        ? await monitorRequest("read", id)
+        : await monitorRequest("read_all");
+      await monitor.refetch({ throwOnError: true });
+      toast.success(
+        result.updated
+          ? `${result.updated} alerta(s) marcado(s) como lido(s).`
+          : "Os alertas já foram lidos ou encerrados.",
       );
-      await monitor.refetch();
-      toast.success(`${unread.length} alerta(s) marcado(s) como lido(s).`);
     } catch {
-      toast.error("Erro ao marcar todos os alertas.");
+      toast.error(
+        "Não foi possível confirmar a leitura dos alertas. Atualize e tente novamente.",
+      );
     } finally {
-      setMarkingAll(false);
+      setBusy(null);
     }
   }
-
-  async function handleRefreshDiagnostic() {
+  async function verify(accountId: string) {
+    setBusy(`check:${accountId}`);
     try {
-      await Promise.all([monitor.refetch(), onRefresh()]);
-      toast.success("Diagnóstico das contas atualizado com sucesso.");
+      const result = await monitorRequest("refresh", accountId);
+      await monitor.refetch({ throwOnError: true });
+      if (result.status === "busy") {
+        toast.info(
+          "Esta conta já está sendo verificada. Atualize a lista em instantes.",
+        );
+      } else if (result.status === "recent") {
+        toast.info(
+          "Conta verificada há menos de 1 minuto. Aguarde antes de consultar novamente.",
+        );
+      } else {toast.success(
+          "Verificação concluída. Confira o diagnóstico da conta.",
+        );}
     } catch {
-      toast.error("Não foi possível atualizar o diagnóstico.");
-    }
-  }
-
-  const displayedAlerts = useMemo(() => {
-    switch (tab) {
-      case "pending":
-        return activeAlerts;
-      case "resolved":
-        return resolvedAlerts;
-      case "all":
-      default:
-        return alerts;
-    }
-  }, [tab, activeAlerts, resolvedAlerts, alerts]);
-
-  function renderStateBadge(state: HealthState, isResolved?: boolean) {
-    if (isResolved) {
-      return (
-        <span className="badge badge-green inline-flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3" /> Resolvido
-        </span>
+      toast.error(
+        "Não foi possível verificar a conta. O diagnóstico anterior foi preservado.",
       );
-    }
-    switch (state) {
-      case "reconnect":
-      case "permissions":
-        return (
-          <span className="badge badge-red inline-flex items-center gap-1">
-            <ShieldAlert className="h-3 w-3" /> Reconexão Necessária
-          </span>
-        );
-      case "unavailable":
-        return (
-          <span className="badge badge-yellow inline-flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> Perfil Inacessível
-          </span>
-        );
-      case "temporary":
-        return (
-          <span className="badge badge-yellow inline-flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> Falha Temporária
-          </span>
-        );
-      case "healthy":
-        return (
-          <span className="badge badge-green inline-flex items-center gap-1">
-            <ShieldCheck className="h-3 w-3" /> Conexão Ativa
-          </span>
-        );
-      default:
-        return (
-          <span className="badge badge-gray inline-flex items-center gap-1">
-            Aguardando verificação
-          </span>
-        );
+    } finally {
+      setBusy(null);
     }
   }
+  async function connected() {
+    await onRefresh();
+    await monitor.refetch({ throwOnError: true });
+  }
+  function profile(accountId: string) {
+    const username = accountMap.get(accountId);
+    return username
+      ? (
+        <a
+          href={`https://www.instagram.com/${encodeURIComponent(username)}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="button button-secondary"
+        >
+          Perfil <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )
+      : null;
+  }
+  const tabs: { id: Tab; title: string; count: number }[] = [
+    { id: "pending", title: "Pendentes", count: pending.length },
+    { id: "matrix", title: "Saúde das contas", count: accounts.length },
+    { id: "all", title: "Todos", count: alerts.length },
+    { id: "resolved", title: "Encerrados", count: resolved.length },
+  ];
 
   return (
     <div className="agonia-alerts-view space-y-6">
-      {/* Top Header */}
       <header className="topbar">
         <div>
-          <div className="eyebrow">Diagnóstico em tempo real · Instagram</div>
-          <h1 className="page-title">Notificações</h1>
+          <h1 className="page-title">Alertas de contas</h1>
           <p className="page-subtitle">
-            Monitore o status da API da Meta para cada perfil conectado. Detecte
-            tokens expirados, limites de postagens ou restrições e resolva com
-            1 clique.
+            Acompanhe a conexão dos seus perfis com a Meta. As verificações
+            automáticas ocorrem normalmente a cada 5 minutos.
           </p>
         </div>
         <div className="action-row">
           <Button
-            type="button"
             variant="outline"
             size="sm"
-            disabled={monitor.isLoading || markingAll}
-            onClick={handleRefreshDiagnostic}
             className="button button-secondary"
+            disabled={!!busy || monitor.isFetching}
+            onClick={() => void reload()}
           >
             <RefreshCw
-              className={`h-4 w-4 ${monitor.isFetching ? "animate-spin" : ""}`}
-            />
-            {monitor.isFetching ? "Verificando..." : "Atualizar Status"}
+              className={`h-4 w-4 ${
+                monitor.isFetching || busy === "reload" ? "animate-spin" : ""
+              }`}
+            />{" "}
+            Atualizar lista
           </Button>
-
-          {unreadAlerts.length > 0 && (
+          {!!unread.length && (
             <Button
-              type="button"
               variant="outline"
               size="sm"
-              disabled={markingAll}
-              onClick={handleMarkAllRead}
               className="button button-secondary"
+              disabled={!!busy || unavailable}
+              onClick={() => void markRead()}
             >
               <CheckCheck className="h-4 w-4" />
-              {markingAll ? "Marcando..." : "Marcar Todos como Lidos"}
+              {busy === "read_all" ? "Marcando…" : "Marcar todos como lidos"}
             </Button>
           )}
-
-          <ConnectAccount onConnected={handleRefreshDiagnostic} />
+          <ConnectAccount onConnected={connected} />
         </div>
       </header>
 
-      {/* Overview Stat Cards */}
-      <section className="grid stats-grid" aria-label="Resumo de Saúde">
-        <div className="stat-card">
-          <div className="label">Contas Monitoradas</div>
-          <div className="value">{accounts.length}</div>
-          <div className="hint">
-            <Instagram className="h-3.5 w-3.5" /> perfis profissionais
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="label">100% Operacionais</div>
-          <div className="value text-emerald-400">
-            {accounts.length - degradedAccounts.length}
-          </div>
-          <div className="hint">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> sem
-            bloqueios na Meta
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="label">Precisam de Atenção</div>
-          <div
-            className={`value ${degradedAccounts.length > 0 ? "text-rose-400 font-bold" : ""}`}
-          >
-            {degradedAccounts.length}
-          </div>
-          <div className="hint">
-            <ShieldAlert className="h-3.5 w-3.5 text-rose-400" /> reconexão ou
-            permissão
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="label">Alertas Não Lidos</div>
-          <div
-            className={`value ${unreadAlerts.length > 0 ? "text-amber-400 font-bold" : ""}`}
-          >
-            {unreadAlerts.length}
-          </div>
-          <div className="hint">
-            <Bell className="h-3.5 w-3.5 text-amber-400" /> notificações no sino
-          </div>
-        </div>
-      </section>
-
-      {/* Action Banner if degraded accounts exist */}
-      {degradedAccounts.length > 0 && (
+      {unavailable && (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 flex flex-wrap items-center justify-between gap-4"
+          className="rounded-xl border border-border bg-card p-4 space-y-2"
         >
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="h-6 w-6 text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-rose-200 text-base block font-semibold">
-                {degradedAccounts.length} conta(s) com token expirado ou
-                reconexão necessária!
-              </strong>
-              <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                Contas desconectadas ou com permissões revogadas não conseguem
-                publicar agendamentos automáticos. Reconecte pelo login oficial
-                abaixo para retomar.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {degradedAccounts.map((a) => (
-                  <span
-                    key={a.id}
-                    className="inline-flex items-center gap-1 rounded-md bg-rose-950/70 border border-rose-500/40 px-2 py-0.5 text-xs text-rose-200 font-mono"
-                  >
-                    @{a.username}
-                  </span>
-                ))}
-              </div>
-            </div>
+          <strong>Não foi possível atualizar o monitoramento.</strong>
+          <p className="text-muted-foreground">
+            Os dados anteriores podem estar desatualizados. Isso não confirma
+            que as contas estão saudáveis ou desconectadas. Use Atualizar lista
+            para tentar novamente.
+          </p>
+        </div>
+      )}
+
+      <section className="stats-grid" aria-label="Resumo das contas">
+        {[
+          {
+            label: "Contas conectadas",
+            value: accountsPending || accountsError ? "—" : accounts.length,
+            hint: "Perfis adicionados ao site",
+          },
+          {
+            label: "Conexão verificada",
+            value: uncertain ? "—" : healthy,
+            hint: "Resposta recente da Meta",
+          },
+          {
+            label: "Precisam de atenção",
+            value: uncertain ? "—" : degraded.length,
+            hint: "Consulte o diagnóstico abaixo",
+          },
+          {
+            label: "Alertas não lidos",
+            value: monitor.isPending || monitor.isError ? "—" : unread.length,
+            hint: "Ler não resolve o problema",
+          },
+        ].map((stat) => (
+          <div className="stat-card" key={stat.label}>
+            <div className="label">{stat.label}</div>
+            <div className="value">{stat.value}</div>
+            <div className="hint">{stat.hint}</div>
           </div>
-          <div className="flex items-center gap-2">
-            <ConnectAccount onConnected={handleRefreshDiagnostic} />
+        ))}
+      </section>
+
+      <div className="text-sm text-muted-foreground space-y-1" role="status">
+        <p>
+          {monitor.dataUpdatedAt
+            ? `Lista atualizada em ${
+              date(new Date(monitor.dataUpdatedAt).toISOString())
+            }. Cada conta tem sua própria data de verificação.`
+            : "Aguardando os dados do monitoramento."}
+        </p>
+        {!uncertain && waiting > 0 && (
+          <p>
+            {waiting}{" "}
+            conta(s) aguardando verificação, confirmação de falha ou uma
+            checagem recente.
+          </p>
+        )}
+        <p>
+          A conexão ativa não garante todas as permissões de publicação. Marcar
+          como lido mantém o alerta pendente até o diagnóstico mudar.
+        </p>
+      </div>
+
+      {!uncertain && degraded.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div>
+            <strong>{degraded.length} conta(s) precisam de atenção</strong>
+            <p className="text-sm text-muted-foreground mt-1">
+              As causas podem ser acesso expirado, permissões ou falhas da API.
+              Consulte Saúde das contas para ver a ação adequada para cada
+              perfil.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Tabs navigation */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setTab("pending")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-            tab === "pending"
-              ? "bg-white text-black shadow-sm"
-              : "text-muted-foreground hover:bg-white/5 hover:text-white"
-          }`}
+      <div className="space-y-3">
+        <nav
+          aria-label="Filtros de alertas"
+          className="flex gap-2 overflow-x-auto pb-2"
         >
-          <AlertTriangle className="h-4 w-4" />
-          Pendentes
-          {activeAlerts.length > 0 && (
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                tab === "pending"
-                  ? "bg-black text-white"
-                  : "bg-rose-500 text-white"
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={tab === item.id}
+              onClick={() => setTab(item.id)}
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm ${
+                tab === item.id
+                  ? "bg-foreground text-background"
+                  : "bg-card text-muted-foreground"
               }`}
             >
-              {activeAlerts.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTab("matrix")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-            tab === "matrix"
-              ? "bg-white text-black shadow-sm"
-              : "text-muted-foreground hover:bg-white/5 hover:text-white"
-          }`}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          Saúde das Contas ({accounts.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTab("all")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-            tab === "all"
-              ? "bg-white text-black shadow-sm"
-              : "text-muted-foreground hover:bg-white/5 hover:text-white"
-          }`}
-        >
-          Todos os Alertas ({alerts.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTab("resolved")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
-            tab === "resolved"
-              ? "bg-white text-black shadow-sm"
-              : "text-muted-foreground hover:bg-white/5 hover:text-white"
-          }`}
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Resolvidos ({resolvedAlerts.length})
-        </button>
+              {item.title} ({uncertain ? "—" : item.count})
+            </button>
+          ))}
+        </nav>
+        <label className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 max-w-md">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <span className="sr-only">Buscar conta</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar pelo @ da conta"
+            className="w-full min-w-0 bg-transparent py-1 outline-none"
+          />
+        </label>
       </div>
 
-      {/* TAB CONTENT: MATRIX (Per-account status table) */}
-      {tab === "matrix" && (
-        <section className="panel" aria-label="Matriz de Contas">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Status em Tempo Real por Conta</h2>
-              <p className="panel-copy">
-                Situação da chave de acesso e verificação em segundo plano na
-                Meta.
-              </p>
-            </div>
-            <Link className="link" to="/avanca/instagram">
-              Gerenciar Contas <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+      {loading
+        ? (
+          <div role="status" className="panel flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />{" "}
+            Carregando diagnósticos…
           </div>
-
-          {!accounts.length ? (
-            <div className="empty">
-              Nenhuma conta do Instagram conectada ainda. Conecte pelo botão
-              acima.
+        )
+        : tab === "matrix"
+        ? (
+          <section className="panel" aria-label="Saúde das contas">
+            <div className="panel-header">
+              <h2 className="panel-title">Diagnóstico por conta</h2>
+              <Link className="link" to="/avanca/instagram">
+                Gerenciar contas <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-white/10 text-xs text-muted-foreground">
-                    <th className="py-3 px-4 font-normal">Perfil</th>
-                    <th className="py-3 px-4 font-normal">Status Meta</th>
-                    <th className="py-3 px-4 font-normal">
-                      Última Verificação
-                    </th>
-                    <th className="py-3 px-4 font-normal">Última Ativa</th>
-                    <th className="py-3 px-4 font-normal text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {accounts.map((acc) => {
-                    const health = healthMap.get(acc.id);
-                    const conn = connections.find(
-                      (c) => c.account_id === acc.id,
-                    );
-                    const state: HealthState =
-                      health?.state ??
-                      (conn?.reconnect_required ? "reconnect" : "unknown");
-                    const needsAction =
-                      state === "reconnect" ||
-                      state === "permissions" ||
-                      conn?.reconnect_required;
-
-                    return (
-                      <tr key={acc.id} className="hover:bg-white/[0.02]">
-                        <td className="py-4 px-4 font-medium flex items-center gap-2.5">
-                          <span className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold">
-                            <Instagram className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <span className="block font-semibold">
-                              @{acc.username}
-                            </span>
-                            {conn?.paused && (
-                              <span className="text-[11px] text-amber-400 block">
-                                Automação pausada
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          {renderStateBadge(state)}
-                        </td>
-                        <td className="py-4 px-4 text-xs text-muted-foreground">
-                          {health?.checked_at
-                            ? new Date(health.checked_at).toLocaleString("pt-BR")
-                            : "Aguardando verificação"}
-                        </td>
-                        <td className="py-4 px-4 text-xs text-muted-foreground">
-                          {health?.last_healthy_at
-                            ? new Date(health.last_healthy_at).toLocaleString(
-                                "pt-BR",
-                              )
-                            : "—"}
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          {needsAction ? (
-                            <ConnectAccount
-                              onConnected={handleRefreshDiagnostic}
-                            />
-                          ) : (
-                            <a
-                              href={`https://instagram.com/${acc.username.replace(/^@/, "")}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-muted-foreground hover:text-white inline-flex items-center gap-1"
-                            >
-                              Abrir <ExternalLink className="h-3 w-3" />
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* TAB CONTENT: ALERTS LIST */}
-      {tab !== "matrix" && (
-        <section className="space-y-3" aria-label="Lista de Alertas">
-          {monitor.isLoading ? (
-            <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Carregando diagnósticos da Meta...
-            </div>
-          ) : displayedAlerts.length === 0 ? (
-            <div className="panel p-8 text-center flex flex-col items-center justify-center gap-3">
-              <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-              <div>
-                <strong className="text-white text-base block">
-                  Nenhum alerta registrado
-                </strong>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                  {tab === "pending"
-                    ? "Todas as suas contas estão respondendo perfeitamente e prontas para publicar."
-                    : "Nenhum histórico nesta categoria."}
+            {!filteredAccounts.length
+              ? (
+                <p className="empty">
+                  {query
+                    ? "Nenhuma conta corresponde à busca."
+                    : accountsError
+                    ? "Não foi possível carregar as contas."
+                    : "Conecte uma conta para iniciar o monitoramento."}
                 </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {displayedAlerts.map((alert: AccountAlert) => {
-                const username = accountMap.get(alert.account_id) || "conta";
-                const isUnread = !alert.read_at && !alert.resolved_at;
-                const isResolved = !!alert.resolved_at;
-                const needsReconnect =
-                  alert.state === "reconnect" ||
-                  alert.state === "permissions";
-
+              )
+              : (
+                <div className="overflow-x-auto">
+                  <table className="alerts-account-table table w-full text-left text-sm">
+                    <thead>
+                      <tr>
+                        <th>Perfil</th>
+                        <th>Diagnóstico</th>
+                        <th>Última verificação</th>
+                        <th>Última resposta positiva</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAccounts.map((account) => {
+                        const health = healthMap.get(account.id);
+                        const connection = connectionMap.get(account.id);
+                        const state = accountHealthState(
+                          health,
+                          connection?.reconnect_required,
+                        );
+                        const reconnect = state === "reconnect" ||
+                          state === "permissions";
+                        const awaitingConfirmation = !!health?.failures &&
+                          health.candidate !== health.state;
+                        return (
+                          <tr key={account.id}>
+                            <td>
+                              <strong>
+                                @{account.username.replace(/^@/, "")}
+                              </strong>
+                              {connection?.paused && (
+                                <small className="block text-muted-foreground">
+                                  Automação pausada
+                                </small>
+                              )}
+                            </td>
+                            <td className="alerts-account-diagnosis">
+                              <StateBadge
+                                state={state === "healthy" &&
+                                    !confirmedHealthy(
+                                      health,
+                                      connection?.reconnect_required,
+                                    )
+                                  ? "unknown"
+                                  : state}
+                              />
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                {healthDetails[state]}
+                              </p>
+                              {awaitingConfirmation && (
+                                <p className="text-xs mt-2">
+                                  Falha em confirmação; aguardando verificações
+                                  consecutivas.
+                                </p>
+                              )}
+                              {needsNewCheck(health) && (
+                                <p className="text-xs mt-2">
+                                  {health?.checked_at
+                                    ? "Verificação desatualizada."
+                                    : "Ainda sem verificação."}
+                                </p>
+                              )}
+                            </td>
+                            <td
+                              data-label="Última verificação"
+                              className="whitespace-nowrap"
+                            >
+                              {date(health?.checked_at)}
+                            </td>
+                            <td
+                              data-label="Última resposta positiva"
+                              className="whitespace-nowrap"
+                            >
+                              {health?.last_healthy_at
+                                ? date(health.last_healthy_at)
+                                : "—"}
+                            </td>
+                            <td>
+                              <div className="flex flex-wrap gap-2 min-w-[160px]">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={!!busy || unavailable}
+                                  onClick={() => void verify(account.id)}
+                                >
+                                  {busy === `check:${account.id}`
+                                    ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    )
+                                    : <RefreshCw className="h-4 w-4" />}{" "}
+                                  Verificar conta
+                                </Button>
+                                {reconnect && (
+                                  <ConnectAccount onConnected={connected} />
+                                )}
+                                {profile(account.id)}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+          </section>
+        )
+        : (
+          <section className="space-y-3" aria-label="Lista de alertas">
+            {!displayed.length
+              ? (
+                <div className="panel text-center space-y-2">
+                  <Bell className="h-7 w-7 mx-auto" />
+                  <h2 className="panel-title">
+                    {unavailable
+                      ? "Alertas indisponíveis"
+                      : query
+                      ? "Nenhum resultado para a busca"
+                      : "Nenhum alerta nesta categoria"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {unavailable
+                      ? "Tente atualizar a lista para consultar os diagnósticos."
+                      : accounts.length
+                      ? "Confira a data de verificação de cada perfil em Saúde das contas."
+                      : "Conecte uma conta para iniciar o monitoramento."}
+                  </p>
+                </div>
+              )
+              : displayed.map((alert) => {
+                const username = accountMap.get(alert.account_id);
+                const closed = !!alert.resolved_at;
+                const needsReconnect = !closed &&
+                  ["reconnect", "permissions"].includes(alert.state);
                 return (
                   <article
                     key={alert.id}
-                    className={`rounded-2xl border p-5 transition-all flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
-                      isResolved
-                        ? "border-white/10 bg-white/[0.01] opacity-75"
-                        : isUnread
-                          ? "border-amber-500/40 bg-amber-500/[0.04]"
-                          : "border-white/10 bg-white/[0.03]"
-                    }`}
+                    className="rounded-2xl border border-border bg-card p-5 space-y-4"
                   >
-                    <div className="space-y-2 flex-1">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="font-semibold text-white flex items-center gap-1.5">
-                          <Instagram className="h-4 w-4 text-rose-400" />
-                          @{username}
-                        </span>
-                        {renderStateBadge(alert.state, isResolved)}
-                        {isUnread && (
-                          <span className="badge badge-yellow text-[10px]">
-                            Novo não lido
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-base font-semibold text-white">
-                        {healthLabels[alert.state]}
-                      </h3>
-
-                      <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                        {healthDetails[alert.state]}
-                      </p>
-
-                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-3 pt-1">
-                        <span>
-                          Gerado em:{" "}
-                          {new Date(alert.created_at).toLocaleString("pt-BR")}
-                        </span>
-                        {alert.read_at && (
-                          <span>
-                            · Visualizado em:{" "}
-                            {new Date(alert.read_at).toLocaleString("pt-BR")}
-                          </span>
-                        )}
-                        {alert.resolved_at && (
-                          <span className="text-emerald-400">
-                            · Resolvido em:{" "}
-                            {new Date(alert.resolved_at).toLocaleString(
-                              "pt-BR",
-                            )}
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Instagram className="h-4 w-4" />
+                      <strong>
+                        {username
+                          ? `@${username}`
+                          : "Conta não disponível na lista"}
+                      </strong>
+                      <StateBadge state={alert.state} resolved={closed} />
+                      <span className="text-xs text-muted-foreground">
+                        {closed
+                          ? "Histórico"
+                          : alert.read_at
+                          ? "Lido · ainda pendente"
+                          : "Não lido"}
+                      </span>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2 self-start pt-1">
-                      {needsReconnect && !isResolved && (
-                        <ConnectAccount onConnected={handleRefreshDiagnostic} />
+                    <div>
+                      <h2 className="section-title">
+                        {healthLabels[alert.state]}
+                      </h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {closed
+                          ? "Este diagnóstico foi encerrado. Consulte Saúde das contas para ver a situação atual do perfil."
+                          : healthDetails[alert.state]}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span>Gerado em {date(alert.created_at)}</span>
+                      {alert.read_at && (
+                        <span>Lido em {date(alert.read_at)}</span>
                       )}
-
-                      {!alert.read_at && !isResolved && (
+                      {closed && (
+                        <span>Encerrado em {date(alert.resolved_at)}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {!closed && !alert.read_at && (
                         <Button
-                          type="button"
-                          variant="outline"
                           size="sm"
-                          disabled={readingId === alert.id}
-                          onClick={() => handleMarkRead(alert.id)}
+                          variant="outline"
+                          disabled={!!busy || unavailable}
+                          onClick={() => void markRead(alert.id)}
                         >
-                          {readingId === alert.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCheck className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          Marcar como lido
+                          <CheckCheck className="h-4 w-4" /> Marcar como lido
                         </Button>
                       )}
-
-                      <a
-                        href={`https://instagram.com/${username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="button button-secondary text-xs py-1.5 px-3"
-                      >
-                        Perfil <ExternalLink className="h-3 w-3" />
-                      </a>
+                      {!closed && username && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!!busy || unavailable}
+                          onClick={() => void verify(alert.account_id)}
+                        >
+                          <RefreshCw className="h-4 w-4" /> Verificar conta
+                        </Button>
+                      )}
+                      {needsReconnect && (
+                        <ConnectAccount onConnected={connected} />
+                      )}
+                      {profile(alert.account_id)}
                     </div>
                   </article>
                 );
               })}
-            </div>
-          )}
-        </section>
-      )}
+            {(tab === "all" || tab === "resolved") && (
+              <p className="text-xs text-muted-foreground">
+                Histórico dos últimos {monitor.data?.history_limit ?? 100}{" "}
+                alertas encerrados. Todos os alertas ativos são mantidos na
+                lista.
+              </p>
+            )}
+          </section>
+        )}
     </div>
   );
 }
