@@ -1013,7 +1013,7 @@ export default function Flows({
               <div className="flex flex-wrap items-baseline gap-2">
                 <h2 id="ig-library-heading">Biblioteca de mídias</h2>
                 <Button size="sm" variant="outline" onClick={() => setLibrarySharing(true)}>Compartilhar por @</Button>
-                <Button size="sm" variant="outline" disabled={busy || uploadInProgress} onClick={() => setDuplicateCleanup(true)}>Remover repetidos</Button>
+                <details className="avanca-secondary-actions"><summary>Organizar</summary><div className="avanca-secondary-menu"><Button size="sm" variant="outline" disabled={busy || uploadInProgress} onClick={() => setDuplicateCleanup(true)}>Remover repetidos</Button></div></details>
                 {duplicateCleanup && user && <DuplicateMediaDialog userId={user.id} onClose={() => setDuplicateCleanup(false)} onDeleted={(ids) => {
                   const deleted = new Set(ids);
                   cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous => previous ? { ...previous, media: previous.media.filter(item => !deleted.has(item.id)) } : previous);
@@ -1023,9 +1023,7 @@ export default function Flows({
                   void cache.invalidateQueries({ queryKey: key });
                 }} />}
                 {librarySharing && user && <LibrarySharingDialog userId={user.id} onClose={() => setLibrarySharing(false)} onChanged={() => { void cache.invalidateQueries({ queryKey: key }); }} />}
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {visible.length}
-                </span>
+
               </div>
 
               <DropdownMenu>
@@ -1171,7 +1169,6 @@ export default function Flows({
               </section>
             )}
 
-            <p className="text-xs text-muted-foreground">Adicione um ou vários arquivos, inclusive durante o processamento. Mantenha esta tela aberta para acompanhar a fila.</p>
             <LocalMediaPreviews files={chosenFiles} />
 
             {/* Espaço das pastas agora ocupado pelo botão amplo de envio com opção de arrastar vídeos */}
@@ -1220,7 +1217,7 @@ export default function Flows({
                         : "Arraste arquivos ou clique para selecionar vários"}
                   </span>
                   <span className="ig-upload-dropzone-subtitle">
-                    Fotos JPG/PNG e vídeos MP4 · limpeza em fila · até 100 MB por arquivo
+                    JPG, PNG ou MP4 · até 100 MB por arquivo
                   </span>
                 </div>
               </div>
@@ -1347,7 +1344,7 @@ export default function Flows({
                 <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={busy || uploadInProgress} aria-label="Limpar seleção" title="Limpar seleção" onClick={() => setSelected([])}><X size={14} /></Button>
               </div>}
             </div>}
-            <p className="text-[11px] text-muted-foreground">Novos envios: {folder === "*" || !folder ? "Sem pasta" : folder}.</p>
+            {folder !== "*" && folder !== "" && <p className="text-[11px] text-muted-foreground">Enviando para {folder}</p>}
 
             {/* Grade minimalista de miniaturas (borda única, zero dropdown por item) */}
             {visible.length > 0 ? (
@@ -1369,20 +1366,12 @@ export default function Flows({
                       />
 
                       <div className="ig-media-badges">
-                        {isVideo && <span className="ig-media-tag">MP4</span>}
                         {folder === "*" && m.folder && (
                           <span className="ig-media-tag is-folder">
                             {m.folder}
                           </span>
                         )}
-                        {m.caption?.trim() && (
-                          <span
-                            className="ig-media-tag"
-                            title="Possui legenda individual"
-                          >
-                            TXT
-                          </span>
-                        )}
+
                       </div>
 
                       <label className="ig-media-tile-hit">

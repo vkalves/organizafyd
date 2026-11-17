@@ -13,7 +13,7 @@
 /* Keep the portal only while the two objects finish fading. No backdrop animation. */
 .welcome-stage[data-state="closed"] { animation: welcome-presence 500ms linear; }
 .welcome-stage[data-state="closed"] .welcome-stage-emblem, .welcome-stage[data-state="closed"] .welcome-stage-title { animation: welcome-object-out 480ms ease-in both; }
-.welcome-stage-skip { position: fixed; right: 24px; top: 24px; opacity: 0; pointer-events: auto; padding: 10px 16px; border: 1px solid #ffffff30; border-radius: 12px; background: #151518; }
+.welcome-stage-skip { position: fixed; right: 18px; top: max(16px, env(safe-area-inset-top)); opacity: .65; pointer-events: auto; padding: 6px 11px; border: 1px solid #ffffff20; border-radius: 999px; background: #ffffff08; font: 400 11px/14px -apple-system, BlinkMacSystemFont, sans-serif; }
 .welcome-stage-skip:focus-visible { opacity: 1; outline: 2px solid #eee; outline-offset: 4px; }
 @keyframes welcome-piece-in { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes welcome-text-in { from { opacity: 0; transform: translateY(10px); letter-spacing: .25em; } to { opacity: 1; transform: translateY(0); letter-spacing: .16em; } }
@@ -25,3 +25,6 @@
 }
 /* Keep the site's own background steady behind the two animated objects. */
 body:has(.welcome-stage) #root { visibility: hidden; }
+
+.welcome-stage-skip::before { content: ""; position: absolute; inset: -9px -6px; }
+.welcome-stage-skip:hover { opacity: 1; background: #ffffff10; }

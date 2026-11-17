@@ -18,12 +18,12 @@ export function SharedFlowProgress({ userId }: { userId: string }) {
     queryFn: () => publisherRequest<Progress[]>("shared_flow_progress"),
     refetchInterval: 30000,
   });
+  if (query.isSuccess && !query.data?.length) return null;
   return <section className="operation-panel ig-panel space-y-3" aria-label="Acompanhamento de fluxos compartilhados">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-sm font-semibold">Fluxos compartilhados comigo</h2>
       <Button size="sm" variant="outline" disabled={query.isFetching} onClick={() => void query.refetch()}>Atualizar acompanhamento</Button>
     </div>
-    <p className="text-xs text-muted-foreground">Acompanhe suas contas no fluxo original. Atualização automática a cada 30 segundos.</p>
     {query.isLoading && <p role="status" className="text-sm">Carregando acompanhamento…</p>}
     {query.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível atualizar o acompanhamento. Tente novamente.</p> :
       !query.isLoading && !query.data?.length && <p className="text-sm text-muted-foreground">Ao participar de um fluxo e autorizar suas contas, o acompanhamento aparecerá aqui.</p>}

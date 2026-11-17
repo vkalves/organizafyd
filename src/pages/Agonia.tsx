@@ -1,10 +1,11 @@
+import { supabase } from "@/integrations/supabase/client";
 import { publicationWait } from "@/features/instagram-publisher/publication-wait";
 import { MediaPreview } from "@/features/instagram-publisher/MediaPreview";
 import { mediaLabel } from "@/features/instagram-publisher/media-label";
 import { InsightsPermissionNotice } from "@/features/instagram-publisher/InsightsPermissionNotice";
 import { loginRequest } from "@/features/instagram-publisher/login";
 import type { MetaConfig } from "@/features/meta-developer/meta-apps";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,7 +57,6 @@ import { accountViewsRanking } from "@/features/instagram-publisher/account-view
 import { reelMetrics } from "@/features/instagram-publisher/reel-metrics";
 import { usePublishedReelsToday } from "@/features/instagram-publisher/usePublishedReelsToday";
 import "@/features/instagram-publisher/account-views-ranking.css";
-import { StoryLinkExtension } from "@/features/instagram-publisher/StoryLinkExtension";
 import { RemoveInstagramAccount } from "@/features/instagram-publisher/RemoveInstagramAccount";
 import type { PublisherAccount } from "@/features/instagram-publisher/api";
 import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
@@ -116,7 +116,6 @@ type Section =
   | "instagram"
   | "reels-new"
   | "stories"
-  | "stories-link"
   | "scheduled"
   | "reels"
   | "reels-test"
@@ -134,7 +133,6 @@ const VALID_SECTIONS = new Set<Section>([
   "instagram",
   "reels-new",
   "stories",
-  "stories-link",
   "scheduled",
   "reels",
   "reels-test",
@@ -218,6 +216,32 @@ export default function Agonia() {
     enabled: !!user,
     refetchInterval: 20_000,
   });
+
+  const [firstConnectionVisit, setFirstConnectionVisit] = useState(() => {
+    try { return !!user && user.user_metadata?.avanca_connection_hint_seen !== true && localStorage.getItem(`avanca:first-connection-seen:${user.id}`) !== "1"; }
+    catch { return true; }
+  });
+  const rememberingFirstVisit = useRef(false);
+  useEffect(() => {
+    if (!user || accountsQuery.isPending || accountsQuery.isError) return;
+    const remember = () => {
+      try { localStorage.setItem(`avanca:first-connection-seen:${user.id}`, "1"); } catch { /* Browser storage may be disabled. */ }
+      if (!rememberingFirstVisit.current && user.user_metadata?.avanca_connection_hint_seen !== true) {
+        rememberingFirstVisit.current = true;
+        // Cosmetic onboarding preference, never used for access control.
+        void supabase.auth.updateUser({ data: { avanca_connection_hint_seen: true } }).catch(() => {});
+      }
+    };
+    if (accountsQuery.data?.length || postsQuery.data?.length) {
+      setFirstConnectionVisit(false);
+      remember();
+      return;
+    }
+    if (section !== "dashboard") { setFirstConnectionVisit(false); return; }
+    if (firstConnectionVisit) {
+      remember();
+    }
+  }, [user, section, accountsQuery.isPending, accountsQuery.isError, accountsQuery.data, postsQuery.data, firstConnectionVisit]);
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const links = useMemo(() => linksQuery.data ?? [], [linksQuery.data]);
@@ -909,23 +933,21 @@ export default function Agonia() {
             <div className="dash-hero-art" aria-hidden="true" />
             <div>
               <h1 className="page-title">{dashGreeting}</h1>
-              <p className="page-subtitle">Acompanhe o desempenho dos seus conteúdos, organize sua produção e escale seus resultados no Instagram.</p>
+              <p className="page-subtitle">Sua operação, em um só lugar.</p>
             </div>
             <div className="action-row">
-              <Link className="button button-secondary" to="/avanca/fluxos">
+              <Link className="button button-primary" to="/avanca/fluxos">
                 <Layers className="h-4 w-4" /> Modo Fluxo
               </Link>
-              <Link className="button button-primary" to="/avanca/reels-new">
-                <Plus className="h-4 w-4" /> Novo Reel
-              </Link>
+
             </div>
           </header>
 
-          <Link to="/avanca/meta-developer" className="panel dash-connect">
+          {firstConnectionVisit && postsQuery.isSuccess && !posts.length && !accountsQuery.isPending && !accountsQuery.isError && accounts.length === 0 && <Link to="/avanca/meta-developer" className="panel dash-connect">
             <span className="dash-connect-icon"><Instagram aria-hidden="true" /></span>
             <div><strong>Primeiro acesso? Conecte seu Instagram</strong><p className="panel-copy">Abra o guia Meta Developer e siga um passo de cada vez.</p></div>
             <span className="dash-connect-arrow"><ArrowRight aria-hidden="true" /></span>
-          </Link>
+          </Link>}
 
           {/* 1. MÉTRICAS NO TOPO */}
           <div className="dash-metrics-head">
@@ -2216,17 +2238,6 @@ export default function Agonia() {
                         </span>
                       </label>
                     </div>
-
-                    <div className="form-full">
-                      <div className="notice" style={{ marginBottom: 0 }}>
-                        Stories não têm legenda de publicação neste fluxo. Para
-                        Stories com sticker de link clicável, acesse{" "}
-                        <Link className="link" to="/avanca/stories-link">
-                          Storys Com Link
-                        </Link>
-                        .
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -2380,7 +2391,6 @@ export default function Agonia() {
       )}
 
       {/* 6. STORIES COM LINK */}
-      {section === "stories-link" && <StoryLinkExtension />}
 
       {/* 7. AGENDAMENTOS */}
       {section === "scheduled" && (
@@ -2499,6 +2509,7 @@ export default function Agonia() {
                     <div className="list">
                       {filtered.map((post) => (
                         <div key={post.id} className="list-row">
+                          {(post.cover_url || post.media_urls[0]) && <span className="video-thumb scheduled-cover"><MediaPreview url={post.cover_url || post.media_urls[0]} label={`Capa de ${mediaLabel(post)}`} minimal /></span>}
                           <div className="list-main">
                             <strong>
                               @{accountNames.get(post.account_id) || "conta"}
@@ -2507,9 +2518,6 @@ export default function Agonia() {
                               {mediaLabel(post)}
                             </span>
                             <span className="text-xs text-muted-foreground">{waitingMessage(post)}</span>
-                            <span className="schedule-app-label">
-                              App Meta: {activeMetaApp?.name || "Principal"}
-                            </span>
                           </div>
                           <div
                             style={{
@@ -2574,9 +2582,10 @@ export default function Agonia() {
               </p>
             </div>
             <div className="actions">
-              <Link className="button button-secondary" to="/avanca/reels-test">
-                Publicar Reel de teste
-              </Link>
+              <details className="avanca-secondary-actions">
+                <summary>Mais opções</summary>
+                <div className="avanca-secondary-menu"><Link className="button button-secondary" to="/avanca/reels-test">Publicar Reel de teste</Link></div>
+              </details>
               <Link className="button button-secondary" to="/avanca/stories">
                 Novo Story
               </Link>

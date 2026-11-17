@@ -26,6 +26,6 @@ describe("participant progress panel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível atualizar");
     fireEvent.click(screen.getByRole("button", { name: "Atualizar acompanhamento" }));
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
-    expect(screen.getByText(/Ao participar de um fluxo/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Acompanhamento de fluxos compartilhados" })).not.toBeInTheDocument();
   });
 });

@@ -192,7 +192,7 @@ export function AgoniaAlerts({
       <header className="topbar">
         <div>
           <div className="eyebrow">Diagnóstico em tempo real · Instagram</div>
-          <h1 className="page-title">Alertas e Saúde das Contas</h1>
+          <h1 className="page-title">Notificações</h1>
           <p className="page-subtitle">
             Monitore o status da API da Meta para cada perfil conectado. Detecte
             tokens expirados, limites de postagens ou restrições e resolva com

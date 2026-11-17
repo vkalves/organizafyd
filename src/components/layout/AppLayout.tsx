@@ -1,7 +1,6 @@
 import { useAdministrationAccess } from "@/features/administration/api";
 import { PublicationFeedback } from "@/features/instagram-publisher/PublicationSound";
-import { InstagramAlerts, useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
-import { Shortcuts } from "@/components/shortcuts/Shortcuts";
+import { InstagramAlerts } from "@/features/instagram-publisher/InstagramAlerts";
 import {
   ShieldCheck,
   LayoutDashboard,
@@ -14,15 +13,12 @@ import {
   Instagram,
   X,
   PlugZap,
-  PlusCircle,
   Image,
-  Link2,
   CalendarClock,
   Film,
   UserRound,
   Layers,
   Code2,
-  AlertTriangle,
   MoreHorizontal,
   ExternalLink,
   type LucideIcon,
@@ -57,7 +53,6 @@ const agoniaSections: NavSection[] = [
     items: [
       { title: "Dashboard", path: "/avanca", icon: LayoutDashboard, exact: true },
       { title: "Modo Fluxo", path: "/avanca/fluxos", icon: Layers },
-      { title: "Alertas", path: "/avanca/alertas", icon: AlertTriangle },
       { title: "Conectar", path: "/avanca/conectar", icon: PlugZap },
       { title: "Meta Developer", path: "/avanca/meta-developer", icon: Code2 },
     ],
@@ -66,11 +61,9 @@ const agoniaSections: NavSection[] = [
     label: "Publicação",
     items: [
       { title: "Instagram", path: "/avanca/instagram", icon: Instagram },
-      { title: "Novo Reel", path: "/avanca/reels-new", icon: PlusCircle },
       { title: "Stories", path: "/avanca/stories", icon: Image },
-      { title: "Stories c/ Link", path: "/avanca/stories-link", icon: Link2 },
       { title: "Agendamentos", path: "/avanca/scheduled", icon: CalendarClock },
-      { title: "Publicados", path: "/avanca/reels", icon: Film, matchPaths: ["/avanca/reels", "/avanca/reels-test"] },
+      { title: "Publicações", path: "/avanca/reels", icon: Film, matchPaths: ["/avanca/reels", "/avanca/reels-test", "/avanca/reels-new"] },
     ],
   },
   {
@@ -105,11 +98,8 @@ function SideNav({
   onNavigate?: () => void;
 }) {
   const location = useLocation();
-  const monitor = useInstagramMonitor();
   const access = useAdministrationAccess();
   const sections = access.data?.is_admin ? [...agoniaSections, { label: "Gestão", items: [{ title: "Administração", path: "/avanca/admin", icon: ShieldCheck }] }] : agoniaSections;
-  const unreadAlertsCount =
-    monitor.data?.alerts.filter((a) => !a.read_at && !a.resolved_at).length ?? 0;
 
   return (
     <>
@@ -123,7 +113,6 @@ function SideNav({
           )}
           {section.items.map((item) => {
             const isActive = isItemActive(item, location.pathname);
-            const showAlertBadge = item.path === "/avanca/alertas" && unreadAlertsCount > 0;
             return (
               <NavLink
                 key={item.path}
@@ -135,23 +124,16 @@ function SideNav({
                 aria-label={item.title}
                 className={cn(
                   "shell-nav-link",
-                  item.path === "/avanca/reels-new" && "shell-nav-create",
                   isActive && "is-active",
                   collapsed && "is-collapsed",
                 )}
               >
                 <span className="shell-nav-icon relative">
                   <item.icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
-                  {showAlertBadge && collapsed && (
-                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-destructive" />
-                  )}
                 </span>
                 {!collapsed && (
                   <span className="shell-nav-label">
                     <span className="truncate">{item.title}</span>
-                    {showAlertBadge && (
-                      <span className="shell-nav-badge">{unreadAlertsCount}</span>
-                    )}
                     {item.externalTab && (
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-40" aria-hidden="true" />
                     )}
@@ -239,6 +221,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
+    if (location.pathname === "/avanca/alertas") return "Notificações";
+    if (location.pathname === "/avanca/reels-new") return "Criar publicação";
     if (location.pathname === "/avanca/admin") return "Administração";
     if (location.pathname === "/avanca/reels-test") return "Diagnóstico de Publicação";
     const match = agoniaNavItems.find((item) =>
@@ -250,7 +234,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Mobile bottom bar: 4 primary destinations + "Mais" drawer trigger
   const mobilePrimaryItems = useMemo(
     () => agoniaNavItems.filter((item) =>
-      ["/avanca", "/avanca/fluxos", "/avanca/reels-new", "/avanca/scheduled"].includes(item.path),
+      ["/avanca", "/avanca/fluxos", "/avanca/scheduled", "/avanca/reels"].includes(item.path),
     ),
     [],
   );
@@ -259,7 +243,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <AppLayoutContext.Provider value={layoutContext}>
       <div
         className={cn(
-          "workspace-shell min-h-[100dvh] min-w-0 shell-agonia-mode",
+          "workspace-shell avanca-glass-shell min-h-[100dvh] min-w-0 shell-agonia-mode",
           desktopSidebarOpen && "shell-expanded",
           mobileFocusMode && "shell-mobile-focus",
         )}
@@ -356,16 +340,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="shell-header-title">
             <span className="shell-eyebrow"><SilverBrand compact /></span>
-            <span className="shell-desktop-brand" aria-hidden="true">avança</span>
             <span className="shell-current-page">{currentPage}</span>
           </div>
 
           <div className="shell-header-space" />
 
           <div className="shell-header-tools">
-            <div className="shell-shortcuts">
-              <Shortcuts key={user?.id} />
-            </div>
             <PublicationFeedback />
             <InstagramAlerts />
           </div>

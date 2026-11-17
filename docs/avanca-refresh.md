@@ -28,3 +28,13 @@ A suíte geral contém duas falhas anteriores em MetaAppConfig, reproduzidas no 
 ## Implantação
 
 Publicar o frontend e `instagram-publisher`, incluindo as dependências relativas. A função conserva autenticação interna de usuário e de worker, com `verify_jwt=false` já usado em produção. O embaralhamento novo vale para planos preparados após a atualização; agendamentos já gravados mantêm seus horários e conteúdo.
+
+## Refinamento do Glass e limpeza da navegação
+
+O tema Glass é carregado depois do tema legado e tem escopo explícito para impedir que estilos de páginas carregadas sob demanda reponham fundos opacos. Sidebar, barra superior, dock móvel, painéis e compartilhamento têm transparência real e desfoque, com tratamento mais leve no celular e suporte a transparência reduzida.
+
+A navegação remove as entradas Stories com Link, Novo Reel e Alertas. A criação manual permanece dentro de Publicações; URLs antigas de Stories com Link redirecionam para Stories. O sino mantém a caixa de notificações, com um único toast e som por aviso novo, sem repetir em recargas. As ações secundárias ficam em menus e os selos técnicos MP4/TXT saem das miniaturas. O botão da apresentação mostra apenas Pular, com tamanho visual menor e área de toque preservada.
+
+A orientação de primeiro acesso é exibida uma vez, somente sem conta e sem histórico de publicações. A preferência é lembrada localmente e no perfil do usuário; falhas na sincronização não interrompem o uso do site.
+
+As miniaturas usam até dois decodificadores, deduplicam solicitações e compartilham o cache por mídia e usuário entre Biblioteca, Publicações e Agendamentos. A renovação da URL assinada não obriga a refazer a miniatura.

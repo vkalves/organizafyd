@@ -4,6 +4,7 @@ import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import "./index.css";
 import "./silver-theme.css";
 import "./avanca-theme.css";
+import "./components/layout/avanca-glass.css";
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>

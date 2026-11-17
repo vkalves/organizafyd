@@ -21,7 +21,7 @@ vi.mock("@/features/instagram-publisher/usePublishedReelsToday", () => ({ usePub
 vi.mock("@/features/instagram-publisher/account-api", () => ({ loadAccountPhotos: vi.fn().mockResolvedValue([]) }));
 import Agonia from "./Agonia";
 import { loadSettings } from "@/features/agonia/schedule";
-import { listPosts } from "@/features/instagram-publisher/api";
+import { listAccounts, listPosts } from "@/features/instagram-publisher/api";
 import type { Post } from "@/features/instagram-publisher/model";
 
 const clients: QueryClient[] = [];
@@ -132,4 +132,20 @@ describe("Avança — controles dos fluxos existentes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar configurações" }));
     await waitFor(() => expect(loadSettings("visual-qa")).toMatchObject({ intervalMinutes: 30, defaultCaption: "Minha legenda" }));
   });
+});
+
+it("shows the connection hint only on the first visit without a connected account", async () => {
+  vi.mocked(listAccounts).mockResolvedValueOnce([]);
+  const first = show("dashboard");
+  await screen.findByText("Primeiro acesso? Conecte seu Instagram");
+  await waitFor(() => expect(localStorage.getItem("avanca:first-connection-seen:visual-qa")).toBe("1"));
+  first.unmount();
+  vi.mocked(listAccounts).mockResolvedValueOnce([]);
+  show("dashboard");
+  await waitFor(() => expect(screen.queryByText("Primeiro acesso? Conecte seu Instagram")).not.toBeInTheDocument());
+});
+it("does not show first-access guidance for an already connected account", async () => {
+  show("dashboard");
+  await waitFor(() => expect(localStorage.getItem("avanca:first-connection-seen:visual-qa")).toBe("1"));
+  expect(screen.queryByText("Primeiro acesso? Conecte seu Instagram")).not.toBeInTheDocument();
 });
