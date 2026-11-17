@@ -1,3 +1,4 @@
+import { MediaPreview } from "@/features/instagram-publisher/MediaPreview";
 import { ArrowRight, CalendarClock, Check, Film, Layers, TrendingUp, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Post } from "@/features/instagram-publisher/model";
@@ -62,7 +63,7 @@ export function DashboardSchedule({ posts, accounts, pending, error }: { posts: 
     <section className="panel dash-schedule">
       <div className="dash-widget-head"><h2><CalendarClock /> Próximos agendamentos</h2><Link to="/avanca/scheduled">Ver todos <ArrowRight /></Link></div>
       {posts.length ? <ul className="dash-entries">{posts.slice(0, 3).map(post => (
-        <li key={post.id}><span className="dash-entry-icon"><Film /></span><div><strong>{post.caption.trim() || `${post.format} sem legenda`}</strong><small>{post.scheduled_at && Number.isFinite(Date.parse(post.scheduled_at)) ? dateTime.format(new Date(post.scheduled_at)) : "Horário indisponível"} · {accounts.has(post.account_id) ? `@${accounts.get(post.account_id)}` : post.format}</small></div></li>
+        <li key={post.id}><span className="dash-entry-icon dash-media-cover">{post.cover_url || post.media_urls[0] ? <MediaPreview url={post.cover_url || post.media_urls[0]} label="Capa do agendamento" minimal /> : <Film />}</span><div><strong>{post.caption.trim() || `${post.format} sem legenda`}</strong><small>{post.scheduled_at && Number.isFinite(Date.parse(post.scheduled_at)) ? dateTime.format(new Date(post.scheduled_at)) : "Horário indisponível"} · {accounts.has(post.account_id) ? `@${accounts.get(post.account_id)}` : post.format}</small></div></li>
       ))}</ul> : <p className="dash-empty" role="status">{pending ? "Carregando agendamentos…" : error ? "Não foi possível carregar os agendamentos." : "Nenhuma publicação na fila."}</p>}
     </section>
   );
