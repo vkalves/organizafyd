@@ -19,8 +19,8 @@ body .workspace-shell.avanca-glass-shell {
   background-attachment: fixed;
   font-family: var(--avanca-font);
 }
-.avanca-brand-depth { display: inline-flex; align-items: center; gap: 10px; overflow: visible; }
-.avanca-wordmark { transform: translateY(4px); font: 600 28px/1 var(--avanca-font); color: #f5f5f7; letter-spacing: -1.2px; }
+.avanca-brand-depth { display: inline-flex; align-items: flex-end; gap: 10px; overflow: visible; }
+.avanca-wordmark { transform: none; font: 600 28px/1 var(--avanca-font); color: #f5f5f7; letter-spacing: -1.2px; }
 .shell-brand .avanca-wordmark { font-size: 27px; }
 /* Floating macOS sidebar and title bar. Blur is confined to major surfaces. */
 body .workspace-shell.avanca-glass-shell .shell-rail {
@@ -183,7 +183,7 @@ body .workspace-shell.avanca-glass-shell .video-thumb.scheduled-cover { width: 4
 :root body .workspace-shell.avanca-glass-shell :is(.ig-account-details .ig-account-notes textarea,.ig-account-edit-fields input,.ig-account-edit-fields select) { background: #d8e3ff08; border-color: #ffffff26; }
 :root body .workspace-shell.avanca-glass-shell .shell-header { z-index: 55; }
 :root body .workspace-shell.avanca-glass-shell .shell-brand { gap: 0; }
-:root body .workspace-shell.avanca-glass-shell .avanca-brand-depth { display: inline-flex; flex-direction: row; align-items: center; gap: 10px; }
+:root body .workspace-shell.avanca-glass-shell .avanca-brand-depth { display: inline-flex; flex-direction: row; align-items: flex-end; gap: 10px; }
 :root body .workspace-shell.avanca-glass-shell .avanca-wordmark { position: static; flex: 0 0 auto; }
 :root body .workspace-shell.avanca-glass-shell .chess-perspective { width: 36px; min-width: 36px; height: 44px; overflow: hidden; flex: 0 0 36px; }
 :root body .workspace-shell.avanca-glass-shell .chess-perspective .chess-fallback { width: 76%; height: 76%; inset: 12%; object-fit: contain; }
