@@ -3,6 +3,7 @@ import { PublicationFeedback } from "@/features/instagram-publisher/PublicationS
 import { InstagramAlerts } from "@/features/instagram-publisher/InstagramAlerts";
 import {
   ShieldCheck,
+  Bell,
   LayoutDashboard,
   BarChart3,
   Settings,
@@ -67,6 +68,7 @@ const agoniaSections: NavSection[] = [
   {
     label: "Conta",
     items: [
+      { title: "Alertas de contas", path: "/avanca/alertas", icon: Bell },
       { title: "Visualizações", path: "/avanca/visualizacoes", icon: BarChart3 },
       { title: "Configurações", path: "/avanca/settings", icon: Settings },
       { title: "Meu Perfil", path: "/avanca/profile", icon: UserRound },
@@ -219,7 +221,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   const currentPage = useMemo(() => {
-    if (location.pathname === "/avanca/alertas") return "Notificações";
+    if (location.pathname === "/avanca/alertas") return "Alertas de contas";
     if (location.pathname === "/avanca/reels-new") return "Criar publicação";
     if (location.pathname === "/avanca/stories") return "Stories";
     if (location.pathname === "/avanca/admin") return "Administração";

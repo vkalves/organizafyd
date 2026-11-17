@@ -1,0 +1,67 @@
+/* Keep wide diagnostics inside the page's grid track. */
+.workspace-shell .agonia-root[data-section="alertas"] {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.agonia-alerts-view,
+.agonia-alerts-view > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.workspace-shell .agonia-root .agonia-alerts-view .topbar,
+.workspace-shell .agonia-root .agonia-alerts-view .panel-header {
+  flex-wrap: wrap;
+}
+.workspace-shell .agonia-root .agonia-alerts-view .stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table th,
+.workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table td {
+  padding: 14px 12px;
+  vertical-align: top;
+}
+.alerts-account-diagnosis { min-width: 240px; }
+.agonia-alerts-view strong,
+.agonia-alerts-view p { overflow-wrap: anywhere; }
+@media (min-width: 1024px) {
+  .workspace-shell .agonia-root .agonia-alerts-view .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .workspace-shell .agonia-root .agonia-alerts-view .action-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .workspace-shell .agonia-root .agonia-alerts-view .action-row > * {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  /* Each table row becomes a readable account card with its own actions. */
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table,
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table tbody,
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table tr,
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table thead { display: none; }
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table tr + tr {
+    border-top: 1px solid hsl(var(--border));
+    margin-top: 20px;
+    padding-top: 20px;
+  }
+  .workspace-shell .agonia-root .agonia-alerts-view .alerts-account-table td {
+    padding: 6px 0;
+    border: 0;
+  }
+  .alerts-account-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+}

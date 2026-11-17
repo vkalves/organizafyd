@@ -24,7 +24,7 @@ export function InstagramAlerts() {
   const fresh = alerts.filter(a => !shown.current.has(a.id));
   for (const a of fresh) shown.current.add(a.id);
   if (fresh.length) {
-    try { localStorage.setItem(`avanca:notifications-shown:${user?.id}`, JSON.stringify([...shown.current].slice(-200))); } catch { /* The current session still deduplicates notifications. */ }
+    try { localStorage.setItem(`avanca:notifications-shown:${user?.id}`, JSON.stringify(alerts.map(a => a.id))); } catch { /* The current session still deduplicates notifications. */ }
     playConfirmation('alert');
     toast.warning(fresh.length === 1 ? `Instagram: ${healthLabels[fresh[0].state]}` : `${fresh.length} novas notificações do Instagram`, { id: 'instagram-health-alerts', description: 'Abra o sino para ver as contas afetadas.', duration: 8000 });
   }

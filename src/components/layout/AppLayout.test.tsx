@@ -11,7 +11,7 @@ import { AppLayout } from "./AppLayout";
 function Location() { return <output aria-label="Rota atual">{useLocation().pathname}</output>; }
 function show() { render(<MemoryRouter initialEntries={["/avanca"]}><AppLayout><Location /></AppLayout></MemoryRouter>); }
 afterEach(() => { cleanup(); localStorage.clear(); adminAccess.is_admin = false; });
-const destinations = ["/avanca", "/avanca/fluxos", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/scheduled", "/avanca/reels", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
+const destinations = ["/avanca", "/avanca/fluxos", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/scheduled", "/avanca/reels", "/avanca/alertas", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
 describe("Avança — navegação preservada", () => {
   it("mostra a administração apenas quando o servidor reconhece o administrador", () => {
     show();

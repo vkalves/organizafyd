@@ -1367,6 +1367,8 @@ export default function Agonia() {
           accounts={accounts}
           connections={links}
           onRefresh={refreshAll}
+          accountsPending={accountsQuery.isPending || linksQuery.isPending}
+          accountsError={accountsQuery.isError || linksQuery.isError}
         />
       )}
 
