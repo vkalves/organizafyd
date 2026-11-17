@@ -1,6 +1,7 @@
 import { usePreviewVisibility } from "./usePreviewVisibility";
 import { VideoPreview } from "./VideoPreview";
 import { VideoPoster } from "./VideoPoster";
+import { cachedVideoPoster } from "./video-poster";
 import { useQuery } from "@tanstack/react-query";
 import { memo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,17 +23,19 @@ export const MediaPreview = memo(function MediaPreview({
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const privateMedia = url.startsWith("storage://");
   const remote = /^https:\/\//i.test(url);
+  const video = /\.mp4(?:[?#]|$)/i.test(url);
+  const posterKey = `${user?.id ?? ""}:${url}`;
+  const cachedPoster = minimal && video ? cachedVideoPoster(posterKey) : undefined;
   const query = useQuery({
     queryKey: ["ig-media-preview", user?.id, url],
     queryFn: async () =>
       privateMedia ? ((await previewMedia(url)) ?? null) : url,
-    enabled: visible && !!user && (privateMedia || remote),
+    enabled: visible && !!user && (privateMedia || remote) && !cachedPoster,
     staleTime: 240000,
-    refetchInterval: privateMedia ? 240000 : false,
+    refetchInterval: privateMedia && !cachedPoster ? 240000 : false,
     retry: 1,
   });
   const src = query.data;
-  const video = /\.mp4(?:[?#]|$)/i.test(url);
 
   if (minimal) {
     return (
@@ -40,7 +43,7 @@ export const MediaPreview = memo(function MediaPreview({
         ref={ref}
         className="relative h-full w-full overflow-hidden bg-secondary/40"
       >
-        {!visible && !src ? (
+        {cachedPoster ? <img src={cachedPoster} alt={label} className="h-full w-full object-cover" /> : !visible && !src ? (
           <div className="h-full w-full" />
         ) : query.isLoading ? (
           <div
@@ -54,7 +57,7 @@ export const MediaPreview = memo(function MediaPreview({
             <span>Sem prévia</span>
           </div>
         ) : video ? (
-          <VideoPoster src={src} visible={visible} label={label} />
+          <VideoPoster src={src} visible={visible} label={label} cacheKey={posterKey} />
         ) : (
           <img
             src={src}

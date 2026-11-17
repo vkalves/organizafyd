@@ -21,7 +21,7 @@ export function WelcomeAnimation() {
         <div className="welcome-stage-emblem"><ChessMark animated onReady={onReady} /></div>
         <Dialog.Title className="welcome-stage-title">AVANÇA</Dialog.Title>
         <Dialog.Description className="sr-only">Sua próxima jogada começa aqui.</Dialog.Description>
-        <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">Pular apresentação</Dialog.Close>
+        <Dialog.Close className="welcome-stage-skip" aria-label="Pular apresentação">Pular</Dialog.Close>
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

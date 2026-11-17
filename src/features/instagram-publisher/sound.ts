@@ -7,7 +7,7 @@ export function unlockAudio() {
     /* Sound is optional. */
   }
 }
-export function playConfirmation(kind: "scheduled" | "published" | "uploaded") {
+export function playConfirmation(kind: "scheduled" | "published" | "uploaded" | "alert") {
   try {
     if (
       !audio ||
@@ -16,7 +16,9 @@ export function playConfirmation(kind: "scheduled" | "published" | "uploaded") {
     )
       return;
     const now = audio.currentTime;
-    (kind === "uploaded"
+    (kind === "alert"
+      ? [196, 146.83]
+      : kind === "uploaded"
       ? [392, 587.33, 783.99]
       : kind === "published"
         ? [523.25, 659.25, 783.99]

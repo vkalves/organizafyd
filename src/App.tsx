@@ -1,4 +1,3 @@
-import "@/components/layout/avanca-glass.css";
 import { AccountApprovalGate } from "@/features/administration/AccountApprovalGate";
 import { InteractionFeedback } from "@/components/common/InteractionFeedback";
 import { Toaster } from "@/components/ui/toaster";
@@ -52,6 +51,7 @@ const App = () => (
               <Route path="/" element={<Navigate to="/avanca" replace />} />
               <Route path="/avanca" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
               <Route path="/avanca/integracao" element={<ProtectedRoute><AutomationIntegration /></ProtectedRoute>} />
+              <Route path="/avanca/stories-link" element={<Navigate to="/avanca/stories" replace />} />
               <Route path="/avanca/:section" element={<ProtectedRoute><Agonia /></ProtectedRoute>} />
               <Route path="/agonia/*" element={<LegacyWorkspaceRedirect />} />
               <Route path="/dispara/*" element={<LegacyWorkspaceRedirect />} />

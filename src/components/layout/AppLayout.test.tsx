@@ -11,7 +11,7 @@ import { AppLayout } from "./AppLayout";
 function Location() { return <output aria-label="Rota atual">{useLocation().pathname}</output>; }
 function show() { render(<MemoryRouter initialEntries={["/avanca"]}><AppLayout><Location /></AppLayout></MemoryRouter>); }
 afterEach(() => { cleanup(); localStorage.clear(); adminAccess.is_admin = false; });
-const destinations = ["/avanca", "/avanca/fluxos", "/avanca/alertas", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/reels-new", "/avanca/stories", "/avanca/stories-link", "/avanca/scheduled", "/avanca/reels", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
+const destinations = ["/avanca", "/avanca/fluxos", "/avanca/conectar", "/avanca/meta-developer", "/avanca/instagram", "/avanca/stories", "/avanca/scheduled", "/avanca/reels", "/avanca/visualizacoes", "/avanca/settings", "/avanca/profile"];
 describe("Avança — navegação preservada", () => {
   it("mostra a administração apenas quando o servidor reconhece o administrador", () => {
     show();
@@ -19,10 +19,10 @@ describe("Avança — navegação preservada", () => {
     cleanup(); adminAccess.is_admin = true; show();
     expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("href", "/avanca/admin");
   });
-  it("prioriza criar e agendar na barra móvel, mantendo os demais destinos em Mais", () => {
+  it("prioriza fluxos, agendamentos e publicações na barra móvel, mantendo os demais destinos em Mais", () => {
     show();
     const quickNav = screen.getByRole("navigation", { name: "Navegação rápida" });
-    expect(within(quickNav).getAllByRole("link").map(a => a.getAttribute("href"))).toEqual(["/avanca", "/avanca/fluxos", "/avanca/reels-new", "/avanca/scheduled"]);
+    expect(within(quickNav).getAllByRole("link").map(a => a.getAttribute("href"))).toEqual(["/avanca", "/avanca/fluxos", "/avanca/scheduled", "/avanca/reels"]);
     expect(within(quickNav).getByRole("button", { name: "Mais opções" })).toBeInTheDocument();
   });
   it("mantém todos os destinos expandidos e recolhidos", () => {
