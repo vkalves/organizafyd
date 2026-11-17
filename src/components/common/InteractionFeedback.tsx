@@ -16,6 +16,8 @@ export function InteractionFeedback() {
     let frame = 0;
     let active = false;
     const hide = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
       active = false;
       target = null;
       root.removeAttribute("data-avanca-cursor");
@@ -23,31 +25,45 @@ export function InteractionFeedback() {
       cursor.dataset.pressed = "false";
     };
     const inspect = (element: Element | null) => {
-      // Read the original cursor before hiding it. Text, resize, drag and
-      // disabled controls keep their native feedback, including in dialogs.
-      root.removeAttribute("data-avanca-cursor");
       target = element;
-      const native = element ? getComputedStyle(element).cursor : "none";
-      active = fine.matches && !reduced.matches && ["auto", "default", "pointer"].includes(native);
-      cursor.dataset.visible = String(active);
-      if (active) {
-        cursor.dataset.interactive = String(native === "pointer" || !!element?.closest(
-          'a[href],button:not(:disabled),[role="button"]:not([aria-disabled="true"]),[role="tab"]:not([aria-disabled="true"]),[role="menuitem"]:not([aria-disabled="true"]),summary',
-        ));
-        root.setAttribute("data-avanca-cursor", "");
-      }
+      // The root flag stays stable throughout mouse use. Only read the hovered
+      // element: never remove a page-wide CSS rule to discover its native cursor.
+      const native = element ? getComputedStyle(element).cursor : "auto";
+      const disabled = element?.closest(':disabled,[aria-disabled="true"]');
+      active = !disabled && ["none", "auto", "default"].includes(native);
+      const interactive = !!element?.closest(
+        'a[href],button,[role="button"],[role="tab"],[role="menuitem"],summary,select,label[for],label:has(input),input[type="checkbox"],input[type="radio"],.cursor-pointer',
+      );
+      if (cursor.dataset.visible !== String(active)) cursor.dataset.visible = String(active);
+      if (cursor.dataset.interactive !== String(interactive)) cursor.dataset.interactive = String(interactive);
+    };
+    let nextTarget: Element | null = null;
+    let hitTest = false;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (hitTest) { nextTarget = document.elementFromPoint(x, y); hitTest = false; }
+        // Activate once on entry, rather than invalidating the whole document
+        // on every pointerover. CSS preserves native text/resize/drag cursors.
+        if (!root.hasAttribute("data-avanca-cursor")) root.setAttribute("data-avanca-cursor", "");
+        if (nextTarget !== target) inspect(nextTarget);
+        cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      });
     };
     const move = (event: PointerEvent) => {
       if (event.pointerType !== "mouse" || !fine.matches || reduced.matches) { hide(); return; }
       x = event.clientX;
       y = event.clientY;
-      if (!frame) frame = requestAnimationFrame(() => {
-        frame = 0;
-        cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      });
-      if (event.target !== target) inspect(event.target instanceof Element ? event.target : null);
+      nextTarget = event.target instanceof Element ? event.target : null;
+      schedule();
     };
-    const refresh = () => { if (active) inspect(document.elementFromPoint(x, y)); };
+    const refresh = () => {
+      if (!root.hasAttribute("data-avanca-cursor")) return;
+      target = null;
+      hitTest = true;
+      schedule();
+    };
     const leave = (event: PointerEvent) => { if (!event.relatedTarget) hide(); };
     const press = () => { cursor.dataset.pressed = "true"; };
     const release = () => { cursor.dataset.pressed = "false"; refresh(); };
