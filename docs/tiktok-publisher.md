@@ -107,7 +107,7 @@ A verificação por minuto não garante publicação no segundo exato. O TikTok 
 1. Faça login no Organizafy e abra **TikTok**, em nova guia.
 2. Clique **Conectar conta**, entre no TikTok e autorize `video.publish`.
 3. Selecione a conta: o painel busca suas opções atuais no TikTok.
-4. Adicione fotos. O sistema prepara JPG, com até 2160 px no lado maior, sem recortar; transparência recebe fundo branco. Veja as prévias, ajuste ordem, capa, título e descrição.
+4. Adicione fotos. O sistema prepara JPG, com até 1080 px no lado maior, sem recortar; transparência recebe fundo branco. Veja as prévias, ajuste ordem, capa, título e descrição.
 5. Selecione privacidade manualmente. Durante teste sem auditoria, use conta privada e “Somente eu”; não há troca automática para público.
 6. Configure comentários, música recomendada, conteúdo comercial e identificação de IA quando aplicável. Por padrão, essas opções ficam desmarcadas.
 7. Escolha o horário no fuso exibido, revise e marque a autorização. Clique **Autorizar e agendar**.
