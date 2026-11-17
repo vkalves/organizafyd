@@ -1,3 +1,4 @@
+import { ChessMark } from "./ChessMark";
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { ArrowUpRight, BarChart3, Layers, ShieldCheck } from "lucide-react";
@@ -14,7 +15,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <span>SEU CONTEÚDO. À FRENTE.</span>
           </div>
           <div className="auth-emblem-stage" aria-hidden="true">
-            <img src="/branding/avanca-simbolo-claro.svg" width="106" height="154" alt="" />
+            <ChessMark animated />
           </div>
           <div className="auth-showcase-copy">
             <p className="auth-showcase-kicker">CRIE. PROGRAME. AVANCE.</p>

@@ -16,8 +16,8 @@ describe("Boas-vindas AVANÇA", () => {
   it("exibe a apresentação, fecha automaticamente e não repete durante a navegação", () => {
     vi.useFakeTimers();
     const view = render(<WelcomeAnimation />);
-    expect(screen.getByRole("dialog")).toHaveAccessibleName("Bem-vindo à Avança");
-    act(() => vi.advanceTimersByTime(1800));
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("AVANÇA");
+    act(() => vi.advanceTimersByTime(3000));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     view.rerender(<WelcomeAnimation />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

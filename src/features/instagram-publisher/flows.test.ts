@@ -229,6 +229,17 @@ describe("Campanhas recorrentes", () => {
       }),
     ).toThrow("no_unused_media");
   });
+  it("reshuffles the order of every split account across loop cycles without changing membership", () => {
+    const first = buildFlow({ ...input, distribution: "split", repeat: "loop", random: true }, library, user, 0, () => 0);
+    const next = buildFlow({ ...input, distribution: "split", repeat: "loop", random: true }, library, user, 0, () => .99);
+    for (const account of accounts) {
+      const a = first.filter(job => job.account_id === account).map(job => job.media_urls[0]);
+      const b = next.filter(job => job.account_id === account).map(job => job.media_urls[0]);
+      expect(a).not.toEqual(b);
+      expect([...a].sort()).toEqual([...b].sort());
+      expect(new Set(a).size).toBe(a.length);
+    }
+  });
   it("mantém a distribuição das contas ao repetir um loop randomizado", () => {
     const first = buildFlow(
       { ...input, distribution: "split", repeat: "loop", random: true },

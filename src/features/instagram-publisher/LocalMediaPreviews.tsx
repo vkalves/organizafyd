@@ -1,62 +1,34 @@
 import { usePreviewVisibility } from "./usePreviewVisibility";
 import { VideoPreview } from "./VideoPreview";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
-/** Preview the chosen files immediately, without waiting for cleaning or storage. */
-export const LocalMediaPreviews = memo(function LocalMediaPreviews({
-  files,
-}: {
-  files: File[];
-}) {
-  const [items, setItems] = useState<{ file: File; url: string }[]>([]);
-  useEffect(() => {
-    const next = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-    }));
-    setItems(next);
-    return () => next.forEach((item) => URL.revokeObjectURL(item.url));
-  }, [files]);
-  if (!items.length) return null;
-  return (
-    <section aria-label="Prévia dos arquivos escolhidos" className="space-y-2">
-      <h3 className="text-xs font-medium text-muted-foreground">
-        Processando envio ({items.length})
-      </h3>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {items.map(({ file, url }) => (
-          <LocalFile key={url} file={file} url={url} />
-        ))}
-      </div>
-    </section>
-  );
+const PREVIEW_LIMIT = 8;
+/** A bounded preview window keeps large batches from opening dozens of decoders. */
+export const LocalMediaPreviews = memo(function LocalMediaPreviews({ files }: { files: File[] }) {
+  const ids = useRef(new WeakMap<File, number>());
+  const nextId = useRef(0);
+  if (!files.length) return null;
+  return <section aria-label="Prévia dos arquivos escolhidos" className="space-y-2">
+    <h3 className="text-xs font-medium text-muted-foreground">Processando envio ({files.length})</h3>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {files.slice(0, PREVIEW_LIMIT).map(file => {
+        if (!ids.current.has(file)) ids.current.set(file, nextId.current++);
+        return <LocalFile key={ids.current.get(file)} file={file} />;
+      })}
+    </div>
+    {files.length > PREVIEW_LIMIT && <p className="text-xs text-muted-foreground">+{files.length - PREVIEW_LIMIT} arquivos na fila. As prévias aparecem conforme o envio avança.</p>}
+  </section>;
 });
-
-function LocalFile({ file, url }: { file: File; url: string }) {
+function LocalFile({ file }: { file: File }) {
+  const [url, setUrl] = useState("");
   const { ref, visible } = usePreviewVisibility();
-  return (
-    <figure
-      ref={ref}
-      className="overflow-hidden rounded-[9px] border border-border bg-background"
-    >
-      {file.type.startsWith("video/") ? (
-        <VideoPreview
-          src={url}
-          visible={visible}
-          label={`Prévia de ${file.name}`}
-          className="h-28 w-full object-cover"
-        />
-      ) : (
-        <img
-          src={visible ? url : undefined}
-          alt={`Prévia de ${file.name}`}
-          loading="lazy"
-          className="h-28 w-full object-cover"
-        />
-      )}
-      <figcaption className="truncate px-2.5 py-1.5 text-[11px] text-muted-foreground">
-        {file.name}
-      </figcaption>
-    </figure>
-  );
+  useEffect(() => {
+    const local = URL.createObjectURL(file);
+    setUrl(local);
+    return () => URL.revokeObjectURL(local);
+  }, [file]);
+  return <figure ref={ref} className="overflow-hidden rounded-xl border border-border bg-background">
+    {file.type.startsWith("video/") ? <VideoPreview src={url} visible={visible} label={`Prévia de ${file.name}`} className="h-28 w-full object-cover" /> : <img src={visible ? url : undefined} alt={`Prévia de ${file.name}`} loading="lazy" className="h-28 w-full object-cover" />}
+    <figcaption className="truncate px-2.5 py-1.5 text-[11px] text-muted-foreground">{file.name}</figcaption>
+  </figure>;
 }

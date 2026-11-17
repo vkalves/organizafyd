@@ -1,3 +1,6 @@
+import { publicationWait } from "@/features/instagram-publisher/publication-wait";
+import { MediaPreview } from "@/features/instagram-publisher/MediaPreview";
+import { mediaLabel } from "@/features/instagram-publisher/media-label";
 import { InsightsPermissionNotice } from "@/features/instagram-publisher/InsightsPermissionNotice";
 import { loginRequest } from "@/features/instagram-publisher/login";
 import type { MetaConfig } from "@/features/meta-developer/meta-apps";
@@ -238,6 +241,10 @@ export default function Agonia() {
     enabled: !!user,
     refetchInterval: 30_000,
   });
+
+  const flowById = useMemo(() => new Map((flowsQuery.data?.flows ?? []).map(flow => [flow.id, flow])), [flowsQuery.data?.flows]);
+  const connectionById = useMemo(() => new Map(links.map(link => [link.account_id, link])), [links]);
+  const waitingMessage = (post: Post) => publicationWait(post, flowById.get(post.flow_id ?? ""), connectionById.get(post.account_id));
 
   const activeAlerts = useMemo(
     () => monitor.data?.alerts.filter((a) => !a.resolved_at) ?? [],
@@ -2497,11 +2504,9 @@ export default function Agonia() {
                               @{accountNames.get(post.account_id) || "conta"}
                             </strong>
                             <span>
-                              {post.format}:{" "}
-                              {post.caption ||
-                                post.media_urls[0]?.split("/").pop() ||
-                                "Sem legenda"}
+                              {mediaLabel(post)}
                             </span>
+                            <span className="text-xs text-muted-foreground">{waitingMessage(post)}</span>
                             <span className="schedule-app-label">
                               App Meta: {activeMetaApp?.name || "Principal"}
                             </span>
@@ -2657,8 +2662,8 @@ export default function Agonia() {
                                     gap: 10,
                                   }}
                                 >
-                                  <span className="video-thumb">
-                                    <Film className="h-4 w-4" />
+                                  <span className="video-thumb publication-cover">
+                                    {post.cover_url || post.media_urls[0] ? <MediaPreview url={post.cover_url || post.media_urls[0]} label={`Capa de ${mediaLabel(post)}`} minimal /> : <Film className="h-4 w-4" />}
                                   </span>
                                   <span
                                     style={{
@@ -2668,10 +2673,7 @@ export default function Agonia() {
                                       whiteSpace: "nowrap",
                                     }}
                                   >
-                                    <strong>{post.format}:</strong>{" "}
-                                    {post.caption ||
-                                      post.media_urls[0]?.split("/").pop() ||
-                                      "Sem legenda"}
+                                    <strong>{mediaLabel(post)}</strong>
                                   </span>
                                 </div>
                               </td>
@@ -2694,11 +2696,8 @@ export default function Agonia() {
                               </td>
                               <td>{statusBadge(post.status)}</td>
                               <td className="muted">
-                                {post.status === "published"
-                                  ? `${post.format} publicado pela Meta.`
-                                  : post.error_code
-                                    ? `Erro: ${post.error_code}`
-                                    : "Aguardando processamento"}
+                                {waitingMessage(post)}
+                                {post.status === "scheduled" && post.flow_id && flowById.get(post.flow_id)?.state === "paused" && <Link to="/avanca/fluxos" className="block mt-1 underline underline-offset-4">Revisar fluxo</Link>}
                               </td>
                               <td>
                                 {post.status === "scheduled" ? (

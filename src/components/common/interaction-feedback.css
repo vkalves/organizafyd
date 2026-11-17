@@ -1,0 +1,6 @@
+@media (pointer: fine) {
+  html { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='28'%3E%3Cpath d='M4 2L4 23L10 17L14 25L18 23L14 15L22 15Z' fill='%23e9ecf6' stroke='%233f424a' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 2, auto; }
+  button, a, [role="button"], label[for], summary, select { cursor: pointer; }
+  input, textarea { cursor: text; }
+  button:disabled { cursor: not-allowed; }
+}

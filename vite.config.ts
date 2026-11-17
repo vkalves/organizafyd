@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("@tiptap") || id.includes("prosemirror") || id.includes("lowlight")) {
             return "vendor-editor";
           }
+          if (id.includes("/three/")) return "vendor-chess-3d";
           if (id.includes("@supabase")) return "vendor-supabase";
           if (id.includes("@radix-ui")) return "vendor-radix";
         },
