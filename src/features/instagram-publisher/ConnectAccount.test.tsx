@@ -64,3 +64,39 @@ it("does not generate a connection link for an invalid expected handle", async (
   expect(await screen.findByText(/Informe um @ válido/)).toBeInTheDocument();
   expect(mocks.request).not.toHaveBeenCalledWith("invite", expect.anything());
 });
+it("persists a chosen default and selects it after reopening the dialog", async () => {
+  let apps = [app, { ...app, id: "second", name: "Segundo app" }];
+  mocks.request.mockImplementation(async (action, values) => {
+    if (action === "set_default_app") apps = apps.map(item => ({ ...item, isDefault: item.id === values.id }));
+    return action === "invite" ? { url: "https://example.com/invite" } : { ready: true, apps };
+  });
+  render(<ConnectAccount onConnected={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  fireEvent.change(await screen.findByLabelText("App para esta conexão"), { target: { value: "second" } });
+  fireEvent.click(screen.getByRole("button", { name: "Usar este app como padrão para novas contas" }));
+  await screen.findByText("App padrão para novas contas");
+  expect(mocks.request).toHaveBeenCalledWith("set_default_app", { id: "second" });
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  expect(await screen.findByLabelText("App para esta conexão")).toHaveValue("second");
+  fireEvent.click(screen.getByRole("button", { name: /Continuar neste navegador/ }));
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("invite", { app_id: "second" }));
+});
+it("reports a failed save without marking the app as default", async () => {
+  mocks.request.mockImplementation(async action => {
+    if (action === "set_default_app") throw new Error("Não foi possível salvar.");
+    return { ready: true, apps: [app] };
+  });
+  render(<ConnectAccount onConnected={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Conectar conta" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Usar este app como padrão para novas contas" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível salvar.");
+  expect(screen.queryByText("App padrão para novas contas")).not.toBeInTheDocument();
+});
+it("uses the saved active default server-side while honoring explicit selections", () => {
+  const preferred = { ...app, id: "preferred", isDefault: true };
+  expect(selectConnectionApp([app, preferred], undefined, true)).toBe(preferred);
+  expect(selectConnectionApp([app, preferred], app.id, true)).toBe(app);
+  expect(selectConnectionApp([app, preferred], null, true)).toBeNull();
+  expect(selectConnectionApp([app, { ...preferred, active: false }], undefined, true)).toBe(app);
+});

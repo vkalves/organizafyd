@@ -21,19 +21,19 @@ export default function MetaDeveloper({ onConnected: _onConnected }: { onConnect
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<MetaApp | undefined>();
-  const active = apps.find(app => app.id === selectedId && app.active) || apps.find(app => app.active);
+  const active = apps.find(app => app.id === selectedId && app.active) || apps.find(app => app.active && app.isDefault) || apps.find(app => app.active);
   const callback = config.data?.callback?.startsWith("https://") ? config.data.callback : "";
   function saved(data: MetaConfig) {
     client.setQueryData(queryKey, data); setEditing(undefined); setError("");
     setMessage("App salvo com segurança. A conexão está disponível.");
   }
-  async function mutate(action: "toggle_app" | "delete_app", app: MetaApp) {
+  async function mutate(action: "toggle_app" | "delete_app" | "set_default_app", app: MetaApp) {
     setPending(app.id); setError(""); setMessage("");
     try {
       const data = await loginRequest<MetaConfig>(action, { id: app.id });
       client.setQueryData(queryKey, data); setDeleting(undefined);
       if (editing?.id === app.id && action === "delete_app") setEditing(undefined);
-      setMessage(action === "delete_app" ? "App excluído." : "Status do app atualizado.");
+      setMessage(action === "delete_app" ? "App excluído." : action === "set_default_app" ? "App padrão atualizado. Ele será selecionado ao conectar novas contas." : "Status do app atualizado.");
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível atualizar o app."); }
     finally { setPending(""); }
   }
@@ -75,11 +75,12 @@ export default function MetaDeveloper({ onConnected: _onConnected }: { onConnect
     {config.isError && <div className="meta-feedback meta-error" role="alert"><span>Não foi possível consultar seus apps.</span><button type="button" className="button button-secondary" onClick={() => void config.refetch()}><RefreshCw size={14} />Tentar novamente</button></div>}
     {error && <p role="alert" className="meta-feedback meta-error">{error}</p>}
     {message && <p role="status" className="meta-feedback meta-success"><CheckCircle2 size={17} />{message}</p>}
-    <section className="panel meta-apps-panel"><div className="panel-header"><div><h2 className="panel-title"><Layers size={18} /> Apps Meta Developer</h2><p className="panel-copy">Use um app diferente para novas autorizações. O App Secret nunca é exibido depois de salvo.</p></div><button type="button" className="icon-button" aria-label="Atualizar apps" disabled={config.isFetching} onClick={() => void config.refetch()}><RefreshCw size={16} /></button></div>
+    <section className="panel meta-apps-panel"><div className="panel-header"><div><h2 className="panel-title"><Layers size={18} /> Apps Meta Developer</h2><p className="panel-copy">Defina o app padrão para conectar novas contas. O App Secret nunca é exibido depois de salvo.</p></div><button type="button" className="icon-button" aria-label="Atualizar apps" disabled={config.isFetching} onClick={() => void config.refetch()}><RefreshCw size={16} /></button></div>
       <div className="notice"><strong>Como funciona:</strong> selecione o app desejado antes de conectar uma conta. Cada app precisa ter seu próprio produto, redirect URI e permissões configurados no Meta for Developers. Adicionar apps não contorna os limites da Meta.</div>
       <div className="meta-app-list">{apps.map(app => <article key={app.id} className={`meta-app-card ${app.active ? "" : "meta-app-card-disabled"}`}>
         <div className="meta-app-card-main"><div className="meta-app-icon"><Instagram size={19} /></div><div><strong>{app.name}</strong><span>App ID: <code>{app.appId}</code></span><small>{app.configId ? "Login Unificado" : "Instagram Login"}</small></div></div>
         <div className="meta-app-card-actions"><span className={`setup-status ${app.active ? "setup-ok" : "setup-pending"}`}>{app.active ? "Ativo" : "Desativado"}</span><span className="meta-app-account-count">{app.accountCount} {app.accountCount === 1 ? "conta" : "contas"}</span>
+          <button type="button" className="button button-secondary" disabled={!!pending || !app.active || app.isDefault} onClick={() => void mutate("set_default_app", app)}>{app.isDefault ? "App padrão" : "Definir como padrão"}</button>
           <button type="button" className="button button-secondary" disabled={!!pending} onClick={() => void mutate("toggle_app", app)}>{app.active ? "Desativar" : "Ativar"}</button>
           <button type="button" className="button button-secondary" disabled={!!pending} onClick={() => { setEditing(app); setMessage(""); }}><Pencil size={13} />Editar Config ID</button>
           <button type="button" className="button button-danger" aria-label={`Excluir ${app.name}`} disabled={!!pending} onClick={() => setDeleting(app)}><Trash2 size={13} />Excluir</button></div>

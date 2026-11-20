@@ -150,14 +150,14 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 12000) throw new Error("invalid_request");
     const b = JSON.parse(raw);
-    if (b.action === "config" || b.action === "apps" || b.action === "save_app" || b.action === "toggle_app" || b.action === "delete_app") {
+    if (b.action === "config" || b.action === "apps" || b.action === "save_app" || b.action === "toggle_app" || b.action === "delete_app" || b.action === "set_default_app") {
       const jwt = req.headers.get("authorization")?.replace(/^Bearer /i, "") || "";
       const { data: { user }, error } = await db.auth.getUser(jwt);
       if (error || !user) {
         if (b.action === "config") return reply({ ready: false, callback, apps: [] });
         return reply({ error: "unauthorized" }, 401);
       }
-      const action = ({ save_app: "save", toggle_app: "toggle", delete_app: "delete" } as Record<string, string>)[b.action] || "list";
+      const action = ({ save_app: "save", toggle_app: "toggle", delete_app: "delete", set_default_app: "set_default" } as Record<string, string>)[b.action] || "list";
       if (b.id != null && (typeof b.id !== "string" || !UUID.test(b.id))) return reply({ error: "invalid_app_config" }, 400);
       if (action === "save" && (typeof b.configId !== "string" || !/^[0-9]{5,40}$/.test(b.configId.trim()))) {
         return reply({ error: "invalid_config_id" }, 400);
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       const apps = checked(await db.rpc("ig_meta_apps_manage", { p_user: user.id, p_action: "list" }));
       const usePlatform = b.app_id === null || (!b.app_id && !apps.some((app: { active: boolean }) => app.active));
       const platformReady = usePlatform && await platformConnectionReady();
-      const app = selectConnectionApp<{ id: string; active: boolean }>(apps, b.app_id, platformReady);
+      const app = selectConnectionApp<{ id: string; active: boolean; isDefault?: boolean }>(apps, b.app_id, platformReady);
       const token = random();
       const expected=expectedIdentity(b.expected_username,b.expected_graph_id);
       checked(await db.rpc("ig_prune_login_records"));

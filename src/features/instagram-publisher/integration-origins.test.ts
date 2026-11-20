@@ -8,8 +8,9 @@ describe('integration origin policy', () => {
     expect(origins.has('https://avanca.online/path')).toBe(false);
     expect(origins.has('null')).toBe(false);
   });
-  it('preserves legacy callback default and supports explicit server configuration', () => {
-    expect(connectionSiteOrigin()).toBe('https://www.organizafy.site');
+  it('uses the internationalized Avança domain by default and supports explicit server configuration', () => {
+    expect(connectionSiteOrigin()).toBe(new URL('https://avança.online').origin);
+    expect(connectionSiteOrigin('  ')).toBe(new URL('https://avança.online').origin);
     expect(connectionSiteOrigin('https://avanca.online/')).toBe('https://avanca.online');
     expect(integrationOrigins('https://integration.example','https://callback.example').has('https://callback.example')).toBe(true);
   });

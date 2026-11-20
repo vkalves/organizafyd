@@ -74,12 +74,27 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
         setApps(activeApps);
         setPlatformReady(!!config.platformReady);
         setSelectedApp((current) =>
-          activeApps.find((app) => app.id === current)?.id ?? activeApps[0]?.id ?? "",
+          activeApps.find((app) => app.id === current)?.id ?? activeApps.find((app) => app.isDefault)?.id ?? activeApps[0]?.id ?? "",
         );
         setReady(config.ready);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Erro ao consultar configuração"));
   }, []);
+
+  async function saveDefaultApp() {
+    if (!selectedApp) return;
+    setBusyAction("default");
+    setError("");
+    try {
+      const config = await loginRequest<MetaConfig>("set_default_app", { id: selectedApp });
+      setApps(config.apps.filter((app) => app.active));
+      toast.success("App padrão salvo para novas conexões.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar o app padrão.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   // Timer countdown for QR view
   useEffect(() => {
@@ -244,22 +259,35 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
           )}
 
           {apps.length > 0 ? (
-            <label className="mb-4 block text-xs text-neutral-300">
-              App para esta conexão
-              <select
-                className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3"
-                value={selectedApp}
-                onChange={(event) => setSelectedApp(event.target.value)}
-                disabled={busyAction !== null}
-              >
-                {apps.map((app) => (
-                  <option key={app.id} value={app.id}>
-                    {app.name} · {app.configId ? "Login Unificado" : "Instagram Login"}
-                  </option>
-                ))}
-                {platformReady && <option value="">Conexão padrão da plataforma</option>}
-              </select>
-            </label>
+            <>
+              <label className="mb-4 block text-xs text-neutral-300">
+                App para esta conexão
+                <select
+                  className="mt-2 w-full rounded-lg border border-white/15 bg-[#161922] p-3"
+                  value={selectedApp}
+                  onChange={(event) => setSelectedApp(event.target.value)}
+                  disabled={busyAction !== null}
+                >
+                  {apps.map((app) => (
+                    <option key={app.id} value={app.id}>
+                      {app.name} · {app.configId ? "Login Unificado" : "Instagram Login"}{app.isDefault ? " · Padrão" : ""}
+                    </option>
+                  ))}
+                  {platformReady && <option value="">Conexão padrão da plataforma</option>}
+                </select>
+              </label>
+              {selectedApp && (
+                <div className="mb-4 -mt-2 text-xs">
+                  {apps.some((app) => app.id === selectedApp && app.isDefault) ? (
+                    <p className="text-emerald-400" role="status">App padrão para novas contas</p>
+                  ) : (
+                    <button type="button" className="text-sky-400 hover:text-sky-300 disabled:opacity-50" disabled={busyAction !== null} onClick={() => void saveDefaultApp()}>
+                      {busyAction === "default" ? "Salvando…" : "Usar este app como padrão para novas contas"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           ) : platformReady && (
             <p className="mb-4 text-xs text-neutral-300">Conexão padrão da plataforma</p>
           )}

@@ -1,10 +1,11 @@
 // Shared exact-origin policy for the AVANÇA connection and integration APIs.
-const DEFAULT_SITE = "https://www.organizafy.site";
+export const AVANCA_SITE_ORIGIN = "https://xn--avana-1ra.online";
+const DEFAULT_SITE = AVANCA_SITE_ORIGIN;
 const KNOWN_ORIGINS = [
   DEFAULT_SITE,
+  "https://www.organizafy.site",
   "https://organizafy.site",
   "https://organizafyd.vercel.app",
-  "https://xn--avana-1ra.online",
   "https://www.xn--avana-1ra.online",
   "https://avanca.online",
   "https://www.avanca.online",

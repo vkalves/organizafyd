@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AVANCA_SITE_ORIGIN } from "../../supabase/functions/_shared/integration-origins";
 import { Instagram, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loginRequest } from "@/features/instagram-publisher/login";
@@ -6,6 +7,8 @@ import {
   clearBrowserAuthorization, readBrowserAuthorization, readPendingAuthorization,
   rememberBrowserAuthorization, rememberPendingAuthorization, type BrowserAuthorization,
 } from "@/features/instagram-publisher/browser-authorization";
+
+const accountsUrl = `${AVANCA_SITE_ORIGIN}/avanca/instagram`;
 
 type AccountChoice = { id: string; username: string };
 type FinishResult = { username: string } | { selection: string; accounts: AccountChoice[] };
@@ -161,13 +164,13 @@ export default function InstagramConnect() {
           </form>
         )}
         {success ? (
-          <div role="status"><h2 className="font-semibold">@{success} conectado!</h2><p>O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.</p><Button asChild className="mt-4"><a href="/avanca/instagram">Voltar à Avança</a></Button></div>
+          <div role="status"><h2 className="font-semibold">@{success} conectado!</h2><p>O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.</p><Button asChild className="mt-4"><a href={accountsUrl}>Voltar à Avança</a></Button></div>
         ) : manager && (
           <><p>Você está conectando seu Instagram à conta de <strong className="break-all">{manager}</strong> na Avança.</p><p className="text-sm text-muted-foreground">Ao autorizar, esse responsável poderá agendar e publicar conteúdo no perfil escolhido. Use uma conta profissional. Sua senha é informada somente à Meta.</p><Button disabled={busy} onClick={() => void authorize()}>Autorizar no Instagram</Button><p className="text-xs text-muted-foreground">{provider === "facebook" ? "Na tela da Meta, escolha o portfólio correto. Se houver vários perfis, escolha qual conectar ao voltar à Avança." : "Entre no Instagram profissional que deseja conectar e autorize o acesso ao perfil e à publicação. Não é necessário vincular uma Página do Facebook."}</p></>
         )}
         {error && <p role="alert" className="text-destructive">{error}</p>}
         {recoverable && !success && <Button disabled={busy} onClick={() => void checkResult()} className="w-full">Verificar resultado</Button>}
-        {!success && (error || choice) && <a href="/avanca/instagram" className="block text-sm underline">Voltar e gerar um novo link</a>}
+        {!success && (error || choice) && <a href={accountsUrl} className="block text-sm underline">Voltar e gerar um novo link</a>}
         <div className="flex gap-4 text-xs"><a href="/privacidade" className="underline">Privacidade</a><a href="/termos" className="underline">Termos</a></div>
       </section>
     </main>

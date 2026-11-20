@@ -68,3 +68,13 @@ it("reports clipboard failure without claiming the callback was copied", async (
  await screen.findByText(/Não foi possível copiar/);
  expect(screen.queryByText("Endereço de retorno copiado.")).not.toBeInTheDocument();
 });
+it("saves a default and selects it for new connections", async () => {
+ const second = { ...app, id: "app-two", name: "Segundo app" };
+ mocks.request.mockResolvedValue({ apps: [app, second], ready: true, callback });
+ show(); await screen.findByText("Segundo app", { selector: "strong" });
+ mocks.request.mockResolvedValue({ apps: [app, { ...second, isDefault: true }], ready: true, callback });
+ fireEvent.click(screen.getAllByRole("button", { name: "Definir como padrão" })[1]);
+ await screen.findByRole("button", { name: "App padrão" });
+ expect(mocks.request).toHaveBeenCalledWith("set_default_app", { id: "app-two" });
+ expect(screen.getByLabelText("App para esta conexão")).toHaveValue("app-two");
+});
