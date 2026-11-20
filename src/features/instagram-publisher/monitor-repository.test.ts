@@ -15,10 +15,14 @@ function setup(
     health?: Record<string, unknown>;
     loseClaim?: boolean;
     missingConnection?: boolean;
+    graphError?: number;
+    cleanupFailure?: boolean;
   } = {},
 ) {
   const requests: { url: URL; init: RequestInit }[] = [];
-  const graph = vi.fn(async () => new Response(JSON.stringify({ id: "123" })));
+  const graph = vi.fn(async () => options.graphError
+    ? new Response(JSON.stringify({ error: { code: options.graphError } }), { status: 400 })
+    : new Response(JSON.stringify({ id: "123" })));
   const transport = vi.fn(
     async (input: RequestInfo | URL, init: RequestInit = {}) => {
       const url = new URL(String(input));
@@ -36,6 +40,11 @@ function setup(
         );
       }
       if (url.pathname.endsWith("/ig_vault_read")) return json("private-token");
+      if (url.pathname.endsWith("/ig_auto_remove_unavailable_account")) {
+        return options.cleanupFailure
+          ? new Response(JSON.stringify({ message: "cleanup_failed" }), { status: 500 })
+          : json(true);
+      }
       if (url.pathname.endsWith("/ig_account_health")) {
         if (init.method === "POST") return json(null);
         if (init.method === "PATCH") {
@@ -49,7 +58,7 @@ function setup(
               },
             );
           }
-          return json(null);
+          return json([{ account_id: account }]);
         }
         if (url.searchParams.has("account_id")) {
           return json(options.health ? [options.health] : []);
@@ -145,6 +154,30 @@ describe("Monitor repository ownership, pagination and manual check leases", () 
     const { repo, graph } = setup({ health: completed(), loseClaim: true });
     expect(await repo.refresh(owner, account)).toBe("busy");
     expect(graph).not.toHaveBeenCalled();
+  });
+  it("does not disconnect an account after a transient Meta error", async () => {
+    const { repo, requests } = setup({ health: completed(), graphError: 4 });
+    await repo.refresh(owner, account);
+    expect(requests.some(r => r.url.pathname.endsWith("/ig_auto_remove_unavailable_account"))).toBe(false);
+  });
+  it("only requests guarded cleanup after the third confirmed unavailable check", async () => {
+    const { repo, requests } = setup({
+      health: { ...completed(), state: "unavailable", candidate: "unavailable", failures: 2 },
+      graphError: 100,
+    });
+    expect(await repo.refresh(owner, account)).toBe("checked");
+    const cleanup = requests.find(r => r.url.pathname.endsWith("/ig_auto_remove_unavailable_account"));
+    expect(cleanup).toBeDefined();
+    expect(JSON.parse(String(cleanup!.init.body))).toEqual({
+      p_user: owner,
+      p_account: account,
+      p_lease: expect.any(String),
+    });
+  });
+  it("does not request cleanup on the first inaccessible-profile check", async () => {
+    const { repo, requests } = setup({ health: completed(), graphError: 100 });
+    await repo.refresh(owner, account);
+    expect(requests.some(r => r.url.pathname.endsWith("/ig_auto_remove_unavailable_account"))).toBe(false);
   });
   it("claims a finished account with compare-and-swap and saves only under the new lease", async () => {
     const { repo, requests, graph } = setup({ health: completed() });
