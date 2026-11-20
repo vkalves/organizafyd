@@ -172,6 +172,7 @@ describe("Fluxos interface", () => {
       name: "Criar fluxo e iniciar",
     });
     expect(submit).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Evitar mídias já usadas ou reservadas na mesma conta" })).not.toBeChecked();
     fireEvent.click(screen.getByRole("checkbox", { name: "Foto · M" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
     expect(submit).toBeEnabled();
@@ -192,6 +193,7 @@ describe("Fluxos interface", () => {
           gapPostDelay: true,
           distribution: "split",
           startAt: null,
+          avoidReuse: false,
         }),
       ),
     );
@@ -225,6 +227,8 @@ describe("Fluxos interface", () => {
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Repetir campanha em loop" }),
     );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Evitar mídias já usadas ou reservadas na mesma conta" }));
+    expect(screen.getByText(/Desmarque para reutilizá-las neste fluxo/)).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Descansar entre lotes" }),
     );

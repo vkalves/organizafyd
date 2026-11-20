@@ -210,6 +210,15 @@ describe("Campanhas recorrentes", () => {
     expect(jobs[0].caption).toBe("própria");
     expect(jobs[1].caption).toBe("Segunda");
   });
+  it("permite reutilizar todas as mídias quando o bloqueio está desativado", () => {
+    const jobs = buildFlow({ ...input, avoidReuse: false }, library, user, 0, () => 0, {
+      used: accounts.flatMap(account_id => library.map(m => ({ account_id, url: m.url }))),
+    });
+    expect(jobs).toHaveLength(accounts.length * library.length);
+    for (const account of accounts) {
+      expect(jobs.filter(job => job.account_id === account)).toHaveLength(library.length);
+    }
+  });
   it("filtra usadas por conta sem excluir a mídia das outras contas", () => {
     const jobs = buildFlow(
       { ...input, avoidReuse: true },

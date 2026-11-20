@@ -174,7 +174,7 @@ export default function Flows({
   const [random, setRandom] = useState(true);
   const [format, setFormat] = useState<FlowInput["format"]>("auto");
   const [repeat, setRepeat] = useState<"once" | "loop">("once");
-  const [avoidReuse, setAvoidReuse] = useState(true);
+  const [avoidReuse, setAvoidReuse] = useState(false);
   const [batchRest, setBatchRest] = useState(false);
   const [batchSize, setBatchSize] = useState(3);
   const [restMinutes, setRestMinutes] = useState(20);
@@ -521,7 +521,7 @@ export default function Flows({
       setBatchSize(s.batchSize ?? 3);
       setRestMinutes(s.restMinutes ?? 20);
     }
-    setAvoidReuse(s.avoidReuse ?? true);
+    setAvoidReuse(s.avoidReuse ?? false);
     setCoverId(s.coverId ?? null);
     setWhen("now");
     setStart("");
@@ -1896,6 +1896,7 @@ export default function Flows({
                   <input
                     type="checkbox"
                     checked={avoidReuse}
+                    aria-describedby="flow-reuse-help"
                     disabled={busy}
                     onChange={(e) => setAvoidReuse(e.target.checked)}
                   />
@@ -1903,6 +1904,12 @@ export default function Flows({
                     Evitar mídias já usadas ou reservadas na mesma conta
                   </span>
                 </label>
+
+                <p id="flow-reuse-help" className="pl-6 text-[11px] text-muted-foreground">
+                  {avoidReuse
+                    ? "Mídias já publicadas ou reservadas nessas contas serão bloqueadas. Desmarque para reutilizá-las neste fluxo."
+                    : "Você pode reutilizar neste fluxo mídias já publicadas nas mesmas contas."}
+                </p>
 
                 <label className="ig-check-row">
                   <input
