@@ -205,8 +205,15 @@ export default function Flows({
   const prefs = query.data?.prefs;
   const flows = query.data?.flows ?? [];
   const report = query.data?.report;
+  // Contas de campanhas em execução não podem ser selecionadas em novos fluxos.
+  const occupiedAccountIds = new Set(
+    flows
+      .filter(flow => (flow.state ?? "active") === "active")
+      .flatMap(flow => flow.settings.accountIds ?? []),
+  );
+  const eligibleAccounts = accounts.filter(account => !occupiedAccountIds.has(account.id));
   const syncFlow = flows.find(flow => flow.id === syncFlowId);
-  const syncCandidates = accounts.filter(account =>
+  const syncCandidates = eligibleAccounts.filter(account =>
     !syncFlow?.settings.accountIds.includes(account.id) &&
     connections.some(c => c.account_id === account.id && !c.paused && !c.reconnect_required));
 
@@ -219,11 +226,12 @@ export default function Flows({
     (m) => selected.includes(m.id) && m.kind === kind,
   );
   const available = accountIds.filter((id) =>
+    !occupiedAccountIds.has(id) &&
     connections.some(
       (c) => c.account_id === id && !c.paused && !c.reconnect_required,
     ),
   );
-  const activeAccountsCount = accounts.filter((a) =>
+  const activeAccountsCount = eligibleAccounts.filter((a) =>
     connections.some(
       (c) => c.account_id === a.id && !c.paused && !c.reconnect_required,
     ),
@@ -480,7 +488,7 @@ export default function Flows({
       ),
     );
     setAccounts(
-      (s.accountIds ?? []).filter((id) => accounts.some((a) => a.id === id)),
+      (s.accountIds ?? []).filter((id) => eligibleAccounts.some((a) => a.id === id)),
     );
     setDistribution(s.distribution ?? "all");
     setRandom(s.random ?? true);
@@ -1517,7 +1525,7 @@ export default function Flows({
                           disabled={busy}
                           className="ig-ghost-action"
                           onClick={() => {
-                            const valid = accounts
+                            const valid = eligibleAccounts
                               .filter((a) => {
                                 const c = connections.find(
                                   (conn) => conn.account_id === a.id,
@@ -1545,9 +1553,9 @@ export default function Flows({
                   </div>
                 </div>
 
-                {accounts.length > 0 ? (
+                {eligibleAccounts.length > 0 ? (
                   <div className="ig-flow-options">
-                    {accounts.map((a) => {
+                    {eligibleAccounts.map((a) => {
                       const c = connections.find((conn) => conn.account_id === a.id);
                       const disabled = !c || c.paused || c.reconnect_required;
                       const checked = accountIds.includes(a.id);
@@ -1578,7 +1586,9 @@ export default function Flows({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Conecte um perfil na aba Contas para habilitar envios.
+                    {accounts.length > 0
+                      ? "Todas as contas conectadas já estão em fluxos ativos. Pause ou encerre um fluxo para liberar as contas."
+                      : "Conecte um perfil na aba Contas para habilitar envios."}
                   </p>
                 )}
 
