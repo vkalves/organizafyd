@@ -79,6 +79,32 @@ describe("Fluxos interface", () => {
     await waitFor(()=>expect(mocks.sync).toHaveBeenCalledWith("f1",["b"]));
     expect(mocks.create).not.toHaveBeenCalled();
   });
+  it("oculta contas vinculadas a fluxos ativos ao criar novo fluxo e selecionar todas ativas", async () => {
+    mocks.load.mockResolvedValue({
+      media: [media],
+      prefs: { user_id: "u", folders: [], captions: [] },
+      flows: [{ id: "f1", name: "Campanha ativa", state: "active", settings: { accountIds: ["a"], mediaIds: ["m"], kind: "posts" } }],
+      report: { flows: [], usage: [] },
+    });
+    show([{ id: "a", username: "ocupada" }, { id: "b", username: "livre" }]);
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+    expect(await screen.findByRole("checkbox", { name: "@livre" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "@ocupada" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Todas ativas" }));
+    expect(screen.getByRole("checkbox", { name: "@livre" })).toBeChecked();
+  });
+
+  it("libera contas de fluxos encerrados para novos fluxos", async () => {
+    mocks.load.mockResolvedValue({
+      media: [media],
+      prefs: { user_id: "u", folders: [], captions: [] },
+      flows: [{ id: "f1", name: "Campanha encerrada", state: "stopped", settings: { accountIds: ["a"], mediaIds: ["m"], kind: "posts" } }],
+      report: { flows: [], usage: [] },
+    });
+    show([{ id: "a", username: "liberada" }]);
+    expect(await screen.findByRole("checkbox", { name: "@liberada" })).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.deleteMedia.mockReset().mockResolvedValue(undefined);
