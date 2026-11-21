@@ -27,11 +27,29 @@ TABLES = (
 def check(label, env):
     url = os.environ.get(env)
     if not url:
-        raise RuntimeError(f"{env} is missing")
+        raise RuntimeError(f"{env} is missing from GitHub Actions secrets")
     # Reject accidentally swapped credentials without displaying them.
-    if f"db.{EXPECTED[label]}.supabase.co" not in url:
-        raise RuntimeError(f"{env} does not point to the expected project")
-    with psycopg.connect(url, connect_timeout=12, sslmode="require") as conn:
+    if EXPECTED[label] not in url:
+        raise RuntimeError(f"{env} points to a different Supabase project")
+    print(f"{label}: secret present; project identifier matched")
+    try:
+        conn = psycopg.connect(url, connect_timeout=12, sslmode="require")
+    except psycopg.OperationalError as exc:
+        msg = str(exc).lower()
+        if "network is unreachable" in msg or "no route to host" in msg:
+            reason = "network unreachable (direct connection may require IPv6; use Supabase Session pooler)"
+        elif "name or service not known" in msg or "could not translate host name" in msg:
+            reason = "DNS hostname resolution failed"
+        elif "password authentication failed" in msg:
+            reason = "database password rejected"
+        elif "connection refused" in msg:
+            reason = "connection refused by database endpoint"
+        elif "timeout" in msg or "timed out" in msg:
+            reason = "connection timed out (check network and pooler endpoint)"
+        else:
+            reason = "database connection failed; inspect Supabase connection settings"
+        raise RuntimeError(f"{label}: {reason}") from None
+    with conn:
         with conn.cursor() as cur:
             cur.execute("SET TRANSACTION READ ONLY")
             cur.execute("SELECT current_database(), current_user")
@@ -103,5 +121,8 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         # psycopg exceptions may contain connection details; never print them.
-        print(f"Preflight failed ({type(exc).__name__}). Check secrets, SSL, network, and permissions.", file=sys.stderr)
+        if isinstance(exc, RuntimeError):
+            print(f"Preflight failed: {exc}", file=sys.stderr)
+        else:
+            print(f"Preflight failed ({type(exc).__name__}); verify table schema and database permissions.", file=sys.stderr)
         sys.exit(1)
