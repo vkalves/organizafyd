@@ -21,6 +21,8 @@ TABLES = (
     "ig_publisher_connections",
     "ig_publication_jobs",
     "ig_flow_library",
+    "instagram_accounts",
+    "ig_meta_apps",
 )
 def check(label, env):
     url = os.environ.get(env)
@@ -43,6 +45,20 @@ def check(label, env):
                     (list(ADMIN_IDS),),
                 )
                 print(f"{label}: admin {table} = {cur.fetchone()[0]}")
+            cur.execute(
+                "SELECT count(*) FROM public.ig_account_health h "
+                "WHERE EXISTS (SELECT 1 FROM public.ig_publisher_connections c "
+                "WHERE c.account_id = h.account_id AND c.user_id = ANY(%s::uuid[]))",
+                (list(ADMIN_IDS),),
+            )
+            print(f"{label}: admin ig_account_health = {cur.fetchone()[0]}")
+            cur.execute(
+                "SELECT count(*) FROM public.ig_flow_shared_accounts s "
+                "WHERE EXISTS (SELECT 1 FROM public.ig_flows f "
+                "WHERE f.id = s.flow_id AND f.user_id = ANY(%s::uuid[]))",
+                (list(ADMIN_IDS),),
+            )
+            print(f"{label}: admin ig_flow_shared_accounts = {cur.fetchone()[0]}")
             cur.execute(
                 "SELECT bucket_id, count(*) FROM storage.objects "
                 "WHERE split_part(name, '/', 1) = ANY(%s::text[]) "
