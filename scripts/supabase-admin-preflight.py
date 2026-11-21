@@ -60,6 +60,32 @@ def check(label, env):
             )
             print(f"{label}: admin ig_flow_shared_accounts = {cur.fetchone()[0]}")
             cur.execute(
+                "WITH refs AS ("
+                " SELECT secret_id FROM public.ig_publisher_connections "
+                " WHERE user_id = ANY(%s::uuid[]) AND secret_id IS NOT NULL "
+                " UNION "
+                " SELECT secret_id FROM public.ig_meta_apps "
+                " WHERE user_id = ANY(%s::uuid[]) AND secret_id IS NOT NULL"
+                ") SELECT count(*), count(*) FILTER (WHERE v.id IS NULL) "
+                "FROM refs LEFT JOIN vault.secrets v ON v.id = refs.secret_id",
+                (list(ADMIN_IDS), list(ADMIN_IDS)),
+            )
+            secret_count, missing_secrets = cur.fetchone()
+            print(f"{label}: referenced Vault secrets = {secret_count}; missing = {missing_secrets}")
+            if label == "old" and missing_secrets:
+                raise RuntimeError("Old project has broken Vault references")
+            cur.execute(
+                "SELECT count(*) FROM public.ig_publication_jobs j "
+                "WHERE j.user_id = ANY(%s::uuid[]) AND j.flow_id IS NOT NULL "
+                "AND NOT EXISTS (SELECT 1 FROM public.ig_flows f "
+                "WHERE f.id = j.flow_id AND f.user_id = ANY(%s::uuid[]))",
+                (list(ADMIN_IDS), list(ADMIN_IDS)),
+            )
+            foreign_flow_jobs = cur.fetchone()[0]
+            print(f"{label}: cross-owner publication flows = {foreign_flow_jobs}")
+            if foreign_flow_jobs:
+                raise RuntimeError("Publication jobs reference another owner's flow")
+            cur.execute(
                 "SELECT bucket_id, count(*) FROM storage.objects "
                 "WHERE split_part(name, '/', 1) = ANY(%s::text[]) "
                 "GROUP BY bucket_id ORDER BY bucket_id",
