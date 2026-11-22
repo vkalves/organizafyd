@@ -27,6 +27,11 @@ class BrowserTests(unittest.TestCase):
   self.assertEqual(self.worker.login('fixture-password','owner@example.com','security@mail.instagram.com'),'same.account');self.gmail.wait_code.assert_called_once();self.assertTrue(any('/challenge/' in u for u in self.seen))
  def test_accepts_only_exact_named_invitation(self):
   self.worker.page.goto('https://www.instagram.com/same.account/');self.assertTrue(self.worker.tester_invitation('Expected App')['accepted'])
+ def test_invitation_poll_does_not_accept_or_touch_other_app(self):
+  self.worker.page.goto('https://www.instagram.com/same.account/')
+  self.assertTrue(self.worker.invitation_pending('Expected App'))
+  self.assertEqual(self.worker.page.get_by_role('button',name='Aceitar',exact=True).count(),2)
+  self.assertFalse(self.worker.invitation_pending('Absent App'))
  def test_wrong_profile_navigation_blocks_account_actions(self):
   self.worker.page.goto('https://www.instagram.com/same.account/');self.worker.page.locator('a').evaluate("e=>e.href='/wrong.account/'")
   with self.assertRaises(CompanionError) as caught:self.worker.identity()

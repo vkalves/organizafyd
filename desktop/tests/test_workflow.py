@@ -115,3 +115,32 @@ class WorkflowTests(unittest.TestCase):
   self.workflow.start(SETTINGS);state=self.wait_state('needs_attention')
   self.assertEqual(state['phase'],'INTERNAL_OPERATION_ERROR');self.assertIn('android_connect',state['message']);self.assertIn('RuntimeError',state['message'])
   self.assertEqual(state['events'][-1]['phase'],'INTERNAL_OPERATION_ERROR');self.assertNotIn('sensitive-provider-fixture',str(state));self.assertNotIn('chrome_open',self.calls)
+
+class AutomaticWorkflowTests(unittest.TestCase):
+ setUp = WorkflowTests.setUp
+ wait_state = WorkflowTests.wait_state
+ def test_suffix_is_exactly_three_digits_and_stable_on_retry(self):
+  from unittest.mock import patch
+  values={**SETTINGS,'create_account':True,'birthday':'2000-01-02','full_name':'Configured Name'}
+  with patch('zyon.workflow.secrets.randbelow',return_value=7):
+   self.workflow.start(values); first=self.wait_state('paused')
+  self.assertEqual(first['username'],'same.account007');self.assertEqual(values['username'],'same.account')
+  self.workflow.stop();self.workflow.thread.join(3)
+  self.workflow.start(values);self.assertEqual(self.wait_state('paused')['username'],'same.account007')
+ def test_detected_invitation_resumes_without_continue(self):
+  factory=self.workflow.browser_factory
+  class AutoBrowser(factory):
+   def invitation_pending(self,name):return name=='Expected Meta App'
+  self.workflow.browser_factory=AutoBrowser
+  self.workflow.start(SETTINGS)
+  result=self.wait_state('completed')
+  self.assertEqual(result['result']['username'],'same.account')
+  self.assertEqual(self.calls.count('invitation_accept'),1)
+ def test_signup_sender_can_differ_from_login_sender(self):
+  from zyon.workflow import configuration
+  values=configuration({**SETTINGS,'signup_email_sender':'signup@example.com'})
+  self.assertEqual(values['signup_email_sender'],'signup@example.com')
+  self.assertEqual(values['email_sender'],'security@mail.instagram.com')
+  self.assertEqual(configuration(SETTINGS)['signup_email_sender'],'security@mail.instagram.com')
+  with self.assertRaises(CompanionError) as caught:configuration({**SETTINGS,'signup_email_sender':'invalid'})
+  self.assertEqual(caught.exception.field,'signup_email_sender')
