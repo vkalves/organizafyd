@@ -1,5 +1,5 @@
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { createBackendClient, resolveAwsS3Config } from "../_shared/aws-backend.ts";
 import {
   CopyObjectCommand,
   DeleteObjectsCommand,
@@ -21,11 +21,8 @@ import {
 import { reserveStorage, syncStorageInventory } from "./quota.ts";
 import { copyStoredObject, recentInventories } from "./copy.ts";
 const copyInventory = recentInventories();
-const base = Deno.env.get("SUPABASE_URL")!;
-const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const db = createClient(base, service, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const service = Deno.env.get("AWS_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const db = createBackendClient();
 requireApprovedAccount(db);
 const origins = new Set([
   "https://xn--avana-1ra.online",
@@ -37,10 +34,7 @@ const origins = new Set([
 let cached: { at: number; value: any } | undefined;
 async function config() {
   if (cached && Date.now() - cached.at < 60000) return cached.value;
-  const { data, error } = await db.rpc("aws_storage_config");
-  if (error || !data?.bucket || data.region !== "us-east-2") {
-    throw new Error("storage_not_configured");
-  }
+  const data = await resolveAwsS3Config(db);
   cached = { at: Date.now(), value: data };
   return data;
 }
@@ -152,11 +146,17 @@ Deno.serve(async (req) => {
     ) return reply({ error: "forbidden" }, 403);
     const s3 = new S3Client({
       region: cfg.region,
-      credentials: {
-        accessKeyId: cfg.accessKeyId,
-        secretAccessKey: cfg.secretAccessKey,
-      },
+      ...(cfg.accessKeyId && cfg.secretAccessKey
+        ? {
+          credentials: {
+            accessKeyId: cfg.accessKeyId,
+            secretAccessKey: cfg.secretAccessKey,
+            ...(cfg.sessionToken ? { sessionToken: cfg.sessionToken } : {}),
+          },
+        }
+        : {}),
     });
+    const nativeOnly = Boolean(cfg.nativeOnly);
     const key = `${bucket}/${body.path}`;
     const inventory = (owner: string) => syncStorageInventory(db, owner, (prefix, continuation) => s3.send(new ListObjectsV2Command({
       Bucket: cfg.bucket, Prefix: prefix, ContinuationToken: continuation,
@@ -180,6 +180,7 @@ Deno.serve(async (req) => {
           }));
         },
         legacyCopy: async () => {
+          if (nativeOnly) throw new Error("not_found");
           const result = await db.storage.from(bucket).copy(body.source, body.path);
           if (result.error) throw new Error(result.error.message.includes("storage_quota_exceeded") ? "storage_quota_exceeded" : "copy_failed");
         },
@@ -205,10 +206,12 @@ Deno.serve(async (req) => {
       }
       const [existing, legacy] = await Promise.all([
         head(s3, cfg.bucket, key),
-        db.storage.from(bucket).list(
-          body.path.slice(0, body.path.lastIndexOf("/")),
-          { search: body.path.split("/").at(-1), limit: 100 },
-        ),
+        nativeOnly
+          ? Promise.resolve({ data: [], error: null })
+          : db.storage.from(bucket).list(
+              body.path.slice(0, body.path.lastIndexOf("/")),
+              { search: body.path.split("/").at(-1), limit: 100 },
+            ),
       ]);
       if (legacy.error) throw new Error("legacy_storage_unavailable");
       if (
@@ -252,6 +255,7 @@ Deno.serve(async (req) => {
         Math.min(3600, Number(body.expiresIn) || 600),
       );
       if (body.action === "migrate") {
+        if (nativeOnly) return reply({ error: "source_missing" }, 404);
         const source = await db.storage.from(bucket).createSignedUrl(
           body.path,
           3600,
@@ -277,6 +281,8 @@ Deno.serve(async (req) => {
           }),
           { expiresIn: expires },
         );
+      } else if (nativeOnly) {
+        return reply({ error: "not_found" }, 404);
       } else {
         const legacy = await db.storage.from(bucket).createSignedUrl(
           body.path,
@@ -330,11 +336,13 @@ Deno.serve(async (req) => {
         continuation = page.NextContinuationToken;
         if (objects.length > 10000) throw new Error("listing_too_large");
       } while (continuation);
-      const legacy = await db.storage.from(bucket).list(body.path, {
-        limit: Math.min(10000, offset + limit),
-        search: typeof body.search === "string" ? body.search : undefined,
-        sortBy: body.sortBy,
-      });
+      const legacy = nativeOnly
+        ? { data: [], error: null }
+        : await db.storage.from(bucket).list(body.path, {
+            limit: Math.min(10000, offset + limit),
+            search: typeof body.search === "string" ? body.search : undefined,
+            sortBy: body.sortBy,
+          });
       if (legacy.error) throw new Error("legacy_storage_unavailable");
       const merged = new Map((legacy.data || []).map((x) => [x.name, x]));
       for (const object of objects) {
@@ -400,8 +408,10 @@ Deno.serve(async (req) => {
         }),
       );
       if (removed.Errors?.length) throw new Error("delete_failed");
-      const legacy = await db.storage.from(bucket).remove(body.paths);
-      if (legacy.error) throw new Error("legacy_delete_failed");
+      if (!nativeOnly) {
+        const legacy = await db.storage.from(bucket).remove(body.paths);
+        if (legacy.error) throw new Error("legacy_delete_failed");
+      }
       const released = await db.rpc("avanca_storage_removed", { p_bucket: bucket, p_paths: body.paths });
       if (released.error) throw new Error("storage_release_failed");
       return reply(body.paths.map((name: string) => ({ name })));

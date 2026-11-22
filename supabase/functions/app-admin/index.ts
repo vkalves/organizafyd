@@ -1,12 +1,12 @@
 import { integrationOrigins, connectionSiteOrigin } from "../_shared/integration-origins.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { createBackendClient, resolveAwsS3Config } from "../_shared/aws-backend.ts";
 import { createAdminHandler } from "./handler.ts";
-const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+const db = createBackendClient();
 // The directory must include existing S3 files, not only uploads made since quotas were added.
 async function refreshStorage(users: string[]) {
-  const config = await db.rpc("aws_storage_config");
-  if (config.error) throw new Error("storage_config_unavailable");
-  if (!config.data?.bucket) return; // Supabase-only installations need no S3 inventory.
+  const config = await resolveAwsS3Config(db).catch(() => null);
+  if (!config) throw new Error("storage_config_unavailable");
+  if (!config.bucket) return;
   for (let start = 0; start < users.length; start += 4) {
     await Promise.all(users.slice(start, start + 4).map(async id => {
       const result = await db.functions.invoke("s3-storage", { body: { action: "quota", bucket: "media", path: `${id}/quota` } });

@@ -1,5 +1,5 @@
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://csaplfphtvufxjhbpstl.supabase.co";
-const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "sb_publishable_0jOQSggJs6BwyZKy0hFCJw_uyjFC3p9";
+const API_BASE_URL = process.env.VITE_AWS_API_URL || process.env.AWS_API_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const API_CLIENT_KEY = process.env.VITE_AWS_CLIENT_KEY || process.env.VITE_AWS_COGNITO_CLIENT_ID || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "aws-cognito-public-client";
 
 function escapeHtml(value) {
   return String(value)
@@ -10,8 +10,8 @@ function escapeHtml(value) {
 }
 
 function publicFileUrl(storagePath) {
-  const base = String(SUPABASE_URL).replace(/\/$/, "");
-  return process.env.VITE_STORAGE_PROVIDER === "aws"
+  const base = String(API_BASE_URL).replace(/\/$/, "");
+  return process.env.VITE_STORAGE_PROVIDER !== "supabase"
     ? `${base}/functions/v1/s3-storage?${new URLSearchParams({ bucket: "media", path: storagePath })}`
     : `${base}/storage/v1/object/public/media/${storagePath}`;
 }
@@ -46,11 +46,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    const response = await fetch(`${String(SUPABASE_URL).replace(/\/$/, "")}/rest/v1/rpc/get_public_media`, {
+    const response = await fetch(`${String(API_BASE_URL).replace(/\/$/, "")}/rest/v1/rpc/get_public_media`, {
       method: "POST",
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: API_CLIENT_KEY,
+        Authorization: `Bearer ${API_CLIENT_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ p_token: token }),

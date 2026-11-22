@@ -1,0 +1,41 @@
+name: AWS Provision and Migrate
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo de migração (execute aplica schema + dados + Cognito; dry-run apenas verifica)'
+        required: true
+        default: 'execute'
+        type: choice
+        options:
+          - execute
+          - dry-run
+permissions:
+  contents: read
+jobs:
+  provision-and-migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-2
+      SOURCE_SUPABASE_DB_URL: ${{ secrets.OLD_SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install AWS and PostgreSQL dependencies
+        run: python -m pip install 'psycopg[binary]==3.2.12' 'boto3>=1.35.0'
+      - name: Provision AWS Stack (Cognito, RDS PostgreSQL, S3, API Gateway, Secrets Manager)
+        shell: bash
+        run: python scripts/provision-aws-stack.py --region us-east-2
+      - name: Migrate Supabase Schema, Data, Vault Secrets, and Cognito Users to AWS
+        shell: bash
+        run: |
+          if [ "${{ inputs.mode }}" = "execute" ]; then
+            python scripts/migrate-supabase-to-aws.py --execute --apply-schema --sync-cognito
+          else
+            python scripts/migrate-supabase-to-aws.py
+          fi

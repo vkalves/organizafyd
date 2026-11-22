@@ -1,11 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { hybridStorage } from "../../../supabase/functions/_shared/hybrid-storage";
 import { storageErrorMessage } from "./errors";
-// Keep the existing provider until the gateway and backend readers are deployed.
+// AWS S3 is the default storage provider; set VITE_STORAGE_PROVIDER=supabase only for legacy fallback.
+const apiUrl = import.meta.env.VITE_AWS_API_URL || import.meta.env.VITE_SUPABASE_URL || "";
 const provider = hybridStorage(
   supabase,
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_STORAGE_PROVIDER === "aws",
+  apiUrl,
+  import.meta.env.VITE_STORAGE_PROVIDER !== "supabase",
 );
 
 // Normalize the server-enforced quota error for both storage providers.

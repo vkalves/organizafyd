@@ -11,6 +11,9 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}", "supabase/functions/{x-publisher,tiktok-publisher}/publisher.test.ts"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "npm:@supabase/supabase-js@2.98.0": "@supabase/supabase-js",
+    },
   },
 });

@@ -1,10 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { createBackendClient } from "../_shared/aws-backend.ts";
 import { hybridStorage } from "../_shared/hybrid-storage.ts";
 import { mediaHandler } from "./handler.ts";
 
-const base = Deno.env.get("SUPABASE_URL")!;
-const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const db = createClient(base, secret, { auth: { persistSession: false } });
+const base = (Deno.env.get("AWS_API_URL") || Deno.env.get("SUPABASE_URL"))!;
+const secret = (Deno.env.get("AWS_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
+const db = createBackendClient();
 const storage = hybridStorage(db, base);
 Deno.serve(mediaHandler(secret, async path => {
   const { data, error } = await storage.from("instagram-publisher").createSignedUrl(path, 600);

@@ -3,14 +3,10 @@ import {
   integrationOrigins,
 } from "../_shared/integration-origins.ts";
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { createBackendClient } from "../_shared/aws-backend.ts";
 import { createMonitorRepository } from "./repository.ts";
 import { monitorHandler } from "./handler.ts";
-const db = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
-);
+const db = createBackendClient();
 requireApprovedAccount(db);
 
 Deno.serve(

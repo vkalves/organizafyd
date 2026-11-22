@@ -6,14 +6,17 @@ export default async function handler(req, res) {
   const path = typeof req.query.path === "string" ? req.query.path : "";
   if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|webp)$/.test(path))
     return res.status(400).end();
-  const base = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const base = process.env.VITE_AWS_API_URL || process.env.AWS_API_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   if (!base) return res.status(503).end();
+  const useAws = process.env.VITE_STORAGE_PROVIDER
+    ? process.env.VITE_STORAGE_PROVIDER === "aws"
+    : Boolean(process.env.VITE_AWS_API_URL || process.env.AWS_API_URL);
   try {
     const upstream = await fetch(
-      process.env.VITE_STORAGE_PROVIDER === "aws"
+      useAws
         ? `${base.replace(/\/$/, "")}/functions/v1/s3-storage?${new URLSearchParams({ bucket: "tiktok-media", path })}`
         : `${base.replace(/\/$/, "")}/storage/v1/object/public/tiktok-media/${path}`,
-      { redirect: process.env.VITE_STORAGE_PROVIDER === "aws" ? "follow" : "error", signal: AbortSignal.timeout(15000) },
+      { redirect: useAws ? "follow" : "error", signal: AbortSignal.timeout(15000) },
     );
     if (!upstream.ok) return res.status(404).end();
     const type = upstream.headers.get("content-type")?.split(";")[0];
