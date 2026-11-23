@@ -298,7 +298,7 @@ def ensure_rds(rds, ec2, sm, secret_name="avanca/backend/config", db_identifier=
 def main():
     parser = argparse.ArgumentParser(description="Provision AWS stack for Avança")
     parser.add_argument("--region", default=os.environ.get("AWS_REGION", "us-east-2"))
-    parser.add_argument("--bucket", default=os.environ.get("AWS_S3_BUCKET", "avanca-files-108327566923-us-east-2"))
+    parser.add_argument("--bucket", default=os.environ.get("AWS_S3_BUCKET", ""))
     parser.add_argument("--skip-rds", action="store_true", help="Skip RDS creation if using an existing TARGET_AWS_RDS_DB_URL")
     args = parser.parse_args()
 
@@ -308,6 +308,10 @@ def main():
         raise RuntimeError("boto3 is required (pip install boto3)") from None
 
     session = boto3.Session(region_name=args.region)
+    sts = session.client("sts")
+    account_id = sts.get_caller_identity()["Account"]
+    bucket_name = args.bucket or f"avanca-files-{account_id}-{args.region}"
+
     cognito = session.client("cognito-idp")
     s3 = session.client("s3")
     apigw = session.client("apigatewayv2")
@@ -315,7 +319,7 @@ def main():
     rds = session.client("rds")
     ec2 = session.client("ec2")
 
-    ensure_s3_bucket(s3, args.bucket, args.region)
+    ensure_s3_bucket(s3, bucket_name, args.region)
     pool_id, client_id = ensure_cognito(cognito)
     _api_id, api_endpoint = ensure_api_gateway(apigw)
 
@@ -332,7 +336,7 @@ def main():
             "AWS_COGNITO_USER_POOL_ID": pool_id,
             "AWS_COGNITO_CLIENT_ID": client_id,
             "AWS_API_URL": api_endpoint,
-            "AWS_S3_BUCKET": args.bucket,
+            "AWS_S3_BUCKET": bucket_name,
             "AWS_REGION": args.region,
         },
     )
