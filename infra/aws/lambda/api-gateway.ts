@@ -254,6 +254,40 @@ export async function runInRlsTransaction<T>(
   }
 }
 
+const JSONB_RPC_PARAMS = new Set([
+  "p_objects",
+  "p_jobs",
+  "p_settings",
+  "p_values",
+  "p_result",
+]);
+
+const JSONB_COLUMNS = new Set([
+  "checklist",
+  "media",
+  "jobs",
+  "folder_captions",
+  "settings",
+  "operation_result",
+  "last_error_details",
+  "details",
+  "data",
+]);
+
+function isJsonbValue(colOrParam: string, val: unknown): boolean {
+  if (val === null || val === undefined) return false;
+  if (JSONB_RPC_PARAMS.has(colOrParam) || JSONB_COLUMNS.has(colOrParam)) {
+    return typeof val === "object";
+  }
+  if (typeof val === "object" && !Array.isArray(val)) {
+    return true;
+  }
+  if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object" && val[0] !== null) {
+    return true;
+  }
+  return false;
+}
+
 export async function handleRestRequest(
   req: Request,
   db: SqlExecutor,
@@ -276,8 +310,9 @@ export async function handleRestRequest(
       const params: unknown[] = [];
       const namedArgs = entries.map(([k, v]) => {
         if (!IDENTIFIER_RE.test(k)) throw new Error("invalid_parameter");
-        params.push(typeof v === "object" && v !== null && !Array.isArray(v) ? JSON.stringify(v) : v);
-        return `${k} := $${params.length}`;
+        const asJsonb = isJsonbValue(k, v);
+        params.push(asJsonb ? JSON.stringify(v) : v);
+        return asJsonb ? `${k} := $${params.length}::jsonb` : `${k} := $${params.length}`;
       });
       const setReturningRpcs = new Set([
         "get_public_media",
@@ -337,12 +372,9 @@ export async function handleRestRequest(
         const valueTuples = items.map((item) => {
           const placeholders = columns.map((col) => {
             const val = item[col];
-            params.push(
-              val !== null && typeof val === "object" && !Array.isArray(val)
-                ? JSON.stringify(val)
-                : val,
-            );
-            return `$${params.length}`;
+            const asJsonb = isJsonbValue(col, val);
+            params.push(asJsonb ? JSON.stringify(val) : val);
+            return asJsonb ? `$${params.length}::jsonb` : `$${params.length}`;
           });
           return `(${placeholders.join(", ")})`;
         });
@@ -373,12 +405,9 @@ export async function handleRestRequest(
         const params: unknown[] = [];
         const setClauses = entries.map(([col, val]) => {
           const safeCol = assertIdentifier(col, "column");
-          params.push(
-            val !== null && typeof val === "object" && !Array.isArray(val)
-              ? JSON.stringify(val)
-              : val,
-          );
-          return `${safeCol} = $${params.length}`;
+          const asJsonb = isJsonbValue(col, val);
+          params.push(asJsonb ? JSON.stringify(val) : val);
+          return asJsonb ? `${safeCol} = $${params.length}::jsonb` : `${safeCol} = $${params.length}`;
         });
         const { whereSql } = buildWhereAndModifiers(url.searchParams, params);
         const sql = `UPDATE ${safeTable} SET ${setClauses.join(", ")}${whereSql} RETURNING ${selectCols}`;
@@ -422,8 +451,10 @@ export interface ApiGatewayV2Event {
   headers?: Record<string, string | undefined>;
   body?: string | null;
   isBase64Encoded?: boolean;
-  requestContext: {
-    http: {
+  source?: string;
+  "detail-type"?: string;
+  requestContext?: {
+    http?: {
       method: string;
       path: string;
     };
@@ -439,11 +470,11 @@ export interface ApiGatewayV2Result {
 }
 
 export function eventToFetchRequest(event: ApiGatewayV2Event): Request {
-  const host = event.headers?.host || event.requestContext.domainName || "api.organizafy.site";
+  const host = event.headers?.host || event.requestContext?.domainName || "api.organizafy.site";
   const proto = event.headers?.["x-forwarded-proto"] || "https";
   const qs = event.rawQueryString ? `?${event.rawQueryString}` : "";
-  const url = `${proto}://${host}${event.rawPath}${qs}`;
-  const method = event.requestContext.http.method.toUpperCase();
+  const url = `${proto}://${host}${event.rawPath || "/"}${qs}`;
+  const method = (event.requestContext?.http?.method || "GET").toUpperCase();
 
   const headers = new Headers();
   for (const [k, v] of Object.entries(event.headers || {})) {
@@ -465,6 +496,25 @@ export async function fetchResponseToResult(response: Response): Promise<ApiGate
   response.headers.forEach((value, key) => {
     headers[key] = value;
   });
+  const contentType = (headers["content-type"] || headers["Content-Type"] || "").toLowerCase();
+  const isBinary =
+    contentType.includes("application/octet-stream") ||
+    contentType.startsWith("video/") ||
+    contentType.startsWith("image/") ||
+    contentType.startsWith("audio/");
+  if (isBinary) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return {
+      statusCode: response.status,
+      headers,
+      body: btoa(binary),
+      isBase64Encoded: true,
+    };
+  }
   const body = await response.text();
   return {
     statusCode: response.status,

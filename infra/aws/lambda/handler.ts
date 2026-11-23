@@ -251,9 +251,9 @@ async function handleHttpRequest(req: Request): Promise<Response> {
   const corsHeaders: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers":
-      "authorization,apikey,content-type,prefer,accept,range,x-client-info,x-migration-token",
+      "authorization,apikey,content-type,prefer,accept,range,range-unit,x-client-info,x-migration-token",
     "Access-Control-Allow-Methods": "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Expose-Headers": "content-range",
+    "Access-Control-Expose-Headers": "content-range,content-type,content-length",
   };
 
   if (req.method === "OPTIONS") {
@@ -316,7 +316,58 @@ async function handleHttpRequest(req: Request): Promise<Response> {
 
 setInternalHttpRouter(handleHttpRequest);
 
+async function runScheduledWorkers(): Promise<ApiGatewayV2Result> {
+  const db = createInternalServiceDb();
+  const workerKeyRes = await db.rpc("ig_worker_key").catch(() => ({ data: null }));
+  const workerKey = typeof workerKeyRes.data === "string" ? workerKeyRes.data : "";
+  const results: Record<string, unknown> = {};
+
+  if (workerKey) {
+    const pubHandler = functionRegistry.get("instagram-publisher");
+    if (pubHandler) {
+      const maintRes = await pubHandler(
+        new Request(`${API_URL}/functions/v1/instagram-publisher`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-worker-secret": workerKey },
+          body: JSON.stringify({ action: "maintenance" }),
+        }),
+      );
+      results.maintenance = await maintRes.json().catch(() => null);
+
+      const workerRes = await pubHandler(
+        new Request(`${API_URL}/functions/v1/instagram-publisher`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-worker-secret": workerKey },
+          body: JSON.stringify({ action: "worker", worker_count: 1, worker_index: 0 }),
+        }),
+      );
+      results.instagram_publisher = await workerRes.json().catch(() => null);
+    }
+
+    const monHandler = functionRegistry.get("instagram-monitor");
+    if (monHandler) {
+      const monRes = await monHandler(
+        new Request(`${API_URL}/functions/v1/instagram-monitor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-worker-secret": workerKey },
+          body: JSON.stringify({ action: "worker" }),
+        }),
+      );
+      results.instagram_monitor = await monRes.json().catch(() => null);
+    }
+  }
+
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ok: true, results }),
+  };
+}
+
 export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Result> {
+  if (event.source === "aws.events" || event["detail-type"] === "Scheduled Event") {
+    return runScheduledWorkers();
+  }
   const req = eventToFetchRequest(event);
   const res = await handleHttpRequest(req);
   return fetchResponseToResult(res);

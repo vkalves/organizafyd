@@ -1,5 +1,5 @@
-const API_BASE_URL = process.env.VITE_AWS_API_URL || process.env.AWS_API_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-const API_CLIENT_KEY = process.env.VITE_AWS_CLIENT_KEY || process.env.VITE_AWS_COGNITO_CLIENT_ID || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "aws-cognito-public-client";
+const API_BASE_URL = process.env.VITE_AWS_API_URL || process.env.AWS_API_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://u1qlecg8vl.execute-api.us-east-2.amazonaws.com";
+const API_CLIENT_KEY = process.env.VITE_AWS_CLIENT_KEY || process.env.VITE_AWS_COGNITO_CLIENT_ID || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "5vv5jjam04u8kqbfn9c4guhjv6";
 
 function escapeHtml(value) {
   return String(value)
