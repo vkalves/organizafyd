@@ -50,6 +50,9 @@ export function createBackendClient(
   envGet: (name: string) => string | undefined = (k) =>
     typeof Deno !== "undefined" ? Deno.env.get(k) : process.env[k],
 ): SupabaseClient {
+  if (typeof (globalThis as any).__AVANCA_CREATE_BACKEND_CLIENT__ === "function") {
+    return (globalThis as any).__AVANCA_CREATE_BACKEND_CLIENT__();
+  }
   const apiUrl = envGet("AWS_API_URL") || envGet("SUPABASE_URL")!;
   const serviceKey = envGet("AWS_SERVICE_ROLE_KEY") || envGet("SUPABASE_SERVICE_ROLE_KEY")!;
   const client = createClient(apiUrl, serviceKey, {

@@ -7,7 +7,8 @@ export function reelMetrics(accountIds: string[], report?: AnalyticsReport) {
     let available = false;
     let partial = false;
     for (const accountId of accountIds) {
-      const account = report?.accounts.find(a => a.account_id === accountId);
+      const reportAccounts = Array.isArray(report?.accounts) ? report.accounts : [];
+      const account = reportAccounts.find(a => a.account_id === accountId);
       if (!account || account.unavailable) { partial = true; continue; }
       const videos = [...new Map(account.videos.filter(v => v.account_id === accountId).map(v => [v.id, v])).values()];
       partial ||= !account.complete || videos.some(v => !v.media_product_type);
