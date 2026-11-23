@@ -209,7 +209,7 @@ def ensure_secrets_manager(sm, secret_name: str, defaults: dict) -> dict:
         return defaults
 
 
-def ensure_rds(rds, ec2, sm, secret_name="avanca/backend/config", db_identifier="avanca-postgres"):
+def ensure_rds(rds, ec2, sm, secret_name="avanca/backend/config", db_identifier="avanca-postgres", wait_rds=True):
     secret_data = ensure_secrets_manager(
         sm,
         secret_name,
@@ -272,10 +272,14 @@ def ensure_rds(rds, ec2, sm, secret_name="avanca/backend/config", db_identifier=
             MasterUserPassword=master_password,
             VpcSecurityGroupIds=[sg_id],
             PubliclyAccessible=True,
-            BackupRetentionPeriod=7,
+            BackupRetentionPeriod=1,
             CopyTagsToSnapshot=True,
             DeletionProtection=False,
         )
+
+    if not wait_rds:
+        print("RDS creation started in background (--no-wait-rds).")
+        return "", ""
 
     # Wait until endpoint is available
     for _ in range(90):
@@ -300,6 +304,7 @@ def main():
     parser.add_argument("--region", default=os.environ.get("AWS_REGION", "us-east-2"))
     parser.add_argument("--bucket", default=os.environ.get("AWS_S3_BUCKET", ""))
     parser.add_argument("--skip-rds", action="store_true", help="Skip RDS creation if using an existing TARGET_AWS_RDS_DB_URL")
+    parser.add_argument("--no-wait-rds", action="store_true", help="Start RDS creation without blocking until available")
     args = parser.parse_args()
 
     try:
@@ -325,7 +330,7 @@ def main():
 
     rds_endpoint = ""
     if not args.skip_rds and not os.environ.get("TARGET_AWS_RDS_DB_URL"):
-        db_url, rds_endpoint = ensure_rds(rds, ec2, sm)
+        db_url, rds_endpoint = ensure_rds(rds, ec2, sm, wait_rds=not args.no_wait_rds)
     else:
         db_url = os.environ.get("TARGET_AWS_RDS_DB_URL", "")
 

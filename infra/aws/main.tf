@@ -161,7 +161,7 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = false
   skip_final_snapshot    = false
   final_snapshot_identifier = "${var.project_name}-postgres-final"
-  backup_retention_period = 7
+  backup_retention_period = 1
   deletion_protection    = true
 }
 
