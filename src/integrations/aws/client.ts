@@ -863,10 +863,17 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
             },
           };
         }
-        const contentType = response.headers.get("content-type") || "";
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const isBinary =
+          contentType.includes("application/octet-stream") ||
+          contentType.startsWith("video/") ||
+          contentType.startsWith("image/") ||
+          contentType.startsWith("audio/");
         const data = contentType.includes("application/json")
           ? await response.json()
-          : ((await response.text()) as unknown as T);
+          : isBinary
+            ? ((await response.blob()) as unknown as T)
+            : ((await response.text()) as unknown as T);
         return { data: data as T, error: null };
       } catch (err) {
         return {
