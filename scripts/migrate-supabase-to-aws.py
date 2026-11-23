@@ -136,8 +136,16 @@ def sync_cognito_users(users, user_pool_id: str, region: str):
 
 
 def migrate(execute: bool, apply_migrations: bool, sync_cognito: bool):
-    src = connect_db("source-supabase", "SOURCE_SUPABASE_DB_URL")
     dst = connect_db("target-aws-rds", "TARGET_AWS_RDS_DB_URL")
+    if execute and apply_migrations:
+        with dst:
+            apply_schema(dst)
+
+    if not os.environ.get("SOURCE_SUPABASE_DB_URL"):
+        print("No SOURCE_SUPABASE_DB_URL provided; schema migration completed.")
+        return
+
+    src = connect_db("source-supabase", "SOURCE_SUPABASE_DB_URL")
 
     with src, dst:
         with src.cursor() as scur:

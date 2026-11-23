@@ -6,7 +6,9 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any; needsConfirmation?: boolean }>;
+  confirmSignUp: (email: string, code: string) => Promise<{ error: any }>;
+  resendConfirmationCode: (email: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -38,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to get Supabase session:", err);
+        console.error("Failed to get auth session:", err);
         setLoading(false);
       });
 
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -57,6 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: window.location.origin,
       },
     });
+    return { error, needsConfirmation: !error && data?.userConfirmed === false };
+  };
+
+  const confirmSignUp = async (email: string, code: string) => {
+    const { error } = await supabase.auth.confirmSignUp({ email, code });
+    return { error };
+  };
+
+  const resendConfirmationCode = async (email: string) => {
+    const { error } = await supabase.auth.resendConfirmationCode(email);
     return { error };
   };
 
@@ -77,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ session, user, loading, signUp, confirmSignUp, resendConfirmationCode, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
