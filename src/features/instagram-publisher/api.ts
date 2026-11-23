@@ -1,7 +1,6 @@
 import { readPages } from "../../../supabase/functions/instagram-publisher/queue";
 import { storage } from '@/lib/storage';
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, type SupabaseClient } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
 import { cleanMedia } from "@/features/x/clean-media";
 export type PublisherAccount = {

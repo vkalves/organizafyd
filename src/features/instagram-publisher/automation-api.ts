@@ -1,6 +1,5 @@
 // TypeScript / automation-api.ts / browser / verified AVANÇA account-to-flow adapter
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, type SupabaseClient } from "@/integrations/supabase/client";
 import { adminRequest } from "@/features/administration/api";
 import { publisherRequest } from "./api";
 

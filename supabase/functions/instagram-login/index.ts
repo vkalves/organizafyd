@@ -5,17 +5,15 @@ import { selectConnectionApp } from "./connection-option.ts";
 import { upgradeLegacySelection, type LegacySelectionStore } from "./legacy-selection.ts";
 import { assertExpectedIdentity, completedResult, digest, expectedIdentity, hex, openGrant, publicRecovery, sealGrant, type RecoveryRow } from "./recovery.ts";
 import { authorizeUrl, authorizedAccounts, verifyPublishingAccess, type Grant, type Profile } from "./unified.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
-const db = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
-);
+import { createBackendClient } from "../_shared/aws-backend.ts";
+const apiUrl = (Deno.env.get("AWS_API_URL") || Deno.env.get("SUPABASE_URL"))!;
+const serviceKey = (Deno.env.get("AWS_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
+const db = createBackendClient();
 requireApprovedAccount(db);
 const site = connectionSiteOrigin(Deno.env.get("AVANCA_SITE_ORIGIN"));
 const allowedOrigins = integrationOrigins(Deno.env.get("AVANCA_EXTRA_ORIGINS"), site);
 const callback =
-  Deno.env.get("SUPABASE_URL")! + "/functions/v1/instagram-login";
+  apiUrl + "/functions/v1/instagram-login";
 const hash = async (s: string) =>
   Array.from(
     new Uint8Array(
@@ -59,7 +57,7 @@ async function recoveryRow(state: unknown, selection: unknown, verifier: unknown
     .eq(isSelection?"selection_hash":"state_hash",value).eq("verifier_hash",await digest(verifier))
     .gt("expires_at",new Date().toISOString()).maybeSingle()) as RecoveryRow|null;
   if (!row && isSelection) row = await upgradeLegacySelection(selection as string, verifier,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, legacySelectionStore);
+    serviceKey, legacySelectionStore);
   if(!row)throw new Error(isSelection?"invalid_selection":"invalid_state");
   return row;
 }
@@ -237,7 +235,7 @@ Deno.serve(async (req) => {
       const done=completedResult(row,b.account_id);
       if(done)return reply(done);
       if(row.operation_status!=="selection_required")throw new Error(row.operation_status==="processing"?"operation_in_progress":"authorization_restart_required");
-      const grant=await openGrant(row,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const grant=await openGrant(row,serviceKey);
       const profile=grant.accounts.find(a=>a.id===b.account_id);
       if(!profile)throw new Error("invalid_selection");
       assertExpectedIdentity(row,profile);
@@ -269,7 +267,7 @@ Deno.serve(async (req) => {
         });
         if(!candidates.length)throw new Error("account_mismatch");
         grant.accounts=candidates;
-        row.pending_grant=await sealGrant(grant,row,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        row.pending_grant=await sealGrant(grant,row,serviceKey);
         if(candidates.length>1) {
           if(b.allow_selection!==true)throw new Error("multiple_instagram_accounts");
           const nonce=hex(crypto.getRandomValues(new Uint8Array(32)));

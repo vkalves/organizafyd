@@ -13,7 +13,7 @@ import {
   type PublishedTodayReport,
   readPublishedReelsToday,
 } from "./published-today.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.98.0";
+import { createBackendClient } from "../_shared/aws-backend.ts";
 import { type Draft, mediaParams, validate } from "./model.ts";
 import { buildFlowJobs, type FlowInput, type LibraryMedia } from "./flow.ts";
 import { drainQueue, readPages, stageJobs } from "./queue.ts";
@@ -25,13 +25,11 @@ import {
   connectionInput,
   discoverProfiles,
 } from "./connection.ts";
-const db = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
-);
+const apiUrl = (Deno.env.get("AWS_API_URL") || Deno.env.get("SUPABASE_URL"))!;
+const serviceKey = (Deno.env.get("AWS_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
+const db = createBackendClient();
 requireApprovedAccount(db);
-const fileStorage = hybridStorage(db, Deno.env.get("SUPABASE_URL")!);
+const fileStorage = hybridStorage(db, apiUrl);
 const origins = integrationOrigins(Deno.env.get("AVANCA_EXTRA_ORIGINS"), connectionSiteOrigin(Deno.env.get("AVANCA_SITE_ORIGIN")));
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
   if (
@@ -394,7 +392,7 @@ async function processJob(partition: WorkerPartition) {
       // server-side cleaning pass, including existing flows and later cycles.
       // Polling an existing container must never recreate it or publish twice.
       const deliveryUrl = job.flow_id
-        ? (value: string) => campaignMediaUrl(value, job.id, Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+        ? (value: string) => campaignMediaUrl(value, job.id, apiUrl, serviceKey)
         : signed;
       const urls = await Promise.all(job.media_urls.map(deliveryUrl));
       let params: Record<string, string>;

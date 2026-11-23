@@ -11,6 +11,9 @@ from .errors import CompanionError
 from .gmail import address
 
 UUID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
+ALLOWED_PLATFORM = re.compile(
+    r'^https://(?:[a-z0-9-]+\.execute-api\.us-east-2\.amazonaws\.com(?:/[a-z0-9_-]+)?|api\.organizafy\.site|api\.xn--avana-1ra\.online|csaplfphtvufxjhbpstl\.supabase\.co)$'
+)
 
 def identifier(value):
     if not isinstance(value, str) or not UUID.fullmatch(value):
@@ -22,7 +25,7 @@ class Avanca:
         self.vault = vault
         self.config = config or json.loads((Path(__file__).parent / 'platform.json').read_text())
         self.base = self.config['url'].rstrip('/')
-        if self.base != 'https://csaplfphtvufxjhbpstl.supabase.co':
+        if not ALLOWED_PLATFORM.fullmatch(self.base):
             raise CompanionError('WRONG_PLATFORM', 'The configured platform does not match this application.')
         self.http = session or requests.Session()
         self.lock = threading.RLock()
