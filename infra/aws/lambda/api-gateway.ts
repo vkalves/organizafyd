@@ -70,12 +70,22 @@ function parseInList(raw: string): string[] {
   return items;
 }
 
+function formatColumnRef(column: string): string {
+  if (column.includes("->>")) {
+    const parts = column.split("->>");
+    if (parts.length === 2 && IDENTIFIER_RE.test(parts[0]) && IDENTIFIER_RE.test(parts[1])) {
+      return `"${parts[0]}"->>'${parts[1]}'`;
+    }
+  }
+  return assertIdentifier(column, "column");
+}
+
 export function buildFilterClause(
   column: string,
   expression: string,
   params: unknown[],
 ): string {
-  const col = assertIdentifier(column, "column");
+  const col = formatColumnRef(column);
   if (expression.startsWith("not.")) {
     const inner = buildFilterClause(column, expression.slice(4), params);
     return `NOT (${inner})`;
@@ -126,12 +136,20 @@ export function buildFilterClause(
       });
       return `${col} IN (${placeholders.join(", ")})`;
     }
-    case "cs":
+    case "cs": {
       params.push(val);
-      return `${col} @> $${params.length}`;
-    case "cd":
+      const isJson = val.trim().startsWith('{"') || val.trim().startsWith("[");
+      return isJson
+        ? `${col}::jsonb @> $${params.length}::jsonb`
+        : `${col} @> $${params.length}::text[]`;
+    }
+    case "cd": {
       params.push(val);
-      return `${col} <@ $${params.length}`;
+      const isJson = val.trim().startsWith('{"') || val.trim().startsWith("[");
+      return isJson
+        ? `${col}::jsonb <@ $${params.length}::jsonb`
+        : `${col} <@ $${params.length}::text[]`;
+    }
     default:
       throw new Error(`unsupported_operator_${op}`);
   }
@@ -261,9 +279,31 @@ export async function handleRestRequest(
         params.push(typeof v === "object" && v !== null && !Array.isArray(v) ? JSON.stringify(v) : v);
         return `${k} := $${params.length}`;
       });
-      const sql = `SELECT public.${safeFn}(${namedArgs.join(", ")}) AS result`;
+      const setReturningRpcs = new Set([
+        "get_public_media",
+        "ig_claim_job",
+        "ig_campaign_due",
+        "ig_campaign_progress",
+        "ig_claim_health_checks",
+        "ig_upgrade_legacy_selection",
+        "tiktok_due_accounts",
+        "x_due_accounts",
+        "claim_due_google_calendar_users",
+        "ig_flow_usage",
+        "ig_account_flow_progress",
+      ]);
+      const isSetReturning = setReturningRpcs.has(fnName);
+      const sql = isSetReturning
+        ? `SELECT * FROM public.${safeFn}(${namedArgs.join(", ")})`
+        : `SELECT public.${safeFn}(${namedArgs.join(", ")}) AS result`;
       const data = await runInRlsTransaction(db, session, async () => {
-        const res = await db.query<{ result: unknown }>(sql, params);
+        const res = await db.query<Record<string, unknown>>(sql, params);
+        if (isSetReturning) {
+          if (fnName === "ig_account_flow_progress") {
+            return res.rows.map((r) => Object.values(r)[0]);
+          }
+          return res.rows;
+        }
         return res.rows.length === 1 ? res.rows[0].result : res.rows.map((r) => r.result);
       });
       return new Response(JSON.stringify(data), { status: 200, headers });

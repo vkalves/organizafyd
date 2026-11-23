@@ -6,7 +6,8 @@ export function accountViewsRanking(
   report: AnalyticsReport | undefined,
   now = Date.now(),
 ) {
-  const reports = new Map(report?.accounts.map((a) => [a.account_id, a]));
+  const reportAccounts = Array.isArray(report?.accounts) ? report.accounts : [];
+  const reports = new Map(reportAccounts.map((a) => [a.account_id, a]));
   const rows = accounts
     .map((account) => {
       const data = reports.get(account.id);
@@ -69,6 +70,6 @@ export function accountViewsRanking(
     lowest,
     lowestAccounts: available.filter((row) => row.views === lowest?.views),
     partial: rows.some((row) => row.partial),
-    hasMore: report?.accounts.some((row) => row.nextCursor) ?? false,
+    hasMore: reportAccounts.some((row) => row.nextCursor),
   };
 }

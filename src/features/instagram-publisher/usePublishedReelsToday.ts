@@ -5,7 +5,7 @@ import { dayWindow } from "../../../supabase/functions/instagram-publisher/day-w
 import type { PublishedTodayReport } from "../../../supabase/functions/instagram-publisher/published-today";
 
 export function publishedReelsTotal(report?: PublishedTodayReport) {
-  if (!report) return { count: null, partial: false };
+  if (!report || !Array.isArray(report.accounts)) return { count: null, partial: false };
   const available = report.accounts.filter(a => !a.unavailable && typeof a.count === "number");
   return {
     count: available.length || !report.accounts.length ? available.reduce((sum, a) => sum + a.count!, 0) : null,
