@@ -215,9 +215,9 @@ export async function runInRlsTransaction<T>(
   await db.query("BEGIN");
   try {
     const claimsJson = JSON.stringify({
-      sub: session.userId || "",
+      sub: session.userId || null,
       role: session.role,
-      email: session.email || "",
+      email: session.email || null,
     });
     await db.query(
       `SELECT

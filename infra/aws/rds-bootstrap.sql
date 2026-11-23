@@ -56,7 +56,7 @@ STABLE
 AS $$
   SELECT COALESCE(
     NULLIF(current_setting('request.jwt.claim.sub', true), ''),
-    (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+    NULLIF(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')
   )::uuid;
 $$;
 

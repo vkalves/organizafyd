@@ -573,12 +573,12 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
       email: string;
       password: string;
       options?: { data?: Record<string, any>; emailRedirectTo?: string };
-    }): Promise<{ data: { user: AwsUser | null; session: AwsSession | null }; error: AwsAuthError | null }> {
+    }): Promise<{ data: { user: AwsUser | null; session: AwsSession | null; userConfirmed?: boolean }; error: AwsAuthError | null }> {
       const displayName = params.options?.data?.display_name;
       if (cognitoClientId) {
         const userAttributes = [{ Name: "email", Value: params.email }];
         if (displayName) {
-          userAttributes.push({ Name: "name", Value: String(displayName) });
+          userAttributes.push({ Name: "custom:display_name", Value: String(displayName) });
         }
         const { data, error } = await cognitoRpc("SignUp", {
           ClientId: cognitoClientId,
@@ -595,7 +595,7 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
           user_metadata: { ...(displayName ? { display_name: displayName } : {}) },
           app_metadata: { provider: "cognito" },
         };
-        return { data: { user, session: null }, error: null };
+        return { data: { user, session: null, userConfirmed: Boolean(data.UserConfirmed) }, error: null };
       }
 
       try {
@@ -635,6 +635,32 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
           error: { message: err instanceof Error ? err.message : "Erro de conexão." },
         };
       }
+    },
+
+    async confirmSignUp(params: {
+      email: string;
+      code: string;
+    }): Promise<{ error: AwsAuthError | null }> {
+      if (cognitoClientId) {
+        const { error } = await cognitoRpc("ConfirmSignUp", {
+          ClientId: cognitoClientId,
+          Username: params.email.trim(),
+          ConfirmationCode: params.code.trim(),
+        });
+        return { error };
+      }
+      return { error: null };
+    },
+
+    async resendConfirmationCode(email: string): Promise<{ error: AwsAuthError | null }> {
+      if (cognitoClientId) {
+        const { error } = await cognitoRpc("ResendConfirmationCode", {
+          ClientId: cognitoClientId,
+          Username: email.trim(),
+        });
+        return { error };
+      }
+      return { error: null };
     },
 
     async signInWithPassword(params: {
@@ -977,22 +1003,27 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
   };
 }
 
+const metaEnv: Record<string, string | undefined> =
+  (typeof import.meta !== "undefined" && (import.meta as any).env) ||
+  (typeof process !== "undefined" && process.env) ||
+  {};
+
 const AWS_API_URL =
-  import.meta.env.VITE_AWS_API_URL ||
-  import.meta.env.VITE_SUPABASE_URL ||
+  metaEnv.VITE_AWS_API_URL ||
+  metaEnv.VITE_SUPABASE_URL ||
   "";
 
 const AWS_CLIENT_KEY =
-  import.meta.env.VITE_AWS_CLIENT_KEY ||
-  import.meta.env.VITE_AWS_COGNITO_CLIENT_ID ||
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  metaEnv.VITE_AWS_CLIENT_KEY ||
+  metaEnv.VITE_AWS_COGNITO_CLIENT_ID ||
+  metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
   "";
 
 export const awsClient = createAwsClient<Database>({
   apiUrl: AWS_API_URL,
   clientKey: AWS_CLIENT_KEY,
-  region: import.meta.env.VITE_AWS_REGION || "us-east-2",
-  cognitoUserPoolId: import.meta.env.VITE_AWS_COGNITO_USER_POOL_ID,
-  cognitoClientId: import.meta.env.VITE_AWS_COGNITO_CLIENT_ID,
+  region: metaEnv.VITE_AWS_REGION || "us-east-2",
+  cognitoUserPoolId: metaEnv.VITE_AWS_COGNITO_USER_POOL_ID,
+  cognitoClientId: metaEnv.VITE_AWS_COGNITO_CLIENT_ID,
   fetch: withUploadTimeout((input, init) => fetch(input, init)),
 });
