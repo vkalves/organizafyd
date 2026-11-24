@@ -123,6 +123,18 @@ jobs:
                          AND NOT publish_started
                   """)
                   print("Recovered expired processing leases:", cur.rowcount)
+                  cur.execute("""
+                      UPDATE public.ig_flows f
+                         SET state = 'active'
+                       WHERE f.state = 'completed'
+                         AND EXISTS (
+                           SELECT 1
+                             FROM public.ig_publication_jobs j
+                            WHERE j.flow_id = f.id
+                              AND j.status IN ('scheduled', 'processing')
+                         )
+                  """)
+                  print("Reactivated flows with pending scheduled jobs:", cur.rowcount)
               conn.commit()
 
           s3 = session.client("s3")
