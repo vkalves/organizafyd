@@ -139,6 +139,131 @@ async function credential(id: string) {
   if (!token) throw new Error("credential_missing");
   return { c, token };
 }
+function degradedStateForError(
+  code: string,
+  includePermissions = true,
+): "reconnect" | "permissions" | null {
+  if (["meta_190", "meta_102", "credential_missing"].includes(code)) {
+    return "reconnect";
+  }
+  if (includePermissions) {
+    const num = code.startsWith("meta_") ? Number(code.slice(5)) : NaN;
+    if (num === 10 || (num >= 200 && num <= 299)) {
+      return "permissions";
+    }
+  }
+  return null;
+}
+async function syncLiveAccountHealth(
+  accountId: string,
+  userId: string | null | undefined,
+  outcome:
+    | { ok: true; publishVerified?: boolean }
+    | { ok: false; code: string; includePermissions?: boolean },
+) {
+  try {
+    let ownerId = userId;
+    if (!ownerId) {
+      const conn = await db
+        .from("ig_publisher_connections")
+        .select("user_id")
+        .eq("account_id", accountId)
+        .maybeSingle();
+      ownerId = conn.data?.user_id;
+    }
+    if (!ownerId) return;
+    const now = new Date().toISOString();
+    const nextCheckAt = new Date(Date.now() + 60_000).toISOString();
+    if (outcome.ok) {
+      if (outcome.publishVerified) {
+        await db
+          .from("ig_account_health")
+          .upsert(
+            {
+              account_id: accountId,
+              user_id: ownerId,
+              state: "healthy",
+              candidate: "healthy",
+              failures: 0,
+              checked_at: now,
+              last_healthy_at: now,
+              error_code: null,
+              next_check_at: nextCheckAt,
+              lease: null,
+            },
+            { onConflict: "account_id" },
+          );
+        await db
+          .from("ig_publisher_connections")
+          .update({ reconnect_required: false })
+          .eq("account_id", accountId)
+          .eq("user_id", ownerId);
+      } else {
+        // Basic read succeeded; ensure health row exists and refresh timestamp without overwriting an active publish-permission alert.
+        await db
+          .from("ig_account_health")
+          .upsert(
+            {
+              account_id: accountId,
+              user_id: ownerId,
+              state: "healthy",
+              candidate: "healthy",
+              failures: 0,
+              checked_at: now,
+              last_healthy_at: now,
+              error_code: null,
+              next_check_at: nextCheckAt,
+            },
+            { onConflict: "account_id", ignoreDuplicates: true },
+          );
+        await db
+          .from("ig_account_health")
+          .update({
+            state: "healthy",
+            candidate: "healthy",
+            failures: 0,
+            checked_at: now,
+            last_healthy_at: now,
+            error_code: null,
+            next_check_at: nextCheckAt,
+          })
+          .eq("account_id", accountId)
+          .eq("user_id", ownerId)
+          .neq("state", "permissions");
+      }
+      return;
+    }
+    const degraded = degradedStateForError(
+      outcome.code,
+      outcome.includePermissions !== false,
+    );
+    if (!degraded) return;
+    // Update ig_account_health FIRST so the connection trigger does not emit a transient 'reconnect' alert before 'permissions'.
+    await db
+      .from("ig_account_health")
+      .upsert(
+        {
+          account_id: accountId,
+          user_id: ownerId,
+          state: degraded,
+          candidate: degraded,
+          failures: 1,
+          checked_at: now,
+          error_code: outcome.code,
+          next_check_at: nextCheckAt,
+          lease: null,
+        },
+        { onConflict: "account_id" },
+      );
+    await db
+      .from("ig_publisher_connections")
+      .update({ reconnect_required: true })
+      .eq("account_id", accountId)
+      .eq("user_id", ownerId);
+  } catch {
+    // Health sync is best-effort and must never mask primary publisher results.
+  }
+}
 async function signed(value: string) {
   if (!value.startsWith("storage://")) return value;
   const data = checked(
@@ -591,31 +716,19 @@ async function processJob(partition: WorkerPartition) {
       error_code: null,
       last_error_details: null,
     });
+    await syncLiveAccountHealth(job.account_id, job.shared_account_owner || job.user_id, {
+      ok: true,
+      publishVerified: true,
+    });
   } catch (err) {
     const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
       ? err.message
       : "network_error";
-    if (
-      ["meta_190", "meta_10", "meta_200", "credential_missing"].includes(code)
-    ) {
-      const degradedState = code === "meta_10" || code === "meta_200"
-        ? "permissions"
-        : "reconnect";
-      await db
-        .from("ig_publisher_connections")
-        .update({ reconnect_required: true })
-        .eq("account_id", job.account_id);
-      await db
-        .from("ig_account_health")
-        .update({
-          state: degradedState,
-          candidate: degradedState,
-          failures: 1,
-          checked_at: new Date().toISOString(),
-          error_code: code,
-        })
-        .eq("account_id", job.account_id);
-    }
+    await syncLiveAccountHealth(job.account_id, job.shared_account_owner || job.user_id, {
+      ok: false,
+      code,
+      includePermissions: true,
+    });
     const transient = canRetryBeforePublication(err, code, publishing);
     const retryAt = new Date(Date.now() + Math.min(900_000, 30_000 * 2 ** Math.min(job.attempts, 5)) + Math.floor(Math.random() * 10_000)).toISOString();
     if (code === "meta_4") {
@@ -792,12 +905,21 @@ Deno.serve(async (req) => {
                   timezone,
                   now,
                 );
+                await syncLiveAccountHealth(account.account_id, user.id, { ok: true });
                 return {
                   account_id: account.account_id,
                   ...result,
                   unavailable: false,
                 };
-              } catch {
+              } catch (err) {
+                const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
+                  ? err.message
+                  : "network_error";
+                await syncLiveAccountHealth(account.account_id, user.id, {
+                  ok: false,
+                  code,
+                  includePermissions: false,
+                });
                 return {
                   account_id: account.account_id,
                   count: null,
@@ -850,6 +972,7 @@ Deno.serve(async (req) => {
               ? Promise.resolve(null)
               : readAccountOverview(c.graph_id, read).catch(() => null),
           ]);
+          await syncLiveAccountHealth(account.account_id, user.id, { ok: true });
           const followersHistory = overview?.profile
             ? await recordFollowerSnapshot(user.id, account.account_id, overview.profile)
             : undefined;
@@ -891,7 +1014,15 @@ Deno.serve(async (req) => {
               : {}),
             unavailable: false,
           });
-        } catch {
+        } catch (err) {
+          const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
+            ? err.message
+            : "network_error";
+          await syncLiveAccountHealth(account.account_id, user.id, {
+            ok: false,
+            code,
+            includePermissions: false,
+          });
           accounts.push({
             account_id: account.account_id,
             videos: [],
@@ -921,9 +1052,8 @@ Deno.serve(async (req) => {
           .maybeSingle(),
       );
       if (!owned) return reply({ error: "account_missing" }, 404);
-      const { c, token } = await credential(body.account_id);
-      const now = new Date().toISOString();
       try {
+        const { c, token } = await credential(body.account_id);
         const profile = await graph(
           c.graph_id,
           token,
@@ -941,55 +1071,22 @@ Deno.serve(async (req) => {
             .eq("id", body.account_id)
             .eq("user_id", user.id);
         }
+        await syncLiveAccountHealth(body.account_id, user.id, { ok: true });
         await db
           .from("ig_publisher_connections")
           .update({ reconnect_required: false })
           .eq("account_id", body.account_id)
           .eq("user_id", user.id);
-        await db
-          .from("ig_account_health")
-          .upsert(
-            {
-              account_id: body.account_id,
-              user_id: user.id,
-              state: "healthy",
-              candidate: "healthy",
-              failures: 0,
-              checked_at: now,
-              last_healthy_at: now,
-              error_code: null,
-            },
-            { onConflict: "account_id" },
-          );
         return reply({ id: profile.id, username: profile.username });
       } catch (err) {
         const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
           ? err.message
           : "network_error";
-        if (["meta_190", "meta_102", "meta_10", "meta_200"].includes(code)) {
-          const degradedState = code === "meta_10" || code === "meta_200"
-            ? "permissions"
-            : "reconnect";
-          await db
-            .from("ig_publisher_connections")
-            .update({ reconnect_required: true })
-            .eq("account_id", body.account_id)
-            .eq("user_id", user.id);
-          await db
-            .from("ig_account_health")
-            .upsert(
-              {
-                account_id: body.account_id,
-                user_id: user.id,
-                state: degradedState,
-                candidate: degradedState,
-                failures: 1,
-                checked_at: now,
-                error_code: code,
-              },
-              { onConflict: "account_id" },
-            );
-        }
+        await syncLiveAccountHealth(body.account_id, user.id, {
+          ok: false,
+          code,
+          includePermissions: true,
+        });
         throw err;
       }
     }

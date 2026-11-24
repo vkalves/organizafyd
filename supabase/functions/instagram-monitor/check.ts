@@ -64,6 +64,36 @@ export async function checkAccount(
         ) {
           liveUsername = data.username;
         }
+        // Basic profile read does not prove content publishing permission was restored.
+        if (row.state === "permissions") {
+          try {
+            const pubUrl = new URL(
+              `https://${host}/v24.0/${encodeURIComponent(connection.graph_id)}/content_publishing_limit`,
+            );
+            pubUrl.searchParams.set("fields", "quota_usage");
+            const pubRes = await graph(pubUrl, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(8000),
+            });
+            const pubData = await pubRes.json();
+            if (!pubRes.ok || pubData?.error || pubData?.error_type) {
+              const pubCode = Number(pubData?.error?.code ?? pubData?.code) || undefined;
+              const pubState = classify(
+                pubCode,
+                pubRes.status,
+                pubData?.error?.is_transient === true,
+              );
+              if (pubState === "permissions" || pubState === "reconnect") {
+                result = pubState;
+                errorCode = `meta_${pubCode || pubRes.status}`;
+              }
+            }
+          } catch {
+            // Keep existing permissions alert on transient network failure during verification.
+            result = "permissions";
+            errorCode = "meta_200";
+          }
+        }
       } else if (response.ok && !data.error && !data.error_type) {
         result = "temporary";
         errorCode = "identity_mismatch";

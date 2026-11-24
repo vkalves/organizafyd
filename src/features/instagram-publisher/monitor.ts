@@ -8,6 +8,7 @@ export type HealthState =
   | "temporary";
 export type AccountHealth = {
   account_id: string;
+  username?: string;
   state: HealthState;
   candidate?: HealthState;
   failures?: number;
@@ -18,6 +19,7 @@ export type AccountHealth = {
 export type AccountAlert = {
   id: string;
   account_id: string;
+  username?: string;
   state: HealthState;
   created_at: string;
   read_at: string | null;
@@ -29,6 +31,7 @@ export type MonitorData = {
   history_limit?: number;
 };
 export type RefreshResult = { status: "checked" | "recent" | "busy" };
+export type RefreshAllResult = { checked: number; skipped: number };
 export const healthLabels: Record<HealthState, string> = {
   unknown: "Aguardando verificação",
   healthy: "Conexão ativa",
@@ -79,10 +82,15 @@ export function monitorRequest(
   action: "refresh",
   id: string,
 ): Promise<RefreshResult>;
+export function monitorRequest(
+  action: "refresh_all",
+): Promise<RefreshAllResult>;
 export async function monitorRequest(
   action = "status",
   id?: string,
-): Promise<MonitorData | RefreshResult | { ok: true; updated: number }> {
+): Promise<
+  MonitorData | RefreshResult | RefreshAllResult | { ok: true; updated: number }
+> {
   const { data, error } = await supabase.functions.invoke("instagram-monitor", {
     body: { action, id },
   });

@@ -236,6 +236,21 @@ jobs:
                   """)
                   print("Queue state AFTER worker tick:", cur.fetchall())
                   cur.execute("""
+                      SELECT
+                        (SELECT COUNT(*) FROM public.ig_publisher_connections) AS total_connections,
+                        (SELECT COUNT(*) FROM public.ig_account_health) AS total_health_rows,
+                        (SELECT COUNT(*) FROM public.ig_account_health WHERE checked_at >= now() - interval '2 minutes') AS checked_last_2m,
+                        (SELECT COUNT(*) FROM public.ig_account_alerts WHERE resolved_at IS NULL) AS active_alerts
+                  """)
+                  print("Live Alert Monitor coverage:", cur.fetchone())
+                  cur.execute("""
+                      SELECT state, COALESCE(error_code, 'none'), COUNT(*)
+                        FROM public.ig_account_health
+                       GROUP BY 1, 2
+                       ORDER BY 1, 2
+                  """)
+                  print("Live Account Health states:", cur.fetchall())
+                  cur.execute("""
                       SELECT c.graph_id, c.provider, public.ig_vault_read(c.secret_id)
                         FROM public.ig_publisher_connections c
                        WHERE NOT c.reconnect_required

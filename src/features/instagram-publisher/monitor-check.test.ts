@@ -152,4 +152,50 @@ describe("Meta health checks", () => {
       username: "novo.handle_real",
     });
   });
+  it("preserves a permissions alert when basic profile read succeeds but content_publishing_limit still fails", async () => {
+    const { repo, graph } = setup();
+    graph
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "123", username: "loja_real" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { code: 200 } }), { status: 403 }),
+      );
+    await checkAccount(
+      repo,
+      { ...row, state: "permissions", candidate: "permissions", failures: 1 },
+      graph as typeof fetch,
+    );
+    expect(graph).toHaveBeenCalledTimes(2);
+    expect(repo.save).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        state: "permissions",
+        candidate: "permissions",
+        error_code: "meta_200",
+      }),
+    );
+
+    graph
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "123", username: "loja_real" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [{ quota_usage: 0 }] }), { status: 200 }),
+      );
+    await checkAccount(
+      repo,
+      { ...row, state: "permissions", candidate: "permissions", failures: 1 },
+      graph as typeof fetch,
+    );
+    expect(repo.save).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        state: "healthy",
+        candidate: "healthy",
+        failures: 0,
+        error_code: null,
+      }),
+    );
+  });
 });

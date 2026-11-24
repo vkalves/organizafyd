@@ -120,26 +120,29 @@ export function AgoniaAlerts(
   const loading = monitor.isPending || accountsPending;
   const uncertain = unavailable || loading;
   const query = search.trim().replace(/^@/, "").toLocaleLowerCase("pt-BR");
-  const matches = (accountId: string) => {
+  const matches = (accountId: string, fallbackUsername?: string) => {
     const folder = accountMeta[accountId]?.folder?.trim() || "";
     if (folderFilter !== "*" && folder !== folderFilter) return false;
-    return (accountMap.get(accountId) ?? "").toLocaleLowerCase("pt-BR").includes(
-      query,
-    );
+    const handle = accountMap.get(accountId) ?? fallbackUsername?.replace(/^@/, "") ?? "";
+    return handle.toLocaleLowerCase("pt-BR").includes(query);
   };
   const displayed =
     (tab === "pending" ? pending : tab === "resolved" ? resolved : alerts)
-      .filter((a) => matches(a.account_id));
-  const filteredAccounts = accounts.filter((a) => matches(a.id));
+      .filter((a) => matches(a.account_id, a.username));
+  const filteredAccounts = accounts.filter((a) => matches(a.id, a.username));
 
   async function reload() {
     setBusy("reload");
     try {
-      await Promise.all(
-        accounts.map((account) =>
-          monitorRequest("refresh", account.id).catch(() => null)
-        ),
-      );
+      for (let i = 0; i < accounts.length; i += 6) {
+        await Promise.all(
+          accounts
+            .slice(i, i + 6)
+            .map((account) =>
+              monitorRequest("refresh", account.id).catch(() => null),
+            ),
+        );
+      }
       await onRefresh();
       await monitor.refetch({ throwOnError: true });
       toast.success("Lista de alertas atualizada.");
@@ -181,7 +184,7 @@ export function AgoniaAlerts(
         );
       } else if (result.status === "recent") {
         toast.info(
-          "Conta verificada há menos de 1 minuto. Aguarde antes de consultar novamente.",
+          "Conta verificada há menos de 1 minuto. Aguarde alguns segundos antes de consultar novamente.",
         );
       } else {
         toast.success(
@@ -200,8 +203,8 @@ export function AgoniaAlerts(
     await onRefresh();
     await monitor.refetch({ throwOnError: true });
   }
-  function profile(accountId: string) {
-    const username = accountMap.get(accountId);
+  function profile(accountId: string, fallbackUsername?: string) {
+    const username = accountMap.get(accountId) || fallbackUsername?.replace(/^@/, "");
     return username
       ? (
         <a
@@ -228,8 +231,8 @@ export function AgoniaAlerts(
         <div>
           <h1 className="page-title">Alertas de contas</h1>
           <p className="page-subtitle">
-            Acompanhe a conexão dos seus perfis com a Meta. As verificações
-            automáticas ocorrem normalmente a cada 5 minutos.
+            Monitoramento em tempo real de todas as suas contas conectadas com a
+            Meta (verificação contínua a cada 1 minuto).
           </p>
         </div>
         <div className="action-row">
@@ -554,7 +557,9 @@ export function AgoniaAlerts(
                 </div>
               )
               : displayed.map((alert) => {
-                const username = accountMap.get(alert.account_id);
+                const username =
+                  accountMap.get(alert.account_id) ||
+                  alert.username?.replace(/^@/, "");
                 const closed = !!alert.resolved_at;
                 const needsReconnect = !closed &&
                   ["reconnect", "permissions"].includes(alert.state);
@@ -622,7 +627,7 @@ export function AgoniaAlerts(
                       {needsReconnect && (
                         <ConnectAccount onConnected={connected} />
                       )}
-                      {profile(alert.account_id)}
+                      {profile(alert.account_id, alert.username)}
                     </div>
                   </article>
                 );

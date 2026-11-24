@@ -1,6 +1,6 @@
 import { useAdministrationAccess } from "@/features/administration/api";
 import { PublicationFeedback } from "@/features/instagram-publisher/PublicationSound";
-import { InstagramAlerts } from "@/features/instagram-publisher/InstagramAlerts";
+import { InstagramAlerts, useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
 import {
   ShieldCheck,
   Bell,
@@ -99,6 +99,9 @@ function SideNav({
 }) {
   const location = useLocation();
   const access = useAdministrationAccess();
+  const monitor = useInstagramMonitor();
+  const activeAlertsCount =
+    monitor.data?.alerts?.filter((a) => !a.resolved_at).length ?? 0;
   const sections = access.data?.is_admin ? [...agoniaSections, { label: "Gestão", items: [{ title: "Administração", path: "/avanca/admin", icon: ShieldCheck }] }] : agoniaSections;
 
   return (
@@ -113,6 +116,7 @@ function SideNav({
           )}
           {section.items.map((item) => {
             const isActive = isItemActive(item, location.pathname);
+            const showAlertBadge = item.path === "/avanca/alertas" && activeAlertsCount > 0;
             return (
               <NavLink
                 key={item.path}
@@ -130,10 +134,26 @@ function SideNav({
               >
                 <span className="shell-nav-icon relative">
                   <item.icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
+                  {collapsed && showAlertBadge && (
+                    <span
+                      aria-hidden="true"
+                      className="-right-1 -top-1 absolute flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-white"
+                    >
+                      {activeAlertsCount}
+                    </span>
+                  )}
                 </span>
                 {!collapsed && (
                   <span className="shell-nav-label">
                     <span className="truncate">{item.title}</span>
+                    {showAlertBadge && (
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-white tabular-nums"
+                      >
+                        {activeAlertsCount}
+                      </span>
+                    )}
                     {item.externalTab && (
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-40" aria-hidden="true" />
                     )}

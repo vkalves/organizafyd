@@ -41,3 +41,21 @@ it("deduplicates more than 200 simultaneous problems across remounts", async () 
  await screen.findByRole('link', {name: /250 não lidos/});
  expect(mocks.warning).toHaveBeenCalledOnce();
 });
+
+it("includes exact @username in real-time notifications for single and multiple accounts", async () => {
+ mocks.request.mockResolvedValue({
+  health: [],
+  alerts: [
+   { id: "a1", account_id: "1", username: "loja_um", state: "unavailable", read_at: null, resolved_at: null },
+   { id: "a2", account_id: "2", username: "loja_dois", state: "unavailable", read_at: null, resolved_at: null },
+  ],
+ });
+ show();
+ await screen.findByRole("link", { name: /2 não lidos/ });
+ expect(mocks.warning).toHaveBeenCalledWith(
+  "2 novas notificações do Instagram",
+  expect.objectContaining({
+   description: expect.stringContaining("@loja_um (Perfil inacessível pela API), @loja_dois (Perfil inacessível pela API)"),
+  }),
+ );
+});

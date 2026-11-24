@@ -8,6 +8,9 @@ export type MonitorRepository = {
     userId: string,
     accountId: string,
   ) => Promise<"checked" | "recent" | "busy" | "not_found">;
+  refreshAll?: (
+    userId: string,
+  ) => Promise<{ checked: number; skipped: number }>;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function monitorHandler(
@@ -65,6 +68,9 @@ export function monitorHandler(
         uuid.test(body.id)
       ) {
         return reply({ ok: true, updated: await repo.read(userId, body.id) });
+      }
+      if (body.action === "refresh_all" && repo.refreshAll) {
+        return reply(await repo.refreshAll(userId));
       }
       if (
         body.action === "refresh" && typeof body.id === "string" &&

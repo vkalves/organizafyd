@@ -216,11 +216,13 @@ export default function Agonia() {
     queryKey: ["instagram-publisher-accounts", user?.id],
     queryFn: () => listAccounts(user!.id),
     enabled: !!user,
+    refetchInterval: 30_000,
   });
   const linksQuery = useQuery({
     queryKey: ["instagram-publisher-links", user?.id],
     queryFn: connections,
     enabled: !!user,
+    refetchInterval: 30_000,
   });
   const postsQuery = useQuery({
     queryKey: ["instagram-publisher", user?.id],
