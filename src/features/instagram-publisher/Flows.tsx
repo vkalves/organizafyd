@@ -179,6 +179,8 @@ export default function Flows({
   const [distribution, setDistribution] = useState<"all" | "split">("all");
   const [random, setRandom] = useState(true);
   const [format, setFormat] = useState<FlowInput["format"]>("auto");
+  const [trialReels, setTrialReels] = useState(false);
+  const [trialGraduation, setTrialGraduation] = useState<"MANUAL" | "SS_PERFORMANCE">("MANUAL");
   const [repeat, setRepeat] = useState<"once" | "loop">("once");
   const [avoidReuse, setAvoidReuse] = useState(false);
   const [batchRest, setBatchRest] = useState(false);
@@ -240,6 +242,8 @@ export default function Flows({
       .catch(() => {});
   }, []);
 
+  const isTrialFlow = kind === "posts" && trialReels;
+
   const eligibleAccounts = accounts.filter(account => !occupiedAccountIds.has(account.id));
   const eligibleFolderGroups = useMemo(
     () => groupAccountsByFolder(eligibleAccounts, accountMeta, accountFolders),
@@ -255,12 +259,18 @@ export default function Flows({
   );
 
   const visible = media.filter(
-    (m) => m.kind === kind && (folder === "*" || m.folder === folder),
+    (m) =>
+      m.kind === kind &&
+      (folder === "*" || m.folder === folder) &&
+      (!isTrialFlow || /\.mp4$/i.test(m.url)),
   );
   const selectedVisible = visible.filter(m => selected.includes(m.id));
   const destinationFolders = [...new Set([...(prefs?.folders ?? []), ...media.map(m => m.folder).filter(Boolean)])];
   const picked = media.filter(
-    (m) => selected.includes(m.id) && m.kind === kind,
+    (m) =>
+      selected.includes(m.id) &&
+      m.kind === kind &&
+      (!isTrialFlow || /\.mp4$/i.test(m.url)),
   );
   const available = accountIds.filter((id) =>
     !occupiedAccountIds.has(id) &&
@@ -542,7 +552,9 @@ export default function Flows({
     );
     setDistribution(s.distribution ?? "all");
     setRandom(s.random ?? true);
-    setFormat(s.format ?? "auto");
+    setFormat(s.trialReels ? "Reel" : (s.format ?? "auto"));
+    setTrialReels(Boolean(s.trialReels));
+    setTrialGraduation(s.trialGraduation === "SS_PERFORMANCE" ? "SS_PERFORMANCE" : "MANUAL");
     setGapPostDelay(s.gapPostDelay ?? false);
     setCaption(s.caption ?? "");
     setVariations((s.variations ?? []).join("\n---\n"));
@@ -585,7 +597,11 @@ export default function Flows({
     unlockAudio();
     void perform(async () => {
       if (!picked.length || !available.length)
-        throw new Error("Selecione ao menos uma conta ativa e uma mídia.");
+        throw new Error(
+          isTrialFlow
+            ? "Selecione ao menos uma conta ativa e um vídeo MP4 para Reels Teste."
+            : "Selecione ao menos uma conta ativa e uma mídia.",
+        );
       let slotList: string[] | null = null;
       if (scheduleMode === "slots") {
         try {
@@ -611,7 +627,7 @@ export default function Flows({
         gapPostDelay: scheduleMode === "gap" && gapPostDelay,
         random,
         distribution,
-        format,
+        format: isTrialFlow ? "Reel" : format,
         kind,
         caption,
         variations: variations
@@ -620,6 +636,7 @@ export default function Flows({
           .filter(Boolean),
         startAt: when === "schedule" ? new Date(start).toISOString() : null,
         coverId,
+        ...(isTrialFlow ? { trialReels: true, trialGraduation } : {}),
         ...(slotList
           ? { schedule: "slots" as const, slots: slotList, timeZone }
           : {}),
@@ -1333,7 +1350,7 @@ export default function Flows({
             >
               <input
                 type="file"
-                accept="image/jpeg,image/png,video/mp4"
+                accept={isTrialFlow ? "video/mp4" : "image/jpeg,image/png,video/mp4"}
                 aria-label="Adicionar mídias à fila"
                 multiple
                 disabled={busy}
@@ -1356,7 +1373,9 @@ export default function Flows({
                         : "Arraste arquivos ou clique para selecionar vários"}
                   </span>
                   <span className="ig-upload-dropzone-subtitle">
-                    JPG, PNG ou MP4 · até 100 MB por arquivo
+                    {isTrialFlow
+                      ? "Apenas vídeos MP4 (Reels Teste) · até 100 MB por arquivo"
+                      : "JPG, PNG ou MP4 · até 100 MB por arquivo"}
                   </span>
                 </div>
               </div>
@@ -1630,8 +1649,64 @@ export default function Flows({
               </span>
             </div>
 
-            {/* SEÇÃO 1: Nome & Contas */}
+            {/* SEÇÃO 1: Nome, Modo de Reels Teste & Contas */}
             <div className="ig-composer-section space-y-3">
+              {kind === "posts" && (
+                <fieldset className="space-y-2 border-0 p-0 m-0">
+                  <legend className="ig-section-label">Modo do fluxo</legend>
+                  <div className="ig-segmented-full">
+                    <button
+                      type="button"
+                      aria-pressed={!trialReels}
+                      onClick={() => setTrialReels(false)}
+                    >
+                      Fluxo padrão
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={trialReels}
+                      onClick={() => {
+                        setTrialReels(true);
+                        setFormat("Reel");
+                        setSelected((prev) =>
+                          prev.filter((id) => {
+                            const item = media.find((m) => m.id === id);
+                            return item ? /\.mp4$/i.test(item.url) : false;
+                          }),
+                        );
+                      }}
+                    >
+                      Apenas Reels Teste
+                    </button>
+                  </div>
+                  {trialReels && (
+                    <div className="rounded-lg border border-border bg-background/50 p-2.5 space-y-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        Todos os vídeos deste fluxo serão enviados exclusivamente como{" "}
+                        <strong className="text-foreground">Reels de Teste</strong> no Instagram
+                        (entregues para não-seguidores, fora da grade do perfil).
+                      </p>
+                      <div className="ig-segmented-full">
+                        <button
+                          type="button"
+                          aria-pressed={trialGraduation === "MANUAL"}
+                          onClick={() => setTrialGraduation("MANUAL")}
+                        >
+                          Manter em teste (Manual)
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={trialGraduation === "SS_PERFORMANCE"}
+                          onClick={() => setTrialGraduation("SS_PERFORMANCE")}
+                        >
+                          Graduar por desempenho
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </fieldset>
+              )}
+
               <div>
                 <Label htmlFor="flow-name" className="sr-only">
                   Nome do fluxo (opcional)
@@ -1641,7 +1716,11 @@ export default function Flows({
                   maxLength={120}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nome do fluxo (opcional)"
+                  placeholder={
+                    isTrialFlow
+                      ? "Nome do fluxo de Reels Teste (opcional)"
+                      : "Nome do fluxo (opcional)"
+                  }
                   className="h-9 text-xs"
                 />
               </div>
@@ -2051,7 +2130,7 @@ export default function Flows({
                   </div>
                 </fieldset>
 
-                {kind === "posts" && (
+                {kind === "posts" && !trialReels && (
                   <fieldset className="border-0 p-0 m-0">
                     <legend className="ig-section-label mb-1.5">Formato</legend>
                     <div className="ig-segmented-full">
@@ -2545,9 +2624,13 @@ export default function Flows({
                   ? "Processando…"
                   : kind === "stories"
                     ? "Criar fluxo de Stories"
-                    : when === "schedule"
-                      ? "Criar e agendar fluxo"
-                      : "Criar fluxo e iniciar"}
+                    : isTrialFlow
+                      ? when === "schedule"
+                        ? "Agendar fluxo de Reels Teste"
+                        : "Criar fluxo de Reels Teste"
+                      : when === "schedule"
+                        ? "Criar e agendar fluxo"
+                        : "Criar fluxo e iniciar"}
               </Button>
             </div>
           </section>
@@ -2613,6 +2696,9 @@ export default function Flows({
                         {flow.name || "Campanha sem nome"}
                       </span>
                       <span className="chip">{stateLabel}</span>
+                      {flow.settings.trialReels && (
+                        <span className="chip">Reels Teste</span>
+                      )}
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {done} publicado(s) · {pending} na fila
                       </span>
@@ -2809,8 +2895,18 @@ export default function Flows({
                           {flow.name || "Campanha sem nome"}
                         </strong>
                         <span className="chip">{stateLabel}</span>
+                        {flow.settings.trialReels && (
+                          <span className="chip">Reels Teste</span>
+                        )}
                         <span className="text-xs text-muted-foreground">
-                          {flow.settings.kind === "stories" ? "Stories" : "Posts"} ·{" "}
+                          {flow.settings.kind === "stories"
+                            ? "Stories"
+                            : flow.settings.trialReels
+                              ? flow.settings.trialGraduation === "SS_PERFORMANCE"
+                                ? "Reels Teste (graduação automática)"
+                                : "Reels Teste (manual)"
+                              : "Posts"}{" "}
+                          ·{" "}
                           {flow.settings.repeat === "loop"
                             ? `Loop (ciclo ${flow.cycle || 1})`
                             : "Ciclo único"}

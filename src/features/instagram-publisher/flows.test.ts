@@ -164,6 +164,47 @@ describe("Fluxos de publicação", () => {
       ),
     ).toThrow("invalid_media_owner");
   });
+  it("força formato Reel em todos os vídeos de um fluxo de Reels Teste e rejeita fotos", () => {
+    const videos = [
+      { id: "v1", url: `storage://${user}/v1.mp4`, kind: "posts", caption: "" },
+      { id: "v2", url: `storage://${user}/v2.mp4`, kind: "posts", caption: "" },
+    ];
+    const jobs = buildFlow(
+      {
+        ...input,
+        mediaIds: ["v1", "v2"],
+        format: "auto",
+        trialReels: true,
+        trialGraduation: "MANUAL",
+      },
+      videos,
+      user,
+      0,
+    );
+    expect(jobs).toHaveLength(4);
+    expect(jobs.every((job) => job.format === "Reel")).toBe(true);
+    expect(() =>
+      buildFlow(
+        { ...input, trialReels: true, trialGraduation: "MANUAL" },
+        library,
+        user,
+        0,
+      ),
+    ).toThrow("invalid_media_format");
+    expect(() =>
+      buildFlow(
+        {
+          ...input,
+          mediaIds: ["v1"],
+          kind: "stories",
+          trialReels: true,
+        },
+        videos.map((v) => ({ ...v, kind: "stories" })),
+        user,
+        0,
+      ),
+    ).toThrow("invalid_flow");
+  });
 });
 
 describe("Campanhas recorrentes", () => {

@@ -453,6 +453,27 @@ async function processJob(partition: WorkerPartition) {
     }
     let container = job.container_id;
     if (!container) {
+      const flowRow = job.flow_id
+        ? checked(
+          await db
+            .from("ig_flows")
+            .select("state,settings")
+            .eq("id", job.flow_id)
+            .single(),
+        )
+        : null;
+      if (flowRow && flowRow.state !== "active") {
+        await update({
+          status: flowRow.state === "stopped" ? "cancelled" : "scheduled",
+        });
+        return { processed: 0 };
+      }
+      const flowSettings = (flowRow?.settings ?? null) as Partial<FlowInput> | null;
+      const trialGraduation = flowSettings?.trialReels
+        ? flowSettings.trialGraduation === "SS_PERFORMANCE"
+          ? "SS_PERFORMANCE"
+          : "MANUAL"
+        : null;
       if (!await quotaAvailable()) return { processed: 1 };
       // A new capability per publication makes Meta download through a fresh
       // server-side cleaning pass, including existing flows and later cycles.
@@ -480,7 +501,9 @@ async function processJob(partition: WorkerPartition) {
           caption: job.caption,
         };
       } else {
-        params = mediaParams(job.format, urls[0], job.media_urls[0]);
+        params = mediaParams(job.format, urls[0], job.media_urls[0], {
+          trialGraduation,
+        });
         if (job.format === "Reel" && job.cover_url) {
           params.cover_url = await deliveryUrl(job.cover_url);
         }
@@ -1165,7 +1188,11 @@ Deno.serve(async (req) => {
               p_user: user.id,
               p_id: input.id,
               p_name: input.name.trim() ||
-                (input.kind === "stories" ? "Fluxo de Stories" : "Novo fluxo"),
+                (input.kind === "stories"
+                  ? "Fluxo de Stories"
+                  : input.trialReels
+                    ? "Fluxo de Reels Teste"
+                    : "Novo fluxo"),
               p_settings: input,
               p_jobs: plan,
             }),

@@ -440,4 +440,55 @@ describe("Fluxos interface", () => {
       expect(mocks.remove).toHaveBeenCalledWith("f1", "u");
     });
   });
+
+  it("permite criar um fluxo exclusivo de Reels Teste filtrando apenas vídeos MP4", async () => {
+    const videoMedia = {
+      id: "vid1",
+      url: "storage://u/reel1.mp4",
+      kind: "posts",
+      folder: "",
+      caption: "",
+      created_at: "2026-01-02",
+    };
+    mocks.load.mockResolvedValue({
+      media: [media, videoMedia],
+      prefs: { user_id: "u", folders: [], captions: [] },
+      flows: [],
+      report: { flows: [], usage: [] },
+    });
+
+    show();
+    await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
+
+    // No modo padrão, tanto foto quanto vídeo aparecem
+    expect(screen.getByRole("checkbox", { name: "Foto · M" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Reel · VID1" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Foto · M" }));
+
+    // Ao ativar "Apenas Reels Teste", fotos são ocultadas/desmarcadas e somente vídeos MP4 permanecem
+    fireEvent.click(screen.getByRole("button", { name: "Apenas Reels Teste" }));
+    expect(screen.queryByRole("checkbox", { name: "Foto · M" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Reel · VID1" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Graduar por desempenho" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Reel · VID1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "@perfil" }));
+
+    const submit = screen.getByRole("button", { name: "Criar fluxo de Reels Teste" });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaIds: ["vid1"],
+          accountIds: ["a"],
+          format: "Reel",
+          kind: "posts",
+          trialReels: true,
+          trialGraduation: "SS_PERFORMANCE",
+        }),
+      ),
+    );
+  });
 });

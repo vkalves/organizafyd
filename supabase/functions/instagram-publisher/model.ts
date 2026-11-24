@@ -81,14 +81,26 @@ export function validate(d: Draft, userId: string, now = Date.now()) {
     }
   }
 }
+export type TrialGraduation = "MANUAL" | "SS_PERFORMANCE";
 export function mediaParams(
   format: Format,
   url: string,
   original: string,
+  options?: { trialGraduation?: TrialGraduation | null },
 ): Record<string, string> {
   const video = /\.mp4(?:\?|$)/i.test(original);
-  if (format === "Reel")
+  if (format === "Reel") {
+    if (options?.trialGraduation) {
+      return {
+        media_type: "REELS",
+        video_url: url,
+        trial_params: JSON.stringify({
+          graduation_strategy: options.trialGraduation,
+        }),
+      };
+    }
     return { media_type: "REELS", video_url: url, share_to_feed: "true" };
+  }
   if (format === "Story")
     return { media_type: "STORIES", [video ? "video_url" : "image_url"]: url };
   return { image_url: url };

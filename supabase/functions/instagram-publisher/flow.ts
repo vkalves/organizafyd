@@ -1,4 +1,9 @@
-import { type Draft, type Format, validate } from "./model.ts";
+import {
+  type Draft,
+  type Format,
+  type TrialGraduation,
+  validate,
+} from "./model.ts";
 import { isValidTimeZone, parseSlots, slotInstants } from "./schedule.ts";
 export type LibraryMedia = {
   id: string;
@@ -22,6 +27,8 @@ export type FlowInput = {
   variations: string[];
   startAt: string | null;
   coverId: string | null;
+  trialReels?: boolean;
+  trialGraduation?: TrialGraduation;
   repeat?: "once" | "loop";
   batchSize?: number;
   restMinutes?: number;
@@ -79,7 +86,11 @@ export function* buildFlowJobs(
     !["all", "split"].includes(input.distribution) ||
     !["auto", "Reel", "Feed"].includes(input.format) ||
     !["posts", "stories"].includes(input.kind) ||
-    typeof input.random !== "boolean"
+    typeof input.random !== "boolean" ||
+    (input.trialReels !== undefined && typeof input.trialReels !== "boolean") ||
+    (input.trialGraduation !== undefined &&
+      !["MANUAL", "SS_PERFORMANCE"].includes(input.trialGraduation)) ||
+    (input.trialReels && input.kind !== "posts")
   ) {
     throw new Error("invalid_flow");
   }
@@ -162,6 +173,9 @@ export function* buildFlowJobs(
     if (!item || item.kind !== input.kind) {
       throw new Error("invalid_media_owner");
     }
+    if (input.trialReels && !/\.mp4$/i.test(item.url)) {
+      throw new Error("invalid_media_format");
+    }
     return item;
   });
   const cover = input.coverId
@@ -224,6 +238,8 @@ export function* buildFlowJobs(
         : "";
       const format: Format = input.kind === "stories"
         ? "Story"
+        : input.trialReels
+        ? "Reel"
         : input.format === "auto"
         ? /\.mp4$/i.test(item.url) ? "Reel" : "Feed"
         : input.format;

@@ -81,5 +81,23 @@ describe("Live publication validation", () => {
     expect(mediaParams("Story", "https://signed/a", "storage://a.mp4")).toEqual(
       { media_type: "STORIES", video_url: "https://signed/a" },
     );
+    expect(
+      mediaParams("Reel", "https://signed/a", "storage://a.mp4", {
+        trialGraduation: "MANUAL",
+      }),
+    ).toEqual({
+      media_type: "REELS",
+      video_url: "https://signed/a",
+      trial_params: JSON.stringify({ graduation_strategy: "MANUAL" }),
+    });
+    expect(
+      mediaParams("Reel", "https://signed/a", "storage://a.mp4", {
+        trialGraduation: "SS_PERFORMANCE",
+      }),
+    ).toEqual({
+      media_type: "REELS",
+      video_url: "https://signed/a",
+      trial_params: JSON.stringify({ graduation_strategy: "SS_PERFORMANCE" }),
+    });
   });
 });
