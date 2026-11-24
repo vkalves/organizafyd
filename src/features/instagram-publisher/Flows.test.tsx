@@ -116,34 +116,48 @@ describe("Fluxos interface", () => {
     });
     mocks.create.mockResolvedValue({ ok: true });
   });
-  it("acrescenta novas seleções à fila em andamento e processa todos os arquivos na ordem", async () => {
-    let finishFirst: () => void;
-    mocks.add.mockImplementationOnce((files, _user, _kind, _folder, _progress, callbacks) => {
+  it("limpa o metadado de até 3 mídias por vez e acrescenta novas seleções à fila em andamento", async () => {
+    const resolvers: Array<() => void> = [];
+    mocks.add.mockImplementation((files, _user, _kind, _folder, _progress, callbacks) => {
       callbacks.onItem({ index: 0, name: files[0].name, status: "processing", message: "Limpando vídeo…" });
-      return new Promise(resolve => { finishFirst = () => {
-        callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
-        resolve({ ids: ["first"], errors: [] });
-      }; });
-    }).mockImplementation(async (files, _user, _kind, _folder, _progress, callbacks) => {
-      callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
-      return { ids: [files[0].name], errors: [] };
+      return new Promise(resolve => {
+        resolvers.push(() => {
+          callbacks.onItem({ index: 0, name: files[0].name, status: "done", message: "Pronta para publicar" });
+          resolve({ ids: [files[0].name], errors: [] });
+        });
+      });
     });
     mocks.load.mockResolvedValue({ media: [], prefs: { user_id: "u", folders: [], captions: [] }, flows: [], report: { flows: [], usage: [] } });
     show(); await screen.findByRole("heading", { name: /Biblioteca de mídias/ });
     const input = screen.getByLabelText("Adicionar mídias à fila");
-    const files = ["one.mp4", "two.mp4", "three.mp4", "four.mp4"].map(name => new File(["video"], name, { type: "video/mp4" }));
+    const files = ["one.mp4", "two.mp4", "three.mp4", "four.mp4", "five.mp4"].map(
+      name => new File(["video"], name, { type: "video/mp4" }),
+    );
+    // Start with 1 file -> 1 active worker; then add 4 more -> spins up 2 more workers so 3 clean simultaneously!
     fireEvent.change(input, { target: { files: [files[0]] } });
     await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(1));
     expect(input).toBeEnabled();
     expect(screen.getByLabelText("Adicionar mídias à pasta vazia")).toBeEnabled();
+
     fireEvent.change(input, { target: { files: files.slice(1) } });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(3));
     const queue = screen.getByRole("region", { name: "Fila de upload" });
-    expect(within(queue).getByText("four.mp4")).toBeInTheDocument();
-    expect(mocks.add).toHaveBeenCalledTimes(1);
-    await act(async () => { finishFirst!(); });
+    expect(within(queue).getByText(/3 limpando agora/)).toBeInTheDocument();
+    expect(within(queue).getByText(/2 na fila/)).toBeInTheDocument();
+
+    // Completing 1 of the 3 immediately starts the 4th item in queue
+    await act(async () => { resolvers[0](); });
     await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(4));
-    expect(mocks.add.mock.calls.map(call => call[0].map((file: File) => file.name))).toEqual(files.map(file => [file.name]));
-    expect(within(queue).getAllByText("Pronta para publicar")).toHaveLength(4);
+
+    // Finish remaining items
+    await act(async () => { resolvers[1](); resolvers[2](); });
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(5));
+    await act(async () => { resolvers[3](); resolvers[4](); });
+
+    expect(mocks.add.mock.calls.map(call => call[0].map((file: File) => file.name))).toEqual(
+      files.map(file => [file.name]),
+    );
+    await waitFor(() => expect(within(queue).getAllByText("Pronta para publicar")).toHaveLength(5));
     expect(input).toBeEnabled();
   });
   it("enfileira um arquivo arrastado apenas uma vez e continua após uma falha", async () => {

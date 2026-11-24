@@ -6,32 +6,63 @@ import {
   videoCleanCommand,
   videoRemuxCommand,
 } from "./video-command";
+
 export type CleaningProgress = (
   stage: "loading" | "encoding" | "verifying",
   percent?: number,
 ) => void;
-let engine: FFmpeg | undefined;
-let queue: Promise<unknown> = Promise.resolve();
+
+export const VIDEO_CLEAN_CONCURRENCY = 3;
+
+const idleEngines: FFmpeg[] = [];
+let activeCount = 0;
+const waiters: Array<(reused: FFmpeg | undefined) => void> = [];
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
-// A single reusable encoder prevents concurrent WASM heaps and recompilation per file.
-// The library already runs FFmpeg in a Web Worker; release its memory after inactivity.
-export function cleanVideo(
+function acquireEngine(): Promise<FFmpeg> {
+  clearTimeout(idleTimer);
+  if (activeCount < VIDEO_CLEAN_CONCURRENCY) {
+    activeCount += 1;
+    return Promise.resolve(idleEngines.pop() ?? new FFmpeg());
+  }
+  return new Promise<FFmpeg>((resolve) => {
+    waiters.push((reused) => {
+      resolve(reused ?? new FFmpeg());
+    });
+  });
+}
+
+function releaseEngine(healthy?: FFmpeg) {
+  const next = waiters.shift();
+  if (next) {
+    next(healthy);
+    return;
+  }
+  if (healthy) {
+    idleEngines.push(healthy);
+  }
+  activeCount = Math.max(0, activeCount - 1);
+  if (activeCount === 0 && idleEngines.length > 0) {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (activeCount === 0) {
+        while (idleEngines.length > 0) {
+          idleEngines.pop()?.terminate();
+        }
+      }
+    }, 30_000);
+  }
+}
+
+// Up to 3 reusable FFmpeg workers clean metadata concurrently, queueing extra files
+// onto whichever worker finishes first and releasing WASM memory after inactivity.
+export async function cleanVideo(
   file: File,
   progress?: CleaningProgress,
   maxOutputBytes = Infinity,
 ): Promise<Blob> {
-  const task = queue.then(() => encode(file, progress, maxOutputBytes));
-  queue = task.catch(() => undefined);
-  return task;
-}
-async function encode(
-  file: File,
-  progress: CleaningProgress | undefined,
-  maxOutputBytes: number,
-): Promise<Blob> {
-  clearTimeout(idleTimer);
-  const ffmpeg = (engine ??= new FFmpeg());
+  const ffmpeg = await acquireEngine();
+  let healthy = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastProgress = 0;
   const notify = ({ progress: value }: { progress: number }) => {
@@ -108,23 +139,18 @@ async function encode(
       }),
     ]);
   } catch (error) {
+    healthy = false;
     ffmpeg.terminate();
-    if (engine === ffmpeg) engine = undefined;
     throw error;
   } finally {
     clearTimeout(timer);
     ffmpeg.off("progress", notify);
-    if (engine === ffmpeg) {
+    if (healthy) {
       await Promise.allSettled([
         ffmpeg.deleteFile("input.mp4"),
         ffmpeg.deleteFile("output.mp4"),
       ]);
-      idleTimer = setTimeout(() => {
-        if (engine === ffmpeg) {
-          ffmpeg.terminate();
-          engine = undefined;
-        }
-      }, 30_000);
     }
+    releaseEngine(healthy ? ffmpeg : undefined);
   }
 }

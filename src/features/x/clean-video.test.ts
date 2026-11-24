@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
 const mocks = vi.hoisted(() => ({ instances: [] as unknown[], exec: vi.fn() }));
 vi.mock("@ffmpeg/ffmpeg", () => ({
   FFmpeg: class {
@@ -18,6 +19,7 @@ vi.mock("@ffmpeg/ffmpeg", () => ({
     }
   },
 }));
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.resetModules();
@@ -25,40 +27,58 @@ beforeEach(() => {
   mocks.instances.length = 0;
   mocks.exec.mockResolvedValue(0);
 });
+
 afterEach(() => {
   vi.runOnlyPendingTimers();
   vi.useRealTimers();
 });
+
 const file = { arrayBuffer: async () => new ArrayBuffer(2) } as File;
-it("reuses the encoder for a batch, cleans virtual files and serializes concurrent calls", async () => {
-  let finish: (n: number) => void;
-  mocks.exec
-    .mockImplementationOnce(
-      () =>
-        new Promise<number>((resolve) => {
-          finish = resolve;
-        }),
-    )
-    .mockResolvedValue(0);
+
+it("cleans up to 3 videos concurrently, queues the 4th onto the first freed encoder, and releases idle workers", async () => {
+  const resolvers: Array<(n: number) => void> = [];
+  mocks.exec.mockImplementation(
+    () =>
+      new Promise<number>((resolve) => {
+        resolvers.push(resolve);
+      }),
+  );
+
   const { cleanVideo } = await import("./clean-video");
-  const first = cleanVideo(file),
-    second = cleanVideo(file);
-  await vi.waitFor(() => expect(mocks.exec).toHaveBeenCalledTimes(1));
-  finish!(0);
-  await Promise.all([first, second]);
-  expect(mocks.instances).toHaveLength(1);
-  const instance = mocks.instances[0] as {
+  const v1 = cleanVideo(file);
+  const v2 = cleanVideo(file);
+  const v3 = cleanVideo(file);
+  const v4 = cleanVideo(file);
+
+  // Exactly 3 FFmpeg workers run simultaneously while the 4th waits in queue
+  await vi.waitFor(() => expect(mocks.exec).toHaveBeenCalledTimes(3));
+  expect(mocks.instances).toHaveLength(3);
+
+  // Completing the 1st slot hands that warm FFmpeg instance directly to the 4th video
+  resolvers[0](0);
+  await vi.waitFor(() => expect(mocks.exec).toHaveBeenCalledTimes(4));
+  expect(mocks.instances).toHaveLength(3);
+
+  resolvers[1](0);
+  resolvers[2](0);
+  resolvers[3](0);
+  await Promise.all([v1, v2, v3, v4]);
+
+  const pool = mocks.instances as Array<{
     load: ReturnType<typeof vi.fn>;
-    deleteFile: ReturnType<typeof vi.fn>;
     terminate: ReturnType<typeof vi.fn>;
-  };
-  expect(instance.load).toHaveBeenCalledOnce();
-  expect(instance.deleteFile).toHaveBeenCalledTimes(4);
-  expect(mocks.exec).toHaveBeenCalledTimes(2);
-  expect(instance.terminate).not.toHaveBeenCalled();
-  vi.advanceTimersByTime(30000);
-  expect(instance.terminate).toHaveBeenCalledOnce();
+  }>;
+  for (const inst of pool) {
+    expect(inst.load).toHaveBeenCalledOnce();
+    expect(inst.terminate).not.toHaveBeenCalled();
+  }
+
+  vi.advanceTimersByTime(30_000);
+  for (const inst of pool) {
+    expect(inst.terminate).toHaveBeenCalledOnce();
+  }
 });
+
 it("discards a failed encoder and processes the next queued file with a fresh one", async () => {
   mocks.exec.mockRejectedValueOnce(new Error("bad media")).mockResolvedValue(0);
   const { cleanVideo } = await import("./clean-video");

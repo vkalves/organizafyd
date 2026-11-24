@@ -195,7 +195,8 @@ export default function Flows({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const submitting = useRef(false);
-  const uploading = useRef(false);
+  const activeUploadWorkers = useRef(0);
+  const batchCounters = useRef({ saved: 0, errors: 0 });
   const pendingUploads = useRef<(UploadSource & {
     name: string;
     userId: string;
@@ -423,59 +424,72 @@ export default function Flows({
       index: job.index, name: job.name, status: "pending" as const, message: "Na fila",
     }))]);
     unlockAudio();
-    // New selections append to the same queue while the current file is running.
-    if (uploading.current) return;
-    uploading.current = true;
     setUploadInProgress(true);
-    let savedCount = 0;
-    let errorCount = 0;
-    try {
-      while (pendingUploads.current.length) {
-        const job = pendingUploads.current.shift()!;
-        try {
-          if (job.reelUrl) {
-            setUploadItems(previous => previous.map(entry => entry.index === job.index
-              ? { ...entry, status: "processing", message: "Baixando Reel do Instagram…" } : entry));
-          }
-          const file = job.file ?? await importReelFile(job.reelUrl!);
-          const result = await addMedia(
-            [file], job.userId, job.kind, job.folder, setProgress,
-            {
-              onItem: item => setUploadItems(previous => previous.map(entry =>
-                entry.index === job.index ? { ...item, index: job.index } : entry,
-              )),
-              onSaved: saved => {
-                if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
-                cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous =>
-                  previous ? { ...previous, media: [...previous.media.filter(m => m.id !== saved.id), saved] } : previous,
-                );
-                if (job.kind === "cover") setCoverId(saved.id);
+    const FLOW_UPLOAD_CONCURRENCY = 3;
+
+    async function runUploadWorker() {
+      activeUploadWorkers.current += 1;
+      try {
+        while (pendingUploads.current.length > 0) {
+          const job = pendingUploads.current.shift()!;
+          try {
+            if (job.reelUrl) {
+              setUploadItems(previous => previous.map(entry => entry.index === job.index
+                ? { ...entry, status: "processing", message: "Baixando Reel do Instagram…" } : entry));
+            }
+            const file = job.file ?? await importReelFile(job.reelUrl!);
+            const result = await addMedia(
+              [file], job.userId, job.kind, job.folder, setProgress,
+              {
+                onItem: item => setUploadItems(previous => previous.map(entry =>
+                  entry.index === job.index ? { ...item, index: job.index } : entry,
+                )),
+                onSaved: saved => {
+                  if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
+                  cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous =>
+                    previous ? { ...previous, media: [...previous.media.filter(m => m.id !== saved.id), saved] } : previous,
+                  );
+                  if (job.kind === "cover") setCoverId(saved.id);
+                },
               },
-            },
-          );
-          savedCount += result.ids.length;
-          errorCount += result.errors.length;
-          if (job.kind !== "cover") setSelected(previous => [...new Set([...previous, ...result.ids])]);
-        } catch (error) {
-          errorCount++;
-          const message = error instanceof Error ? error.message : "Não foi possível processar o arquivo.";
-          setUploadItems(previous => previous.map(entry => entry.index === job.index
-            ? { ...entry, status: "error", message } : entry));
-        } finally {
-          // Release previews as each file leaves the queue instead of holding the whole batch.
-          if (job.file) setChosenFiles(previous => previous.filter(file => file !== job.file));
+            );
+            batchCounters.current.saved += result.ids.length;
+            batchCounters.current.errors += result.errors.length;
+            if (job.kind !== "cover") setSelected(previous => [...new Set([...previous, ...result.ids])]);
+          } catch (error) {
+            batchCounters.current.errors += 1;
+            const message = error instanceof Error ? error.message : "Não foi possível processar o arquivo.";
+            setUploadItems(previous => previous.map(entry => entry.index === job.index
+              ? { ...entry, status: "error", message } : entry));
+          } finally {
+            // Release previews as each file leaves the queue instead of holding the whole batch.
+            if (job.file) setChosenFiles(previous => previous.filter(file => file !== job.file));
+          }
+        }
+      } finally {
+        activeUploadWorkers.current -= 1;
+        if (pendingUploads.current.length > 0 && activeUploadWorkers.current < FLOW_UPLOAD_CONCURRENCY) {
+          void runUploadWorker();
+          return;
+        }
+        if (activeUploadWorkers.current === 0 && pendingUploads.current.length === 0) {
+          const { saved, errors } = batchCounters.current;
+          batchCounters.current = { saved: 0, errors: 0 };
+          if (saved) toast.success(`${saved} mídia(s) pronta(s) para publicar.`);
+          if (errors) toast.error(`${errors} arquivo(s) não foram enviados. Confira os detalhes na lista.`);
+          setUploadInProgress(false);
+          setProgress("");
+          void cache.invalidateQueries({ queryKey: key });
         }
       }
-      if (savedCount) toast.success(`${savedCount} mídia(s) pronta(s) para publicar.`);
-      if (errorCount) toast.error(`${errorCount} arquivo(s) não foram enviados. Confira os detalhes na lista.`);
-    } finally {
-      // Do not await a refresh between draining the queue and releasing the runner:
-      // a selection arriving in that gap would otherwise remain stuck in the queue.
-      uploading.current = false;
-      setUploadInProgress(false);
-      setProgress("");
-      void cache.invalidateQueries({ queryKey: key });
     }
+
+    const needed = Math.min(
+      FLOW_UPLOAD_CONCURRENCY - activeUploadWorkers.current,
+      pendingUploads.current.length,
+    );
+    if (needed <= 0) return;
+    await Promise.all(Array.from({ length: needed }, () => runUploadWorker()));
   }
 
   function readSlots(draft: string) {
@@ -1249,7 +1263,10 @@ export default function Flows({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-foreground">
                     {uploadItems.filter((item) => item.status === "done").length}/
-                    {uploadItems.length} mídia(s) pronta(s) · {uploadItems.filter(item => item.status === "pending").length} na fila
+                    {uploadItems.length} mídia(s) pronta(s)
+                    {uploadItems.some((item) => item.status === "processing") &&
+                      ` · ${uploadItems.filter((item) => item.status === "processing").length} limpando agora`}
+                    {` · ${uploadItems.filter(item => item.status === "pending").length} na fila`}
                   </span>
                   {!uploadInProgress && (
                     <button

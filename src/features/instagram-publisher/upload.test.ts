@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   from: vi.fn(),
 }));
 vi.mock("@/features/x/clean-media", () => ({ cleanMedia: mocks.clean }));
+vi.mock("@/lib/storage", () => ({
+  storage: { from: mocks.from },
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { storage: { from: mocks.from } },
 }));
@@ -39,5 +42,22 @@ describe("Instagram upload privacy boundary", () => {
       uploadMedia([new File(["x"], "a.mp4", { type: "video/mp4" })], "owner"),
     ).rejects.toThrow("Limpeza falhou");
     expect(mocks.upload).not.toHaveBeenCalled();
+  });
+  it("cleans up to 3 files concurrently while preserving order", async () => {
+    let active = 0;
+    let maxActive = 0;
+    mocks.clean.mockImplementation(async (f: File) => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((r) => setTimeout(r, f.name === "1.mp4" ? 25 : 5));
+      active -= 1;
+      return new File(["clean"], f.name, { type: "video/mp4" });
+    });
+    const files = ["1.mp4", "2.mp4", "3.mp4", "4.mp4"].map(
+      (n) => new File(["raw"], n, { type: "video/mp4" }),
+    );
+    const urls = await uploadMedia(files, "owner");
+    expect(maxActive).toBe(3);
+    expect(urls).toHaveLength(4);
   });
 });

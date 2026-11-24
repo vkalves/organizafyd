@@ -227,8 +227,12 @@ export async function uploadMedia(
   userId: string,
   progress?: (message: string) => void,
 ): Promise<string[]> {
-  const result: string[] = [];
-  for (const file of files) {
+  const CONCURRENCY = 3;
+  const result: string[] = new Array(files.length);
+  let nextIndex = 0;
+
+  async function processOne(index: number) {
+    const file = files[index];
     const cleaned = await cleanMedia(file, {
       maxBytes: 100 * 1024 * 1024,
       jpeg: true,
@@ -259,7 +263,23 @@ export async function uploadMedia(
       .from("instagram-publisher")
       .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
     if (error) throw new Error(error.message || "Falha no upload. Tente novamente.");
-    result.push("storage://" + path);
+    result[index] = "storage://" + path;
   }
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= files.length) return;
+      await processOne(index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(CONCURRENCY, files.length) },
+      () => worker(),
+    ),
+  );
   return result;
 }
+
