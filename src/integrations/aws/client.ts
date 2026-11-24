@@ -87,7 +87,21 @@ class PostgrestQueryBuilder<T = any> implements PromiseLike<{ data: T | null; er
     private readonly table: string,
     private readonly getHeaders: () => Promise<Record<string, string>>,
     private readonly customFetch: typeof fetch,
+    private readonly isRpc = false,
   ) {}
+
+  static rpcCall<R = any>(
+    baseUrl: string,
+    fn: string,
+    args: Record<string, unknown>,
+    getHeaders: () => Promise<Record<string, string>>,
+    customFetch: typeof fetch,
+  ) {
+    const builder = new PostgrestQueryBuilder<R>(baseUrl, fn, getHeaders, customFetch, true);
+    builder.method = "POST";
+    builder.bodyPayload = args;
+    return builder;
+  }
 
   select(columns = "*", options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }) {
     if (this.method === "GET") {
@@ -286,7 +300,10 @@ class PostgrestQueryBuilder<T = any> implements PromiseLike<{ data: T | null; er
       headers["Accept"] = "application/vnd.pgrst.object+json";
     }
     const qs = this.params.toString();
-    const url = `${this.baseUrl}/rest/v1/${encodeURIComponent(this.table)}${qs ? `?${qs}` : ""}`;
+    const targetPath = this.isRpc
+      ? `rpc/${encodeURIComponent(this.table)}`
+      : encodeURIComponent(this.table);
+    const url = `${this.baseUrl}/rest/v1/${targetPath}${qs ? `?${qs}` : ""}`;
     try {
       const response = await this.customFetch(url, {
         method: this.method,
@@ -300,7 +317,7 @@ class PostgrestQueryBuilder<T = any> implements PromiseLike<{ data: T | null; er
         return {
           data: null,
           error: {
-            message: parsed?.message || parsed?.error || `HTTP ${response.status}`,
+            message: parsed?.message || parsed?.error || (this.isRpc ? `RPC ${this.table} failed (${response.status})` : `HTTP ${response.status}`),
             code: parsed?.code || String(response.status),
             details: parsed?.details || null,
             hint: parsed?.hint || null,
@@ -365,8 +382,18 @@ class PostgrestQueryBuilder<T = any> implements PromiseLike<{ data: T | null; er
   then<TResult1 = { data: T | null; error: any; count?: number | null; status: number }, TResult2 = never>(
     onfulfilled?: ((value: { data: T | null; error: any; count?: number | null; status: number }) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
-  ): PromiseLike<TResult1 | TResult2> {
+  ): Promise<TResult1 | TResult2> {
     return this.execute().then(onfulfilled, onrejected);
+  }
+
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null,
+  ): Promise<{ data: T | null; error: any; count?: number | null; status: number } | TResult> {
+    return this.execute().catch(onrejected);
+  }
+
+  finally(onfinally?: (() => void) | null): Promise<{ data: T | null; error: any; count?: number | null; status: number }> {
+    return this.execute().finally(onfinally);
   }
 }
 
@@ -987,32 +1014,8 @@ export function createAwsClient<DB = Database>(config: AwsClientConfig) {
     from<T = any>(table: string) {
       return new PostgrestQueryBuilder<T>(baseUrl, table, getHeaders, customFetch);
     },
-    async rpc<T = any>(fn: string, args: Record<string, unknown> = {}): Promise<{ data: T | null; error: any }> {
-      const headers = await getHeaders();
-      try {
-        const response = await customFetch(`${baseUrl}/rest/v1/rpc/${encodeURIComponent(fn)}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(args),
-        });
-        const text = await response.text();
-        const parsed = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
-        if (!response.ok) {
-          return {
-            data: null,
-            error: {
-              message: parsed?.message || parsed?.error || `RPC ${fn} failed (${response.status})`,
-              code: parsed?.code || String(response.status),
-            },
-          };
-        }
-        return { data: parsed as T, error: null };
-      } catch (err) {
-        return {
-          data: null,
-          error: { message: err instanceof Error ? err.message : "Network error" },
-        };
-      }
+    rpc<T = any>(fn: string, args: Record<string, unknown> = {}) {
+      return PostgrestQueryBuilder.rpcCall<T>(baseUrl, fn, args, getHeaders, customFetch);
     },
   };
 }

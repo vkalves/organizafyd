@@ -5,6 +5,7 @@ import {
   createInternalServiceDb,
   REGION,
   S3_BUCKET,
+  SERVICE_KEY,
   servedHandlers,
   setInternalHttpRouter,
   USER_POOL_ID,
@@ -24,12 +25,14 @@ import "../../../supabase/functions/reset-daily-tasks/index";
 import "../../../supabase/functions/tiktok-publisher/index";
 import "../../../supabase/functions/x-publisher/index";
 
+import { Readable } from "node:stream";
 import {
   CopyObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -43,6 +46,12 @@ import {
 } from "./api-gateway";
 import { createCognitoAuthHandler } from "./cognito-auth";
 import { verifyCognitoJwt } from "../../../supabase/functions/_shared/cognito-jwt";
+import {
+  cleanMp4Stream,
+  cleanPhoto,
+  MAX_MEDIA_BYTES,
+} from "../../../supabase/functions/instagram-media/clean-stream";
+import { verifyMediaUrl } from "../../../supabase/functions/instagram-media/token";
 import {
   buckets,
   ownsPath,
@@ -84,6 +93,91 @@ async function s3Head(bucket: string, key: string) {
       return null;
     }
     throw e;
+  }
+}
+
+async function materializeCleanDelivery(sourcePath: string, jobId: string): Promise<string> {
+  if (!validPath(sourcePath) || !/^[0-9a-f-]{36}$/i.test(jobId) || !/\.(mp4|jpe?g)$/i.test(sourcePath)) {
+    throw new Error("invalid_media_delivery");
+  }
+  const isVideo = /\.mp4$/i.test(sourcePath);
+  const contentType = isVideo ? "video/mp4" : "image/jpeg";
+  const safeBase = sourcePath.split("/").pop()!.replace(/[^a-zA-Z0-9._-]/g, "");
+  const deliveryKey = `instagram-publisher/_delivery/${jobId}-${safeBase}`;
+
+  const already = await s3Head(S3_BUCKET, deliveryKey);
+  if (!already) {
+    const src = await s3Client.send(
+      new GetObjectCommand({ Bucket: S3_BUCKET, Key: `instagram-publisher/${sourcePath}` }),
+    );
+    const length = Number(src.ContentLength);
+    if (!src.Body || !Number.isSafeInteger(length) || length <= 0 || length > MAX_MEDIA_BYTES) {
+      throw new Error("media_unavailable");
+    }
+    const webStream: ReadableStream<Uint8Array> =
+      typeof (src.Body as any).transformToWebStream === "function"
+        ? (src.Body as any).transformToWebStream()
+        : (Readable.toWeb(src.Body as any) as unknown as ReadableStream<Uint8Array>);
+
+    if (isVideo) {
+      const cleaned = cleanMp4Stream(webStream, length);
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: deliveryKey,
+          Body: Readable.fromWeb(cleaned as any),
+          ContentLength: length,
+          ContentType: contentType,
+          CacheControl: "private,no-store",
+        }),
+      );
+    } else {
+      const photo = await cleanPhoto(webStream, length);
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: deliveryKey,
+          Body: photo,
+          ContentLength: photo.byteLength,
+          ContentType: contentType,
+          CacheControl: "private,no-store",
+        }),
+      );
+    }
+  }
+
+  return await getSignedUrl(
+    s3Client,
+    new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: deliveryKey,
+      ResponseContentDisposition: "inline",
+      ResponseContentType: contentType,
+      ResponseCacheControl: "private,no-store",
+    }),
+    { expiresIn: 3600 },
+  );
+}
+
+async function cleanupExpiredDeliveries() {
+  const cutoff = Date.now() - 2 * 3600_000;
+  const page = await s3Client.send(
+    new ListObjectsV2Command({
+      Bucket: S3_BUCKET,
+      Prefix: "instagram-publisher/_delivery/",
+      MaxKeys: 200,
+    }),
+  );
+  const expired = (page.Contents || [])
+    .filter((obj) => obj.Key && obj.LastModified && obj.LastModified.getTime() < cutoff)
+    .map((obj) => ({ Key: obj.Key! }));
+  if (expired.length > 0) {
+    await s3Client.send(
+      new DeleteObjectsCommand({
+        Bucket: S3_BUCKET,
+        Delete: { Objects: expired },
+      }),
+    );
   }
 }
 
@@ -178,6 +272,16 @@ async function handleS3Storage(req: Request, db: any): Promise<Response> {
       ],
     });
     return reply(post);
+  }
+
+  if (body.action === "deliver") {
+    if (!admin || bucket !== "instagram-publisher") return reply({ error: "forbidden" }, 403);
+    try {
+      const signedUrl = await materializeCleanDelivery(String(body.path || ""), String(body.job || ""));
+      return reply({ signedUrl });
+    } catch {
+      return reply({ error: "media_unavailable" }, 404);
+    }
   }
 
   if (body.action === "signed" || body.action === "public") {
@@ -294,6 +398,28 @@ async function handleHttpRequest(req: Request): Promise<Response> {
     if (fnName === "s3-storage") {
       return withCors(await handleS3Storage(req, createInternalServiceDb()));
     }
+    if (fnName === "instagram-media" && (req.method === "GET" || req.method === "HEAD")) {
+      // Avoid API Gateway's 6 MB payload ceiling for large Reels by redirecting
+      // verified >4 MB requests to a freshly cleaned ephemeral S3 presigned URL.
+      try {
+        const verifiedPath = await verifyMediaUrl(url, SERVICE_KEY);
+        const head = await s3Head(S3_BUCKET, `instagram-publisher/${verifiedPath}`);
+        if (head && Number(head.ContentLength) > 4_000_000) {
+          const jobId = url.searchParams.get("job") || "";
+          const signedUrl = await materializeCleanDelivery(verifiedPath, jobId);
+          return new Response(null, {
+            status: 307,
+            headers: {
+              Location: signedUrl,
+              "Cache-Control": "private, no-store",
+              "X-Content-Type-Options": "nosniff",
+            },
+          });
+        }
+      } catch {
+        // Fall through to mediaHandler so invalid tokens/errors return 403/502 as expected.
+      }
+    }
     const fnHandler = functionRegistry.get(fnName);
     if (fnHandler) {
       return withCors(await fnHandler(req));
@@ -338,7 +464,7 @@ async function runScheduledWorkers(): Promise<ApiGatewayV2Result> {
         new Request(`${API_URL}/functions/v1/instagram-publisher`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-worker-secret": workerKey },
-          body: JSON.stringify({ action: "worker", worker_count: 1, worker_index: 0 }),
+          body: JSON.stringify({ action: "worker", shard: 0, shards: 1 }),
         }),
       );
       results.instagram_publisher = await workerRes.json().catch(() => null);
@@ -355,7 +481,12 @@ async function runScheduledWorkers(): Promise<ApiGatewayV2Result> {
       );
       results.instagram_monitor = await monRes.json().catch(() => null);
     }
+  } else {
+    results.error = "missing_ig_worker_key";
   }
+
+  await cleanupExpiredDeliveries().catch(() => null);
+  console.info(JSON.stringify({ event: "aws_scheduled_workers", results }));
 
   return {
     statusCode: 200,

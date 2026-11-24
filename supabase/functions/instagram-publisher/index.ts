@@ -76,7 +76,9 @@ async function graph(
     body: post
       ? new URLSearchParams({ ...params, access_token: token })
       : undefined,
-    signal: AbortSignal.timeout(post && path.endsWith("/media_publish") ? 60_000 : 20_000),
+    signal: AbortSignal.timeout(
+      post && (path.endsWith("/media_publish") || path.endsWith("/media")) ? 60_000 : 20_000,
+    ),
   });
   const data = await res.json();
   if (!res.ok || data.error) {
@@ -149,6 +151,25 @@ async function signed(value: string) {
     typeof data.signedUrl !== "string"
   ) throw new Error("storage_error");
   return data.signedUrl;
+}
+async function deliverClean(value: string, jobId: string) {
+  if (!value.startsWith("storage://")) return value;
+  if (Deno.env.get("AWS_S3_BUCKET")) {
+    const res = await db.functions.invoke("s3-storage", {
+      body: {
+        action: "deliver",
+        bucket: "instagram-publisher",
+        path: value.slice(10),
+        job: jobId,
+      },
+      timeout: 60_000,
+    });
+    if (!res.error && typeof res.data?.signedUrl === "string") {
+      return res.data.signedUrl;
+    }
+    throw new Error("storage_error");
+  }
+  return campaignMediaUrl(value, jobId, apiUrl, serviceKey);
 }
 async function flowLibrary(user: string) {
   return await readPages<LibraryMedia>(async (from, to) =>
@@ -437,7 +458,7 @@ async function processJob(partition: WorkerPartition) {
       // server-side cleaning pass, including existing flows and later cycles.
       // Polling an existing container must never recreate it or publish twice.
       const deliveryUrl = job.flow_id
-        ? (value: string) => campaignMediaUrl(value, job.id, apiUrl, serviceKey)
+        ? (value: string) => deliverClean(value, job.id)
         : signed;
       const urls = await Promise.all(job.media_urls.map(deliveryUrl));
       let params: Record<string, string>;
@@ -478,6 +499,15 @@ async function processJob(partition: WorkerPartition) {
     const state = await accountGraph(container, token, {
       fields: "status_code",
     });
+    if (state.status_code === "PUBLISHED") {
+      await update({
+        status: "published",
+        published_at: new Date().toISOString(),
+        error_code: null,
+        last_error_details: null,
+      });
+      return { processed: 1 };
+    }
     if (state.status_code === "IN_PROGRESS") {
       const checks = (job.container_checks || 0) + 1;
       if (checks >= 30) throw new Error("media_processing_timeout");
@@ -1185,6 +1215,7 @@ Deno.serve(async (req) => {
         caption: d.caption,
         format: d.format,
         media_urls: d.media_urls,
+        ...(d.cover_url ? { cover_url: d.cover_url } : {}),
         scheduled_at: d.scheduled_at,
       };
       const result = await db.from("ig_publication_jobs").insert(row);

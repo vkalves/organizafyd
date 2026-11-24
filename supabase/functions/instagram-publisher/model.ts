@@ -5,6 +5,7 @@ export type Draft = {
   caption: string;
   format: Format;
   media_urls: string[];
+  cover_url?: string | null;
   scheduled_at: string | null;
 };
 export function validate(d: Draft, userId: string, now = Date.now()) {
@@ -55,6 +56,29 @@ export function validate(d: Draft, userId: string, now = Date.now()) {
           : !photo
     )
       throw new Error("invalid_media_format");
+  }
+  if (d.cover_url !== undefined && d.cover_url !== null && d.cover_url !== "") {
+    if (typeof d.cover_url !== "string" || d.cover_url.length > 4096) {
+      throw new Error("invalid_media");
+    }
+    if (d.cover_url.startsWith("storage://")) {
+      const coverPath = d.cover_url.slice(10);
+      if (!coverPath.startsWith(userId + "/") || coverPath.includes("..")) {
+        throw new Error("invalid_media_owner");
+      }
+      if (!/\.jpe?g$/i.test(coverPath)) throw new Error("invalid_media_format");
+    } else {
+      let coverParsed: URL;
+      try {
+        coverParsed = new URL(d.cover_url);
+      } catch {
+        throw new Error("invalid_media");
+      }
+      if (coverParsed.protocol !== "https:" || coverParsed.username || coverParsed.password) {
+        throw new Error("invalid_media");
+      }
+      if (!/\.jpe?g$/i.test(coverParsed.pathname)) throw new Error("invalid_media_format");
+    }
   }
 }
 export function mediaParams(

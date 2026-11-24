@@ -492,4 +492,125 @@ describe("AWS RDS PostgreSQL Bootstrap + Cognito Auth + API Gateway Integration"
     expect(recoveredStatus.alerts).toHaveLength(1);
     expect(recoveredStatus.alerts[0].resolved_at).not.toBeNull();
   });
+
+  it("claims due Instagram publication jobs as structured objects and chains RPC order/range on ig_flow_used", async () => {
+    for (const relPath of [
+      "../../../supabase/migrations/20261016000000_x_publisher.sql",
+      "../../../supabase/migrations/20261017000000_tiktok_publisher.sql",
+      "../../../supabase/migrations/20261104114149_instagram_flows.sql",
+      "../../../supabase/migrations/20261106000000_instagram_campaigns.sql",
+      "../../../supabase/migrations/20261111210717_meta_app_panel.sql",
+      "../../../supabase/migrations/20261112020647_isolate_flow_account_and_media_failures.sql",
+      "../../../supabase/migrations/20261112223428_administration_and_instagram_account_limits.sql",
+      "../../../supabase/migrations/20261112233603_user_media_storage_quotas.sql",
+      "../../../supabase/migrations/20261113003551_account_approval.sql",
+      "../../../supabase/migrations/20261113085700_share_active_instagram_flows.sql",
+      "../../../supabase/migrations/20261113123501_gap_account_delay.sql",
+      "../../../supabase/migrations/20261113134117_scalable_instagram_flows.sql",
+      "../../../supabase/migrations/20261115193929_publisher_capacity.sql",
+      "../../../supabase/migrations/20261116191940_flow_queue_recovery.sql",
+    ]) {
+      await pg.exec(readFileSync(new URL(relPath, import.meta.url), "utf8"));
+    }
+
+    const serviceClient = createAwsClient({
+      apiUrl: "https://api.organizafy.site",
+      clientKey: "service-role-key",
+      storage: new MemoryStorage(),
+      fetch: async (input, init) =>
+        handleRestRequest(
+          new Request(String(input), init),
+          sqlExecutor,
+          { role: "service_role", userId: null },
+        ),
+    });
+
+    const accountId = crypto.randomUUID();
+    const secretRes = await runInRlsTransaction(
+      sqlExecutor,
+      { role: "service_role", userId: null },
+      async () =>
+        sqlExecutor.query<{ id: string }>(
+          "SELECT vault.create_secret($1, $2, $3) AS id",
+          ["EAAB_publish_token", `ig_pub_${accountId}`, "publish token"],
+        ),
+    );
+
+    await serviceClient.from("instagram_accounts").insert({
+      id: accountId,
+      user_id: USER_A,
+      username: "conta_publicacao_real",
+      name: "Conta Real",
+      status: "active",
+    });
+
+    await serviceClient.from("ig_publisher_connections").insert({
+      account_id: accountId,
+      user_id: USER_A,
+      graph_id: "17841400999888777",
+      secret_id: secretRes.rows[0].id,
+      provider: "instagram",
+      paused: false,
+      reconnect_required: false,
+    });
+
+    const jobId = crypto.randomUUID();
+    const mediaUrl = `storage://${USER_A}/${crypto.randomUUID()}.mp4`;
+    const pastIso = new Date(Date.now() - 5_000).toISOString();
+
+    const insertRes = await serviceClient.from("ig_publication_jobs").insert({
+      id: jobId,
+      user_id: USER_A,
+      account_id: accountId,
+      caption: "Reel teste real",
+      format: "Reel",
+      media_urls: [mediaUrl],
+      scheduled_at: pastIso,
+    });
+    expect(insertRes.error).toBeNull();
+
+    // Duplicate insert must preserve PostgreSQL SQLSTATE 23505
+    const dupRes = await serviceClient.from("ig_publication_jobs").insert({
+      id: jobId,
+      user_id: USER_A,
+      account_id: accountId,
+      caption: "Reel teste real",
+      format: "Reel",
+      media_urls: [mediaUrl],
+      scheduled_at: pastIso,
+    });
+    expect(dupRes.error?.code).toBe("23505");
+
+    // Chained .order().range() on set-returning RPC ig_flow_used
+    const usedRes = await serviceClient
+      .rpc("ig_flow_used", { p_user: USER_A, p_urls: [mediaUrl] })
+      .order("account_id")
+      .order("url")
+      .order("flow_id")
+      .range(0, 99);
+    expect(usedRes.error).toBeNull();
+    expect(usedRes.data).toEqual([
+      { account_id: accountId, url: mediaUrl, flow_id: null },
+    ]);
+
+    // Claiming due job via ig_claim_job_partition returns structured job row array
+    const lockToken = crypto.randomUUID();
+    const claimedRes = await serviceClient.rpc("ig_claim_job_partition", {
+      p_token: lockToken,
+      p_shard: 0,
+      p_shards: 1,
+    });
+    expect(claimedRes.error).toBeNull();
+    expect(Array.isArray(claimedRes.data)).toBe(true);
+    expect(claimedRes.data).toHaveLength(1);
+    expect(claimedRes.data[0]).toMatchObject({
+      id: jobId,
+      user_id: USER_A,
+      account_id: accountId,
+      format: "Reel",
+      media_urls: [mediaUrl],
+      status: "processing",
+      lock_token: lockToken,
+    });
+  });
 });

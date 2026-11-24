@@ -317,30 +317,62 @@ export async function handleRestRequest(
       const setReturningRpcs = new Set([
         "get_public_media",
         "ig_claim_job",
+        "ig_claim_job_partition",
         "ig_campaign_due",
         "ig_campaign_progress",
         "ig_claim_health_checks",
+        "ig_flow_used",
+        "ig_flow_job_inputs",
         "ig_upgrade_legacy_selection",
         "tiktok_due_accounts",
+        "tiktok_due_accounts_partition",
         "x_due_accounts",
+        "x_due_accounts_partition",
         "claim_due_google_calendar_users",
+        "google_calendar_due_users",
         "ig_flow_usage",
         "ig_account_flow_progress",
       ]);
       const isSetReturning = setReturningRpcs.has(fnName);
+      const prefer = req.headers.get("Prefer") || "";
+      const expectSingleObject =
+        (req.headers.get("Accept") || "").includes("application/vnd.pgrst.object+json");
+      let modifierSql = "";
+      if (isSetReturning) {
+        const { whereSql, orderSql, limitSql, offsetSql } = buildWhereAndModifiers(
+          url.searchParams,
+          params,
+        );
+        modifierSql = `${whereSql}${orderSql}${limitSql}${offsetSql}`;
+      }
       const sql = isSetReturning
-        ? `SELECT * FROM public.${safeFn}(${namedArgs.join(", ")})`
+        ? `SELECT * FROM public.${safeFn}(${namedArgs.join(", ")})${modifierSql}`
         : `SELECT public.${safeFn}(${namedArgs.join(", ")}) AS result`;
       const data = await runInRlsTransaction(db, session, async () => {
         const res = await db.query<Record<string, unknown>>(sql, params);
         if (isSetReturning) {
-          if (fnName === "ig_account_flow_progress") {
+          if (fnName === "ig_account_flow_progress" || fnName === "ig_flow_job_inputs") {
             return res.rows.map((r) => Object.values(r)[0]);
           }
           return res.rows;
         }
         return res.rows.length === 1 ? res.rows[0].result : res.rows.map((r) => r.result);
       });
+      if (prefer.includes("count=") && Array.isArray(data)) {
+        headers["Content-Range"] = data.length ? `0-${data.length - 1}/${data.length}` : "*/0";
+      }
+      if (expectSingleObject && Array.isArray(data)) {
+        if (data.length !== 1) {
+          return new Response(
+            JSON.stringify({
+              message: "JSON object requested, multiple (or no) rows returned",
+              code: "PGRST116",
+            }),
+            { status: 406, headers },
+          );
+        }
+        return new Response(JSON.stringify(data[0]), { status: 200, headers });
+      }
       return new Response(JSON.stringify(data), { status: 200, headers });
     }
 
@@ -446,8 +478,12 @@ export async function handleRestRequest(
     return new Response(JSON.stringify(rows), { status: 200, headers });
   } catch (err) {
     const message = err instanceof Error ? err.message : "database_error";
-    const status = message === "permission denied" ? 403 : 400;
-    return new Response(JSON.stringify({ message, error: message }), { status, headers });
+    const pgCode = typeof (err as any)?.code === "string" ? (err as any).code : undefined;
+    const status = message === "permission denied" ? 403 : pgCode === "23505" ? 409 : 400;
+    return new Response(
+      JSON.stringify({ message, error: message, ...(pgCode ? { code: pgCode } : {}) }),
+      { status, headers },
+    );
   }
 }
 
@@ -509,15 +545,23 @@ export async function fetchResponseToResult(response: Response): Promise<ApiGate
     contentType.startsWith("image/") ||
     contentType.startsWith("audio/");
   if (isBinary) {
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const ab = await response.arrayBuffer();
+    if (ab.byteLength === 0) {
+      return { statusCode: response.status, headers, body: "" };
     }
+    const base64 =
+      typeof Buffer !== "undefined"
+        ? Buffer.from(ab).toString("base64")
+        : (() => {
+            const bytes = new Uint8Array(ab);
+            let binary = "";
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+          })();
     return {
       statusCode: response.status,
       headers,
-      body: btoa(binary),
+      body: base64,
       isBase64Encoded: true,
     };
   }

@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Modo (deploy-backend atualiza Lambda + migrations RDS; execute migra do Supabase; dry-run apenas verifica)'
+        description: 'Modo (deploy-backend atualiza Lambda + EventBridge + migrations RDS; execute migra do Supabase; dry-run apenas verifica)'
         required: true
         default: 'deploy-backend'
         type: choice
@@ -40,7 +40,7 @@ jobs:
           node-version: '22'
       - name: Install AWS and PostgreSQL dependencies
         run: python -m pip install 'psycopg[binary]==3.2.12' 'boto3>=1.35.0'
-      - name: Bundle and Deploy AWS Lambda + Apply RDS Migrations
+      - name: Bundle and Deploy AWS Lambda + EventBridge + RDS Migrations
         if: ${{ github.event_name == 'push' || inputs.mode == 'deploy-backend' }}
         shell: bash
         run: |
@@ -71,7 +71,8 @@ jobs:
             }).catch((err) => { console.error(err); process.exit(1); });
           '
           python - <<'PY'
-          import json, os, pathlib, zipfile, boto3, psycopg
+          import json, os, pathlib, time, zipfile, boto3, psycopg
+          from botocore.config import Config
 
           region = os.environ.get("AWS_REGION", "us-east-2")
           session = boto3.Session(region_name=region)
@@ -87,26 +88,124 @@ jobs:
                   for mig in migrations:
                       print(f"Applying RDS migration: {mig.name}")
                       cur.execute(mig.read_text(encoding="utf-8"))
+                  cur.execute("""
+                      DO $$
+                      BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'ig_worker_secret') THEN
+                          PERFORM vault.create_secret(
+                            replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''),
+                            'ig_worker_secret'
+                          );
+                        END IF;
+                      END $$;
+                  """)
+                  cur.execute("""
+                      SELECT status, COALESCE(error_code, 'none'), COUNT(*)
+                        FROM public.ig_publication_jobs
+                       GROUP BY status, COALESCE(error_code, 'none')
+                       ORDER BY status
+                  """)
+                  print("Queue state BEFORE recovery:", cur.fetchall())
+                  cur.execute("""
+                      UPDATE public.ig_publication_jobs
+                         SET status = 'scheduled',
+                             lock_token = NULL,
+                             locked_at = NULL,
+                             next_attempt_at = now()
+                       WHERE status = 'processing'
+                         AND NOT publish_started
+                  """)
+                  print("Recovered stuck processing jobs:", cur.rowcount)
               conn.commit()
-          print(f"Applied {len(migrations)} RDS migrations successfully.")
 
           zip_path = pathlib.Path("dist-lambda/lambda.zip")
           with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
               zf.write("dist-lambda/index.js", "index.js")
 
-          lam = session.client("lambda")
+          lam = session.client("lambda", config=Config(read_timeout=180, connect_timeout=15))
           funcs = lam.list_functions()["Functions"]
-          targets = [
-              f["FunctionName"]
-              for f in funcs
-              if "avanca" in f["FunctionName"].lower()
-          ]
+          targets = [f for f in funcs if "avanca" in f["FunctionName"].lower()]
           if not targets:
               raise RuntimeError("No Avanca Lambda function found in region " + region)
+
+          def wait_lambda_ready(fn_name: str):
+              for _ in range(40):
+                  conf = lam.get_function_configuration(FunctionName=fn_name)
+                  state = conf.get("State", "Active")
+                  update = conf.get("LastUpdateStatus", "Successful")
+                  if state == "Active" and update == "Successful":
+                      return conf
+                  if update == "Failed":
+                      raise RuntimeError(f"Lambda update failed: {conf.get('LastUpdateStatusReason')}")
+                  time.sleep(2)
+              raise RuntimeError(f"Timed out waiting for Lambda {fn_name}")
+
           payload = zip_path.read_bytes()
-          for fn_name in targets:
+          events = session.client("events")
+
+          for fn in targets:
+              fn_name = fn["FunctionName"]
+              fn_arn = fn["FunctionArn"]
+              conf = wait_lambda_ready(fn_name)
+
+              if conf.get("Timeout", 0) < 120 or conf.get("MemorySize", 0) < 1024:
+                  print(f"Updating Lambda {fn_name} Timeout=120s MemorySize=1024MB...")
+                  lam.update_function_configuration(
+                      FunctionName=fn_name,
+                      Timeout=120,
+                      MemorySize=1024,
+                  )
+                  wait_lambda_ready(fn_name)
+
               res = lam.update_function_code(FunctionName=fn_name, ZipFile=payload, Publish=True)
-              print(f"Updated Lambda function {fn_name}: CodeSize={res.get('CodeSize')} Version={res.get('Version')}")
+              print(f"Updated Lambda {fn_name}: CodeSize={res.get('CodeSize')} Version={res.get('Version')}")
+              wait_lambda_ready(fn_name)
+
+              # Ensure 1-minute EventBridge scheduled worker rule is active and permitted
+              rule_name = "avanca-worker-schedule"
+              rule_res = events.put_rule(
+                  Name=rule_name,
+                  ScheduleExpression="rate(1 minute)",
+                  State="ENABLED",
+                  Description="Triggers Avanca Instagram publisher and monitor workers every minute",
+              )
+              rule_arn = rule_res["RuleArn"]
+              try:
+                  lam.add_permission(
+                      FunctionName=fn_name,
+                      StatementId="avanca-eventbridge-1min",
+                      Action="lambda:InvokeFunction",
+                      Principal="events.amazonaws.com",
+                      SourceArn=rule_arn,
+                  )
+                  print(f"Added EventBridge invoke permission on {fn_name}")
+              except lam.exceptions.ResourceConflictException:
+                  print(f"EventBridge invoke permission already exists on {fn_name}")
+
+              events.put_targets(
+                  Rule=rule_name,
+                  Targets=[{"Id": "avanca-lambda-worker", "Arn": fn_arn}],
+              )
+              print(f"Verified EventBridge rule {rule_name} (ENABLED, rate(1 minute)) -> {fn_name}")
+
+              # Trigger one immediate scheduled worker tick to drain due publications and verify
+              invoke_res = lam.invoke(
+                  FunctionName=fn_name,
+                  InvocationType="RequestResponse",
+                  Payload=json.dumps({"source": "aws.events", "detail-type": "Scheduled Event"}).encode("utf-8"),
+              )
+              raw_out = invoke_res["Payload"].read().decode("utf-8", errors="replace")
+              print(f"Immediate worker tick Status={invoke_res.get('StatusCode')} FunctionError={invoke_res.get('FunctionError')}: {raw_out}")
+
+          with psycopg.connect(db_url, connect_timeout=15, sslmode="require") as conn:
+              with conn.cursor() as cur:
+                  cur.execute("""
+                      SELECT status, COALESCE(error_code, 'none'), COUNT(*)
+                        FROM public.ig_publication_jobs
+                       GROUP BY status, COALESCE(error_code, 'none')
+                       ORDER BY status
+                  """)
+                  print("Queue state AFTER worker tick:", cur.fetchall())
           PY
       - name: Provision AWS Stack (Cognito, RDS PostgreSQL, S3, API Gateway, Secrets Manager)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'deploy-backend' }}

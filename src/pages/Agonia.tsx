@@ -888,12 +888,14 @@ export default function Agonia() {
 
     setReelBusy(true);
     try {
+      const urls = await uploadMedia(reelVideos, user.id, setReelProgress);
+      const coverUrl = reelCover
+        ? (await uploadMedia([reelCover], user.id, setReelProgress))[0] ?? null
+        : null;
       const startIso =
         reelMode === "schedule"
           ? localToUtcIso(reelScheduledAt, reelTimezone)
-          : new Date(Date.now() + 90_000).toISOString();
-
-      const urls = await uploadMedia(reelVideos, user.id, setReelProgress);
+          : new Date(Date.now() + 15_000).toISOString();
       const captions = parseCaptionVariants(reelCaption, reelVariants);
       const stepMs = clampInterval(reelInterval) * 60_000;
       const startMs = Date.parse(startIso);
@@ -922,6 +924,7 @@ export default function Agonia() {
             format: "Reel",
             caption: chosenCaption,
             media_urls: [mediaUrl],
+            ...(coverUrl ? { cover_url: coverUrl } : {}),
             scheduled_at: scheduledAt,
             status: "scheduled",
           });
@@ -963,11 +966,11 @@ export default function Agonia() {
 
     setStoryBusy(true);
     try {
+      const urls = await uploadMedia([storyFile], user.id);
       const startIso =
         storyMode === "schedule"
           ? localToUtcIso(storyScheduledAt, storyTimezone)
-          : new Date(Date.now() + 90_000).toISOString();
-      const urls = await uploadMedia([storyFile], user.id);
+          : new Date(Date.now() + 15_000).toISOString();
       const schedule = buildSchedule(targets, startIso, settings.intervalMinutes);
 
       for (const item of schedule) {
@@ -1041,7 +1044,7 @@ export default function Agonia() {
         format: "Reel",
         caption: diagCaption.trim(),
         media_urls: urls,
-        scheduled_at: new Date(Date.now() + 75_000).toISOString(),
+        scheduled_at: new Date(Date.now() + 15_000).toISOString(),
         status: "scheduled",
       });
 
