@@ -280,3 +280,49 @@ it("reads account profile followers and 28-day account insights", async () => {
   });
   expect(normalizeTimestamp("2026-11-13T08:00:00+0000")).toBe("2026-11-13T08:00:00.000Z");
 });
+
+it("falls back to core views,likes media expansion on meta_100 and reads days_28 reach on Graph v24.0", async () => {
+  const graph = vi.fn(async (path: string, params: Record<string, string>) => {
+    if (path === "profile/media") {
+      if (params.fields.includes("shares")) throw new Error("meta_100");
+      if (params.fields.includes("insights.metric(views,likes)")) {
+        return {
+          data: [{
+            id: "reel-v24",
+            media_type: "REELS",
+            timestamp: "2026-11-23T21:00:00+0000",
+            like_count: 19,
+            comments_count: 4,
+            insights: { data: [{ name: "views", values: [{ value: 320 }] }] },
+          }],
+        };
+      }
+    }
+    if (path === "profile") {
+      return { id: "profile", username: "yybiancarrosiy1", followers_count: 1, media_count: 1 };
+    }
+    if (path === "profile/insights" && params.metric_type === "total_value") {
+      expect(params.metric).not.toContain("reach");
+      return { data: [{ name: "views", total_value: { value: 320 } }] };
+    }
+    if (path === "profile/insights" && params.period === "days_28" && params.metric === "reach") {
+      return { data: [{ name: "reach", values: [{ value: 210 }] }] };
+    }
+    if (path === "profile/insights" && params.metric === "follower_count") {
+      throw new Error("meta_100");
+    }
+    throw new Error(`unexpected ${path}`);
+  });
+  const media = await readVideoAnalytics("owner", "profile", graph);
+  expect(media.insights_error).toBeNull();
+  expect(media.videos[0]).toMatchObject({
+    id: "reel-v24",
+    media_product_type: "REELS",
+    views: 320,
+    likes: 19,
+    comments: 4,
+  });
+  const overview = await readAccountOverview("profile", graph);
+  expect(overview.insights).toMatchObject({ views: 320, reach: 210 });
+});
+

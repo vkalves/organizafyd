@@ -68,14 +68,14 @@ type Media = {
   thumbnail_url?: string;
   insights?: { data?: Metric[] };
 };
-// Valid media insights for Reels and feed videos on Graph API v24.0
-// (plays/video_views/impressions were removed by Meta in 2025).
-const MEDIA_METRICS = "views,likes,reach,comments,shares,saved,total_interactions";
+// Valid media insights across IG media on Graph API v24.0
+// (comments_count is read natively via BASE_FIELDS so non-Reel photos on the page never reject expansion).
+const MEDIA_METRICS = "views,likes,reach,shares,saved,total_interactions";
+const CORE_MEDIA_METRICS = "views,likes";
 const BASE_FIELDS =
   "id,caption,media_type,media_product_type,timestamp,permalink,thumbnail_url,like_count,comments_count";
-const ACCOUNT_METRICS = [
+const ACCOUNT_TOTAL_METRICS = [
   "views",
-  "reach",
   "accounts_engaged",
   "total_interactions",
   "likes",
@@ -126,7 +126,11 @@ export function reason(error: unknown): Exclude<InsightsError, null> {
   return "temporarily_unavailable";
 }
 function isVideo(item: Media) {
-  return item.media_type === "VIDEO" || item.media_product_type === "REELS";
+  return (
+    item.media_type === "VIDEO" ||
+    item.media_type === "REELS" ||
+    item.media_product_type === "REELS"
+  );
 }
 async function mediaInsights(id: string, graph: Graph) {
   try {
@@ -161,11 +165,29 @@ export async function readVideoAnalytics(
         });
       } catch (error) {
         const failed = reason(error);
-        if (failed === "permission_required" || insightsError === null) {
-          insightsError = failed;
+        if (failed === "permission_required") {
+          insightsError = "permission_required";
+          response = await graph(`${graphId}/media`, { ...params, fields: BASE_FIELDS });
+        } else if (/^meta_100$/.test(error instanceof Error ? error.message : "")) {
+          // Older photos/carousels on the same page can reject secondary insight metrics;
+          // retry core views,likes expansion before falling back to unexpanded media.
+          try {
+            response = await graph(`${graphId}/media`, {
+              ...params,
+              fields: `${BASE_FIELDS},insights.metric(${CORE_MEDIA_METRICS})`,
+            });
+          } catch (coreErr) {
+            const coreFailed = reason(coreErr);
+            if (coreFailed === "permission_required" || insightsError === null) {
+              insightsError = coreFailed;
+            }
+            response = await graph(`${graphId}/media`, { ...params, fields: BASE_FIELDS });
+          }
+        } else {
+          if (insightsError === null) insightsError = failed;
+          // Insights authorization must never prevent reading basic media and likes.
+          response = await graph(`${graphId}/media`, { ...params, fields: BASE_FIELDS });
         }
-        // Insights authorization must never prevent reading basic media and likes.
-        response = await graph(`${graphId}/media`, { ...params, fields: BASE_FIELDS });
       }
     }
     if (!Array.isArray(response.data)) {
@@ -209,7 +231,8 @@ export async function readVideoAnalytics(
             saves: metric(insights, "saved"),
             reach: metric(insights, "reach"),
             interactions: metric(insights, "total_interactions"),
-            media_product_type: item.media_product_type ?? null,
+            media_product_type:
+              item.media_product_type ?? (item.media_type === "REELS" ? "REELS" : null),
           };
         }),
       ),
@@ -264,13 +287,13 @@ export async function readAccountOverview(
     if (failed === "permission_required" || insightsError === null) insightsError = failed;
   };
   const range = { period: "day", since: String(since), until: String(until) };
-  const [profile, totals, series] = await Promise.all([
+  const [profile, totals, reach28d, series] = await Promise.all([
     readProfile(graphId, graph),
     (async () => {
       try {
         const result = await graph(`${graphId}/insights`, {
           ...range,
-          metric: ACCOUNT_METRICS.join(","),
+          metric: ACCOUNT_TOTAL_METRICS.join(","),
           metric_type: "total_value",
         });
         return result.data as Metric[];
@@ -279,7 +302,7 @@ export async function readAccountOverview(
         if (insightsError === "permission_required") return [] as Metric[];
         // A metric unsupported for this account must not hide the others.
         const each = await Promise.allSettled(
-          ACCOUNT_METRICS.map((name) =>
+          ACCOUNT_TOTAL_METRICS.map((name) =>
             graph(`${graphId}/insights`, { ...range, metric: name, metric_type: "total_value" })
           ),
         );
@@ -288,6 +311,18 @@ export async function readAccountOverview(
             ? item.value.data as Metric[]
             : []
         );
+      }
+    })(),
+    (async () => {
+      try {
+        // On Graph API v24.0, reach uses period=days_28 (time_series) rather than metric_type=total_value.
+        const result = await graph(`${graphId}/insights`, {
+          metric: "reach",
+          period: "days_28",
+        });
+        return metric(result.data, "reach");
+      } catch {
+        return null;
       }
     })(),
     (async () => {
@@ -313,14 +348,16 @@ export async function readAccountOverview(
       }
     })(),
   ]);
-  const hasTotals = ACCOUNT_METRICS.some((name) => metric(totals, name) !== null);
+  const reachTotal = metric(totals, "reach") ?? reach28d;
+  const hasTotals =
+    reachTotal !== null || ACCOUNT_TOTAL_METRICS.some((name) => metric(totals, name) !== null);
   const insights: AccountInsights | null = hasTotals || series?.length
     ? {
       period_days: days,
       since: new Date(since * 1000).toISOString(),
       until: new Date(until * 1000).toISOString(),
       views: metric(totals, "views"),
-      reach: metric(totals, "reach"),
+      reach: reachTotal,
       accounts_engaged: metric(totals, "accounts_engaged"),
       total_interactions: metric(totals, "total_interactions"),
       likes: metric(totals, "likes"),

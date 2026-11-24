@@ -243,4 +243,60 @@ describe("Views, likes, followers and folder organization", () => {
     expect(screen.queryByText("Vídeo v-alfa")).not.toBeInTheDocument();
     expect(screen.getByText("Vídeo v-beta")).toBeInTheDocument();
   });
+
+  it("shows 0 vis. and 0 curt. for healthy accounts with zero videos and displays real-time likes while Meta processes views", async () => {
+    const slightlyAheadOfClient = new Date(Date.now() + 30_000).toISOString();
+    request.mockResolvedValueOnce({
+      checked_at: new Date().toISOString(),
+      accounts: [
+        {
+          account_id: "a",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "alfa",
+            name: "Alfa",
+            followers_count: 1,
+            follows_count: 0,
+            media_count: 0,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [],
+        },
+        {
+          account_id: "b",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "beta",
+            name: "Beta",
+            followers_count: 10,
+            follows_count: 5,
+            media_count: 1,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [
+            {
+              ...video("fresh-reel", "b", null),
+              caption: "Reel recém-postado",
+              timestamp: slightlyAheadOfClient,
+              likes: 7,
+              comments: 2,
+            },
+          ],
+        },
+      ],
+    });
+    renderAnalytics();
+
+    expect(await screen.findByText("Nenhum vídeo publicado")).toBeInTheDocument();
+    expect(screen.getAllByText("0 vis.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Processando…")).toBeInTheDocument();
+    expect(screen.getByText("Reel recém-postado")).toBeInTheDocument();
+    expect(screen.getByText("7 curtidas")).toBeInTheDocument();
+    expect(screen.getByText("Aguardando views da Meta…")).toBeInTheDocument();
+  });
 });
+

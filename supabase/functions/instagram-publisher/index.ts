@@ -830,6 +830,30 @@ Deno.serve(async (req) => {
           const followersHistory = overview?.profile
             ? await recordFollowerSnapshot(user.id, account.account_id, overview.profile)
             : undefined;
+          if (overview?.profile) {
+            const patch: Record<string, unknown> = {};
+            const normalizedUsername = overview.profile.username?.toLowerCase();
+            if (
+              normalizedUsername &&
+              /^[a-z0-9._]{1,30}$/.test(normalizedUsername)
+            ) {
+              patch.username = normalizedUsername;
+            }
+            if (overview.profile.profile_picture_url) {
+              patch.avatar_url = overview.profile.profile_picture_url;
+            }
+            if (Object.keys(patch).length > 0) {
+              try {
+                await db
+                  .from("instagram_accounts")
+                  .update(patch)
+                  .eq("id", account.account_id)
+                  .eq("user_id", user.id);
+              } catch {
+                // Best-effort profile cache sync must never fail analytics.
+              }
+            }
+          }
           accounts.push({
             account_id: account.account_id,
             ...result,

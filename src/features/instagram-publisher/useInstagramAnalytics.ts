@@ -136,8 +136,9 @@ export function useInstagramAnalytics(
       };
     },
     enabled: !!userId && enabled,
-    staleTime: refreshInterval ?? 300000,
+    staleTime: refreshInterval ?? 30_000,
     refetchInterval: enabled ? refreshInterval : false,
+    refetchOnWindowFocus: enabled,
     retry: false,
   });
   async function loadMore() {

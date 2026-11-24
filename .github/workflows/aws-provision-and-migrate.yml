@@ -235,6 +235,58 @@ jobs:
                        ORDER BY 1
                   """)
                   print("Queue state AFTER worker tick:", cur.fetchall())
+                  cur.execute("""
+                      SELECT c.graph_id, c.provider, public.ig_vault_read(c.secret_id)
+                        FROM public.ig_publisher_connections c
+                       WHERE NOT c.reconnect_required
+                       LIMIT 2
+                  """)
+                  sample_conns = cur.fetchall()
+              try:
+                  import urllib.parse, urllib.request, urllib.error
+                  for idx, (gid, provider, tok) in enumerate(sample_conns):
+                      if not tok:
+                          continue
+                      host = "graph.instagram.com" if provider == "instagram" else "graph.facebook.com"
+                      def probe(subpath, params):
+                          q = urllib.parse.urlencode(params)
+                          req = urllib.request.Request(
+                              f"https://{host}/v24.0/{gid}{subpath}?{q}",
+                              headers={"Authorization": f"Bearer {tok}"},
+                          )
+                          try:
+                              with urllib.request.urlopen(req, timeout=15) as r:
+                                  return r.status, json.loads(r.read().decode("utf-8"))
+                          except urllib.error.HTTPError as e:
+                              body = json.loads(e.read().decode("utf-8", errors="replace") or "{}")
+                              err = body.get("error", {})
+                              return e.code, {"error_code": err.get("code"), "subcode": err.get("error_subcode")}
+                      st_prof, d_prof = probe("", {"fields": "id,username,followers_count,follows_count,media_count"})
+                      st_med, d_med = probe("/media", {
+                          "limit": "10",
+                          "fields": "id,media_type,media_product_type,timestamp,like_count,comments_count,insights.metric(views,likes,reach,shares,saved,total_interactions)",
+                      })
+                      until_ts = int(time.time())
+                      since_ts = until_ts - 28 * 86400
+                      st_tot, d_tot = probe("/insights", {
+                          "period": "day",
+                          "since": str(since_ts),
+                          "until": str(until_ts),
+                          "metric": "views,accounts_engaged,total_interactions,likes,comments,shares,saves",
+                          "metric_type": "total_value",
+                      })
+                      st_reach, d_reach = probe("/insights", {"metric": "reach", "period": "days_28"})
+                      items = d_med.get("data", []) if isinstance(d_med, dict) else []
+                      sample_types = [(m.get("media_type"), m.get("media_product_type"), bool(m.get("insights")), m.get("like_count") is not None) for m in items[:5]]
+                      print(
+                          f"Live Meta v24.0 Metrics Probe [acct#{idx+1} provider={provider}]: "
+                          f"profile={st_prof}(followers={d_prof.get('followers_count') if isinstance(d_prof, dict) else None},media_count={d_prof.get('media_count') if isinstance(d_prof, dict) else None}) "
+                          f"media_expand={st_med}(items={len(items)},types={sample_types},err={d_med.get('error_code') if isinstance(d_med, dict) else None}) "
+                          f"totals_28d={st_tot}(err={d_tot.get('error_code') if isinstance(d_tot, dict) else None}) "
+                          f"reach_28d={st_reach}(err={d_reach.get('error_code') if isinstance(d_reach, dict) else None})"
+                      )
+              except Exception as probe_err:
+                  print("Live Meta probe skipped:", type(probe_err).__name__)
           PY
       - name: Provision AWS Stack (Cognito, RDS PostgreSQL, S3, API Gateway, Secrets Manager)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'deploy-backend' }}

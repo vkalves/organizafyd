@@ -58,7 +58,11 @@ function interactionTotal(v: VideoMetric): number | null {
 
 export function InstagramAnalytics() {
   const { user } = useAuth();
-  const { report, loadingMore, loadMore, refreshMetrics } = useInstagramAnalytics(user?.id);
+  const { report, loadingMore, loadMore, refreshMetrics } = useInstagramAnalytics(
+    user?.id,
+    true,
+    30_000,
+  );
   const [period, setPeriod] = useState("all");
   const [folder, setFolder] = useState("*");
   const [account, setAccount] = useState("all");
@@ -87,6 +91,7 @@ export function InstagramAnalytics() {
     queryKey: ["instagram-publisher-accounts", user?.id],
     queryFn: () => listAccounts(user!.id),
     enabled: !!user,
+    refetchInterval: 60_000,
   });
 
   // Fallback to report account IDs so folders and selectors work even before listAccounts resolves.
@@ -137,7 +142,7 @@ export function InstagramAnalytics() {
     .flatMap((a) => a.videos)
     .filter((v) => {
       const time = Date.parse(v.timestamp);
-      return Number.isFinite(time) && time >= cutoff && time <= now;
+      return Number.isFinite(time) && time >= cutoff && time <= now + 300_000;
     });
   const measured = videos
     .filter((v): v is VideoMetric & { views: number } => validCount(v.views))
@@ -203,6 +208,24 @@ export function InstagramAnalytics() {
     const followers = validCount(a.profile?.followers_count)
       ? a.profile!.followers_count!
       : null;
+    const hasGenuineZeroVideos =
+      !a.unavailable && a.complete && accountVideos.length === 0 && period === "all";
+    const cardViews: number | null =
+      rows.length > 0
+        ? viewsTotal
+        : validCount(a.overview?.views) && period === "all"
+          ? a.overview!.views!
+          : hasGenuineZeroVideos
+            ? 0
+            : null;
+    const cardLikes: number | null =
+      likesRows.length > 0
+        ? likesTotal
+        : validCount(a.overview?.likes) && period === "all"
+          ? a.overview!.likes!
+          : hasGenuineZeroVideos
+            ? 0
+            : null;
     const engagementBase = viewsTotal > 0 ? viewsTotal : followers && followers > 0 ? followers : null;
     const interactionsSum = likesTotal + commentsTotal + sharesTotal + savesTotal;
     const engagementRate =
@@ -217,6 +240,9 @@ export function InstagramAnalytics() {
       total: viewsTotal,
       likesCount: likesRows.length,
       likesTotal,
+      cardViews,
+      cardLikes,
+      hasGenuineZeroVideos,
       commentsTotal,
       sharesTotal,
       savesTotal,
@@ -242,7 +268,7 @@ export function InstagramAnalytics() {
   const allReportAccounts = useMemo(
     () => (report.data?.accounts ?? []).map(summarizeAccount),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [report.data, videos.length, measured.length, accountMeta],
+    [report.data, videos.length, measured.length, accountMeta, period],
   );
 
   const folderSummaries = useMemo(() => {
@@ -251,11 +277,11 @@ export function InstagramAnalytics() {
       const items = group.accounts
         .map((acc) => byId.get(acc.id))
         .filter((item): item is NonNullable<typeof item> => !!item);
-      const withViews = items.filter((i) => i.count > 0);
-      const withLikes = items.filter((i) => i.likesCount > 0);
+      const withViews = items.filter((i) => i.cardViews !== null);
+      const withLikes = items.filter((i) => i.cardLikes !== null);
       const withFollowers = items.filter((i) => i.followers !== null);
-      const viewsSum = withViews.reduce((s, i) => s + i.total, 0);
-      const likesSum = withLikes.reduce((s, i) => s + i.likesTotal, 0);
+      const viewsSum = withViews.reduce((s, i) => s + (i.cardViews ?? 0), 0);
+      const likesSum = withLikes.reduce((s, i) => s + (i.cardLikes ?? 0), 0);
       const followersSum = withFollowers.reduce((s, i) => s + (i.followers ?? 0), 0);
       const allIds = group.accounts.map((a) => a.id);
       const activeCount = allIds.filter((id) =>
@@ -740,16 +766,28 @@ export function InstagramAnalytics() {
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div className="rounded-lg border border-white/5 bg-background/40 p-2.5">
                       <span className="block text-xs text-muted-foreground">Visualizações</span>
-                      <strong>{a.count ? `${number(a.total)} vis.` : "Sem dados"}</strong>
-                      {a.overview?.views !== null && a.overview?.views !== undefined && (
+                      <strong>
+                        {a.cardViews !== null
+                          ? `${number(a.cardViews)} vis.`
+                          : !a.unavailable && a.videoCount > 0 && a.insights_error !== "permission_required"
+                            ? "Processando…"
+                            : "Sem dados"}
+                      </strong>
+                      {a.overview?.views !== null && a.overview?.views !== undefined ? (
                         <span className="block text-[11px] text-muted-foreground">
                           28d conta: {number(a.overview.views)}
                         </span>
-                      )}
+                      ) : a.hasGenuineZeroVideos ? (
+                        <span className="block text-[11px] text-muted-foreground">
+                          Nenhum vídeo publicado
+                        </span>
+                      ) : null}
                     </div>
                     <div className="rounded-lg border border-white/5 bg-background/40 p-2.5">
                       <span className="block text-xs text-muted-foreground">Curtidas</span>
-                      <strong>{a.likesCount ? `${number(a.likesTotal)} curt.` : "Sem dados"}</strong>
+                      <strong>
+                        {a.cardLikes !== null ? `${number(a.cardLikes)} curt.` : "Sem dados"}
+                      </strong>
                       {a.likesCount > 0 && (
                         <span className="block text-[11px] text-muted-foreground">
                           Média: {number(Math.round(a.likesTotal / a.likesCount))}/vídeo
@@ -828,7 +866,53 @@ export function InstagramAnalytics() {
             </div>
           </div>
           {!rankedVideos.length ? (
-            <p>Nenhum vídeo com visualizações disponíveis nesta seleção.</p>
+            <div className="space-y-3">
+              <p>Nenhum vídeo com visualizações disponíveis nesta seleção.</p>
+              {videos.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Vídeos publicados recentemente (curtidas em tempo real; visualizações sendo processadas pela Meta):
+                  </p>
+                  {videos.slice(0, 10).map((v) => (
+                    <div
+                      key={`pending-${v.account_id}-${v.id}`}
+                      className="flex items-center gap-4 rounded-xl border border-white/10 p-3"
+                    >
+                      {v.thumbnail_url && /^https:\/\//i.test(v.thumbnail_url) && (
+                        <img
+                          src={v.thumbnail_url}
+                          alt="Capa do vídeo"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="h-20 w-14 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <strong className="block truncate">{name(v.account_id)}</strong>
+                        <p className="truncate text-sm text-muted-foreground">{v.caption}</p>
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          {validCount(v.likes) && <span>{number(v.likes)} curtidas</span>}
+                          {validCount(v.comments) && <span>{number(v.comments)} comentários</span>}
+                          {v.permalink && /^https:\/\//i.test(v.permalink) && (
+                            <a
+                              href={v.permalink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              Ver no Instagram
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        Aguardando views da Meta…
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <ol className="space-y-3">
               {rankedVideos.slice(0, 10).map((v, i) => (
@@ -957,7 +1041,7 @@ export function InstagramAnalytics() {
             Atualizado em{" "}
             {report.data &&
               new Date(report.data.checked_at).toLocaleString("pt-BR")}
-            . Métricas fornecidas pela Meta podem ter atraso.
+            {" · "}Atualização automática em tempo real a cada 30s. Métricas fornecidas pela Meta podem ter atraso de alguns minutos após a publicação.
           </p>
         </>
       )}

@@ -18,7 +18,7 @@ export function accountViewsRanking(
               (v) =>
                 v.account_id === account.id &&
                 Number.isFinite(Date.parse(v.timestamp)) &&
-                Date.parse(v.timestamp) <= now,
+                Date.parse(v.timestamp) <= now + 60_000,
             )
             .map((v) => [v.id, v]),
         ).values(),
