@@ -22,12 +22,36 @@ export function createMonitorRepository(
       return checked(await db.rpc("ig_vault_read", { p_id: secretId }));
     },
     async save(row, update) {
-      checked(
+      const saved = checked(
         await db.from("ig_account_health").update(update).eq(
           "account_id",
           row.account_id,
-        ).eq("user_id", row.user_id).eq("lease", row.lease),
+        ).eq("user_id", row.user_id).eq("lease", row.lease)
+          .select("account_id"),
       );
+      // A lost lease must never trigger a disconnect. Only a fresh,
+      // confirmed unavailable result can reach the database guard.
+      if (
+        saved?.length === 1 &&
+        update.state === "unavailable" &&
+        update.candidate === "unavailable" &&
+        Number(update.failures) >= 3 &&
+        ["meta_100", "meta_803"].includes(String(update.error_code))
+      ) {
+        // Cleanup is best effort. A failed cleanup must not make the health
+        // monitor forget its successfully recorded diagnosis.
+        const cleanup = await db.rpc("ig_auto_remove_unavailable_account", {
+          p_user: row.user_id,
+          p_account: row.account_id,
+          p_lease: row.lease,
+        });
+        if (cleanup.error) {
+          console.error("instagram_account_cleanup_failed", {
+            account_id: row.account_id,
+            code: cleanup.error.code,
+          });
+        }
+      }
     },
   };
   async function pages<T>(
