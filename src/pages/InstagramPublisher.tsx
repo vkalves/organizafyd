@@ -227,7 +227,7 @@ export default function InstagramPublisher() {
             ["compose", "Nova publicação"],
             ["queue", "Agendamentos"],
             ["alerts", "Alertas"],
-            ["analytics", "Analytics"],
+            ["analytics", "Métricas"],
           ] as const
         ).map(([target, label]) => (
           <button
@@ -241,7 +241,7 @@ export default function InstagramPublisher() {
         ))}
       </nav>
       {view === "analytics" && (
-        <Suspense fallback={<p role="status">Carregando Analytics…</p>}>
+        <Suspense fallback={<p role="status">Carregando Métricas…</p>}>
           <InstagramAnalytics />
         </Suspense>
       )}

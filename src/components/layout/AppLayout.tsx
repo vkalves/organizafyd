@@ -69,7 +69,7 @@ const agoniaSections: NavSection[] = [
     label: "Conta",
     items: [
       { title: "Alertas de contas", path: "/avanca/alertas", icon: Bell },
-      { title: "Visualizações", path: "/avanca/visualizacoes", icon: BarChart3 },
+      { title: "Métricas", path: "/avanca/visualizacoes", icon: BarChart3, matchPaths: ["/avanca/visualizacoes", "/avanca/metricas"] },
       { title: "Configurações", path: "/avanca/settings", icon: Settings },
       { title: "Meu Perfil", path: "/avanca/profile", icon: UserRound },
     ],

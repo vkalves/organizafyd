@@ -119,6 +119,7 @@ type Section =
   | "admin"
   | "meta-developer"
   | "visualizacoes"
+  | "metricas"
   | "dashboard"
   | "fluxos"
   | "alertas"
@@ -136,6 +137,7 @@ const VALID_SECTIONS = new Set<Section>([
   "admin",
   "meta-developer",
   "visualizacoes",
+  "metricas",
   "dashboard",
   "fluxos",
   "alertas",
@@ -1078,8 +1080,8 @@ export default function Agonia() {
           <MetaDeveloper onConnected={refreshAll} />
         </Suspense>
       )}
-      {section === "visualizacoes" && (
-        <Suspense fallback={<p role="status">Carregando análise de visualizações…</p>}>
+      {(section === "visualizacoes" || section === "metricas") && (
+        <Suspense fallback={<p role="status">Carregando métricas…</p>}>
           <AccountViews />
         </Suspense>
       )}
@@ -1259,7 +1261,7 @@ export default function Agonia() {
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore || accounts.length === 0} onClick={() => void refreshViews()}>{viewsReport.isFetching ? "Atualizando métricas…" : "Atualizar métricas"}</button>
               {accountViewsMetrics.hasMore && <button type="button" className="button button-secondary" disabled={viewsReport.isFetching || viewsLoadingMore} onClick={() => void loadMoreViews()}>{viewsLoadingMore ? "Carregando vídeos…" : "Carregar mais vídeos"}</button>}
-              <Link to="/avanca/visualizacoes" className="underline">Ver análise de visualizações</Link>
+              <Link to="/avanca/visualizacoes" className="underline">Ver métricas</Link>
             </div>
             {viewsReport.isFetching && <p role="status" className="text-xs text-muted-foreground">Consultando visualizações na Meta…</p>}
             {viewsReport.isError && <p role="alert" className="text-xs text-rose-300">Não foi possível atualizar as métricas. Tente novamente; os dados já consultados são mantidos.</p>}
