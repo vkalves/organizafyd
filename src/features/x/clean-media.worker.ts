@@ -22,7 +22,7 @@ self.onmessage = async ({
         ctx.drawImage(image, 0, 0);
         blob = await canvas.convertToBlob({
           type: data.outputType,
-          quality: 0.95,
+          quality: 0.9,
         });
         canvas.width = 0;
         canvas.height = 0;

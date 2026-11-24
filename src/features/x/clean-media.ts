@@ -45,7 +45,7 @@ async function cleanImage(file: File, outputType = file.type): Promise<Blob> {
               ? resolve(blob)
               : reject(new Error("Não foi possível limpar a foto.")),
           outputType,
-          0.95,
+          0.9,
         ),
       );
     } finally {
@@ -86,16 +86,16 @@ export async function cleanMedia(
         options?.maxBytes ?? MAX_VIDEO_BYTES,
       );
       options?.onProgress?.("verifying");
-      blob = workerAvailable
-        ? await processInWorker(blob, outputType, false)
-        : new Blob(
-            [
-              stripVideoMetadata(new Uint8Array(await blob.arrayBuffer()), {
-                inPlace: true,
-              }),
-            ],
-            { type: outputType },
-          );
+      // stripVideoMetadata walks only MP4 box headers (<0.1ms in-place) — avoid
+      // cloning the entire video buffer across a second Web Worker boundary.
+      blob = new Blob(
+        [
+          stripVideoMetadata(new Uint8Array(await blob.arrayBuffer()), {
+            inPlace: true,
+          }),
+        ],
+        { type: outputType },
+      );
     } else if (workerAvailable && typeof OffscreenCanvas !== "undefined") {
       options?.onProgress?.("verifying");
       blob = await processInWorker(file, outputType, true);

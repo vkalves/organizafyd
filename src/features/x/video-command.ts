@@ -19,8 +19,10 @@ export const videoCleanCommand = (input: string, output: string) => [
   "libx264",
   "-preset",
   "ultrafast",
+  "-tune",
+  "zerolatency",
   "-crf",
-  "20",
+  "23",
   "-pix_fmt",
   "yuv420p",
   "-bsf:v",
@@ -49,10 +51,13 @@ export const videoCleanCommand = (input: string, output: string) => [
   output,
 ];
 
-
-// Stream-copy only common MP4 H.264 inputs that need no display transform or
-// pixel-format conversion. Everything else uses the compatibility transcode.
-export const videoRemuxCommand = (input: string, output: string) => [
+// Stream-copy common MP4 H.264 inputs (and AAC audio when already mp4a) while
+// stripping all container/track metadata and H.264 SEI NAL units.
+export const videoRemuxCommand = (
+  input: string,
+  output: string,
+  copyAudio = false,
+) => [
   "-i",
   input,
   "-map",
@@ -69,15 +74,10 @@ export const videoRemuxCommand = (input: string, output: string) => [
   "copy",
   "-bsf:v",
   "filter_units=remove_types=6",
-  "-af",
-  "asidedata=delete",
-  "-c:a",
-  "aac",
-  "-b:a",
-  "128k",
+  ...(copyAudio
+    ? ["-c:a", "copy"]
+    : ["-af", "asidedata=delete", "-c:a", "aac", "-b:a", "128k", "-flags:a", "+bitexact"]),
   "-fflags",
-  "+bitexact",
-  "-flags:a",
   "+bitexact",
   "-metadata",
   "encoder=",
@@ -119,14 +119,26 @@ function readMp4Box(
   };
 }
 
+function isTrailingZeroPadding(bytes: Uint8Array, start: number, end: number) {
+  if (end - start > 64) return false;
+  for (let i = start; i < end; i++) {
+    if (bytes[i] !== 0) return false;
+  }
+  return true;
+}
+
 function readMp4Children(
   bytes: Uint8Array,
   view: DataView,
   start: number,
   end: number,
+  allowTrailingZeroes = false,
 ): Mp4Box[] | null {
   const boxes: Mp4Box[] = [];
   for (let position = start; position < end; ) {
+    if (allowTrailingZeroes && isTrailingZeroPadding(bytes, position, end)) {
+      break;
+    }
     const box = readMp4Box(bytes, view, position, end);
     if (!box) return null;
     boxes.push(box);
@@ -182,7 +194,7 @@ function isEightBit420Sps(nal: Uint8Array) {
     return false;
   if (readUnsignedExpGolomb() === null) return false; // seq_parameter_set_id
   if ([66, 77, 88].includes(profile)) return true;
-  if (profile !== 100) return false;
+  if (![100, 110].includes(profile)) return false;
   const chromaFormat = readUnsignedExpGolomb();
   if (chromaFormat !== 1) return false;
   const lumaDepth = readUnsignedExpGolomb();
@@ -211,24 +223,38 @@ function hasEightBit420AvcC(
   return true;
 }
 
-/** The fast path preserves common AVC video while deleting SEI and MP4 metadata. */
-export function canFastRemuxH264(input: Uint8Array) {
+export type FastRemuxInspection = {
+  canRemuxVideo: boolean;
+  canCopyAudio: boolean;
+};
+
+/** Inspects whether an MP4 can fast-remux H.264 video and stream-copy AAC audio. */
+export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
   try {
     const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-    const top = readMp4Children(input, view, 0, input.byteLength);
-    if (!top || !top.some((box) => box.type === "ftyp") ||
-        !top.some((box) => box.type === "mdat"))
-      return false;
+    const top = readMp4Children(input, view, 0, input.byteLength, true);
+    if (
+      !top ||
+      !top.some((box) => box.type === "ftyp") ||
+      !top.some((box) => box.type === "mdat")
+    ) {
+      return { canRemuxVideo: false, canCopyAudio: false };
+    }
     const moovs = top.filter((box) => box.type === "moov");
-    if (moovs.length !== 1) return false;
+    if (moovs.length !== 1) {
+      return { canRemuxVideo: false, canCopyAudio: false };
+    }
     const moovChildren = readMp4Children(
       input,
       view,
       moovs[0].body,
       moovs[0].end,
     );
-    if (!moovChildren) return false;
+    if (!moovChildren) return { canRemuxVideo: false, canCopyAudio: false };
     let videoTracks = 0;
+    let audioTracks = 0;
+    let allAudioMp4a = true;
+
     for (const track of moovChildren.filter((box) => box.type === "trak")) {
       const trackChildren = readMp4Children(input, view, track.body, track.end);
       const mdia = trackChildren?.find((box) => box.type === "mdia");
@@ -236,14 +262,12 @@ export function canFastRemuxH264(input: Uint8Array) {
         ? readMp4Children(input, view, mdia.body, mdia.end)
         : null;
       const handler = mdiaChildren?.find((box) => box.type === "hdlr");
-      if (!handler || handler.body + 12 > handler.end) return false;
+      if (!handler || handler.body + 12 > handler.end) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
       const handlerType = String.fromCharCode(
         ...input.subarray(handler.body + 8, handler.body + 12),
       );
-      if (handlerType !== "vide") continue;
-      videoTracks++;
-      const tkhd = trackChildren?.find((box) => box.type === "tkhd");
-      if (!tkhd || !hasIdentityTrackMatrix(input, view, tkhd)) return false;
       const minf = mdiaChildren?.find((box) => box.type === "minf");
       const minfChildren = minf
         ? readMp4Children(input, view, minf.body, minf.end)
@@ -253,14 +277,48 @@ export function canFastRemuxH264(input: Uint8Array) {
         ? readMp4Children(input, view, stbl.body, stbl.end)
         : null;
       const stsd = stblChildren?.find((box) => box.type === "stsd");
-      if (!stsd || stsd.body + 8 > stsd.end) return false;
-      if (view.getUint32(stsd.body + 4) !== 1) return false;
+
+      if (handlerType === "soun") {
+        audioTracks++;
+        if (!stsd || stsd.body + 8 > stsd.end || view.getUint32(stsd.body + 4) !== 1) {
+          allAudioMp4a = false;
+        } else {
+          const audioEntry = readMp4Box(input, view, stsd.body + 8, stsd.end);
+          if (!audioEntry || audioEntry.type !== "mp4a") {
+            allAudioMp4a = false;
+          }
+        }
+        continue;
+      }
+
+      if (handlerType !== "vide") continue;
+      videoTracks++;
+      const tkhd = trackChildren?.find((box) => box.type === "tkhd");
+      if (!tkhd || !hasIdentityTrackMatrix(input, view, tkhd)) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
+      if (!stsd || stsd.body + 8 > stsd.end) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
+      if (view.getUint32(stsd.body + 4) !== 1) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
       const entry = readMp4Box(input, view, stsd.body + 8, stsd.end);
-      if (!entry || entry.end !== stsd.end || entry.type !== "avc1") return false;
-      if (entry.body + 78 > entry.end) return false;
+      if (
+        !entry ||
+        entry.end !== stsd.end ||
+        (entry.type !== "avc1" && entry.type !== "avc3")
+      ) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
+      if (entry.body + 78 > entry.end) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
       const width = view.getUint16(entry.body + 24);
       const height = view.getUint16(entry.body + 26);
-      if (!width || !height || width % 2 || height % 2) return false;
+      if (!width || !height || width % 2 || height % 2) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
       const entryChildren = readMp4Children(
         input,
         view,
@@ -268,10 +326,22 @@ export function canFastRemuxH264(input: Uint8Array) {
         entry.end,
       );
       const avcC = entryChildren?.find((box) => box.type === "avcC");
-      if (!avcC || !hasEightBit420AvcC(input, view, avcC)) return false;
+      if (!avcC || !hasEightBit420AvcC(input, view, avcC)) {
+        return { canRemuxVideo: false, canCopyAudio: false };
+      }
     }
-    return videoTracks === 1;
+
+    const canRemuxVideo = videoTracks === 1;
+    return {
+      canRemuxVideo,
+      canCopyAudio: canRemuxVideo && audioTracks <= 1 && allAudioMp4a,
+    };
   } catch {
-    return false;
+    return { canRemuxVideo: false, canCopyAudio: false };
   }
+}
+
+/** The fast path preserves common AVC video while deleting SEI and MP4 metadata. */
+export function canFastRemuxH264(input: Uint8Array) {
+  return inspectFastRemuxMp4(input).canRemuxVideo;
 }

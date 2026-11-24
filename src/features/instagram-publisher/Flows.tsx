@@ -234,6 +234,12 @@ export default function Flows({
     return () => window.removeEventListener("agonia-account-folders-updated", sync);
   }, [user?.id]);
 
+  useEffect(() => {
+    void import("@/features/x/clean-video")
+      .then((m) => m.warmVideoCleaner())
+      .catch(() => {});
+  }, []);
+
   const eligibleAccounts = accounts.filter(account => !occupiedAccountIds.has(account.id));
   const eligibleFolderGroups = useMemo(
     () => groupAccountsByFolder(eligibleAccounts, accountMeta, accountFolders),

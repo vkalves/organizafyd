@@ -99,7 +99,7 @@ export function stripMp4MetadataBoxes(input: Uint8Array, { inPlace = false, requ
       } else if (kind === "stsd") {
         if (body + 8 > limit) throw invalid();
         walk(body + 8, limit, depth + 1);
-      } else if (kind === "avc1") {
+      } else if (kind === "avc1" || kind === "avc3") {
         if (body + 78 > limit) throw invalid();
         bytes.fill(0, body + 42, body + 74); // Compressor display name
         walk(body + 78, limit, depth + 1);

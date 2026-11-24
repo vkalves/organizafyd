@@ -94,3 +94,71 @@ it("falls back to compact encoding only if the fast output exceeds the upload li
   expect(mocks.exec.mock.calls[0][0]).toContain("ultrafast");
   expect(mocks.exec.mock.calls[1][0]).toContain("veryfast");
 });
+
+it("stream-copies both H.264 video and mp4a audio on standard MP4 Reels without software re-encoding", async () => {
+  const text = (s: string) => new TextEncoder().encode(s);
+  const u32 = (n: number) => new Uint8Array([n >>> 24, n >>> 16, n >>> 8, n]);
+  const u16 = (n: number) => new Uint8Array([n >>> 8, n & 0xff]);
+  const concat = (...parts: Uint8Array[]) =>
+    new Uint8Array(parts.flatMap((p) => [...p]));
+  const box = (type: string, body = new Uint8Array()) =>
+    concat(u32(body.length + 8), text(type), body);
+
+  // Build valid tkhd with identity matrix
+  const tkhdBody = new Uint8Array(84);
+  const tkhdView = new DataView(tkhdBody.buffer);
+  [65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824].forEach((v, i) =>
+    tkhdView.setUint32(40 + i * 4, v),
+  );
+
+  // Valid Baseline Profile (66) SPS NAL + avcC + avc3 entry (1080x1920)
+  const sps = new Uint8Array([0x67, 66, 0x00, 0x1f, 0xe9]);
+  const avcC = box(
+    "avcC",
+    concat(new Uint8Array([1, 66, 0, 31, 0xff, 0xe1]), u16(sps.length), sps),
+  );
+  const visualHeader = new Uint8Array(78);
+  const vhView = new DataView(visualHeader.buffer);
+  vhView.setUint16(24, 1080);
+  vhView.setUint16(26, 1920);
+  const videoStsd = box(
+    "stsd",
+    concat(new Uint8Array([0, 0, 0, 0, 0, 0, 0, 1]), box("avc3", concat(visualHeader, avcC))),
+  );
+  const videoHdlr = box("hdlr", concat(new Uint8Array(8), text("vide")));
+  const videoTrak = box(
+    "trak",
+    concat(box("tkhd", tkhdBody), box("mdia", concat(videoHdlr, box("minf", box("stbl", videoStsd))))),
+  );
+
+  // Valid mp4a audio track
+  const audioStsd = box(
+    "stsd",
+    concat(new Uint8Array([0, 0, 0, 0, 0, 0, 0, 1]), box("mp4a", new Uint8Array(28))),
+  );
+  const audioHdlr = box("hdlr", concat(new Uint8Array(8), text("soun")));
+  const audioTrak = box(
+    "trak",
+    concat(box("mdia", concat(audioHdlr, box("minf", box("stbl", audioStsd))))),
+  );
+
+  const mp4Bytes = concat(
+    box("ftyp", text("isom")),
+    box("moov", concat(videoTrak, audioTrak)),
+    box("mdat", text("H264+AAC")),
+    new Uint8Array([0, 0, 0, 0]), // trailing zero padding
+  );
+  const mp4File = { arrayBuffer: async () => mp4Bytes.buffer } as File;
+
+  const { cleanVideo } = await import("./clean-video");
+  await cleanVideo(mp4File);
+
+  expect(mocks.exec).toHaveBeenCalledOnce();
+  const args = mocks.exec.mock.calls[0][0] as string[];
+  expect(args).toContain("-c:v");
+  expect(args[args.indexOf("-c:v") + 1]).toBe("copy");
+  expect(args).toContain("-c:a");
+  expect(args[args.indexOf("-c:a") + 1]).toBe("copy");
+  expect(args).toContain("filter_units=remove_types=6");
+});
+
