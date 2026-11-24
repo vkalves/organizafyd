@@ -1,13 +1,22 @@
 name: AWS Provision and Migrate
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/aws/**'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'src/integrations/aws/**'
+      - '.github/workflows/aws-provision-and-migrate.yml'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Modo de migração (execute aplica schema + dados + Cognito; dry-run apenas verifica)'
+        description: 'Modo (deploy-backend atualiza Lambda + migrations RDS; execute migra do Supabase; dry-run apenas verifica)'
         required: true
-        default: 'execute'
+        default: 'deploy-backend'
         type: choice
         options:
+          - deploy-backend
           - execute
           - dry-run
 permissions:
@@ -26,12 +35,85 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Install AWS and PostgreSQL dependencies
         run: python -m pip install 'psycopg[binary]==3.2.12' 'boto3>=1.35.0'
+      - name: Bundle and Deploy AWS Lambda + Apply RDS Migrations
+        if: ${{ github.event_name == 'push' || inputs.mode == 'deploy-backend' }}
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save pg @aws-sdk/client-s3 @aws-sdk/s3-request-presigner @aws-sdk/s3-presigned-post
+          mkdir -p dist-lambda
+          node -e '
+            const esbuild = require("esbuild");
+            const stripNpmPlugin = {
+              name: "strip-npm",
+              setup(build) {
+                build.onResolve({ filter: /^npm:/ }, async (args) => {
+                  const pkg = args.path.replace(/^npm:/, "").replace(/@[0-9][^/]*$/, "");
+                  if (pkg.startsWith("@aws-sdk/")) return { path: pkg, external: true };
+                  return await build.resolve(pkg, { resolveDir: args.resolveDir, kind: args.kind });
+                });
+              },
+            };
+            esbuild.build({
+              entryPoints: ["infra/aws/lambda/handler.ts"],
+              bundle: true,
+              platform: "node",
+              target: "node20",
+              format: "cjs",
+              outfile: "dist-lambda/index.js",
+              external: ["pg-native", "@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@aws-sdk/s3-presigned-post"],
+              plugins: [stripNpmPlugin],
+            }).catch((err) => { console.error(err); process.exit(1); });
+          '
+          python - <<'PY'
+          import json, os, pathlib, zipfile, boto3, psycopg
+
+          region = os.environ.get("AWS_REGION", "us-east-2")
+          session = boto3.Session(region_name=region)
+          sm = session.client("secretsmanager")
+          secret = json.loads(sm.get_secret_value(SecretId="avanca/backend/config")["SecretString"])
+          db_url = secret.get("DATABASE_URL")
+          if not db_url:
+              raise RuntimeError("DATABASE_URL not found in Secrets Manager avanca/backend/config")
+
+          migrations = sorted(pathlib.Path("supabase/migrations").glob("2026112[45]*.sql"))
+          with psycopg.connect(db_url, connect_timeout=15, sslmode="require") as conn:
+              with conn.cursor() as cur:
+                  for mig in migrations:
+                      print(f"Applying RDS migration: {mig.name}")
+                      cur.execute(mig.read_text(encoding="utf-8"))
+              conn.commit()
+          print(f"Applied {len(migrations)} RDS migrations successfully.")
+
+          zip_path = pathlib.Path("dist-lambda/lambda.zip")
+          with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+              zf.write("dist-lambda/index.js", "index.js")
+
+          lam = session.client("lambda")
+          funcs = lam.list_functions()["Functions"]
+          targets = [
+              f["FunctionName"]
+              for f in funcs
+              if "avanca" in f["FunctionName"].lower()
+          ]
+          if not targets:
+              raise RuntimeError("No Avanca Lambda function found in region " + region)
+          payload = zip_path.read_bytes()
+          for fn_name in targets:
+              res = lam.update_function_code(FunctionName=fn_name, ZipFile=payload, Publish=True)
+              print(f"Updated Lambda function {fn_name}: CodeSize={res.get('CodeSize')} Version={res.get('Version')}")
+          PY
       - name: Provision AWS Stack (Cognito, RDS PostgreSQL, S3, API Gateway, Secrets Manager)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'deploy-backend' }}
         shell: bash
         run: python scripts/provision-aws-stack.py --region us-east-2
       - name: Migrate Supabase Schema, Data, Vault Secrets, and Cognito Users to AWS
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'deploy-backend' }}
         shell: bash
         run: |
           if [ "${{ inputs.mode }}" = "execute" ]; then
