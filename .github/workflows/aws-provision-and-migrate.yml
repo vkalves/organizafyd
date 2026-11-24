@@ -100,24 +100,29 @@ jobs:
                       END $$;
                   """)
                   cur.execute("""
-                      SELECT status, COALESCE(error_code, 'none'), flow_id IS NOT NULL AS is_flow,
-                             container_id IS NOT NULL AS has_container, media_id IS NOT NULL AS has_media, COUNT(*)
-                        FROM public.ig_publication_jobs
-                       GROUP BY 1, 2, 3, 4, 5
+                      SELECT j.status, COALESCE(j.error_code, 'none'),
+                             j.flow_id IS NOT NULL AS is_flow,
+                             COALESCE(f.state, 'manual') AS flow_state,
+                             (j.scheduled_at <= now()) AS is_due,
+                             j.media_id IS NOT NULL AS has_media,
+                             COUNT(*)
+                        FROM public.ig_publication_jobs j
+                        LEFT JOIN public.ig_flows f ON f.id = j.flow_id
+                       GROUP BY 1, 2, 3, 4, 5, 6
                        ORDER BY 1
                   """)
-                  print("Queue state BEFORE recovery:", cur.fetchall())
+                  print("Queue state BEFORE deploy:", cur.fetchall())
                   cur.execute("""
                       UPDATE public.ig_publication_jobs
                          SET status = 'scheduled',
-                             error_code = NULL,
                              lock_token = NULL,
                              locked_at = NULL,
                              next_attempt_at = now()
-                       WHERE (status = 'processing' OR (status = 'failed' AND error_code = 'storage_error'))
+                       WHERE status = 'processing'
+                         AND locked_at < now() - interval '10 minutes'
                          AND NOT publish_started
                   """)
-                  print("Recovered stuck/storage_error jobs:", cur.rowcount)
+                  print("Recovered expired processing leases:", cur.rowcount)
               conn.commit()
 
           s3 = session.client("s3")
