@@ -100,23 +100,32 @@ jobs:
                       END $$;
                   """)
                   cur.execute("""
-                      SELECT status, COALESCE(error_code, 'none'), COUNT(*)
+                      SELECT status, COALESCE(error_code, 'none'), flow_id IS NOT NULL AS is_flow,
+                             container_id IS NOT NULL AS has_container, media_id IS NOT NULL AS has_media, COUNT(*)
                         FROM public.ig_publication_jobs
-                       GROUP BY status, COALESCE(error_code, 'none')
-                       ORDER BY status
+                       GROUP BY 1, 2, 3, 4, 5
+                       ORDER BY 1
                   """)
                   print("Queue state BEFORE recovery:", cur.fetchall())
                   cur.execute("""
                       UPDATE public.ig_publication_jobs
                          SET status = 'scheduled',
+                             error_code = NULL,
                              lock_token = NULL,
                              locked_at = NULL,
                              next_attempt_at = now()
-                       WHERE status = 'processing'
+                       WHERE (status = 'processing' OR (status = 'failed' AND error_code = 'storage_error'))
                          AND NOT publish_started
                   """)
-                  print("Recovered stuck processing jobs:", cur.rowcount)
+                  print("Recovered stuck/storage_error jobs:", cur.rowcount)
               conn.commit()
+
+          s3 = session.client("s3")
+          buckets = [b["Name"] for b in s3.list_buckets().get("Buckets", []) if "avanca" in b["Name"]]
+          print("Avanca S3 buckets in account:", buckets)
+          for bname in buckets:
+              objs = s3.list_objects_v2(Bucket=bname, Prefix="instagram-publisher/", MaxKeys=5).get("Contents", [])
+              print(f"Bucket {bname} instagram-publisher object sample count:", len(objs))
 
           zip_path = pathlib.Path("dist-lambda/lambda.zip")
           with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -147,6 +156,8 @@ jobs:
               fn_name = fn["FunctionName"]
               fn_arn = fn["FunctionArn"]
               conf = wait_lambda_ready(fn_name)
+              env_vars = conf.get("Environment", {}).get("Variables", {})
+              print(f"Lambda {fn_name} AWS_S3_BUCKET env:", env_vars.get("AWS_S3_BUCKET"))
 
               if conf.get("Timeout", 0) < 120 or conf.get("MemorySize", 0) < 1024:
                   print(f"Updating Lambda {fn_name} Timeout=120s MemorySize=1024MB...")
@@ -200,10 +211,11 @@ jobs:
           with psycopg.connect(db_url, connect_timeout=15, sslmode="require") as conn:
               with conn.cursor() as cur:
                   cur.execute("""
-                      SELECT status, COALESCE(error_code, 'none'), COUNT(*)
+                      SELECT status, COALESCE(error_code, 'none'), flow_id IS NOT NULL AS is_flow,
+                             container_id IS NOT NULL AS has_container, media_id IS NOT NULL AS has_media, COUNT(*)
                         FROM public.ig_publication_jobs
-                       GROUP BY status, COALESCE(error_code, 'none')
-                       ORDER BY status
+                       GROUP BY 1, 2, 3, 4, 5
+                       ORDER BY 1
                   """)
                   print("Queue state AFTER worker tick:", cur.fetchall())
           PY

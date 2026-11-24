@@ -121,12 +121,13 @@ async function materializeCleanDelivery(sourcePath: string, jobId: string): Prom
 
     if (isVideo) {
       const cleaned = cleanMp4Stream(webStream, length);
+      const cleanedBytes = Buffer.from(await new Response(cleaned).arrayBuffer());
       await s3Client.send(
         new PutObjectCommand({
           Bucket: S3_BUCKET,
           Key: deliveryKey,
-          Body: Readable.fromWeb(cleaned as any),
-          ContentLength: length,
+          Body: cleanedBytes,
+          ContentLength: cleanedBytes.byteLength,
           ContentType: contentType,
           CacheControl: "private,no-store",
         }),
@@ -137,7 +138,7 @@ async function materializeCleanDelivery(sourcePath: string, jobId: string): Prom
         new PutObjectCommand({
           Bucket: S3_BUCKET,
           Key: deliveryKey,
-          Body: photo,
+          Body: Buffer.from(photo),
           ContentLength: photo.byteLength,
           ContentType: contentType,
           CacheControl: "private,no-store",
@@ -279,7 +280,15 @@ async function handleS3Storage(req: Request, db: any): Promise<Response> {
     try {
       const signedUrl = await materializeCleanDelivery(String(body.path || ""), String(body.job || ""));
       return reply({ signedUrl });
-    } catch {
+    } catch (err: any) {
+      console.error(
+        JSON.stringify({
+          event: "s3_deliver_error",
+          bucket: S3_BUCKET,
+          name: err?.name,
+          message: err?.message || String(err),
+        }),
+      );
       return reply({ error: "media_unavailable" }, 404);
     }
   }
