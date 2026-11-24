@@ -340,19 +340,24 @@ export async function deleteMedia(id: string, url: string, userId: string) {
 }
 export async function savePrefs(prefs: Prefs) {
   const deletedIds = [...getDeletedFlowIdsSet(prefs.user_id, prefs)];
-  const mergedPrefs: Prefs =
+  const folderCaptions =
     deletedIds.length > 0 || prefs.folder_captions
       ? {
-          ...prefs,
-          folder_captions: {
-            ...(prefs.folder_captions ?? {}),
-            ...(deletedIds.length > 0
-              ? { [DELETED_FLOWS_FIELD]: deletedIds }
-              : {}),
-          },
+          ...(prefs.folder_captions ?? {}),
+          ...(deletedIds.length > 0
+            ? { [DELETED_FLOWS_FIELD]: deletedIds }
+            : {}),
         }
-      : prefs;
-  const { error } = await db.from("ig_flow_preferences").upsert(mergedPrefs);
+      : undefined;
+  const payload: Prefs = {
+    user_id: prefs.user_id,
+    folders: prefs.folders ?? [],
+    captions: prefs.captions ?? [],
+    ...(folderCaptions ? { folder_captions: folderCaptions } : {}),
+  };
+  const { error } = await db
+    .from("ig_flow_preferences")
+    .upsert(payload, { onConflict: "user_id" });
   if (error) throw new Error("Não foi possível salvar suas preferências.");
 }
 export const createFlow = (input: FlowInput) =>
@@ -404,13 +409,18 @@ export async function deleteFlow(id: string, userId?: string) {
 
     await db
       .from("ig_flow_preferences")
-      .upsert({
-        ...basePrefs,
-        folder_captions: {
-          ...(basePrefs.folder_captions ?? {}),
-          [DELETED_FLOWS_FIELD]: uniqueDeleted,
+      .upsert(
+        {
+          user_id: basePrefs.user_id,
+          folders: basePrefs.folders ?? [],
+          captions: basePrefs.captions ?? [],
+          folder_captions: {
+            ...(basePrefs.folder_captions ?? {}),
+            [DELETED_FLOWS_FIELD]: uniqueDeleted,
+          },
         },
-      })
+        { onConflict: "user_id" },
+      )
       .then(
         () => null,
         () => null,

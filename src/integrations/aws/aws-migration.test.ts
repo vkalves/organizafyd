@@ -612,5 +612,45 @@ describe("AWS RDS PostgreSQL Bootstrap + Cognito Auth + API Gateway Integration"
       status: "processing",
       lock_token: lockToken,
     });
+
+    // Authenticated user upserting ig_flow_preferences (PK = user_id, no id column)
+    const userClient = createAwsClient({
+      apiUrl: "https://api.organizafy.site",
+      clientKey: "cognito-client-id",
+      storage: new MemoryStorage(),
+      fetch: async (input, init) =>
+        handleRestRequest(
+          new Request(String(input), init),
+          sqlExecutor,
+          { role: "authenticated", userId: USER_A, email: "alice@example.com" },
+        ),
+    });
+
+    const prefsFirst = await (userClient as any)
+      .from("ig_flow_preferences")
+      .upsert({ user_id: USER_A, folders: ["bianca r"], captions: [] });
+    expect(prefsFirst.error).toBeNull();
+
+    const prefsSecond = await (userClient as any)
+      .from("ig_flow_preferences")
+      .upsert(
+        {
+          user_id: USER_A,
+          folders: ["bianca r", "ofertas"],
+          captions: [],
+          folder_captions: { "bianca r": ["Legenda 1"] },
+        },
+        { onConflict: "user_id" },
+      );
+    expect(prefsSecond.error).toBeNull();
+
+    const prefsRead = await (userClient as any)
+      .from("ig_flow_preferences")
+      .select("*")
+      .eq("user_id", USER_A)
+      .single();
+    expect(prefsRead.error).toBeNull();
+    expect(prefsRead.data.folders).toEqual(["bianca r", "ofertas"]);
+    expect(prefsRead.data.folder_captions).toEqual({ "bianca r": ["Legenda 1"] });
   });
 });

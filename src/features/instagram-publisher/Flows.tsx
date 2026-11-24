@@ -1397,15 +1397,28 @@ export default function Flows({
                   onSubmit={(e) => {
                     e.preventDefault();
                     const trimmed = newFolder.trim();
-                    if (!prefs || !trimmed) {
+                    const basePrefs =
+                      prefs ??
+                      (user
+                        ? { user_id: user.id, folders: [], captions: [] }
+                        : null);
+                    if (!basePrefs || !trimmed) {
                       setAddingFolder(false);
                       return;
                     }
                     void perform(async () => {
-                      await savePrefs({
-                        ...prefs,
-                        folders: [...new Set([...prefs.folders, trimmed])],
-                      });
+                      const nextPrefs = {
+                        ...basePrefs,
+                        folders: [...new Set([...basePrefs.folders, trimmed])],
+                      };
+                      await savePrefs(nextPrefs);
+                      cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(
+                        key,
+                        (previous) =>
+                          previous
+                            ? { ...previous, prefs: nextPrefs }
+                            : previous,
+                      );
                       setFolder(trimmed);
                       setNewFolder("");
                       setAddingFolder(false);

@@ -288,6 +288,39 @@ function isJsonbValue(colOrParam: string, val: unknown): boolean {
   return false;
 }
 
+const primaryKeyCache = new Map<string, string>();
+
+async function resolvePrimaryKeyColumns(db: SqlExecutor, tableName: string): Promise<string> {
+  const cached = primaryKeyCache.get(tableName);
+  if (cached) return cached;
+  try {
+    const res = await db.query<{ col: string }>(
+      `SELECT a.attname AS col
+         FROM pg_catalog.pg_index i
+         JOIN pg_catalog.pg_class c ON c.oid = i.indrelid
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         JOIN unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+         JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+        WHERE n.nspname = 'public'
+          AND c.relname = $1
+          AND i.indisprimary
+        ORDER BY k.ord`,
+      [tableName],
+    );
+    const cols = res.rows
+      .map((r) => String(r.col).trim())
+      .filter((col) => IDENTIFIER_RE.test(col))
+      .join(",");
+    if (cols) {
+      primaryKeyCache.set(tableName, cols);
+      return cols;
+    }
+  } catch {
+    // Fallback to id if catalog introspection fails
+  }
+  return "id";
+}
+
 export async function handleRestRequest(
   req: Request,
   db: SqlExecutor,
@@ -413,7 +446,9 @@ export async function handleRestRequest(
 
         let conflictClause = "";
         if (prefer.includes("resolution=merge-duplicates") || prefer.includes("resolution=ignore-duplicates")) {
-          const onConflict = url.searchParams.get("on_conflict") || "id";
+          const onConflict =
+            url.searchParams.get("on_conflict") ||
+            (await resolvePrimaryKeyColumns(db, tableName));
           const conflictCols = onConflict
             .split(",")
             .map((c) => assertIdentifier(c.trim(), "column"))
