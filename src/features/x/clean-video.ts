@@ -13,9 +13,12 @@ export type CleaningProgress = (
 ) => void;
 
 export const VIDEO_CLEAN_CONCURRENCY = 3;
+const MAX_ENGINE_REUSES = 8;
 
 const idleEngines: FFmpeg[] = [];
+const engineUses = new WeakMap<FFmpeg, number>();
 let activeCount = 0;
+let nextRunId = 0;
 const waiters: Array<(reused: FFmpeg | undefined) => void> = [];
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let cachedRuntimeUrls: Promise<{ coreURL: string; wasmURL: string }> | null = null;
@@ -92,12 +95,15 @@ function releaseEngine(healthy?: FFmpeg) {
   }
 }
 
-export async function cleanVideo(
+export async function cleanVideoBytes(
   file: File,
   progress?: CleaningProgress,
   maxOutputBytes = Infinity,
-): Promise<Blob> {
+): Promise<Uint8Array> {
   const ffmpeg = await acquireEngine();
+  const runId = ++nextRunId;
+  const inputPath = `in-${runId}.mp4`;
+  const outputPath = `out-${runId}.mp4`;
   let healthy = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastProgress = 0;
@@ -108,7 +114,7 @@ export async function cleanVideo(
   };
   ffmpeg.on("progress", notify);
   try {
-    const work = async () => {
+    const work = async (): Promise<Uint8Array> => {
       if (!ffmpeg.loaded) {
         progress?.("loading");
         const urls = await getRuntimeUrls();
@@ -116,31 +122,33 @@ export async function cleanVideo(
       }
       progress?.("encoding", 0);
       const input = new Uint8Array(await file.arrayBuffer());
-      await ffmpeg.writeFile("input.mp4", input);
+      // IMPORTANT: Inspect MP4 headers BEFORE writeFile(), because @ffmpeg/ffmpeg
+      // transfers and detaches input.buffer when posting it to the Web Worker.
+      const remuxInfo = inspectFastRemuxMp4(input);
+      await ffmpeg.writeFile(inputPath, input);
 
       // Fast path: stream-copy H.264 video (+ AAC audio when already mp4a) while
       // removing H.264 SEI NAL units and all MP4 container/track metadata.
-      const remuxInfo = inspectFastRemuxMp4(input);
       if (remuxInfo.canRemuxVideo) {
         const modes = remuxInfo.canCopyAudio ? [true, false] : [false];
         for (const copyAudio of modes) {
           let remuxed: Uint8Array | undefined;
           try {
             const exit = await ffmpeg.exec(
-              videoRemuxCommand("input.mp4", "output.mp4", copyAudio),
+              videoRemuxCommand(inputPath, outputPath, copyAudio),
               180_000,
             );
             if (exit === 0) {
-              const bytes = await ffmpeg.readFile("output.mp4");
+              const bytes = await ffmpeg.readFile(outputPath);
               if (typeof bytes !== "string") remuxed = bytes;
             }
           } catch {
             // Fall through to next remux mode or compatibility transcode.
           }
           if (remuxed?.byteLength && remuxed.byteLength <= maxOutputBytes) {
-            return new Blob([remuxed], { type: "video/mp4" });
+            return remuxed;
           }
-          await Promise.allSettled([ffmpeg.deleteFile("output.mp4")]);
+          await Promise.allSettled([ffmpeg.deleteFile(outputPath)]);
           if (remuxed?.byteLength && remuxed.byteLength > maxOutputBytes) {
             break;
           }
@@ -150,27 +158,27 @@ export async function cleanVideo(
 
       // Compatibility transcode when stream-copy is unsafe (e.g. HEVC, rotation, odd size).
       for (const preset of ["ultrafast", "veryfast"]) {
-        const command = videoCleanCommand("input.mp4", "output.mp4").map(
+        const command = videoCleanCommand(inputPath, outputPath).map(
           (arg) => (arg === "ultrafast" ? preset : arg),
         );
-        const exit = await ffmpeg.exec(command, 180_000);
+        const exit = await ffmpeg.exec(command, 360_000);
         if (exit !== 0)
           throw new Error(
             "O vídeo não pôde ser decodificado ou excedeu o tempo de processamento. Confira se o MP4 está íntegro e tente um arquivo menor.",
           );
-        const bytes = await ffmpeg.readFile("output.mp4");
+        const bytes = await ffmpeg.readFile(outputPath);
         if (typeof bytes === "string")
           throw new Error("Formato de vídeo inválido.");
         if (preset === "ultrafast" && bytes.byteLength > maxOutputBytes) {
-          await ffmpeg.deleteFile("output.mp4");
+          await ffmpeg.deleteFile(outputPath);
           progress?.("encoding", 0);
           continue;
         }
-        return new Blob([bytes], { type: "video/mp4" });
+        return bytes;
       }
       throw new Error("Não foi possível preparar o vídeo.");
     };
-    return await Promise.race([
+    const result = await Promise.race([
       work(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -180,10 +188,22 @@ export async function cleanVideo(
                 "A limpeza demorou demais. Tente um vídeo menor ou confira sua conexão.",
               ),
             ),
-          240_000,
+          420_000,
         );
       }),
     ]);
+    const uses = (engineUses.get(ffmpeg) ?? 0) + 1;
+    engineUses.set(ffmpeg, uses);
+    if (uses >= MAX_ENGINE_REUSES) {
+      // Recycle worker periodically on large queues so monotonic WASM linear memory is freed.
+      await Promise.allSettled([
+        ffmpeg.deleteFile(inputPath),
+        ffmpeg.deleteFile(outputPath),
+      ]);
+      healthy = false;
+      ffmpeg.terminate();
+    }
+    return result;
   } catch (error) {
     healthy = false;
     ffmpeg.terminate();
@@ -193,10 +213,19 @@ export async function cleanVideo(
     ffmpeg.off("progress", notify);
     if (healthy) {
       await Promise.allSettled([
-        ffmpeg.deleteFile("input.mp4"),
-        ffmpeg.deleteFile("output.mp4"),
+        ffmpeg.deleteFile(inputPath),
+        ffmpeg.deleteFile(outputPath),
       ]);
     }
     releaseEngine(healthy ? ffmpeg : undefined);
   }
+}
+
+export async function cleanVideo(
+  file: File,
+  progress?: CleaningProgress,
+  maxOutputBytes = Infinity,
+): Promise<Blob> {
+  const bytes = await cleanVideoBytes(file, progress, maxOutputBytes);
+  return new Blob([bytes], { type: "video/mp4" });
 }

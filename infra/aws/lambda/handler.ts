@@ -182,6 +182,8 @@ async function cleanupExpiredDeliveries() {
   }
 }
 
+const inFlightInventorySyncs = new Map<string, Promise<void>>();
+
 async function handleS3Storage(req: Request, db: any): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -227,8 +229,10 @@ async function handleS3Storage(req: Request, db: any): Promise<Response> {
   }
 
   const key = `${bucket}/${body.path}`;
-  const inventory = (owner: string) =>
-    syncStorageInventory(db, owner, (prefix, continuation) =>
+  const inventory = (owner: string) => {
+    const existing = inFlightInventorySyncs.get(owner);
+    if (existing) return existing;
+    const task = syncStorageInventory(db, owner, (prefix, continuation) =>
       s3Client.send(
         new ListObjectsV2Command({
           Bucket: S3_BUCKET,
@@ -236,7 +240,12 @@ async function handleS3Storage(req: Request, db: any): Promise<Response> {
           ContinuationToken: continuation,
         }),
       ),
-    );
+    ).finally(() => {
+      inFlightInventorySyncs.delete(owner);
+    });
+    inFlightInventorySyncs.set(owner, task);
+    return task;
+  };
 
   if (body.action === "quota") {
     const owner = body.path.split("/")[0];

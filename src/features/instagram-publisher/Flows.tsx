@@ -425,6 +425,8 @@ export default function Flows({
       toast.error("Escolha uma imagem JPG ou PNG para a capa.");
       return;
     }
+    const isFreshBatch =
+      activeUploadWorkers.current === 0 && pendingUploads.current.length === 0;
     const sources: UploadSource[] = sourceUrl ? [{ reelUrl: sourceUrl }] : files.map(file => ({ file }));
     const jobs = sources.map(source => ({
       ...source,
@@ -435,13 +437,17 @@ export default function Flows({
       index: nextUploadIndex.current++,
     }));
     pendingUploads.current.push(...jobs);
-    if (files.length) setChosenFiles(previous => [...previous, ...files]);
-    setUploadItems(previous => [...previous, ...jobs.map(job => ({
+    if (files.length) {
+      setChosenFiles(previous => (isFreshBatch ? [...files] : [...previous, ...files]));
+    }
+    const queuedEntries = jobs.map(job => ({
       index: job.index, name: job.name, status: "pending" as const, message: "Na fila",
-    }))]);
+    }));
+    setUploadItems(previous => (isFreshBatch ? queuedEntries : [...previous, ...queuedEntries]));
     unlockAudio();
     setUploadInProgress(true);
     const FLOW_UPLOAD_CONCURRENCY = 3;
+    const noopProgress = () => {};
 
     async function runUploadWorker() {
       activeUploadWorkers.current += 1;
@@ -455,11 +461,19 @@ export default function Flows({
             }
             const file = job.file ?? await importReelFile(job.reelUrl!);
             const result = await addMedia(
-              [file], job.userId, job.kind, job.folder, setProgress,
+              [file], job.userId, job.kind, job.folder, noopProgress,
               {
-                onItem: item => setUploadItems(previous => previous.map(entry =>
-                  entry.index === job.index ? { ...item, index: job.index } : entry,
-                )),
+                onItem: item => setUploadItems(previous => {
+                  const idx = previous.findIndex(entry => entry.index === job.index);
+                  if (idx === -1) return previous;
+                  const existing = previous[idx];
+                  if (existing.status === item.status && existing.message === item.message) {
+                    return previous;
+                  }
+                  const next = previous.slice();
+                  next[idx] = { ...item, index: job.index };
+                  return next;
+                }),
                 onSaved: saved => {
                   if (saved.url.endsWith(".mp4")) playConfirmation("uploaded");
                   cache.setQueryData<Awaited<ReturnType<typeof loadFlowData>>>(key, previous =>
@@ -471,7 +485,9 @@ export default function Flows({
             );
             batchCounters.current.saved += result.ids.length;
             batchCounters.current.errors += result.errors.length;
-            if (job.kind !== "cover") setSelected(previous => [...new Set([...previous, ...result.ids])]);
+            if (job.kind !== "cover" && result.ids.length > 0) {
+              setSelected(previous => [...new Set([...previous, ...result.ids])]);
+            }
           } catch (error) {
             batchCounters.current.errors += 1;
             const message = error instanceof Error ? error.message : "Não foi possível processar o arquivo.";
@@ -1350,7 +1366,11 @@ export default function Flows({
             >
               <input
                 type="file"
-                accept={isTrialFlow ? "video/mp4" : "image/jpeg,image/png,video/mp4"}
+                accept={
+                  isTrialFlow
+                    ? "video/mp4,video/quicktime,.mp4,.mov"
+                    : "image/jpeg,image/png,video/mp4,video/quicktime,.jpg,.jpeg,.png,.mp4,.mov"
+                }
                 aria-label="Adicionar mídias à fila"
                 multiple
                 disabled={busy}
@@ -1601,17 +1621,42 @@ export default function Flows({
                 })}
               </div>
             ) : (
-              <label className="ig-empty-dropzone">
+              <label
+                className={`ig-empty-dropzone ${dragOver ? "is-dragover" : ""}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (!dragOver) setDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOver(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOver(false);
+                  if (!busy && e.dataTransfer.files.length) {
+                    void upload(Array.from(e.dataTransfer.files));
+                  }
+                }}
+              >
                 <Upload size={18} className="text-muted-foreground" />
                 <span className="text-xs font-medium text-foreground">
                   Nenhuma mídia nesta pasta
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  Arraste arquivos JPG, PNG ou MP4 aqui ou clique para enviar
+                  {isTrialFlow
+                    ? "Arraste vídeos MP4 aqui ou clique para enviar"
+                    : "Arraste arquivos JPG, PNG ou MP4 aqui ou clique para enviar"}
                 </span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,video/mp4"
+                  accept={
+                    isTrialFlow
+                      ? "video/mp4,video/quicktime,.mp4,.mov"
+                      : "image/jpeg,image/png,video/mp4,video/quicktime,.jpg,.jpeg,.png,.mp4,.mov"
+                  }
                   aria-label="Adicionar mídias à pasta vazia"
                   multiple
                   disabled={busy}

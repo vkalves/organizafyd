@@ -10,7 +10,7 @@ export async function syncStorageInventory(
   user: string,
   list: (prefix: string, continuation?: string) => Promise<Page>,
 ) {
-  const started = new Date().toISOString();
+  const started = new Date(Date.now() - 5_000).toISOString();
   const objects: InventoryObject[] = [];
   for (const bucket of Object.keys(buckets)) {
     const prefix = `${bucket}/${user}/`;

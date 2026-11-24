@@ -7,7 +7,12 @@ vi.mock("@ffmpeg/ffmpeg", () => ({
     load = vi.fn(async () => {
       this.loaded = true;
     });
-    writeFile = vi.fn();
+    writeFile = vi.fn(async (_path: string, data: Uint8Array) => {
+      // Real @ffmpeg/ffmpeg transfers data.buffer to the Web Worker, detaching it!
+      if (data instanceof Uint8Array && data.buffer.byteLength > 0) {
+        structuredClone(data.buffer, { transfer: [data.buffer] });
+      }
+    });
     readFile = vi.fn(async () => new Uint8Array([1, 2, 3]));
     deleteFile = vi.fn();
     terminate = vi.fn();
@@ -160,5 +165,32 @@ it("stream-copies both H.264 video and mp4a audio on standard MP4 Reels without 
   expect(args).toContain("-c:a");
   expect(args[args.indexOf("-c:a") + 1]).toBe("copy");
   expect(args).toContain("filter_units=remove_types=6");
+});
+
+it("processes a large queue of 30 videos (3 at a time) and recycles WASM workers to prevent memory exhaustion", async () => {
+  let active = 0;
+  let maxActive = 0;
+  mocks.exec.mockImplementation(async () => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await Promise.resolve();
+    active -= 1;
+    return 0;
+  });
+
+  const { cleanVideoBytes } = await import("./clean-video");
+  const results = await Promise.all(
+    Array.from({ length: 30 }, () =>
+      cleanVideoBytes({ arrayBuffer: async () => new ArrayBuffer(4) } as File),
+    ),
+  );
+
+  expect(results).toHaveLength(30);
+  expect(maxActive).toBeLessThanOrEqual(3);
+  // 30 videos / 8 max uses per worker => recycled workers were terminated and replaced cleanly
+  const terminatedCount = (
+    mocks.instances as Array<{ terminate: ReturnType<typeof vi.fn> }>
+  ).filter((inst) => inst.terminate.mock.calls.length > 0).length;
+  expect(terminatedCount).toBeGreaterThanOrEqual(2);
 });
 

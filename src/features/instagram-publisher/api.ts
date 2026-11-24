@@ -257,12 +257,27 @@ export async function uploadMedia(
           : null;
     if (!ext || file.size > 100 * 1024 * 1024)
       throw new Error("Use JPG ou MP4, com até 100 MB por arquivo.");
-    const path = userId + "/" + crypto.randomUUID() + "." + ext;
     progress?.("Enviando arquivo limpo…");
-    const { error } = await storage
+    let path = userId + "/" + crypto.randomUUID() + "." + ext;
+    let uploadRes = await storage
       .from("instagram-publisher")
       .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
-    if (error) throw new Error(error.message || "Falha no upload. Tente novamente.");
+    if (
+      uploadRes.error &&
+      !/Limite de armazenamento|solicite mais espaço/i.test(
+        uploadRes.error.message || "",
+      )
+    ) {
+      await new Promise((r) => setTimeout(r, 600));
+      path = userId + "/" + crypto.randomUUID() + "." + ext;
+      uploadRes = await storage
+        .from("instagram-publisher")
+        .upload(path, cleaned, { contentType: cleaned.type, upsert: false });
+    }
+    if (uploadRes.error)
+      throw new Error(
+        uploadRes.error.message || "Falha no upload. Tente novamente.",
+      );
     result[index] = "storage://" + path;
   }
 

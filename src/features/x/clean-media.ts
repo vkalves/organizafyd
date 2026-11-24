@@ -56,13 +56,34 @@ async function cleanImage(file: File, outputType = file.type): Promise<Blob> {
     image.close();
   }
 }
+function resolveMediaType(file: File): string {
+  const raw = (file.type || "").toLowerCase();
+  if (raw === "image/jpeg" || raw === "image/jpg") return "image/jpeg";
+  if (raw === "image/png") return "image/png";
+  if (
+    raw === "video/mp4" ||
+    raw === "video/quicktime" ||
+    raw === "video/x-m4v" ||
+    raw === "application/mp4"
+  ) {
+    return "video/mp4";
+  }
+  if (!raw && file.name) {
+    if (/\.jpe?g$/i.test(file.name)) return "image/jpeg";
+    if (/\.png$/i.test(file.name)) return "image/png";
+    if (/\.(mp4|mov|m4v)$/i.test(file.name)) return "video/mp4";
+  }
+  return raw;
+}
+
 export async function cleanMedia(
   file: File,
   options?: { maxBytes: number; jpeg?: boolean; onProgress?: CleaningProgress },
 ): Promise<File> {
+  const mediaType = options ? resolveMediaType(file) : file.type;
   if (options) {
     if (
-      !["image/jpeg", "image/png", "video/mp4"].includes(file.type) ||
+      !["image/jpeg", "image/png", "video/mp4"].includes(mediaType) ||
       !file.size ||
       file.size > options.maxBytes
     )
@@ -72,28 +93,33 @@ export async function cleanMedia(
   } else validateFile(file);
   // Instagram accepts JPEG photos; decoding also applies EXIF orientation.
   const outputType =
-    options?.jpeg && file.type.startsWith("image/") ? "image/jpeg" : file.type;
+    options?.jpeg && mediaType.startsWith("image/") ? "image/jpeg" : mediaType;
   let blob: Blob;
   try {
-    const video = file.type === "video/mp4";
+    const video = mediaType === "video/mp4";
     const workerAvailable = typeof Worker !== "undefined";
     if (video) {
-      blob = await (
-        await import("./clean-video")
-      ).cleanVideo(
-        file,
-        options?.onProgress,
-        options?.maxBytes ?? MAX_VIDEO_BYTES,
-      );
+      const videoCleaner = await import("./clean-video");
+      const rawBytes = videoCleaner.cleanVideoBytes
+        ? await videoCleaner.cleanVideoBytes(
+            file,
+            options?.onProgress,
+            options?.maxBytes ?? MAX_VIDEO_BYTES,
+          )
+        : new Uint8Array(
+            await (
+              await videoCleaner.cleanVideo(
+                file,
+                options?.onProgress,
+                options?.maxBytes ?? MAX_VIDEO_BYTES,
+              )
+            ).arrayBuffer(),
+          );
       options?.onProgress?.("verifying");
       // stripVideoMetadata walks only MP4 box headers (<0.1ms in-place) — avoid
-      // cloning the entire video buffer across a second Web Worker boundary.
+      // cloning the entire video buffer across extra Blob/Worker boundaries.
       blob = new Blob(
-        [
-          stripVideoMetadata(new Uint8Array(await blob.arrayBuffer()), {
-            inPlace: true,
-          }),
-        ],
+        [stripVideoMetadata(rawBytes, { inPlace: true })],
         { type: outputType },
       );
     } else if (workerAvailable && typeof OffscreenCanvas !== "undefined") {

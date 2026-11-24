@@ -14,7 +14,11 @@ export const videoCleanCommand = (input: string, output: string) => [
   "-map_chapters",
   "-1",
   "-vf",
-  "pad=ceil(iw/2)*2:ceil(ih/2)*2,sidedata=delete",
+  "scale=if(gt(iw\\,ih)\\,min(1920\\,iw)\\,min(1080\\,iw)):if(gt(iw\\,ih)\\,min(1080\\,ih)\\,min(1920\\,ih)):flags=fast_bilinear:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2,sidedata=delete",
+  "-fps_mode",
+  "vfr",
+  "-r",
+  "30",
   "-c:v",
   "libx264",
   "-preset",
@@ -132,7 +136,7 @@ function readMp4Children(
   view: DataView,
   start: number,
   end: number,
-  allowTrailingZeroes = false,
+  allowTrailingZeroes = true,
 ): Mp4Box[] | null {
   const boxes: Mp4Box[] = [];
   for (let position = start; position < end; ) {
@@ -194,7 +198,7 @@ function isEightBit420Sps(nal: Uint8Array) {
     return false;
   if (readUnsignedExpGolomb() === null) return false; // seq_parameter_set_id
   if ([66, 77, 88].includes(profile)) return true;
-  if (![100, 110].includes(profile)) return false;
+  if (![100, 110, 122, 244, 44].includes(profile)) return false;
   const chromaFormat = readUnsignedExpGolomb();
   if (chromaFormat !== 1) return false;
   const lumaDepth = readUnsignedExpGolomb();
@@ -228,7 +232,7 @@ export type FastRemuxInspection = {
   canCopyAudio: boolean;
 };
 
-/** Inspects whether an MP4 can fast-remux H.264 video and stream-copy AAC audio. */
+/** Inspects whether an MP4 can fast-remux H.264 video (0:v:0) and stream-copy AAC audio (0:a:0?). */
 export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
   try {
     const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
@@ -251,9 +255,10 @@ export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
       moovs[0].end,
     );
     if (!moovChildren) return { canRemuxVideo: false, canCopyAudio: false };
-    let videoTracks = 0;
-    let audioTracks = 0;
-    let allAudioMp4a = true;
+    let checkedFirstVideo = false;
+    let firstVideoValid = false;
+    let checkedFirstAudio = false;
+    let firstAudioMp4a = true;
 
     for (const track of moovChildren.filter((box) => box.type === "trak")) {
       const trackChildren = readMp4Children(input, view, track.body, track.end);
@@ -279,20 +284,22 @@ export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
       const stsd = stblChildren?.find((box) => box.type === "stsd");
 
       if (handlerType === "soun") {
-        audioTracks++;
-        if (!stsd || stsd.body + 8 > stsd.end || view.getUint32(stsd.body + 4) !== 1) {
-          allAudioMp4a = false;
-        } else {
-          const audioEntry = readMp4Box(input, view, stsd.body + 8, stsd.end);
-          if (!audioEntry || audioEntry.type !== "mp4a") {
-            allAudioMp4a = false;
+        if (!checkedFirstAudio) {
+          checkedFirstAudio = true;
+          if (!stsd || stsd.body + 8 > stsd.end || view.getUint32(stsd.body + 4) !== 1) {
+            firstAudioMp4a = false;
+          } else {
+            const audioEntry = readMp4Box(input, view, stsd.body + 8, stsd.end);
+            if (!audioEntry || audioEntry.type !== "mp4a") {
+              firstAudioMp4a = false;
+            }
           }
         }
         continue;
       }
 
-      if (handlerType !== "vide") continue;
-      videoTracks++;
+      if (handlerType !== "vide" || checkedFirstVideo) continue;
+      checkedFirstVideo = true;
       const tkhd = trackChildren?.find((box) => box.type === "tkhd");
       if (!tkhd || !hasIdentityTrackMatrix(input, view, tkhd)) {
         return { canRemuxVideo: false, canCopyAudio: false };
@@ -306,7 +313,7 @@ export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
       const entry = readMp4Box(input, view, stsd.body + 8, stsd.end);
       if (
         !entry ||
-        entry.end !== stsd.end ||
+        (entry.end !== stsd.end && !isTrailingZeroPadding(input, entry.end, stsd.end)) ||
         (entry.type !== "avc1" && entry.type !== "avc3")
       ) {
         return { canRemuxVideo: false, canCopyAudio: false };
@@ -329,12 +336,12 @@ export function inspectFastRemuxMp4(input: Uint8Array): FastRemuxInspection {
       if (!avcC || !hasEightBit420AvcC(input, view, avcC)) {
         return { canRemuxVideo: false, canCopyAudio: false };
       }
+      firstVideoValid = true;
     }
 
-    const canRemuxVideo = videoTracks === 1;
     return {
-      canRemuxVideo,
-      canCopyAudio: canRemuxVideo && audioTracks <= 1 && allAudioMp4a,
+      canRemuxVideo: firstVideoValid,
+      canCopyAudio: firstVideoValid && firstAudioMp4a,
     };
   } catch {
     return { canRemuxVideo: false, canCopyAudio: false };
