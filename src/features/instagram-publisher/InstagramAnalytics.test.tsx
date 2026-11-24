@@ -298,5 +298,96 @@ describe("Views, likes, followers and folder organization", () => {
     expect(screen.getByText("7 curtidas")).toBeInTheDocument();
     expect(screen.getByText("Aguardando views da Meta…")).toBeInTheDocument();
   });
+
+  it("shows general followers ranking when no folder is selected and scopes ranking to the selected folder", async () => {
+    saveAccountFolders("owner", ["Fitness", "Moda"]);
+    saveAccountMeta("owner", {
+      a: { model: "M1", folder: "Fitness", dailyTarget: 5, notes: "" },
+      b: { model: "M2", folder: "Moda", dailyTarget: 5, notes: "" },
+      c: { model: "M3", folder: "Fitness", dailyTarget: 5, notes: "" },
+    });
+    request.mockResolvedValueOnce({
+      checked_at: new Date().toISOString(),
+      accounts: [
+        {
+          account_id: "a",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "alfa",
+            name: "Alfa",
+            followers_count: 4200,
+            follows_count: 100,
+            media_count: 10,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [],
+        },
+        {
+          account_id: "b",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "beta",
+            name: "Beta",
+            followers_count: 19500,
+            follows_count: 150,
+            media_count: 25,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [],
+        },
+        {
+          account_id: "c",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "gama",
+            name: "Gama",
+            followers_count: 9100,
+            follows_count: 80,
+            media_count: 15,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [],
+        },
+      ],
+    });
+    renderAnalytics();
+
+    const panel = await screen.findByTestId("followers-ranking");
+    expect(within(panel).getByText("Ranking geral de seguidores")).toBeInTheDocument();
+
+    // General ranking across all connected accounts: 1º @beta (19.500), 2º @gama (9.100), 3º @alfa (4.200)
+    let rows = within(panel).getAllByTestId("followers-ranking-row");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent("1º");
+    expect(rows[0]).toHaveTextContent("@beta");
+    expect(rows[0]).toHaveTextContent("19.500 seguidores");
+    expect(rows[1]).toHaveTextContent("2º");
+    expect(rows[1]).toHaveTextContent("@gama");
+    expect(rows[2]).toHaveTextContent("3º");
+    expect(rows[2]).toHaveTextContent("@alfa");
+
+    // Select folder "Fitness" -> only @gama (1º, 9.100) and @alfa (2º, 4.200) appear in the ranking
+    fireEvent.change(screen.getByLabelText("Pasta"), { target: { value: "Fitness" } });
+    expect(within(panel).getByText("Ranking de seguidores · Fitness")).toBeInTheDocument();
+    rows = within(panel).getAllByTestId("followers-ranking-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("1º");
+    expect(rows[0]).toHaveTextContent("@gama");
+    expect(rows[1]).toHaveTextContent("2º");
+    expect(rows[1]).toHaveTextContent("@alfa");
+    expect(within(panel).queryByText("@beta")).not.toBeInTheDocument();
+
+    // Click "Ranking geral" -> restores site-wide followers ranking
+    fireEvent.click(within(panel).getByRole("button", { name: "Ranking geral" }));
+    expect(within(panel).getByText("Ranking geral de seguidores")).toBeInTheDocument();
+    expect(within(panel).getAllByTestId("followers-ranking-row")).toHaveLength(3);
+  });
 });
+
 

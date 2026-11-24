@@ -301,6 +301,53 @@ export function InstagramAnalytics() {
     });
   }, [allReportAccounts, folderGroups, selectedSet, folder]);
 
+  const selectedRankingFolder = useMemo(() => {
+    if (folder !== "*") {
+      return { folder, label: folder || "Sem pasta" };
+    }
+    if (selectedSet !== null && selectedSet.size > 0) {
+      const matched = folderSummaries.find(
+        (group) =>
+          group.accountIds.length > 0 &&
+          selectedSet.size === group.accountIds.length &&
+          group.accountIds.every((id) => selectedSet.has(id)),
+      );
+      if (matched) {
+        return { folder: matched.folder, label: matched.label };
+      }
+    }
+    return null;
+  }, [folder, selectedSet, folderSummaries]);
+
+  const followersRanking = useMemo(() => {
+    const scoped = selectedRankingFolder
+      ? allReportAccounts.filter((a) => a.folder === selectedRankingFolder.folder)
+      : allReportAccounts;
+    const rows = [...scoped].sort((a, b) => {
+      if (a.followers === null && b.followers === null) {
+        return a.account_id.localeCompare(b.account_id);
+      }
+      if (a.followers === null) return 1;
+      if (b.followers === null) return -1;
+      if (b.followers !== a.followers) return b.followers - a.followers;
+      const growthA = a.newFollowers28d ?? a.delta7d ?? -Infinity;
+      const growthB = b.newFollowers28d ?? b.delta7d ?? -Infinity;
+      if (growthB !== growthA) return growthB - growthA;
+      return a.account_id.localeCompare(b.account_id);
+    });
+    const measuredRows = rows.filter(
+      (r): r is typeof r & { followers: number } => r.followers !== null,
+    );
+    const totalRankedFollowers = measuredRows.reduce((s, r) => s + r.followers, 0);
+    const maxRankedFollowers = Math.max(1, ...measuredRows.map((r) => r.followers));
+    return {
+      rows,
+      measuredCount: measuredRows.length,
+      totalFollowers: measuredRows.length ? totalRankedFollowers : null,
+      maxFollowers: maxRankedFollowers,
+    };
+  }, [allReportAccounts, selectedRankingFolder]);
+
   const rankedVideos = useMemo(() => {
     if (rankBy === "likes") {
       return [...likedVideos].sort((a, b) => b.likes - a.likes || (b.views ?? 0) - (a.views ?? 0));
@@ -726,6 +773,160 @@ export function InstagramAnalytics() {
             Seguidores refletem o total atual reportado pela API oficial da Meta para cada conta.
             O filtro seleciona a data de publicação; dados indisponíveis não são tratados como zero.
           </p>
+
+          {/* Followers Ranking (scoped to selected folder or site-wide general ranking) */}
+          <div
+            data-testid="followers-ranking"
+            aria-label="Ranking de seguidores"
+            className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-medium">
+                  {selectedRankingFolder
+                    ? `Ranking de seguidores · ${selectedRankingFolder.label}`
+                    : "Ranking geral de seguidores"}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {selectedRankingFolder
+                    ? `Contas conectadas na pasta ${selectedRankingFolder.label} (${followersRanking.rows.length})`
+                    : `Todas as contas conectadas ao site (${followersRanking.rows.length})`}
+                  {followersRanking.totalFollowers !== null &&
+                    ` · Soma no ranking: ${number(followersRanking.totalFollowers)} seg.`}
+                </p>
+              </div>
+              {folderSummaries.length > 0 && (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Escopo do ranking de seguidores">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={selectedRankingFolder === null ? "default" : "outline"}
+                    onClick={selectAllAccounts}
+                  >
+                    Ranking geral
+                  </Button>
+                  {folderSummaries.map((group) => {
+                    const active = selectedRankingFolder?.folder === group.folder;
+                    return (
+                      <Button
+                        key={`rank-folder-${group.folder || "__unassigned__"}`}
+                        type="button"
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        onClick={() => {
+                          setAccount("all");
+                          setSelectedIds(null);
+                          setFolder((cur) => (cur === group.folder ? "*" : group.folder));
+                        }}
+                      >
+                        {`Ranking: ${group.label}`}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {!followersRanking.rows.length ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma conta conectada nesta pasta para montar o ranking de seguidores.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {(() => {
+                  let rankPosition = 0;
+                  return followersRanking.rows.map((row) => {
+                    const hasFollowers = row.followers !== null;
+                    if (hasFollowers) rankPosition += 1;
+                    const position = hasFollowers ? rankPosition : null;
+                    const pctOfLeader =
+                      hasFollowers && row.followers! > 0
+                        ? Math.max(4, Math.round((row.followers! / followersRanking.maxFollowers) * 100))
+                        : 0;
+                    const sharePct =
+                      hasFollowers && followersRanking.totalFollowers && followersRanking.totalFollowers > 0
+                        ? ((row.followers! / followersRanking.totalFollowers) * 100).toLocaleString("pt-BR", {
+                            maximumFractionDigits: 1,
+                          })
+                        : null;
+                    return (
+                      <div
+                        key={`followers-rank-${row.account_id}`}
+                        data-testid="followers-ranking-row"
+                        className={`rounded-xl border p-3 space-y-2 transition-colors ${
+                          position === 1
+                            ? "border-primary/40 bg-primary/[0.06]"
+                            : "border-white/10 bg-background/40"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold shrink-0 ${
+                                position === 1
+                                  ? "bg-primary text-primary-foreground"
+                                  : position !== null && position <= 3
+                                    ? "border border-primary/40 bg-primary/15 text-foreground"
+                                    : "border border-white/10 text-muted-foreground"
+                              }`}
+                            >
+                              {position !== null ? `${position}º` : "—"}
+                            </span>
+                            {row.profile?.profile_picture_url && (
+                              <img
+                                src={row.profile.profile_picture_url}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                className="h-8 w-8 rounded-full object-cover shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <strong className="truncate text-sm">{name(row.account_id)}</strong>
+                                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                  {row.folder || "Sem pasta"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                                {sharePct !== null && <span>{sharePct}% dos seguidores do ranking</span>}
+                                {row.newFollowers28d !== null ? (
+                                  <span>+{number(row.newFollowers28d)} novos (28d)</span>
+                                ) : row.delta7d !== null ? (
+                                  <span>{signed(row.delta7d)} (7d)</span>
+                                ) : row.delta30d !== null ? (
+                                  <span>{signed(row.delta30d)} (30d)</span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {hasFollowers ? (
+                              <strong className="text-sm">
+                                {number(row.followers!)}{" "}
+                                {row.followers === 1 ? "seguidor" : "seguidores"}
+                              </strong>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Seguidores indisponíveis
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${pctOfLeader}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </div>
 
           {/* Per-account detailed cards */}
           <div className="space-y-3">
