@@ -1,6 +1,10 @@
 import { processInWorker } from "./media-worker-client";
 import type { CleaningProgress } from "./clean-video";
 import { stripImageMetadata, stripVideoMetadata } from "./strip-metadata";
+import {
+  getFilePoster,
+  setFilePoster,
+} from "@/features/instagram-publisher/video-poster";
 /** Reconstruct media before upload. Originals never enter Storage. */
 export type MediaStage = "cleaning" | "uploading";
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -105,6 +109,7 @@ export async function cleanMedia(
             file,
             options?.onProgress,
             options?.maxBytes ?? MAX_VIDEO_BYTES,
+            (posterUrl) => setFilePoster(file, posterUrl),
           )
         : new Uint8Array(
             await (
@@ -155,6 +160,10 @@ export async function cleanMedia(
     type: outputType,
     lastModified: 0,
   });
+  const extractedPoster = getFilePoster(file);
+  if (extractedPoster) {
+    setFilePoster(clean, extractedPoster);
+  }
   if (
     clean.size >
     (options?.maxBytes ??

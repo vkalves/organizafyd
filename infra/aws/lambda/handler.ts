@@ -306,12 +306,20 @@ async function handleS3Storage(req: Request, db: any): Promise<Response> {
     const object = await s3Head(S3_BUCKET, key);
     if (!object) return reply({ error: "not_found" }, 404);
     const expires = Math.max(60, Math.min(3600, Number(body.expiresIn) || 600));
+    const inferredContentType = /\.mp4$/i.test(key)
+      ? "video/mp4"
+      : /\.png$/i.test(key)
+        ? "image/png"
+        : /\.jpe?g$/i.test(key)
+          ? "image/jpeg"
+          : undefined;
     const signedUrl = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
         Bucket: S3_BUCKET,
         Key: key,
         ResponseContentDisposition: "inline",
+        ...(inferredContentType ? { ResponseContentType: inferredContentType } : {}),
         ResponseCacheControl: buckets[bucket].public ? "public,max-age=60" : "private,no-store",
       }),
       { expiresIn: expires },

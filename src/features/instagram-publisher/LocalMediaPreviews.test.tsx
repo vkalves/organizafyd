@@ -31,3 +31,26 @@ it("keeps a remaining preview URL stable as earlier files finish and bounds a la
   view.unmount();
   expect(revoke).toHaveBeenCalledTimes(9);
 });
+
+it("renders the FFmpeg WASM extracted poster immediately for HEVC videos while uploading", async () => {
+  const { setFilePoster } = await import("./video-poster");
+  const { act } = await import("@testing-library/react");
+  vi.stubGlobal("URL", {
+    createObjectURL: vi.fn(() => "blob:hevc"),
+    revokeObjectURL: vi.fn(),
+  });
+  const hevcFile = new File(["hevc"], "IMG_4356.MP4", { type: "" });
+  const view = render(<LocalMediaPreviews files={[hevcFile]} />);
+  expect(screen.getByLabelText("Prévia de IMG_4356.MP4")).toHaveAttribute("src", "blob:hevc");
+
+  act(() => {
+    setFilePoster(hevcFile, "data:image/jpeg;base64,thumbdata");
+  });
+
+  expect(screen.getByLabelText("Prévia de IMG_4356.MP4")).toHaveAttribute(
+    "poster",
+    "data:image/jpeg;base64,thumbdata",
+  );
+  const overlayImg = view.container.querySelector('img[src="data:image/jpeg;base64,thumbdata"]');
+  expect(overlayImg).toBeInTheDocument();
+});

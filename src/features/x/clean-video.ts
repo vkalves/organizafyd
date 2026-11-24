@@ -95,15 +95,26 @@ function releaseEngine(healthy?: FFmpeg) {
   }
 }
 
+function bytesToDataUrl(bytes: Uint8Array, mime: string): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
 export async function cleanVideoBytes(
   file: File,
   progress?: CleaningProgress,
   maxOutputBytes = Infinity,
+  onPoster?: (dataUrl: string) => void,
 ): Promise<Uint8Array> {
   const ffmpeg = await acquireEngine();
   const runId = ++nextRunId;
   const inputPath = `in-${runId}.mp4`;
   const outputPath = `out-${runId}.mp4`;
+  const thumbPath = `thumb-${runId}.jpg`;
   let healthy = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastProgress = 0;
@@ -126,6 +137,58 @@ export async function cleanVideoBytes(
       // transfers and detaches input.buffer when posting it to the Web Worker.
       const remuxInfo = inspectFastRemuxMp4(input);
       await ffmpeg.writeFile(inputPath, input);
+
+      // Extract a lightweight 1-frame JPEG thumbnail (~9 KB in ~150ms) so even
+      // iPhone HEVC/H.265 videos on Windows Chrome display an instant preview!
+      if (onPoster) {
+        try {
+          let thumbExit = await ffmpeg.exec(
+            [
+              "-ss",
+              "0.1",
+              "-i",
+              inputPath,
+              "-frames:v",
+              "1",
+              "-vf",
+              "scale=320:-2:flags=fast_bilinear",
+              "-q:v",
+              "5",
+              "-y",
+              thumbPath,
+            ],
+            15_000,
+          );
+          let thumbBytes =
+            thumbExit === 0 ? await ffmpeg.readFile(thumbPath).catch(() => null) : null;
+          if (!thumbBytes || typeof thumbBytes === "string" || thumbBytes.byteLength < 64) {
+            thumbExit = await ffmpeg.exec(
+              [
+                "-i",
+                inputPath,
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=320:-2:flags=fast_bilinear",
+                "-q:v",
+                "5",
+                "-y",
+                thumbPath,
+              ],
+              15_000,
+            );
+            thumbBytes =
+              thumbExit === 0 ? await ffmpeg.readFile(thumbPath).catch(() => null) : null;
+          }
+          if (thumbBytes && typeof thumbBytes !== "string" && thumbBytes.byteLength >= 64) {
+            onPoster(bytesToDataUrl(thumbBytes, "image/jpeg"));
+          }
+        } catch {
+          // Thumbnail extraction is best-effort and never blocks cleaning.
+        } finally {
+          await Promise.allSettled([ffmpeg.deleteFile(thumbPath)]);
+        }
+      }
 
       // Fast path: stream-copy H.264 video (+ AAC audio when already mp4a) while
       // removing H.264 SEI NAL units and all MP4 container/track metadata.

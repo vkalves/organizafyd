@@ -149,7 +149,33 @@ def ensure_s3_bucket(s3, bucket_name: str, region: str):
         s3.put_bucket_versioning(
             Bucket=bucket_name, VersioningConfiguration={"Status": "Enabled"}
         )
-        print(f"Created S3 bucket: {bucket_name}")
+    s3.put_bucket_cors(
+        Bucket=bucket_name,
+        CORSConfiguration={
+            "CORSRules": [
+                {
+                    "AllowedOrigins": ["*"],
+                    "AllowedMethods": ["GET", "HEAD"],
+                    "AllowedHeaders": ["*"],
+                    "ExposeHeaders": [
+                        "Accept-Ranges",
+                        "Content-Length",
+                        "Content-Range",
+                        "Content-Type",
+                        "ETag",
+                    ],
+                    "MaxAgeSeconds": 3600,
+                },
+                {
+                    "AllowedOrigins": ALLOWED_ORIGINS,
+                    "AllowedMethods": ["POST"],
+                    "AllowedHeaders": ["*"],
+                    "ExposeHeaders": ["ETag", "x-amz-request-id"],
+                    "MaxAgeSeconds": 3600,
+                },
+            ]
+        },
+    )
 
 
 def ensure_api_gateway(apigw, api_name="avanca-api"):

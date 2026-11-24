@@ -6,6 +6,7 @@ export function VideoPreview({
   label,
   className,
   controls = true,
+  poster,
   onError,
 }: {
   src: string;
@@ -13,6 +14,7 @@ export function VideoPreview({
   label: string;
   className: string;
   controls?: boolean;
+  poster?: string;
   onError?: () => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -26,10 +28,11 @@ export function VideoPreview({
     <video
       ref={ref}
       src={visible ? src : undefined}
+      poster={poster}
       controls={controls}
       muted
       playsInline
-      preload={visible ? "metadata" : "none"}
+      preload={visible ? "auto" : "none"}
       aria-label={label}
       onError={onError}
       onLoadedMetadata={(event) => {

@@ -140,7 +140,41 @@ jobs:
           s3 = session.client("s3")
           buckets = [b["Name"] for b in s3.list_buckets().get("Buckets", []) if "avanca" in b["Name"]]
           print("Avanca S3 buckets in account:", buckets)
+          cors_config = {
+              "CORSRules": [
+                  {
+                      "AllowedOrigins": ["*"],
+                      "AllowedMethods": ["GET", "HEAD"],
+                      "AllowedHeaders": ["*"],
+                      "ExposeHeaders": [
+                          "Accept-Ranges",
+                          "Content-Length",
+                          "Content-Range",
+                          "Content-Type",
+                          "ETag",
+                      ],
+                      "MaxAgeSeconds": 3600,
+                  },
+                  {
+                      "AllowedOrigins": [
+                          "https://xn--avana-1ra.online",
+                          "https://www.xn--avana-1ra.online",
+                          "https://organizafy.site",
+                          "https://www.organizafy.site",
+                          "https://organizafyd.vercel.app",
+                          "http://localhost:5173",
+                          "http://localhost:8080",
+                      ],
+                      "AllowedMethods": ["POST"],
+                      "AllowedHeaders": ["*"],
+                      "ExposeHeaders": ["ETag", "x-amz-request-id"],
+                      "MaxAgeSeconds": 3600,
+                  },
+              ]
+          }
           for bname in buckets:
+              s3.put_bucket_cors(Bucket=bname, CORSConfiguration=cors_config)
+              print(f"Applied GET/HEAD/POST CORS rules on S3 bucket: {bname}")
               objs = s3.list_objects_v2(Bucket=bname, Prefix="instagram-publisher/", MaxKeys=5).get("Contents", [])
               print(f"Bucket {bname} instagram-publisher object sample count:", len(objs))
 

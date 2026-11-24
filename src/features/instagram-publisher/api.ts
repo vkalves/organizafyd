@@ -3,6 +3,7 @@ import { storage } from '@/lib/storage';
 import { supabase, type SupabaseClient } from "@/integrations/supabase/client";
 import { validatePost, type Post } from "./model";
 import { cleanMedia } from "@/features/x/clean-media";
+import { getFilePoster, seedVideoPoster } from "./video-poster";
 export type PublisherAccount = {
   id: string;
   user_id: string;
@@ -278,7 +279,14 @@ export async function uploadMedia(
       throw new Error(
         uploadRes.error.message || "Falha no upload. Tente novamente.",
       );
-    result[index] = "storage://" + path;
+    const storageUrl = "storage://" + path;
+    if (ext === "mp4") {
+      const poster = getFilePoster(cleaned) || getFilePoster(file);
+      if (poster) {
+        seedVideoPoster(`${userId}:${storageUrl}`, poster);
+      }
+    }
+    result[index] = storageUrl;
   }
 
   async function worker() {
