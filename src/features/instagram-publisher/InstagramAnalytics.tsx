@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 const number = (n: number) => n.toLocaleString("pt-BR");
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${number(n)}`;
 type AccountReport = AnalyticsReport["accounts"][number];
-type RankMetric = "views" | "likes" | "interactions";
 
 function validCount(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
@@ -50,12 +49,6 @@ function followerDelta(
   return current - baseline.followers_count;
 }
 
-function interactionTotal(v: VideoMetric): number | null {
-  if (validCount(v.interactions)) return v.interactions;
-  const parts = [v.likes, v.comments, v.shares, v.saves].filter(validCount);
-  return parts.length ? parts.reduce((sum, n) => sum + n, 0) : null;
-}
-
 export function InstagramAnalytics() {
   const { user } = useAuth();
   const { report, loadingMore, loadMore, refreshMetrics } = useInstagramAnalytics(
@@ -67,7 +60,6 @@ export function InstagramAnalytics() {
   const [folder, setFolder] = useState("*");
   const [account, setAccount] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
-  const [rankBy, setRankBy] = useState<RankMetric>("views");
   const [newFolderName, setNewFolderName] = useState("");
   const [assignAccountId, setAssignAccountId] = useState("");
   const [assignFolderName, setAssignFolderName] = useState("");
@@ -77,6 +69,7 @@ export function InstagramAnalytics() {
   const [accountFolders, setAccountFolders] = useState<string[]>(() =>
     loadAccountFolders(user?.id),
   );
+
   useEffect(() => {
     const sync = () => {
       setAccountMeta(loadAccountMeta(user?.id));
@@ -94,7 +87,6 @@ export function InstagramAnalytics() {
     refetchInterval: 60_000,
   });
 
-  // Fallback to report account IDs so folders and selectors work even before listAccounts resolves.
   const knownAccounts = useMemo(() => {
     const map = new Map<string, { id: string; username: string }>();
     for (const a of names.data ?? []) map.set(a.id, a);
@@ -144,67 +136,21 @@ export function InstagramAnalytics() {
       const time = Date.parse(v.timestamp);
       return Number.isFinite(time) && time >= cutoff && time <= now + 300_000;
     });
-  const measured = videos
-    .filter((v): v is VideoMetric & { views: number } => validCount(v.views))
-    .sort((a, b) => b.views - a.views);
+  const measured = videos.filter((v): v is VideoMetric & { views: number } =>
+    validCount(v.views),
+  );
   const likedVideos = videos.filter((v): v is VideoMetric & { likes: number } =>
-    validCount(v.likes)
-  );
-  const commentedVideos = videos.filter((v): v is VideoMetric & { comments: number } =>
-    validCount(v.comments)
-  );
-  const sharedVideos = videos.filter((v): v is VideoMetric & { shares: number } =>
-    validCount(v.shares)
-  );
-  const savedVideos = videos.filter((v): v is VideoMetric & { saves: number } =>
-    validCount(v.saves)
-  );
-
-  const total = measured.reduce((sum, v) => sum + v.views, 0);
-  const totalLikes = likedVideos.reduce((sum, v) => sum + v.likes, 0);
-  const totalComments = commentedVideos.reduce((sum, v) => sum + v.comments, 0);
-  const totalShares = sharedVideos.reduce((sum, v) => sum + v.shares, 0);
-  const totalSaves = savedVideos.reduce((sum, v) => sum + v.saves, 0);
-
-  const accountsWithFollowers = accounts.filter((a) =>
-    validCount(a.profile?.followers_count)
-  );
-  const totalFollowers = accountsWithFollowers.reduce(
-    (sum, a) => sum + (a.profile?.followers_count ?? 0),
-    0,
-  );
-  const totalNewFollowers28d = accounts.reduce(
-    (acc, a) => {
-      const gain = a.overview?.new_followers;
-      if (validCount(gain)) {
-        acc.available = true;
-        acc.total += gain;
-      }
-      return acc;
-    },
-    { total: 0, available: false },
+    validCount(v.likes),
   );
 
   const summarizeAccount = (a: AccountReport) => {
     const accountVideos = videos.filter((v) => v.account_id === a.account_id);
     const rows = measured.filter((v) => v.account_id === a.account_id);
     const likesRows = accountVideos.filter((v): v is VideoMetric & { likes: number } =>
-      validCount(v.likes)
-    );
-    const commentsRows = accountVideos.filter((v): v is VideoMetric & { comments: number } =>
-      validCount(v.comments)
-    );
-    const sharesRows = accountVideos.filter((v): v is VideoMetric & { shares: number } =>
-      validCount(v.shares)
-    );
-    const savesRows = accountVideos.filter((v): v is VideoMetric & { saves: number } =>
-      validCount(v.saves)
+      validCount(v.likes),
     );
     const viewsTotal = rows.reduce((sum, v) => sum + v.views, 0);
     const likesTotal = likesRows.reduce((sum, v) => sum + v.likes, 0);
-    const commentsTotal = commentsRows.reduce((sum, v) => sum + v.comments, 0);
-    const sharesTotal = sharesRows.reduce((sum, v) => sum + v.shares, 0);
-    const savesTotal = savesRows.reduce((sum, v) => sum + v.saves, 0);
     const followers = validCount(a.profile?.followers_count)
       ? a.profile!.followers_count!
       : null;
@@ -226,12 +172,6 @@ export function InstagramAnalytics() {
           : hasGenuineZeroVideos
             ? 0
             : null;
-    const engagementBase = viewsTotal > 0 ? viewsTotal : followers && followers > 0 ? followers : null;
-    const interactionsSum = likesTotal + commentsTotal + sharesTotal + savesTotal;
-    const engagementRate =
-      engagementBase && (likesRows.length > 0 || rows.length > 0)
-        ? (interactionsSum / engagementBase) * 100
-        : null;
     return {
       ...a,
       folder: accountMeta[a.account_id]?.folder?.trim() || "",
@@ -243,27 +183,23 @@ export function InstagramAnalytics() {
       cardViews,
       cardLikes,
       hasGenuineZeroVideos,
-      commentsTotal,
-      sharesTotal,
-      savesTotal,
       followers,
-      follows: validCount(a.profile?.follows_count) ? a.profile!.follows_count! : null,
-      mediaCount: validCount(a.profile?.media_count) ? a.profile!.media_count! : null,
       delta7d: followerDelta(followers, a.followers_history, 7, now),
       delta30d: followerDelta(followers, a.followers_history, 30, now),
-      newFollowers28d: validCount(a.overview?.new_followers) ? a.overview!.new_followers! : null,
-      engagementRate,
+      newFollowers28d: validCount(a.overview?.new_followers)
+        ? a.overview!.new_followers!
+        : null,
     };
   };
 
   const accountTotals = accounts
     .map(summarizeAccount)
-    .sort((a, b) =>
-      b.total - a.total ||
-      b.likesTotal - a.likesTotal ||
-      (b.followers ?? -1) - (a.followers ?? -1)
+    .sort(
+      (a, b) =>
+        (b.cardViews ?? -1) - (a.cardViews ?? -1) ||
+        (b.cardLikes ?? -1) - (a.cardLikes ?? -1) ||
+        (b.followers ?? -1) - (a.followers ?? -1),
     );
-  const maxAccountViews = Math.max(1, ...accountTotals.map((a) => a.total));
 
   const allReportAccounts = useMemo(
     () => (report.data?.accounts ?? []).map(summarizeAccount),
@@ -280,26 +216,23 @@ export function InstagramAnalytics() {
       const withViews = items.filter((i) => i.cardViews !== null);
       const withLikes = items.filter((i) => i.cardLikes !== null);
       const withFollowers = items.filter((i) => i.followers !== null);
-      const viewsSum = withViews.reduce((s, i) => s + (i.cardViews ?? 0), 0);
-      const likesSum = withLikes.reduce((s, i) => s + (i.cardLikes ?? 0), 0);
-      const followersSum = withFollowers.reduce((s, i) => s + (i.followers ?? 0), 0);
-      const allIds = group.accounts.map((a) => a.id);
-      const activeCount = allIds.filter((id) =>
-        selectedSet ? selectedSet.has(id) : folder === "*" || folder === group.folder
-      ).length;
       return {
         folder: group.folder,
         label: group.label,
-        accountIds: allIds,
+        accountIds: group.accounts.map((a) => a.id),
         accountCount: group.accounts.length,
-        activeCount,
-        views: withViews.length ? viewsSum : null,
-        likes: withLikes.length ? likesSum : null,
-        followers: withFollowers.length ? followersSum : null,
-        measuredVideos: items.reduce((s, i) => s + i.count, 0),
+        views: withViews.length
+          ? withViews.reduce((s, i) => s + (i.cardViews ?? 0), 0)
+          : null,
+        likes: withLikes.length
+          ? withLikes.reduce((s, i) => s + (i.cardLikes ?? 0), 0)
+          : null,
+        followers: withFollowers.length
+          ? withFollowers.reduce((s, i) => s + (i.followers ?? 0), 0)
+          : null,
       };
     });
-  }, [allReportAccounts, folderGroups, selectedSet, folder]);
+  }, [allReportAccounts, folderGroups]);
 
   const selectedRankingFolder = useMemo(() => {
     if (folder !== "*") {
@@ -342,25 +275,38 @@ export function InstagramAnalytics() {
     const maxRankedFollowers = Math.max(1, ...measuredRows.map((r) => r.followers));
     return {
       rows,
-      measuredCount: measuredRows.length,
       totalFollowers: measuredRows.length ? totalRankedFollowers : null,
       maxFollowers: maxRankedFollowers,
     };
   }, [allReportAccounts, selectedRankingFolder]);
 
-  const rankedVideos = useMemo(() => {
-    if (rankBy === "likes") {
-      return [...likedVideos].sort((a, b) => b.likes - a.likes || (b.views ?? 0) - (a.views ?? 0));
-    }
-    if (rankBy === "interactions") {
-      return videos
-        .map((v) => ({ video: v, score: interactionTotal(v) }))
-        .filter((item): item is { video: VideoMetric; score: number } => item.score !== null)
-        .sort((a, b) => b.score - a.score)
-        .map((item) => item.video);
-    }
-    return measured;
-  }, [rankBy, measured, likedVideos, videos]);
+  // Executive KPIs across active filtered accounts
+  const activeWithViews = accountTotals.filter((a) => a.cardViews !== null);
+  const activeWithLikes = accountTotals.filter((a) => a.cardLikes !== null);
+  const activeWithFollowers = accountTotals.filter((a) => a.followers !== null);
+  const kpiViews = measured.length
+    ? measured.reduce((s, v) => s + v.views, 0)
+    : activeWithViews.length
+      ? activeWithViews.reduce((s, a) => s + (a.cardViews ?? 0), 0)
+      : null;
+  const kpiLikes = likedVideos.length
+    ? likedVideos.reduce((s, v) => s + v.likes, 0)
+    : activeWithLikes.length
+      ? activeWithLikes.reduce((s, a) => s + (a.cardLikes ?? 0), 0)
+      : null;
+  const kpiFollowers = activeWithFollowers.length
+    ? activeWithFollowers.reduce((s, a) => s + (a.followers ?? 0), 0)
+    : null;
+  const totalNewFollowers28d = accountTotals.reduce(
+    (acc, a) => {
+      if (a.newFollowers28d !== null) {
+        acc.available = true;
+        acc.total += a.newFollowers28d;
+      }
+      return acc;
+    },
+    { total: 0, available: false },
+  );
 
   const name = (id: string) => {
     const found =
@@ -405,7 +351,7 @@ export function InstagramAnalytics() {
 
   const handleCreateOrAssignFolder = () => {
     if (!user?.id) return;
-    const trimmed = (newFolderName.trim() || assignFolderName.trim());
+    const trimmed = newFolderName.trim() || assignFolderName.trim();
     if (!trimmed && !assignAccountId) return;
     let nextFolders = accountFolders;
     if (trimmed && !accountFolders.includes(trimmed)) {
@@ -432,154 +378,209 @@ export function InstagramAnalytics() {
   };
 
   return (
-    <section
-      className="operation-panel ig-panel space-y-6"
-      aria-label="Analytics do Instagram"
-    >
-      <div className="ig-panel-head flex-wrap">
-        <div>
-          <p className="ig-eyebrow">Performance · todas as contas</p>
-          <h2>Visualizações, curtidas e seguidores</h2>
-          <p className="text-sm text-muted-foreground">
-            Acompanhe visualizações, curtidas, engajamento e crescimento de seguidores de cada conta e pasta.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          disabled={report.isFetching || loadingMore}
-          onClick={() => { void names.refetch(); void refreshMetrics(); }}
-        >
-          {report.isFetching ? "Atualizando…" : "Atualizar métricas"}
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-4">
-        <label className="min-w-0 max-w-full text-sm">
-          Vídeos publicados
-          <select
-            className="block max-w-full rounded-md border bg-background p-2"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-          >
-            <option value="all">Todo o histórico consultado</option>
-            <option value="7">Últimos 7 dias</option>
-            <option value="30">Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
-          </select>
-        </label>
-        <label className="min-w-0 max-w-full text-sm">
-          Pasta
-          <select
-            className="block max-w-full rounded-md border bg-background p-2"
-            value={folder}
-            onChange={(e) => {
-              setFolder(e.target.value);
-              setAccount("all");
-              setSelectedIds(null);
-            }}
-          >
-            <option value="*">Todas as pastas</option>
-            <option value="">Sem pasta</option>
-            {availableFolders.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="min-w-0 max-w-full text-sm">
-          Conta
-          <select
-            className="block max-w-full rounded-md border bg-background p-2"
-            value={account}
-            onChange={(e) => {
-              setAccount(e.target.value);
-              setSelectedIds(null);
-            }}
-          >
-            <option value="all">Todas as contas</option>
-            {folderGroups
-              .filter((g) => folder === "*" || g.folder === folder)
-              .map((g) => (
-                <optgroup key={g.folder || "__unassigned__"} label={g.label}>
-                  {g.accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {name(a.id)}
-                    </option>
-                  ))}
-                </optgroup>
+    <section className="space-y-5" aria-label="Métricas do Instagram">
+      {/* Compact filter & sync bar */}
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-card p-3.5">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs text-muted-foreground">
+            Vídeos publicados
+            <select
+              className="mt-1 block h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+            >
+              <option value="all">Todo o histórico</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+            </select>
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Pasta
+            <select
+              className="mt-1 block h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+              value={folder}
+              onChange={(e) => {
+                setFolder(e.target.value);
+                setAccount("all");
+                setSelectedIds(null);
+              }}
+            >
+              <option value="*">Todas as pastas</option>
+              <option value="">Sem pasta</option>
+              {availableFolders.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
               ))}
-          </select>
-        </label>
-      </div>
-      {names.isError && (
-        <p role="alert">Não foi possível carregar os nomes das contas. Atualize as métricas para tentar novamente.</p>
-      )}
-      <InsightsPermissionNotice report={report.data} accounts={names.data ?? []} />
-      {report.isPending ? (
-        <p role="status">Consultando visualizações no Instagram…</p>
-      ) : report.isError ? (
-        <p role="alert">
-          Não foi possível carregar as métricas. Tente atualizar novamente.
-        </p>
-      ) : !report.data?.accounts.length ? (
-        <div className="rounded-xl border p-6 text-sm space-y-3">
-          <p>Nenhuma conta do Instagram conectada para analisar.</p>
-          <a className="underline" href="/avanca/conectar">Conectar conta do Instagram</a>
+            </select>
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Conta
+            <select
+              className="mt-1 block h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+              value={account}
+              onChange={(e) => {
+                setAccount(e.target.value);
+                setSelectedIds(null);
+              }}
+            >
+              <option value="all">Todas as contas</option>
+              {folderGroups
+                .filter((g) => folder === "*" || g.folder === folder)
+                .map((g) => (
+                  <optgroup key={g.folder || "__unassigned__"} label={g.label}>
+                    {g.accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {name(a.id)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+            </select>
+          </label>
         </div>
-      ) : (
-        <>
-          {!!accounts.some((a) => !a.complete || a.unavailable) && (
-            <p role="status" className="ig-warning">
-              Relatório parcial: ainda há publicações para consultar ou contas
-              indisponíveis. Carregue mais vídeos para ampliar o ranking e os
-              totais. Algumas métricas exigem permissão de insights.
-            </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {report.data && (
+            <span className="text-xs text-muted-foreground">
+              Tempo real (30s) ·{" "}
+              {new Date(report.data.checked_at).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           )}
           {report.data?.accounts.some((a) => a.nextCursor) && (
             <Button
+              size="sm"
               variant="outline"
               disabled={loadingMore || report.isFetching}
               onClick={() => void loadMore()}
             >
               {loadingMore
-                ? "Consultando mais vídeos…"
+                ? "Consultando…"
                 : "Carregar mais vídeos de todas as contas"}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={report.isFetching || loadingMore}
+            onClick={() => {
+              void names.refetch();
+              void refreshMetrics();
+            }}
+          >
+            {report.isFetching ? "Atualizando…" : "Atualizar métricas"}
+          </Button>
+        </div>
+      </div>
 
-          {/* Folder organization and multi-account filter */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="font-medium text-sm">Desempenho e seleção por pastas</h3>
-                <p className="text-xs text-muted-foreground">
-                  Selecione todas as contas, uma pasta inteira ou contas individuais para comparar visualizações, curtidas e seguidores.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={selectedIds === null && folder === "*" && account === "all" ? "default" : "outline"}
-                  onClick={selectAllAccounts}
-                >
-                  Todas as contas ({knownAccounts.length})
-                </Button>
-                {selectedIds !== null && (
+      {names.isError && (
+        <p role="alert" className="text-xs text-destructive">
+          Não foi possível carregar os nomes das contas. Atualize as métricas para tentar novamente.
+        </p>
+      )}
+      <InsightsPermissionNotice report={report.data} accounts={names.data ?? []} />
+
+      {report.isPending ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Consultando métricas no Instagram…
+        </p>
+      ) : report.isError ? (
+        <p role="alert" className="rounded-xl border border-border bg-card p-4 text-sm">
+          Não foi possível carregar as métricas. Tente atualizar novamente.
+        </p>
+      ) : !report.data?.accounts.length ? (
+        <div className="rounded-xl border border-border bg-card p-6 text-sm space-y-2">
+          <p>Nenhuma conta do Instagram conectada para analisar.</p>
+          <a className="underline text-xs" href="/avanca/conectar">
+            Conectar conta do Instagram
+          </a>
+        </div>
+      ) : (
+        <>
+          {!!accounts.some((a) => !a.complete || a.unavailable) && (
+            <p role="status" className="ig-warning text-xs">
+              Relatório parcial: há mais publicações para consultar ou contas indisponíveis.
+            </p>
+          )}
+
+          {/* 4 clean executive KPIs */}
+          <div className="ig-pulse">
+            <div className="ig-stat">
+              <span>Visualizações</span>
+              <strong>{kpiViews !== null ? number(kpiViews) : "—"}</strong>
+              <small>
+                {videos.length > 0
+                  ? `${measured.length}/${videos.length} vídeos medidos`
+                  : "Nenhum vídeo no período"}
+              </small>
+            </div>
+            <div className="ig-stat">
+              <span>Curtidas</span>
+              <strong>{kpiLikes !== null ? number(kpiLikes) : "—"}</strong>
+              <small>
+                {likedVideos.length > 0
+                  ? `Média ${number(Math.round((kpiLikes ?? 0) / likedVideos.length))}/vídeo`
+                  : "Total acumulado"}
+              </small>
+            </div>
+            <div className="ig-stat">
+              <span>Seguidores</span>
+              <strong>{kpiFollowers !== null ? number(kpiFollowers) : "—"}</strong>
+              <small>
+                {totalNewFollowers28d.available
+                  ? `${signed(totalNewFollowers28d.total)} nos últimos 28d`
+                  : "Total nas contas selecionadas"}
+              </small>
+            </div>
+            <div className="ig-stat">
+              <span>Contas ativas</span>
+              <strong>
+                {accounts.filter((a) => !a.unavailable).length}/{accounts.length}
+              </strong>
+              <small>
+                {selectedRankingFolder
+                  ? `Pasta: ${selectedRankingFolder.label}`
+                  : "Todas as pastas"}
+              </small>
+            </div>
+          </div>
+
+          {/* Clean folder strip */}
+          {folderSummaries.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-medium">Pastas</h2>
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedIds([])}
+                    variant={
+                      selectedIds === null && folder === "*" && account === "all"
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={selectAllAccounts}
                   >
-                    Limpar seleção ({selectedIds.length})
+                    Todas as contas ({knownAccounts.length})
                   </Button>
-                )}
+                  {selectedIds !== null && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSelectedIds([])}
+                    >
+                      Limpar ({selectedIds.length})
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {folderSummaries.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {folderSummaries.map((group) => {
                   const isFocused =
                     (selectedIds === null && folder === group.folder) ||
@@ -589,38 +590,40 @@ export function InstagramAnalytics() {
                   return (
                     <div
                       key={group.folder || "__unassigned__"}
-                      className={`rounded-xl border p-3 space-y-2 transition-colors ${
+                      className={`rounded-lg border p-3 space-y-2 transition-colors ${
                         isFocused
-                          ? "border-primary/60 bg-primary/5"
-                          : "border-white/10 bg-background/40"
+                          ? "border-primary/50 bg-primary/[0.04]"
+                          : "border-border bg-background/40"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <strong className="truncate text-sm">{group.label}</strong>
+                        <strong className="truncate text-xs font-medium">
+                          {group.label}
+                        </strong>
                         <Button
                           type="button"
                           size="sm"
                           variant={isFocused ? "default" : "outline"}
-                          onClick={() => toggleFolderSelection(group.folder, group.accountIds)}
+                          className="h-7 px-2.5 text-xs"
+                          onClick={() =>
+                            toggleFolderSelection(group.folder, group.accountIds)
+                          }
                         >
-                          {isFocused ? "Pasta selecionada" : `Selecionar pasta (${group.accountCount})`}
+                          {isFocused
+                            ? "Selecionada"
+                            : `Selecionar (${group.accountCount})`}
                         </Button>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <span className="block text-muted-foreground">Visualizações</span>
-                          <strong>{group.views !== null ? `${number(group.views)} vis.` : "—"}</strong>
-                        </div>
-                        <div>
-                          <span className="block text-muted-foreground">Curtidas</span>
-                          <strong>{group.likes !== null ? `${number(group.likes)} curt.` : "—"}</strong>
-                        </div>
-                        <div>
-                          <span className="block text-muted-foreground">Seguidores</span>
-                          <strong>{group.followers !== null ? `${number(group.followers)} seg.` : "—"}</strong>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        {group.views !== null ? `${number(group.views)} vis.` : "—"}
+                        {" · "}
+                        {group.likes !== null ? `${number(group.likes)} curt.` : "—"}
+                        {" · "}
+                        {group.followers !== null
+                          ? `${number(group.followers)} seg.`
+                          : "—"}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
                         {group.accountIds.map((id) => {
                           const checked = isAccountActive(id);
                           return (
@@ -629,10 +632,10 @@ export function InstagramAnalytics() {
                               type="button"
                               aria-pressed={checked}
                               onClick={() => toggleIndividualAccount(id)}
-                              className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                              className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
                                 checked
-                                  ? "border-primary bg-primary/15 text-foreground"
-                                  : "border-white/10 text-muted-foreground hover:text-foreground"
+                                  ? "border-primary/60 bg-primary/15 text-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {name(id)}
@@ -644,606 +647,273 @@ export function InstagramAnalytics() {
                   );
                 })}
               </div>
-            )}
 
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer select-none font-medium text-foreground/80 hover:text-foreground">
-                Organizar contas em pastas
-              </summary>
-              <div className="mt-3 flex flex-wrap items-end gap-3">
-                <label className="text-xs">
-                  Conta para mover
-                  <select
-                    aria-label="Conta para mover de pasta"
-                    className="mt-1 block rounded-md border bg-background p-1.5 text-xs text-foreground"
-                    value={assignAccountId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setAssignAccountId(id);
-                      setAssignFolderName(accountMeta[id]?.folder || "");
-                    }}
-                  >
-                    <option value="">Selecione uma conta</option>
-                    {knownAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {name(a.id)} ({folderLabel(a.id)})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs">
-                  Pasta existente
-                  <select
-                    aria-label="Pasta existente"
-                    className="mt-1 block rounded-md border bg-background p-1.5 text-xs text-foreground"
-                    value={assignFolderName}
-                    onChange={(e) => setAssignFolderName(e.target.value)}
-                  >
-                    <option value="">Sem pasta</option>
-                    {availableFolders.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs">
-                  Ou criar nova pasta
-                  <input
-                    type="text"
-                    placeholder="Ex.: Nicho Fitness"
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    className="mt-1 block rounded-md border bg-background p-1.5 text-xs text-foreground"
-                  />
-                </label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCreateOrAssignFolder}
-                >
-                  Salvar pasta
-                </Button>
-              </div>
-            </details>
-          </div>
-
-          <div className="ig-pulse">
-            {[
-              [
-                "Visualizações totais dos vídeos consultados",
-                measured.length ? number(total) : "—",
-              ],
-              [
-                "Curtidas totais dos vídeos consultados",
-                likedVideos.length ? number(totalLikes) : "—",
-              ],
-              [
-                "Seguidores totais das contas",
-                accountsWithFollowers.length ? number(totalFollowers) : "—",
-              ],
-              [
-                "Novos seguidores (28 dias)",
-                totalNewFollowers28d.available
-                  ? signed(totalNewFollowers28d.total)
-                  : "—",
-              ],
-              [
-                "Média por vídeo com métricas",
-                measured.length
-                  ? number(Math.round(total / measured.length))
-                  : "—",
-              ],
-              [
-                "Média de curtidas por vídeo",
-                likedVideos.length
-                  ? number(Math.round(totalLikes / likedVideos.length))
-                  : "—",
-              ],
-              ["Vídeos com métricas", `${measured.length}/${videos.length}`],
-              [
-                "Contas consultadas",
-                String(accounts.filter((a) => !a.unavailable).length),
-              ],
-            ].map(([label, value]) => (
-              <div className="ig-stat" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-
-          {(commentedVideos.length > 0 || sharedVideos.length > 0 || savedVideos.length > 0) && (
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              {commentedVideos.length > 0 && (
-                <span>Comentários acumulados: <strong className="text-foreground">{number(totalComments)}</strong></span>
-              )}
-              {sharedVideos.length > 0 && (
-                <span>Compartilhamentos: <strong className="text-foreground">{number(totalShares)}</strong></span>
-              )}
-              {savedVideos.length > 0 && (
-                <span>Salvamentos: <strong className="text-foreground">{number(totalSaves)}</strong></span>
-              )}
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            Visualizações e curtidas acumuladas de cada vídeo, incluindo repetições.
-            Seguidores refletem o total atual reportado pela API oficial da Meta para cada conta.
-            O filtro seleciona a data de publicação; dados indisponíveis não são tratados como zero.
-          </p>
-
-          {/* Followers Ranking (scoped to selected folder or site-wide general ranking) */}
-          <div
-            data-testid="followers-ranking"
-            aria-label="Ranking de seguidores"
-            className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="font-medium">
-                  {selectedRankingFolder
-                    ? `Ranking de seguidores · ${selectedRankingFolder.label}`
-                    : "Ranking geral de seguidores"}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {selectedRankingFolder
-                    ? `Contas conectadas na pasta ${selectedRankingFolder.label} (${followersRanking.rows.length})`
-                    : `Todas as contas conectadas ao site (${followersRanking.rows.length})`}
-                  {followersRanking.totalFollowers !== null &&
-                    ` · Soma no ranking: ${number(followersRanking.totalFollowers)} seg.`}
-                </p>
-              </div>
-              {folderSummaries.length > 0 && (
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Escopo do ranking de seguidores">
+              <details className="text-xs text-muted-foreground pt-1">
+                <summary className="cursor-pointer select-none hover:text-foreground">
+                  Gerenciar pastas
+                </summary>
+                <div className="mt-3 flex flex-wrap items-end gap-2.5">
+                  <label className="text-xs">
+                    Conta para mover
+                    <select
+                      aria-label="Conta para mover de pasta"
+                      className="mt-1 block h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                      value={assignAccountId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setAssignAccountId(id);
+                        setAssignFolderName(accountMeta[id]?.folder || "");
+                      }}
+                    >
+                      <option value="">Selecione</option>
+                      {knownAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {name(a.id)} ({folderLabel(a.id)})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs">
+                    Pasta de destino
+                    <select
+                      aria-label="Pasta existente"
+                      className="mt-1 block h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                      value={assignFolderName}
+                      onChange={(e) => setAssignFolderName(e.target.value)}
+                    >
+                      <option value="">Sem pasta</option>
+                      {availableFolders.map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs">
+                    Nova pasta
+                    <input
+                      type="text"
+                      placeholder="Nome da pasta"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      className="mt-1 block h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    />
+                  </label>
                   <Button
                     type="button"
                     size="sm"
-                    variant={selectedRankingFolder === null ? "default" : "outline"}
+                    variant="outline"
+                    className="h-8"
+                    onClick={handleCreateOrAssignFolder}
+                  >
+                    Salvar pasta
+                  </Button>
+                </div>
+              </details>
+            </div>
+          )}
+
+          {/* Main 2-column grid: Followers Ranking + Clean Account Table */}
+          <div className="grid gap-5 xl:grid-cols-12 items-start">
+            {/* Left: Followers Ranking */}
+            <div
+              data-testid="followers-ranking"
+              aria-label="Ranking de seguidores"
+              className="xl:col-span-5 rounded-xl border border-border bg-card p-4 space-y-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-medium">
+                    {selectedRankingFolder
+                      ? `Ranking de seguidores · ${selectedRankingFolder.label}`
+                      : "Ranking geral de seguidores"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedRankingFolder
+                      ? `${followersRanking.rows.length} conta(s) nesta pasta`
+                      : `Todas as ${followersRanking.rows.length} conta(s) do site`}
+                    {followersRanking.totalFollowers !== null &&
+                      ` · ${number(followersRanking.totalFollowers)} seg.`}
+                  </p>
+                </div>
+                {selectedRankingFolder && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
                     onClick={selectAllAccounts}
                   >
                     Ranking geral
                   </Button>
-                  {folderSummaries.map((group) => {
-                    const active = selectedRankingFolder?.folder === group.folder;
-                    return (
-                      <Button
-                        key={`rank-folder-${group.folder || "__unassigned__"}`}
-                        type="button"
-                        size="sm"
-                        variant={active ? "default" : "outline"}
-                        onClick={() => {
-                          setAccount("all");
-                          setSelectedIds(null);
-                          setFolder((cur) => (cur === group.folder ? "*" : group.folder));
-                        }}
-                      >
-                        {`Ranking: ${group.label}`}
-                      </Button>
-                    );
-                  })}
+                )}
+              </div>
+
+              {!followersRanking.rows.length ? (
+                <p className="text-xs text-muted-foreground py-3">
+                  Nenhuma conta conectada nesta pasta.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(() => {
+                    let rankPosition = 0;
+                    return followersRanking.rows.map((row) => {
+                      const hasFollowers = row.followers !== null;
+                      if (hasFollowers) rankPosition += 1;
+                      const position = hasFollowers ? rankPosition : null;
+                      const pctOfLeader =
+                        hasFollowers && row.followers! > 0
+                          ? Math.max(
+                              4,
+                              Math.round(
+                                (row.followers! / followersRanking.maxFollowers) * 100,
+                              ),
+                            )
+                          : 0;
+                      return (
+                        <div
+                          key={`followers-rank-${row.account_id}`}
+                          data-testid="followers-ranking-row"
+                          className="rounded-lg border border-border bg-background/40 p-2.5 space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold shrink-0 ${
+                                  position === 1
+                                    ? "bg-primary text-primary-foreground"
+                                    : "border border-border text-muted-foreground"
+                                }`}
+                              >
+                                {position !== null ? `${position}º` : "—"}
+                              </span>
+                              {row.profile?.profile_picture_url && (
+                                <img
+                                  src={row.profile.profile_picture_url}
+                                  alt=""
+                                  aria-hidden="true"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  className="h-7 w-7 rounded-full object-cover shrink-0"
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <strong className="block truncate text-xs font-medium">
+                                  {name(row.account_id)}
+                                </strong>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {row.folder || "Sem pasta"}
+                                  {row.newFollowers28d !== null
+                                    ? ` · +${number(row.newFollowers28d)} (28d)`
+                                    : row.delta7d !== null
+                                      ? ` · ${signed(row.delta7d)} (7d)`
+                                      : ""}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {hasFollowers ? (
+                                <strong className="text-xs font-semibold tabular-nums">
+                                  {number(row.followers!)}{" "}
+                                  {row.followers === 1 ? "seguidor" : "seguidores"}
+                                </strong>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  Seguidores indisponíveis
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {hasFollowers && (
+                            <div
+                              className="h-1 overflow-hidden rounded-full bg-muted"
+                              aria-hidden="true"
+                            >
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${pctOfLeader}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
 
-            {!followersRanking.rows.length ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma conta conectada nesta pasta para montar o ranking de seguidores.
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                {(() => {
-                  let rankPosition = 0;
-                  return followersRanking.rows.map((row) => {
-                    const hasFollowers = row.followers !== null;
-                    if (hasFollowers) rankPosition += 1;
-                    const position = hasFollowers ? rankPosition : null;
-                    const pctOfLeader =
-                      hasFollowers && row.followers! > 0
-                        ? Math.max(4, Math.round((row.followers! / followersRanking.maxFollowers) * 100))
-                        : 0;
-                    const sharePct =
-                      hasFollowers && followersRanking.totalFollowers && followersRanking.totalFollowers > 0
-                        ? ((row.followers! / followersRanking.totalFollowers) * 100).toLocaleString("pt-BR", {
-                            maximumFractionDigits: 1,
-                          })
-                        : null;
-                    return (
-                      <div
-                        key={`followers-rank-${row.account_id}`}
-                        data-testid="followers-ranking-row"
-                        className={`rounded-xl border p-3 space-y-2 transition-colors ${
-                          position === 1
-                            ? "border-primary/40 bg-primary/[0.06]"
-                            : "border-white/10 bg-background/40"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span
-                              className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold shrink-0 ${
-                                position === 1
-                                  ? "bg-primary text-primary-foreground"
-                                  : position !== null && position <= 3
-                                    ? "border border-primary/40 bg-primary/15 text-foreground"
-                                    : "border border-white/10 text-muted-foreground"
-                              }`}
-                            >
-                              {position !== null ? `${position}º` : "—"}
-                            </span>
-                            {row.profile?.profile_picture_url && (
+            {/* Right: Single clean Account Metrics table */}
+            <div className="xl:col-span-7 rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-medium">Métricas por conta</h2>
+                <span className="text-xs text-muted-foreground">
+                  {accountTotals.length} conta(s)
+                </span>
+              </div>
+
+              <div className="ig-table-scroll">
+                <table className="ig-table">
+                  <thead>
+                    <tr>
+                      <th>Conta</th>
+                      <th>Pasta</th>
+                      <th>Visualizações</th>
+                      <th>Curtidas</th>
+                      <th>Seguidores</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accountTotals.map((a) => (
+                      <tr key={a.account_id}>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {a.profile?.profile_picture_url && (
                               <img
-                                src={row.profile.profile_picture_url}
+                                src={a.profile.profile_picture_url}
                                 alt=""
                                 aria-hidden="true"
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
-                                className="h-8 w-8 rounded-full object-cover shrink-0"
+                                className="h-6 w-6 rounded-full object-cover shrink-0"
                               />
                             )}
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <strong className="truncate text-sm">{name(row.account_id)}</strong>
-                                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-muted-foreground">
-                                  {row.folder || "Sem pasta"}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                                {sharePct !== null && <span>{sharePct}% dos seguidores do ranking</span>}
-                                {row.newFollowers28d !== null ? (
-                                  <span>+{number(row.newFollowers28d)} novos (28d)</span>
-                                ) : row.delta7d !== null ? (
-                                  <span>{signed(row.delta7d)} (7d)</span>
-                                ) : row.delta30d !== null ? (
-                                  <span>{signed(row.delta30d)} (30d)</span>
-                                ) : null}
-                              </div>
-                            </div>
+                            <strong>{name(a.account_id)}</strong>
                           </div>
-                          <div className="text-right shrink-0">
-                            {hasFollowers ? (
-                              <strong className="text-sm">
-                                {number(row.followers!)}{" "}
-                                {row.followers === 1 ? "seguidor" : "seguidores"}
-                              </strong>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                Seguidores indisponíveis
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${pctOfLeader}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            )}
-          </div>
-
-          {/* Per-account detailed cards */}
-          <div className="space-y-3">
-            <h3 className="font-medium">Desempenho detalhado por conta</h3>
-            <div className="grid gap-3 md:grid-cols-2">
-              {accountTotals.map((a) => (
-                <div
-                  key={a.account_id}
-                  className="rounded-xl border border-white/10 bg-white/[0.015] p-4 space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {a.profile?.profile_picture_url && (
-                        <img
-                          src={a.profile.profile_picture_url}
-                          alt={`Foto de ${name(a.account_id)}`}
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          className="h-10 w-10 rounded-full object-cover shrink-0"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <strong className="block truncate">{name(a.account_id)}</strong>
-                        <span className="inline-block rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-muted-foreground">
+                        </td>
+                        <td className="text-muted-foreground">
                           {a.folder || "Sem pasta"}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {a.unavailable
-                        ? "Status: indisponível"
-                        : !a.complete
-                          ? "Status: parcial"
-                          : "Status: concluída"}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div className="rounded-lg border border-white/5 bg-background/40 p-2.5">
-                      <span className="block text-xs text-muted-foreground">Visualizações</span>
-                      <strong>
-                        {a.cardViews !== null
-                          ? `${number(a.cardViews)} vis.`
-                          : !a.unavailable && a.videoCount > 0 && a.insights_error !== "permission_required"
-                            ? "Processando…"
-                            : "Sem dados"}
-                      </strong>
-                      {a.overview?.views !== null && a.overview?.views !== undefined ? (
-                        <span className="block text-[11px] text-muted-foreground">
-                          28d conta: {number(a.overview.views)}
-                        </span>
-                      ) : a.hasGenuineZeroVideos ? (
-                        <span className="block text-[11px] text-muted-foreground">
-                          Nenhum vídeo publicado
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="rounded-lg border border-white/5 bg-background/40 p-2.5">
-                      <span className="block text-xs text-muted-foreground">Curtidas</span>
-                      <strong>
-                        {a.cardLikes !== null ? `${number(a.cardLikes)} curt.` : "Sem dados"}
-                      </strong>
-                      {a.likesCount > 0 && (
-                        <span className="block text-[11px] text-muted-foreground">
-                          Média: {number(Math.round(a.likesTotal / a.likesCount))}/vídeo
-                        </span>
-                      )}
-                    </div>
-                    <div className="rounded-lg border border-white/5 bg-background/40 p-2.5">
-                      <span className="block text-xs text-muted-foreground">Seguidores</span>
-                      <strong>{a.followers !== null ? `${number(a.followers)} seg.` : "Sem dados"}</strong>
-                      {(a.newFollowers28d !== null || a.delta7d !== null || a.delta30d !== null) && (
-                        <span className="block text-[11px] text-muted-foreground">
-                          {a.newFollowers28d !== null
-                            ? `+${number(a.newFollowers28d)} (28d)`
-                            : a.delta7d !== null
-                              ? `${signed(a.delta7d)} (7d)`
-                              : `${signed(a.delta30d!)} (30d)`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span>
-                      Vídeos medidos: <strong className="text-foreground">{a.count} de {a.videoCount}</strong>
-                    </span>
-                    {a.engagementRate !== null && (
-                      <span>
-                        Taxa de engajamento:{" "}
-                        <strong className="text-foreground">
-                          {a.engagementRate.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                        </strong>
-                      </span>
-                    )}
-                    {a.overview?.reach !== null && a.overview?.reach !== undefined && (
-                      <span>
-                        Alcance (28d): <strong className="text-foreground">{number(a.overview.reach)}</strong>
-                      </span>
-                    )}
-                    {a.mediaCount !== null && (
-                      <span>
-                        Publicações no perfil: <strong className="text-foreground">{number(a.mediaCount)}</strong>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-medium">
-              {rankBy === "likes"
-                ? "Top 10 vídeos por curtidas"
-                : rankBy === "interactions"
-                  ? "Top 10 vídeos por interações"
-                  : "Top 10 vídeos por visualizações"}
-            </h3>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ordenar ranking de vídeos">
-              {(
-                [
-                  ["views", "Por visualizações"],
-                  ["likes", "Por curtidas"],
-                  ["interactions", "Por interações"],
-                ] as const
-              ).map(([key, label]) => (
-                <Button
-                  key={key}
-                  type="button"
-                  size="sm"
-                  variant={rankBy === key ? "default" : "outline"}
-                  onClick={() => setRankBy(key)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {!rankedVideos.length ? (
-            <div className="space-y-3">
-              <p>Nenhum vídeo com visualizações disponíveis nesta seleção.</p>
-              {videos.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Vídeos publicados recentemente (curtidas em tempo real; visualizações sendo processadas pela Meta):
-                  </p>
-                  {videos.slice(0, 10).map((v) => (
-                    <div
-                      key={`pending-${v.account_id}-${v.id}`}
-                      className="flex items-center gap-4 rounded-xl border border-white/10 p-3"
-                    >
-                      {v.thumbnail_url && /^https:\/\//i.test(v.thumbnail_url) && (
-                        <img
-                          src={v.thumbnail_url}
-                          alt="Capa do vídeo"
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          className="h-20 w-14 rounded-lg object-cover"
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <strong className="block truncate">{name(v.account_id)}</strong>
-                        <p className="truncate text-sm text-muted-foreground">{v.caption}</p>
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          {validCount(v.likes) && <span>{number(v.likes)} curtidas</span>}
-                          {validCount(v.comments) && <span>{number(v.comments)} comentários</span>}
-                          {v.permalink && /^https:\/\//i.test(v.permalink) && (
-                            <a
-                              href={v.permalink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline"
-                            >
-                              Ver no Instagram
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right text-xs text-muted-foreground">
-                        Aguardando views da Meta…
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <ol className="space-y-3">
-              {rankedVideos.slice(0, 10).map((v, i) => (
-                <li
-                  key={`${v.account_id}-${v.id}`}
-                  className="flex items-center gap-4 rounded-xl border border-white/10 p-3"
-                >
-                  <span className="ig-rank">{i + 1}</span>
-                  {v.thumbnail_url && /^https:\/\//i.test(v.thumbnail_url) && (
-                    <img
-                      src={v.thumbnail_url}
-                      alt="Capa do vídeo"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      className="h-20 w-14 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong className="block truncate">{name(v.account_id)}</strong>
-                      {accountMeta[v.account_id]?.folder && (
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">
-                          {accountMeta[v.account_id].folder}
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {v.caption}
-                    </p>
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {validCount(v.likes) && <span>{number(v.likes)} curtidas</span>}
-                      {validCount(v.comments) && <span>{number(v.comments)} comentários</span>}
-                      {validCount(v.shares) && <span>{number(v.shares)} compartilhamentos</span>}
-                      {validCount(v.saves) && <span>{number(v.saves)} salvos</span>}
-                      {v.permalink && /^https:\/\//i.test(v.permalink) && (
-                        <a
-                          href={v.permalink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline"
-                        >
-                          Ver no Instagram
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <strong>
-                      {rankBy === "likes" && validCount(v.likes)
-                        ? number(v.likes)
-                        : rankBy === "interactions" && interactionTotal(v) !== null
-                          ? number(interactionTotal(v)!)
-                          : validCount(v.views)
-                            ? number(v.views)
-                            : "—"}
-                    </strong>
-                    <p className="text-xs text-muted-foreground">
-                      {rankBy === "likes"
-                        ? "curtidas"
-                        : rankBy === "interactions"
-                          ? "interações"
-                          : "visualizações"}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-          <h3 className="font-medium">Relatório por conta</h3>
-          <div className="space-y-4" role="img" aria-label="Comparação das visualizações acumuladas por conta; valores detalhados na tabela abaixo">
-            {accountTotals.filter((a) => a.count > 0).map((a) => (
-              <div key={a.account_id} className="space-y-1">
-                <div className="flex min-w-0 justify-between gap-3 text-sm">
-                  <span className="truncate">{name(a.account_id)}</span>
-                  <span>{number(a.total)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${a.total / maxAccountViews * 100}%` }} />
-                </div>
+                        </td>
+                        <td className="tabular-nums">
+                          {a.cardViews !== null
+                            ? number(a.cardViews)
+                            : !a.unavailable &&
+                                a.videoCount > 0 &&
+                                a.insights_error !== "permission_required"
+                              ? "Processando…"
+                              : "Indisponível"}
+                        </td>
+                        <td className="tabular-nums">
+                          {a.cardLikes !== null ? number(a.cardLikes) : "—"}
+                        </td>
+                        <td className="tabular-nums">
+                          {a.followers !== null ? number(a.followers) : "—"}
+                        </td>
+                        <td className="text-muted-foreground">
+                          {a.unavailable
+                            ? "Conta indisponível"
+                            : !a.complete
+                              ? "Consulta parcial"
+                              : "Concluída"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            </div>
           </div>
-          <div className="ig-table-scroll">
-            <table className="ig-table">
-              <thead>
-                <tr>
-                  <th>Conta</th>
-                  <th>Visualizações acumuladas</th>
-                  <th>Curtidas acumuladas</th>
-                  <th>Seguidores</th>
-                  <th>Pasta</th>
-                  <th>Vídeos com métricas</th>
-                  <th>Consulta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accountTotals.map((a) => {
-                  return (
-                    <tr key={a.account_id}>
-                      <td>{name(a.account_id)}</td>
-                      <td>
-                        {a.count
-                          ? number(a.total)
-                          : "Indisponível"}
-                      </td>
-                      <td>
-                        {a.likesCount
-                          ? number(a.likesTotal)
-                          : "—"}
-                      </td>
-                      <td>
-                        {a.followers !== null
-                          ? number(a.followers)
-                          : "—"}
-                      </td>
-                      <td>{a.folder || "Sem pasta"}</td>
-                      <td>{a.count}</td>
-                      <td>{a.unavailable ? "Conta indisponível" : !a.complete ? "Consulta parcial" : "Consulta concluída"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Atualizado em{" "}
-            {report.data &&
-              new Date(report.data.checked_at).toLocaleString("pt-BR")}
-            {" · "}Atualização automática em tempo real a cada 30s. Métricas fornecidas pela Meta podem ter atraso de alguns minutos após a publicação.
-          </p>
         </>
       )}
     </section>
