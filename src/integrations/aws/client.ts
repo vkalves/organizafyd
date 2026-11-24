@@ -338,9 +338,16 @@ class PostgrestQueryBuilder<T = any> implements PromiseLike<{ data: T | null; er
       }
 
       const contentRange = response.headers.get("content-range");
-      const count = contentRange && contentRange.includes("/")
-        ? Number(contentRange.split("/")[1]) || null
-        : null;
+      let count: number | null = null;
+      if (contentRange && contentRange.includes("/")) {
+        const rawCount = Number(contentRange.split("/")[1]);
+        count = Number.isFinite(rawCount) ? rawCount : null;
+      } else if (
+        (this.extraHeaders["Prefer"] || "").includes("count=") &&
+        Array.isArray(parsed)
+      ) {
+        count = parsed.length;
+      }
 
       return { data: data as T, error: null, count, status: response.status };
     } catch (err) {

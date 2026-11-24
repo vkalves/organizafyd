@@ -110,6 +110,9 @@ export function loadAccountMeta(userId: string | undefined): AccountMetaMap {
 
 export function saveAccountMeta(userId: string, meta: AccountMetaMap) {
   localStorage.setItem(accountMetaKey(userId), JSON.stringify(meta));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("agonia-account-folders-updated"));
+  }
 }
 
 export function loadAccountFolders(userId: string | undefined): string[] {
@@ -137,6 +140,187 @@ export function saveAccountFolders(userId: string, folders: string[]) {
     accountFoldersKey(userId),
     JSON.stringify([...new Set(folders.map((s) => s.trim()).filter(Boolean))]),
   );
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("agonia-account-folders-updated"));
+  }
+}
+
+export type AccountFolderGroup<T> = {
+  folder: string;
+  label: string;
+  accounts: T[];
+};
+
+export function collectAllKnownAccountFolders(
+  userId?: string,
+  accountMeta?: AccountMetaMap,
+  explicitFolders?: string[],
+): string[] {
+  const meta = accountMeta ?? (userId ? loadAccountMeta(userId) : {});
+  const saved = explicitFolders ?? (userId ? loadAccountFolders(userId) : []);
+  const fromMeta = Object.values(meta)
+    .map((m) => m?.folder?.trim() || "")
+    .filter(Boolean);
+  const fromStorage: string[] = [];
+  if (!userId && typeof localStorage !== "undefined") {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i) || "";
+        if (key.startsWith("agonia:account-folders:")) {
+          const list = JSON.parse(localStorage.getItem(key) || "[]");
+          if (Array.isArray(list)) {
+            for (const item of list) {
+              if (typeof item === "string" && item.trim()) {
+                fromStorage.push(item.trim());
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }
+  return [...new Set([...saved, ...fromMeta, ...fromStorage])];
+}
+
+export function groupAccountsByFolder<T extends { id: string }>(
+  accounts: T[],
+  accountMeta: AccountMetaMap = {},
+  folders: string[] = [],
+): AccountFolderGroup<T>[] {
+  const allFolders = [
+    ...new Set([
+      ...folders.map((f) => f.trim()).filter(Boolean),
+      ...accounts
+        .map((acc) => accountMeta[acc.id]?.folder?.trim() || "")
+        .filter(Boolean),
+    ]),
+  ];
+  const groups: AccountFolderGroup<T>[] = [];
+  for (const folderName of allFolders) {
+    const matched = accounts.filter(
+      (acc) => (accountMeta[acc.id]?.folder?.trim() || "") === folderName,
+    );
+    if (matched.length > 0) {
+      groups.push({
+        folder: folderName,
+        label: folderName,
+        accounts: matched,
+      });
+    }
+  }
+  const unassigned = accounts.filter(
+    (acc) => !(accountMeta[acc.id]?.folder?.trim() || ""),
+  );
+  if (unassigned.length > 0) {
+    groups.push({
+      folder: "",
+      label: "Sem pasta",
+      accounts: unassigned,
+    });
+  }
+  return groups;
+}
+
+const PENDING_FOLDER_PREFIX = "agonia:pending-account-folder:";
+const NEWLY_CONNECTED_KEY = "agonia:newly-connected-username";
+const AWAITING_CONNECTION_KEY = "agonia:awaiting-new-connection";
+
+export function rememberPendingAccountFolder(
+  username: string,
+  folderName: string,
+) {
+  if (typeof localStorage === "undefined") return;
+  const cleanUser = username.trim().replace(/^@/, "").toLowerCase();
+  const cleanFolder = folderName.trim();
+  if (!cleanUser || !cleanFolder) return;
+  try {
+    localStorage.setItem(`${PENDING_FOLDER_PREFIX}${cleanUser}`, cleanFolder);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      if (key.startsWith("agonia:account-folders:")) {
+        const list = JSON.parse(localStorage.getItem(key) || "[]");
+        if (Array.isArray(list) && !list.includes(cleanFolder)) {
+          localStorage.setItem(key, JSON.stringify([...list, cleanFolder]));
+        }
+      }
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function consumePendingAccountFolder(username: string): string | null {
+  if (typeof localStorage === "undefined") return null;
+  const cleanUser = username.trim().replace(/^@/, "").toLowerCase();
+  if (!cleanUser) return null;
+  try {
+    const val = localStorage.getItem(`${PENDING_FOLDER_PREFIX}${cleanUser}`);
+    if (val && val.trim()) {
+      localStorage.removeItem(`${PENDING_FOLDER_PREFIX}${cleanUser}`);
+      return val.trim();
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function markNewlyConnectedUsername(username: string) {
+  if (typeof localStorage === "undefined") return;
+  const cleanUser = username.trim().replace(/^@/, "").toLowerCase();
+  if (!cleanUser) return;
+  try {
+    localStorage.setItem(NEWLY_CONNECTED_KEY, cleanUser);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readNewlyConnectedUsername(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    return localStorage.getItem(NEWLY_CONNECTED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearNewlyConnectedUsername() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(NEWLY_CONNECTED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function markAwaitingNewConnection() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(AWAITING_CONNECTION_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isAwaitingNewConnection(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return localStorage.getItem(AWAITING_CONNECTION_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function clearAwaitingNewConnection() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(AWAITING_CONNECTION_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function loadAgoniaProfile(

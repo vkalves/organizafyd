@@ -20,7 +20,7 @@ vi.mock("@/features/instagram-publisher/useInstagramAnalytics", () => ({ useInst
 vi.mock("@/features/instagram-publisher/usePublishedReelsToday", () => ({ usePublishedReelsToday: (...args: unknown[]) => mocks.publishedToday(...args) }));
 vi.mock("@/features/instagram-publisher/account-api", () => ({ loadAccountPhotos: vi.fn().mockResolvedValue([]) }));
 import Agonia from "./Agonia";
-import { loadSettings } from "@/features/agonia/schedule";
+import { loadAccountFolders, loadAccountMeta, loadSettings, markNewlyConnectedUsername, saveAccountFolders, saveAccountMeta } from "@/features/agonia/schedule";
 import { listAccounts, listPosts } from "@/features/instagram-publisher/api";
 import type { Post } from "@/features/instagram-publisher/model";
 
@@ -132,6 +132,59 @@ describe("Avança — controles dos fluxos existentes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar configurações" }));
     await waitFor(() => expect(loadSettings("visual-qa")).toMatchObject({ intervalMinutes: 30, defaultCaption: "Minha legenda" }));
   });
+  it("exige adicionar a conta recém-conectada a uma pasta obrigatoriamente", async () => {
+    markNewlyConnectedUsername("conta_teste");
+    show("instagram");
+    expect(await screen.findByText("Adicionar conta a uma pasta (obrigatório)")).toBeInTheDocument();
+    const saveBtn = screen.getByRole("button", { name: "Salvar conta na pasta" });
+    expect(saveBtn).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Nome da nova pasta obrigatória"), {
+      target: { value: "Operação Fitness" },
+    });
+    expect(saveBtn).toBeEnabled();
+    fireEvent.click(saveBtn);
+    await waitFor(() => {
+      expect(loadAccountMeta("visual-qa").a?.folder).toBe("Operação Fitness");
+      expect(loadAccountFolders("visual-qa")).toContain("Operação Fitness");
+    });
+  });
+  it("organiza a seleção de contas por pastas e permite selecionar todas, por pasta ou individualmente", async () => {
+    vi.mocked(listAccounts).mockResolvedValueOnce([
+      { id: "a1", user_id: "visual-qa", username: "fitness_1" },
+      { id: "a2", user_id: "visual-qa", username: "fitness_2" },
+      { id: "b1", user_id: "visual-qa", username: "moda_1" },
+    ]);
+    saveAccountFolders("visual-qa", ["Fitness", "Moda"]);
+    saveAccountMeta("visual-qa", {
+      a1: { folder: "Fitness" },
+      a2: { folder: "Fitness" },
+      b1: { folder: "Moda" },
+    });
+    show("reels-new");
+    await screen.findByText("@fitness_1");
+
+    // Inicialmente todas as 3 contas estão selecionadas
+    expect(screen.getByText("3 de 3 conta(s) selecionadas")).toBeInTheDocument();
+
+    // Desmarcar todas as contas
+    fireEvent.click(screen.getByRole("button", { name: "Desmarcar todas" }));
+    expect(screen.getByText("0 de 3 conta(s) selecionadas")).toBeInTheDocument();
+
+    // Selecionar todas as contas presentes na pasta Fitness
+    fireEvent.click(screen.getByRole("button", { name: "Selecionar pasta Fitness" }));
+    expect(screen.getByText("2 de 3 conta(s) selecionadas")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /@fitness_1/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /@fitness_2/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /@moda_1/ })).not.toBeChecked();
+
+    // Adicionar conta individualmente (@moda_1) e remover individualmente (@fitness_2)
+    fireEvent.click(screen.getByRole("checkbox", { name: /@moda_1/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /@fitness_2/ }));
+    expect(screen.getByText("2 de 3 conta(s) selecionadas")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /@fitness_1/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /@fitness_2/ })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /@moda_1/ })).toBeChecked();
+  });
 });
 
 it("shows the connection hint only on the first visit without a connected account", async () => {
@@ -149,3 +202,4 @@ it("does not show first-access guidance for an already connected account", async
   await waitFor(() => expect(localStorage.getItem("avanca:first-connection-seen:visual-qa")).toBe("1"));
   expect(screen.queryByText("Primeiro acesso? Conecte seu Instagram")).not.toBeInTheDocument();
 });
+

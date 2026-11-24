@@ -19,6 +19,11 @@ export type CheckRepository = {
   >;
   token: (secretId: string) => Promise<string | null>;
   save: (row: HealthRow, update: Record<string, unknown>) => Promise<void>;
+  syncAccount?: (
+    accountId: string,
+    userId: string,
+    profile: { username: string },
+  ) => Promise<void>;
 };
 
 export async function checkAccount(
@@ -32,6 +37,7 @@ export async function checkAccount(
   const token = await repo.token(connection.secret_id);
   let result: HealthState = "reconnect";
   let errorCode: string | null = "credential_missing";
+  let liveUsername: string | null = null;
   if (token) {
     try {
       const host = connection.provider === "instagram"
@@ -46,32 +52,51 @@ export async function checkAccount(
         signal: AbortSignal.timeout(8000),
       });
       const data = await response.json();
-      if (
-        response.ok && !data.error && String(data.id) === connection.graph_id
-      ) {
+      const matchedIdentity =
+        String(data.id ?? "") === connection.graph_id ||
+        String(data.user_id ?? "") === connection.graph_id;
+      if (response.ok && !data.error && !data.error_type && matchedIdentity) {
         result = "healthy";
         errorCode = null;
-      } else if (response.ok && !data.error) {
+        if (
+          typeof data.username === "string" &&
+          /^[a-zA-Z0-9._]{1,30}$/.test(data.username)
+        ) {
+          liveUsername = data.username;
+        }
+      } else if (response.ok && !data.error && !data.error_type) {
         result = "temporary";
         errorCode = "identity_mismatch";
       } else {
+        const rawCode = Number(data.error?.code ?? data.code) || undefined;
         result = classify(
-          Number(data.error?.code) || undefined,
+          rawCode,
           response.status,
           data.error?.is_transient === true,
         );
-        errorCode = `meta_${Number(data.error?.code) || response.status}`;
+        errorCode = `meta_${rawCode || response.status}`;
       }
     } catch {
       result = "temporary";
       errorCode = "network_unavailable";
     }
   }
-  const now = new Date().toISOString();
+  const claimStart = row.next_check_at
+    ? Date.parse(row.next_check_at) - 300_000
+    : NaN;
+  const nowMs = Number.isFinite(claimStart)
+    ? Math.max(Date.now(), claimStart)
+    : Date.now();
+  const now = new Date(nowMs).toISOString();
   await repo.save(row, {
     ...transition(row, result),
     checked_at: now,
     error_code: errorCode,
     ...(result === "healthy" ? { last_healthy_at: now } : {}),
   });
+  if (liveUsername && repo.syncAccount) {
+    await repo.syncAccount(row.account_id, row.user_id, {
+      username: liveUsername,
+    }).catch(() => {});
+  }
 }

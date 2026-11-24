@@ -26,6 +26,7 @@ import {
 } from "@/features/instagram-publisher/monitor";
 import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
 import type { Connection } from "@/features/instagram-publisher/api";
+import type { AccountMetaMap } from "@/features/agonia/schedule";
 
 type Tab = "pending" | "matrix" | "all" | "resolved";
 function date(value?: string | null) {
@@ -56,18 +57,34 @@ export function AgoniaAlerts(
     onRefresh,
     accountsPending = false,
     accountsError = false,
+    accountMeta = {},
+    accountFolders = [],
   }: {
     accounts: { id: string; username: string }[];
     connections: Connection[];
     onRefresh: () => Promise<unknown>;
     accountsPending?: boolean;
     accountsError?: boolean;
+    accountMeta?: AccountMetaMap;
+    accountFolders?: string[];
   },
 ) {
   const monitor = useInstagramMonitor();
   const [busy, setBusy] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("pending");
   const [search, setSearch] = useState("");
+  const [folderFilter, setFolderFilter] = useState("*");
+  const availableFolders = useMemo(
+    () => [
+      ...new Set([
+        ...accountFolders.map((f) => f.trim()).filter(Boolean),
+        ...accounts
+          .map((a) => accountMeta[a.id]?.folder?.trim() || "")
+          .filter(Boolean),
+      ]),
+    ],
+    [accountFolders, accounts, accountMeta],
+  );
   const alerts = monitor.data?.alerts ?? [];
   const healthMap = useMemo(
     () => new Map((monitor.data?.health ?? []).map((h) => [h.account_id, h])),
@@ -103,10 +120,13 @@ export function AgoniaAlerts(
   const loading = monitor.isPending || accountsPending;
   const uncertain = unavailable || loading;
   const query = search.trim().replace(/^@/, "").toLocaleLowerCase("pt-BR");
-  const matches = (accountId: string) =>
-    (accountMap.get(accountId) ?? "").toLocaleLowerCase("pt-BR").includes(
+  const matches = (accountId: string) => {
+    const folder = accountMeta[accountId]?.folder?.trim() || "";
+    if (folderFilter !== "*" && folder !== folderFilter) return false;
+    return (accountMap.get(accountId) ?? "").toLocaleLowerCase("pt-BR").includes(
       query,
     );
+  };
   const displayed =
     (tab === "pending" ? pending : tab === "resolved" ? resolved : alerts)
       .filter((a) => matches(a.account_id));
@@ -115,6 +135,11 @@ export function AgoniaAlerts(
   async function reload() {
     setBusy("reload");
     try {
+      await Promise.all(
+        accounts.map((account) =>
+          monitorRequest("refresh", account.id).catch(() => null)
+        ),
+      );
       await onRefresh();
       await monitor.refetch({ throwOnError: true });
       toast.success("Lista de alertas atualizada.");
@@ -148,6 +173,7 @@ export function AgoniaAlerts(
     setBusy(`check:${accountId}`);
     try {
       const result = await monitorRequest("refresh", accountId);
+      await onRefresh();
       await monitor.refetch({ throwOnError: true });
       if (result.status === "busy") {
         toast.info(
@@ -157,9 +183,11 @@ export function AgoniaAlerts(
         toast.info(
           "Conta verificada há menos de 1 minuto. Aguarde antes de consultar novamente.",
         );
-      } else {toast.success(
+      } else {
+        toast.success(
           "Verificação concluída. Confira o diagnóstico da conta.",
-        );}
+        );
+      }
     } catch {
       toast.error(
         "Não foi possível verificar a conta. O diagnóstico anterior foi preservado.",
@@ -336,17 +364,33 @@ export function AgoniaAlerts(
             </button>
           ))}
         </nav>
-        <label className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 max-w-md">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <span className="sr-only">Buscar conta</span>
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar pelo @ da conta"
-            className="w-full min-w-0 bg-transparent py-1 outline-none"
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 max-w-md">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <span className="sr-only">Buscar conta</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar pelo @ da conta"
+              className="w-full min-w-0 bg-transparent py-1 outline-none"
+            />
+          </label>
+          <select
+            aria-label="Filtrar alertas por pasta"
+            value={folderFilter}
+            onChange={(e) => setFolderFilter(e.target.value)}
+            className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground"
+          >
+            <option value="*">Pastas: todas</option>
+            <option value="">Sem pasta</option>
+            {availableFolders.map((folder) => (
+              <option key={folder} value={folder}>
+                {folder}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading
@@ -368,7 +412,7 @@ export function AgoniaAlerts(
             {!filteredAccounts.length
               ? (
                 <p className="empty">
-                  {query
+                  {query || folderFilter !== "*"
                     ? "Nenhuma conta corresponde à busca."
                     : accountsError
                     ? "Não foi possível carregar as contas."
@@ -399,12 +443,17 @@ export function AgoniaAlerts(
                           state === "permissions";
                         const awaitingConfirmation = !!health?.failures &&
                           health.candidate !== health.state;
+                        const folderLabel =
+                          accountMeta[account.id]?.folder?.trim() || "Sem pasta";
                         return (
                           <tr key={account.id}>
                             <td>
                               <strong>
                                 @{account.username.replace(/^@/, "")}
                               </strong>
+                              <small className="block text-muted-foreground">
+                                {folderLabel}
+                              </small>
                               {connection?.paused && (
                                 <small className="block text-muted-foreground">
                                   Automação pausada

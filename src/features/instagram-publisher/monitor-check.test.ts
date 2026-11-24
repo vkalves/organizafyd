@@ -129,4 +129,27 @@ describe("Meta health checks", () => {
       }),
     );
   });
+  it("synchronizes the real Instagram @username from Meta and accepts user_id identity on Instagram Login", async () => {
+    const { repo, graph } = setup();
+    const syncAccount = vi.fn(async () => {});
+    repo.syncAccount = syncAccount;
+    graph.mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: "app-scoped-999", user_id: "123", username: "novo.handle_real" }),
+        { status: 200 },
+      ),
+    );
+    await checkAccount(repo, row, graph as typeof fetch);
+    expect(repo.save).toHaveBeenCalledWith(
+      row,
+      expect.objectContaining({
+        state: "healthy",
+        failures: 0,
+        error_code: null,
+      }),
+    );
+    expect(syncAccount).toHaveBeenCalledWith("a", "owner", {
+      username: "novo.handle_real",
+    });
+  });
 });

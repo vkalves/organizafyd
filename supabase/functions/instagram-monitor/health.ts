@@ -15,7 +15,9 @@ export function classify(
     [1, 2, 4, 17, 32, 613].includes(code ?? 0)
   ) return "temporary";
   if (code === 190 || code === 102) return "reconnect";
-  if (code === 10 || code === 200) return "permissions";
+  if (code === 10 || (code !== undefined && code >= 200 && code <= 299)) {
+    return "permissions";
+  }
   if (code === 100 || code === 803) return "unavailable";
   // An undocumented error is not evidence that a profile is inaccessible.
   return "temporary";

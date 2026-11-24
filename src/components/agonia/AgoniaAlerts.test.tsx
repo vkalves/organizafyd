@@ -115,11 +115,13 @@ describe("Central de alertas de contas", () => {
     expect(stat("Conexão verificada")).toHaveTextContent("—");
     expect(screen.getByText("Alertas indisponíveis")).toBeInTheDocument();
   });
-  it("não anuncia sucesso quando refetch devolve erro", async () => {
+  it("não anuncia sucesso quando refetch devolve erro e solicita atualização real das contas ao atualizar lista", async () => {
     mocks.refetch.mockRejectedValue(new Error("offline"));
     show();
     fireEvent.click(screen.getByRole("button", { name: "Atualizar lista" }));
     await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(mocks.request).toHaveBeenCalledWith("refresh", "a");
+    expect(mocks.request).toHaveBeenCalledWith("refresh", "b");
     expect(mocks.success).not.toHaveBeenCalled();
     expect(mocks.refetch).toHaveBeenCalledWith({ throwOnError: true });
   });

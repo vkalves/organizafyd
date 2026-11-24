@@ -424,6 +424,12 @@ export async function handleRestRequest(
       throw new Error("method_not_allowed");
     });
 
+    if (prefer.includes("count=")) {
+      headers["Content-Range"] = rows.length
+        ? `0-${rows.length - 1}/${rows.length}`
+        : "*/0";
+    }
+
     if (expectSingleObject) {
       if (rows.length !== 1) {
         return new Response(

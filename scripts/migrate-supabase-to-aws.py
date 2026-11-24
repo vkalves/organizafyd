@@ -69,6 +69,8 @@ PUBLIC_TABLES = (
     "ig_user_meta_app_preferences",
     "ig_publisher_connections",
     "ig_account_health",
+    "ig_account_alerts",
+    "ig_account_metrics_daily",
     "ig_flows",
     "ig_flow_library",
     "ig_flow_shared_accounts",

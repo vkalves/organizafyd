@@ -16,9 +16,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  groupAccountsByFolder,
+  loadAccountFolders,
+  loadAccountMeta,
+  type AccountMetaMap,
+} from "@/features/agonia/schedule";
 import {
   Upload,
   Link2,
@@ -211,11 +217,35 @@ export default function Flows({
       .filter(flow => (flow.state ?? "active") === "active")
       .flatMap(flow => flow.settings.accountIds ?? []),
   );
+  const [accountMeta, setAccountMeta] = useState<AccountMetaMap>(() =>
+    loadAccountMeta(user?.id),
+  );
+  const [accountFolders, setAccountFolders] = useState<string[]>(() =>
+    loadAccountFolders(user?.id),
+  );
+  useEffect(() => {
+    const sync = () => {
+      setAccountMeta(loadAccountMeta(user?.id));
+      setAccountFolders(loadAccountFolders(user?.id));
+    };
+    sync();
+    window.addEventListener("agonia-account-folders-updated", sync);
+    return () => window.removeEventListener("agonia-account-folders-updated", sync);
+  }, [user?.id]);
+
   const eligibleAccounts = accounts.filter(account => !occupiedAccountIds.has(account.id));
+  const eligibleFolderGroups = useMemo(
+    () => groupAccountsByFolder(eligibleAccounts, accountMeta, accountFolders),
+    [eligibleAccounts, accountMeta, accountFolders],
+  );
   const syncFlow = flows.find(flow => flow.id === syncFlowId);
   const syncCandidates = eligibleAccounts.filter(account =>
     !syncFlow?.settings.accountIds.includes(account.id) &&
     connections.some(c => c.account_id === account.id && !c.paused && !c.reconnect_required));
+  const syncCandidateGroups = useMemo(
+    () => groupAccountsByFolder(syncCandidates, accountMeta, accountFolders),
+    [syncCandidates, accountMeta, accountFolders],
+  );
 
   const visible = media.filter(
     (m) => m.kind === kind && (folder === "*" || m.folder === folder),
@@ -716,11 +746,89 @@ export default function Flows({
             <DialogTitle>Conectar conta ao fluxo</DialogTitle>
             <DialogDescription>As contas selecionadas entram na campanha, pulam sempre a próxima postagem e começam na seguinte, nos horários do fluxo. As contas já conectadas continuam normalmente. As postagens já concluídas não serão repetidas.</DialogDescription>
           </DialogHeader>
-          <div className="max-h-72 space-y-2 overflow-y-auto">
-            {syncCandidates.map(account => <label key={account.id} className="flex items-center gap-2 rounded-md border border-border p-2 text-sm">
-              <input type="checkbox" checked={syncAccountIds.includes(account.id)} disabled={busy} onChange={e => setSyncAccountIds(previous => e.target.checked ? [...previous, account.id] : previous.filter(id => id !== account.id))} />
-              @{account.username}
-            </label>)}
+          {syncCandidates.length > 0 && (
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {syncAccountIds.length} de {syncCandidates.length} conta(s) selecionada(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="ig-ghost-action"
+                  onClick={() =>
+                    setSyncAccountIds(
+                      syncAccountIds.length === syncCandidates.length
+                        ? []
+                        : syncCandidates.map((a) => a.id),
+                    )
+                  }
+                >
+                  {syncAccountIds.length === syncCandidates.length
+                    ? "Desmarcar todas"
+                    : "Selecionar todas"}
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="max-h-72 space-y-3 overflow-y-auto">
+            {syncCandidateGroups.map((group) => {
+              const groupIds = group.accounts.map((a) => a.id);
+              const selectedInGroup = groupIds.filter((id) =>
+                syncAccountIds.includes(id),
+              ).length;
+              const allInGroupSelected =
+                groupIds.length > 0 && selectedInGroup === groupIds.length;
+              return (
+                <div
+                  key={group.folder || "__unassigned__"}
+                  className="space-y-1.5 rounded-lg border border-border/70 p-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Folder size={13} aria-hidden="true" />
+                      {group.label} ({selectedInGroup}/{groupIds.length})
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="ig-ghost-action"
+                      onClick={() =>
+                        setSyncAccountIds((prev) =>
+                          allInGroupSelected
+                            ? prev.filter((id) => !groupIds.includes(id))
+                            : [...new Set([...prev, ...groupIds])],
+                        )
+                      }
+                    >
+                      {allInGroupSelected ? "Desmarcar pasta" : "Selecionar pasta"}
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {group.accounts.map((account) => (
+                      <label
+                        key={account.id}
+                        className="flex items-center gap-2 rounded-md border border-border p-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={syncAccountIds.includes(account.id)}
+                          disabled={busy}
+                          onChange={(e) =>
+                            setSyncAccountIds((previous) =>
+                              e.target.checked
+                                ? [...previous, account.id]
+                                : previous.filter((id) => id !== account.id),
+                            )
+                          }
+                        />
+                        @{account.username}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
             {!syncCandidates.length && <p className="text-sm text-muted-foreground">Não há novas contas disponíveis. Conecte uma conta do Instagram para adicioná-la aqui.</p>}
           </div>
           <Button disabled={busy || !syncAccountIds.length || syncFlow?.state !== "active"} onClick={() => {
@@ -1554,33 +1662,95 @@ export default function Flows({
                 </div>
 
                 {eligibleAccounts.length > 0 ? (
-                  <div className="ig-flow-options">
-                    {eligibleAccounts.map((a) => {
-                      const c = connections.find((conn) => conn.account_id === a.id);
-                      const disabled = !c || c.paused || c.reconnect_required;
-                      const checked = accountIds.includes(a.id);
+                  <div className="space-y-2.5">
+                    {eligibleFolderGroups.map((group) => {
+                      const activeInGroup = group.accounts
+                        .filter((a) => {
+                          const c = connections.find(
+                            (conn) => conn.account_id === a.id,
+                          );
+                          return c && !c.paused && !c.reconnect_required;
+                        })
+                        .map((a) => a.id);
+                      const selectedInGroup = activeInGroup.filter((id) =>
+                        accountIds.includes(id),
+                      ).length;
+                      const allGroupSelected =
+                        activeInGroup.length > 0 &&
+                        selectedInGroup === activeInGroup.length;
                       return (
-                        <label
-                          key={a.id}
-                          className={checked ? "is-checked" : undefined}
+                        <div
+                          key={group.folder || "__unassigned__"}
+                          className="space-y-1.5 rounded-lg border border-border/60 p-2.5"
                         >
-                          <input
-                            type="checkbox"
-                            disabled={busy || disabled}
-                            checked={checked}
-                            onChange={(e) =>
-                              setAccounts((prev) =>
-                                e.target.checked
-                                  ? [...prev, a.id]
-                                  : prev.filter((id) => id !== a.id),
-                              )
-                            }
-                          />
-                          <span>
-                            @{a.username.replace(/^@/, "")}
-                            {disabled ? " · pausada" : ""}
-                          </span>
-                        </label>
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="flex items-center gap-1.5 font-medium text-foreground">
+                              <Folder size={13} aria-hidden="true" />
+                              <span>{group.label}</span>
+                              <span className="text-muted-foreground">
+                                ({selectedInGroup}/{activeInGroup.length})
+                              </span>
+                            </span>
+                            {activeInGroup.length > 0 && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                className="ig-ghost-action"
+                                aria-label={
+                                  allGroupSelected
+                                    ? `Desmarcar pasta ${group.label}`
+                                    : `Selecionar pasta ${group.label}`
+                                }
+                                onClick={() =>
+                                  setAccounts((prev) =>
+                                    allGroupSelected
+                                      ? prev.filter(
+                                          (id) => !activeInGroup.includes(id),
+                                        )
+                                      : [...new Set([...prev, ...activeInGroup])],
+                                  )
+                                }
+                              >
+                                {allGroupSelected
+                                  ? "Desmarcar pasta"
+                                  : "Selecionar pasta"}
+                              </button>
+                            )}
+                          </div>
+                          <div className="ig-flow-options">
+                            {group.accounts.map((a) => {
+                              const c = connections.find(
+                                (conn) => conn.account_id === a.id,
+                              );
+                              const disabled =
+                                !c || c.paused || c.reconnect_required;
+                              const checked = accountIds.includes(a.id);
+                              return (
+                                <label
+                                  key={a.id}
+                                  className={checked ? "is-checked" : undefined}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    disabled={busy || disabled}
+                                    checked={checked}
+                                    onChange={(e) =>
+                                      setAccounts((prev) =>
+                                        e.target.checked
+                                          ? [...prev, a.id]
+                                          : prev.filter((id) => id !== a.id),
+                                      )
+                                    }
+                                  />
+                                  <span>
+                                    @{a.username.replace(/^@/, "")}
+                                    {disabled ? " · pausada" : ""}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>

@@ -2,7 +2,16 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { publisherRequest } from "./api";
-import type { VideoMetric } from "../../../supabase/functions/instagram-publisher/analytics";
+import type {
+  AccountInsights,
+  AccountProfile,
+  VideoMetric,
+} from "../../../supabase/functions/instagram-publisher/analytics";
+
+export type FollowerHistoryPoint = {
+  day: string;
+  followers_count: number;
+};
 
 export type AnalyticsReport = {
   accounts: {
@@ -12,6 +21,9 @@ export type AnalyticsReport = {
     nextCursor?: string | null;
     unavailable: boolean;
     insights_error?: "permission_required" | "temporarily_unavailable" | null;
+    profile?: AccountProfile | null;
+    overview?: AccountInsights | null;
+    followers_history?: FollowerHistoryPoint[];
   }[];
   checked_at: string;
 };
@@ -155,7 +167,11 @@ export function useInstagramAnalytics(
                 accounts: previous.accounts.map((a) =>
                   a.account_id === current.account_id
                     ? {
+                      ...a,
                       ...page,
+                      profile: page.profile ?? a.profile,
+                      overview: page.overview ?? a.overview,
+                      followers_history: page.followers_history ?? a.followers_history,
                       videos: [
                         ...new Map(
                           [...a.videos, ...page.videos].map((v) => [

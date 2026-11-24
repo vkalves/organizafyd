@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AVANCA_SITE_ORIGIN } from "../../supabase/functions/_shared/integration-origins";
-import { Instagram, Loader2 } from "lucide-react";
+import { FolderPlus, Instagram, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  collectAllKnownAccountFolders,
+  markNewlyConnectedUsername,
+  rememberPendingAccountFolder,
+} from "@/features/agonia/schedule";
 import { loginRequest } from "@/features/instagram-publisher/login";
 import {
   clearBrowserAuthorization, readBrowserAuthorization, readPendingAuthorization,
@@ -35,6 +40,14 @@ export default function InstagramConnect() {
   const [authorization, setAuthorization] = useState<BrowserAuthorization | null>(null);
   const [choice, setChoice] = useState<{ selection: string; accounts: AccountChoice[] } | null>(null);
   const [accountId, setAccountId] = useState("");
+  const [knownFolders, setKnownFolders] = useState<string[]>(() => collectAllKnownAccountFolders());
+  const [selectedFolder, setSelectedFolder] = useState<string>(() => {
+    const initial = collectAllKnownAccountFolders();
+    return initial[0] || "__new__";
+  });
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderSaved, setFolderSaved] = useState("");
+  const [folderError, setFolderError] = useState("");
   const started = useRef(false);
 
   function applyResult(result: FinishResult, proof: BrowserAuthorization) {
@@ -46,6 +59,10 @@ export default function InstagramConnect() {
       setChoice(result);
     } else {
       clearBrowserAuthorization(proof.state);
+      markNewlyConnectedUsername(result.username);
+      const folders = collectAllKnownAccountFolders();
+      setKnownFolders(folders);
+      setSelectedFolder(folders[0] || "__new__");
       setSuccess(result.username);
       setChoice(null);
       setAuthorization(null);
@@ -164,7 +181,119 @@ export default function InstagramConnect() {
           </form>
         )}
         {success ? (
-          <div role="status"><h2 className="font-semibold">@{success} conectado!</h2><p>O responsável já pode agendar publicações autorizadas. Use o botão abaixo para voltar às suas contas.</p><Button asChild className="mt-4"><a href={accountsUrl}>Voltar à Avança</a></Button></div>
+          <div role="status" className="space-y-4">
+            <div>
+              <h2 className="font-semibold">@{success} conectado!</h2>
+              <p className="text-sm text-muted-foreground">
+                O responsável já pode agendar publicações autorizadas. Antes de continuar, selecione ou crie a pasta obrigatória desta conta.
+              </p>
+            </div>
+            <div className="space-y-3 rounded-xl border border-border bg-secondary/30 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <FolderPlus className="h-4 w-4" />
+                <span>Adicionar conta a uma pasta (obrigatório)</span>
+              </div>
+              {knownFolders.length > 0 && (
+                <div className="space-y-1.5">
+                  <label htmlFor="connect-folder-select" className="block text-xs text-muted-foreground">
+                    Escolha uma pasta existente ou crie uma nova
+                  </label>
+                  <select
+                    id="connect-folder-select"
+                    aria-label="Pasta obrigatória da conta"
+                    value={selectedFolder}
+                    onChange={(e) => {
+                      setSelectedFolder(e.target.value);
+                      setFolderError("");
+                      setFolderSaved("");
+                    }}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    {knownFolders.map((folder) => (
+                      <option key={folder} value={folder}>
+                        {folder}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Criar nova pasta</option>
+                  </select>
+                </div>
+              )}
+              {(selectedFolder === "__new__" || knownFolders.length === 0) && (
+                <div className="space-y-1.5">
+                  <label htmlFor="connect-new-folder" className="block text-xs text-muted-foreground">
+                    Nome da pasta
+                  </label>
+                  <input
+                    id="connect-new-folder"
+                    type="text"
+                    maxLength={60}
+                    value={newFolderName}
+                    onChange={(e) => {
+                      setNewFolderName(e.target.value);
+                      setFolderError("");
+                      setFolderSaved("");
+                    }}
+                    placeholder="Ex.: Principal, Modelos, Cliente..."
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
+              {folderError && (
+                <p className="text-xs text-destructive">{folderError}</p>
+              )}
+              {folderSaved && (
+                <p className="text-xs text-emerald-400">
+                  Conta @{success} vinculada à pasta &ldquo;{folderSaved}&rdquo;.
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  const chosen =
+                    selectedFolder === "__new__" || knownFolders.length === 0
+                      ? newFolderName.trim()
+                      : selectedFolder.trim();
+                  if (!chosen) {
+                    setFolderError("Informe ou selecione uma pasta obrigatória para esta conta.");
+                    return;
+                  }
+                  rememberPendingAccountFolder(success, chosen);
+                  if (!knownFolders.includes(chosen)) {
+                    setKnownFolders((prev) => [...prev, chosen]);
+                  }
+                  setSelectedFolder(chosen);
+                  setNewFolderName("");
+                  setFolderError("");
+                  setFolderSaved(chosen);
+                }}
+              >
+                Salvar conta na pasta
+              </Button>
+            </div>
+            <Button asChild className="mt-4 w-full">
+              <a
+                href={accountsUrl}
+                onClick={(e) => {
+                  const chosen =
+                    folderSaved ||
+                    (selectedFolder === "__new__" || knownFolders.length === 0
+                      ? newFolderName.trim()
+                      : selectedFolder.trim());
+                  if (!chosen) {
+                    e.preventDefault();
+                    setFolderError("Selecione ou crie uma pasta obrigatória antes de voltar à Avança.");
+                    return;
+                  }
+                  rememberPendingAccountFolder(success, chosen);
+                }}
+              >
+                Voltar à Avança
+              </a>
+            </Button>
+          </div>
         ) : manager && (
           <><p>Você está conectando seu Instagram à conta de <strong className="break-all">{manager}</strong> na Avança.</p><p className="text-sm text-muted-foreground">Ao autorizar, esse responsável poderá agendar e publicar conteúdo no perfil escolhido. Use uma conta profissional. Sua senha é informada somente à Meta.</p><Button disabled={busy} onClick={() => void authorize()}>Autorizar no Instagram</Button><p className="text-xs text-muted-foreground">{provider === "facebook" ? "Na tela da Meta, escolha o portfólio correto. Se houver vários perfis, escolha qual conectar ao voltar à Avança." : "Entre no Instagram profissional que deseja conectar e autorize o acesso ao perfil e à publicação. Não é necessário vincular uma Página do Facebook."}</p></>
         )}

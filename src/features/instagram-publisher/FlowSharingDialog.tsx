@@ -1,9 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  groupAccountsByFolder,
+  loadAccountFolders,
+  loadAccountMeta,
+} from "@/features/agonia/schedule";
 import { publisherRequest } from "./api";
 
 type SharedAccount = { flow_id: string; flow_name: string; account_id: string; username: string };
@@ -22,6 +28,17 @@ export function FlowSharingDialog({ target, userId, onClose, onChanged }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const accountMeta = useMemo(() => loadAccountMeta(userId), [userId]);
+  const accountFolders = useMemo(() => loadAccountFolders(userId), [userId]);
+  const invitationGroups = useMemo(
+    () =>
+      groupAccountsByFolder(
+        invitation?.accounts ?? [],
+        accountMeta,
+        accountFolders,
+      ),
+    [invitation?.accounts, accountMeta, accountFolders],
+  );
   const shares = useQuery({
     queryKey: ["ig-shared-flow-accounts", userId],
     queryFn: () => publisherRequest<SharedAccount[]>("list_shared_flow_accounts"),
@@ -101,16 +118,85 @@ export function FlowSharingDialog({ target, userId, onClose, onChanged }: {
                     <p className="text-sm text-muted-foreground">
                       O fluxo poderá publicar nos perfis selecionados conforme a programação definida pelo dono. As contas novas pulam a próxima postagem e começam na seguinte.
                     </p>
-                    <div className="max-h-40 space-y-2 overflow-y-auto">
-                      {invitation.accounts.map((account) => (
-                        <label key={account.id} className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" disabled={busy} checked={selected.includes(account.id)}
-                            onChange={(event) => setSelected((previous) => event.target.checked
-                              ? [...previous, account.id]
-                              : previous.filter((id) => id !== account.id))} />
-                          @{account.username}
-                        </label>
-                      ))}
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        {selected.length} de {invitation.accounts.length} selecionada(s)
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="underline"
+                        onClick={() =>
+                          setSelected(
+                            selected.length === invitation.accounts.length
+                              ? []
+                              : invitation.accounts.map((a) => a.id),
+                          )
+                        }
+                      >
+                        {selected.length === invitation.accounts.length
+                          ? "Desmarcar todas"
+                          : "Selecionar todas"}
+                      </button>
+                    </div>
+                    <div className="max-h-48 space-y-2.5 overflow-y-auto">
+                      {invitationGroups.map((group) => {
+                        const groupIds = group.accounts.map((a) => a.id);
+                        const selectedInGroup = groupIds.filter((id) =>
+                          selected.includes(id),
+                        ).length;
+                        const allGroupSelected =
+                          groupIds.length > 0 &&
+                          selectedInGroup === groupIds.length;
+                        return (
+                          <div
+                            key={group.folder || "__unassigned__"}
+                            className="space-y-1.5 rounded-lg border border-border p-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <span className="flex items-center gap-1.5 font-medium">
+                                <Folder size={13} aria-hidden="true" />
+                                {group.label} ({selectedInGroup}/{groupIds.length})
+                              </span>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                className="underline"
+                                onClick={() =>
+                                  setSelected((prev) =>
+                                    allGroupSelected
+                                      ? prev.filter((id) => !groupIds.includes(id))
+                                      : [...new Set([...prev, ...groupIds])],
+                                  )
+                                }
+                              >
+                                {allGroupSelected
+                                  ? "Desmarcar pasta"
+                                  : "Selecionar pasta"}
+                              </button>
+                            </div>
+                            <div className="space-y-1">
+                              {group.accounts.map((account) => (
+                                <label key={account.id} className="flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    disabled={busy}
+                                    checked={selected.includes(account.id)}
+                                    onChange={(event) =>
+                                      setSelected((previous) =>
+                                        event.target.checked
+                                          ? [...previous, account.id]
+                                          : previous.filter((id) => id !== account.id),
+                                      )
+                                    }
+                                  />
+                                  @{account.username}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                     <Button disabled={busy || !selected.length} onClick={() => void perform(async () => {
                       await publisherRequest("accept_flow_invite", { code, account_ids: selected });

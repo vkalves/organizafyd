@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Eye,
   Film,
+  Folder,
   FolderPlus,
   Heart,
   Image as ImageIcon,
@@ -47,6 +48,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import "@/features/instagram-publisher/accounts-clean.css";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadAccountPhotos } from "@/features/instagram-publisher/account-api";
@@ -63,6 +65,7 @@ import { ConnectAccount } from "@/features/instagram-publisher/ConnectAccount";
 import Flows from "@/features/instagram-publisher/Flows";
 import { AgoniaAlerts } from "@/components/agonia/AgoniaAlerts";
 import { useInstagramMonitor } from "@/features/instagram-publisher/InstagramAlerts";
+import { accountHealthState, healthLabels, monitorRequest } from "@/features/instagram-publisher/monitor";
 import {
   cancelFlow,
   deleteFlow,
@@ -83,12 +86,19 @@ import {
   TIMEZONES,
   buildSchedule,
   clampInterval,
+  clearAwaitingNewConnection,
+  clearNewlyConnectedUsername,
+  collectAllKnownAccountFolders,
+  consumePendingAccountFolder,
+  groupAccountsByFolder,
+  isAwaitingNewConnection,
   loadAccountFolders,
   loadAccountMeta,
   loadAgoniaProfile,
   loadSettings,
   localToUtcIso,
   parseCaptionVariants,
+  readNewlyConnectedUsername,
   saveAccountFolders,
   saveAccountMeta,
   saveAgoniaProfile,
@@ -324,6 +334,12 @@ export default function Agonia() {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [modelDrafts, setModelDrafts] = useState<Record<string, string>>({});
 
+  // Mandatory folder assignment after connecting an account
+  const [mandatoryFolderQueue, setMandatoryFolderQueue] = useState<string[]>([]);
+  const [mandatoryFolderChoice, setMandatoryFolderChoice] = useState<string>("");
+  const [mandatoryNewFolderName, setMandatoryNewFolderName] = useState<string>("");
+  const [mandatoryCreatingFolder, setMandatoryCreatingFolder] = useState<boolean>(false);
+
   // Meta App form state
 
   // Instagram Operations Map state
@@ -357,8 +373,11 @@ export default function Agonia() {
 
   // Scheduled & Published filters/pagination
   const [schedAppFilter, setSchedAppFilter] = useState("");
+  const [schedFolderFilter, setSchedFolderFilter] = useState("*");
   const [schedAccountFilter, setSchedAccountFilter] = useState("");
   const [pubTab, setPubTab] = useState<"all" | "scheduled" | "published" | "failed">("all");
+  const [pubFolderFilter, setPubFolderFilter] = useState("*");
+  const [pubAccountFilter, setPubAccountFilter] = useState("");
   const [pubPage, setPubPage] = useState(1);
 
   // Diagnostic Reel Test state
@@ -392,11 +411,30 @@ export default function Agonia() {
     setProfile(loadAgoniaProfile(user?.id, fallbackDisplayName));
   }, [user?.id, fallbackDisplayName]);
 
-  // Garante que cada conta tenha um activeSince registrado para o cálculo automático de etiquetas por dias
+  // Garante que cada conta tenha um activeSince registrado e detecta novas contas conectadas que precisam de pasta obrigatória
   useEffect(() => {
     if (!user?.id || !accounts.length) return;
-    let changed = false;
+    let metaChanged = false;
+    let foldersChanged = false;
     const next: AccountMetaMap = { ...accountMeta };
+    let nextFolders = [...accountFolders];
+
+    const newlyConnectedUsername = readNewlyConnectedUsername();
+    const awaitingNew = isAwaitingNewConnection();
+    const knownKey = `agonia:known-account-ids:${user.id}`;
+    let knownIds: string[] | null = null;
+    try {
+      const rawKnown = localStorage.getItem(knownKey);
+      if (rawKnown) {
+        const parsed = JSON.parse(rawKnown);
+        if (Array.isArray(parsed)) knownIds = parsed.filter((v): v is string => typeof v === "string");
+      }
+    } catch {
+      knownIds = null;
+    }
+
+    const newlyNeedsFolder: string[] = [];
+
     for (const acc of accounts) {
       if (!next[acc.id]?.activeSince) {
         const accPosts = posts.filter((p) => p.account_id === acc.id);
@@ -417,14 +455,112 @@ export default function Agonia() {
           ...next[acc.id],
           activeSince: earliest,
         };
-        changed = true;
+        metaChanged = true;
+      }
+
+      const pendingFolder = consumePendingAccountFolder(acc.username);
+      if (pendingFolder) {
+        next[acc.id] = {
+          ...next[acc.id],
+          folder: pendingFolder,
+        };
+        metaChanged = true;
+        if (!nextFolders.includes(pendingFolder)) {
+          nextFolders = [...nextFolders, pendingFolder];
+          foldersChanged = true;
+        }
+        if (newlyConnectedUsername === acc.username.toLowerCase()) {
+          clearNewlyConnectedUsername();
+        }
+        if (awaitingNew) {
+          clearAwaitingNewConnection();
+        }
+      }
+
+      const currentFolder = next[acc.id]?.folder?.trim() || "";
+      if (!currentFolder) {
+        const matchesNewUsername =
+          !!newlyConnectedUsername && acc.username.toLowerCase() === newlyConnectedUsername;
+        const isUnseenKnownAccount = knownIds !== null && !knownIds.includes(acc.id);
+        if (matchesNewUsername || isUnseenKnownAccount || (awaitingNew && knownIds !== null)) {
+          newlyNeedsFolder.push(acc.id);
+        }
       }
     }
-    if (changed) {
+
+    // If awaitingNew was set on a brand new session where knownIds was null, prompt the most recent unfoldered account
+    if (awaitingNew && newlyNeedsFolder.length === 0) {
+      const unfoldered = accounts.filter((acc) => !(next[acc.id]?.folder?.trim()));
+      if (unfoldered.length > 0) {
+        newlyNeedsFolder.push(unfoldered[0].id);
+      }
+    }
+
+    try {
+      localStorage.setItem(knownKey, JSON.stringify(accounts.map((a) => a.id)));
+    } catch {
+      /* ignore */
+    }
+
+    if (foldersChanged) {
+      setAccountFolders(nextFolders);
+      saveAccountFolders(user.id, nextFolders);
+    }
+    if (metaChanged) {
       setAccountMeta(next);
       saveAccountMeta(user.id, next);
     }
-  }, [user?.id, accounts, posts, accountMeta]);
+    if (newlyNeedsFolder.length > 0) {
+      clearNewlyConnectedUsername();
+      clearAwaitingNewConnection();
+      setMandatoryFolderQueue((prev) => {
+        const merged = [...prev];
+        for (const id of newlyNeedsFolder) {
+          if (!merged.includes(id)) merged.push(id);
+        }
+        return merged;
+      });
+    }
+  }, [user?.id, accounts, posts, accountMeta, accountFolders]);
+
+  useEffect(() => {
+    const onFocusOrStorage = () => {
+      if (readNewlyConnectedUsername() || isAwaitingNewConnection()) {
+        void accountsQuery.refetch();
+        void linksQuery.refetch();
+      }
+    };
+    window.addEventListener("focus", onFocusOrStorage);
+    window.addEventListener("storage", onFocusOrStorage);
+    return () => {
+      window.removeEventListener("focus", onFocusOrStorage);
+      window.removeEventListener("storage", onFocusOrStorage);
+    };
+  }, [accountsQuery, linksQuery]);
+
+  const mandatoryFolderAccount = useMemo(() => {
+    const targetId = mandatoryFolderQueue[0];
+    if (!targetId) return null;
+    return accounts.find((a) => a.id === targetId) ?? null;
+  }, [mandatoryFolderQueue, accounts]);
+
+  const allKnownFolders = useMemo(
+    () => collectAllKnownAccountFolders(accountMeta, accountFolders),
+    [accountMeta, accountFolders],
+  );
+
+  useEffect(() => {
+    if (!mandatoryFolderAccount) return;
+    if (allKnownFolders.length > 0) {
+      setMandatoryCreatingFolder(false);
+      setMandatoryFolderChoice((prev) =>
+        prev && allKnownFolders.includes(prev) ? prev : allKnownFolders[0],
+      );
+    } else {
+      setMandatoryCreatingFolder(true);
+      setMandatoryFolderChoice("");
+    }
+  }, [mandatoryFolderAccount, allKnownFolders]);
 
   useEffect(() => {
     if (accounts.length) {
@@ -472,6 +608,16 @@ export default function Agonia() {
     });
   }, [accounts, linkMap, opsFilter, opsSearch, accountMeta, selectedAccountFolder, healthMap, activeAlerts]);
 
+  const filteredOpsFolderGroups = useMemo(
+    () => groupAccountsByFolder(filteredOpsAccounts, accountMeta, allKnownFolders),
+    [filteredOpsAccounts, accountMeta, allKnownFolders],
+  );
+
+  const accountFolderGroups = useMemo(
+    () => groupAccountsByFolder(accounts, accountMeta, allKnownFolders),
+    [accounts, accountMeta, allKnownFolders],
+  );
+
   const stats = useMemo(() => {
     const scheduled = posts.filter(
       (p) => p.status === "scheduled" || p.status === "processing",
@@ -496,7 +642,7 @@ export default function Agonia() {
   const [dashPeriod, setDashPeriod] = useState<DashboardPeriod>("today");
   const dashPeriodLabel = { today: "Hoje", yesterday: "Ontem", "7d": "7 dias" }[dashPeriod];
 
-  // Filtro por modelo no Ranking de Contas
+  // Filtro por modelo e por pasta no Ranking de Contas
   const MODEL_OPTIONS = [
     { id: "all", label: "Todas as contas" },
     { id: "bianca-rossi", label: "Bianca Rossi" },
@@ -504,6 +650,7 @@ export default function Agonia() {
     { id: "leticia-torres", label: "Letícia Torres" },
   ] as const;
   const [selectedModel, setSelectedModel] = useState<string>("all");
+  const [selectedDashboardFolder, setSelectedDashboardFolder] = useState<string>("*");
   const selectedModelLabel =
     MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label ?? "Todas as contas";
 
@@ -535,11 +682,17 @@ export default function Agonia() {
   const publishedToday = usePublishedReelsToday(user?.id, section === "dashboard", settings.timezone);
   const reels = useMemo(() => reelMetrics(accounts.map(a => a.id), viewsReport.data), [accounts, viewsReport.data]);
   const accountViewsMetrics = useMemo(() => {
-    const rankedAccounts = accounts.map((acc) => ({ id: acc.id, username: acc.username, model: accountMeta[acc.id]?.modelName ?? null }));
+    const rankedAccounts = accounts.map((acc) => ({
+      id: acc.id,
+      username: acc.username,
+      model: accountMeta[acc.id]?.modelName ?? null,
+      folder: accountMeta[acc.id]?.folder?.trim() || "",
+    }));
     const target = MODEL_OPTIONS.find((m) => m.id === selectedModel)?.label.toLowerCase();
-    const filtered = selectedModel === "all" ? rankedAccounts : rankedAccounts.filter((acc) => acc.model?.toLowerCase() === selectedModel || acc.model?.toLowerCase() === target);
+    const byModel = selectedModel === "all" ? rankedAccounts : rankedAccounts.filter((acc) => acc.model?.toLowerCase() === selectedModel || acc.model?.toLowerCase() === target);
+    const filtered = selectedDashboardFolder === "*" ? byModel : byModel.filter((acc) => acc.folder === selectedDashboardFolder);
     return { ...accountViewsRanking(filtered, viewsReport.data), accountIds: filtered.map(account => account.id) };
-  }, [accounts, accountMeta, viewsReport.data, selectedModel]);
+  }, [accounts, accountMeta, viewsReport.data, selectedModel, selectedDashboardFolder]);
 
 
   async function refreshAll() {
@@ -677,6 +830,7 @@ export default function Agonia() {
     try {
       for (const acc of accounts) {
         try {
+          await monitorRequest("refresh", acc.id).catch(() => null);
           await publisherRequest("verify", { account_id: acc.id });
           okCount += 1;
           nextMeta[acc.id] = { ...nextMeta[acc.id], lastCheckedAt: nowIso };
@@ -1009,8 +1163,8 @@ export default function Agonia() {
             <Link to="/avanca/alertas" className="stat-card tone-red">
               <span className="stat-icon"><AlertTriangle className="h-4 w-4" /></span>
               <div className="label">Alertas de contas</div>
-              <div className={`value ${activeAlerts.length > 0 ? "text-rose-400 font-semibold" : ""}`}>
-                {activeAlerts.length || stats.failed}
+              <div className={`value ${(activeAlerts.length || degradedAccounts.length) > 0 ? "text-rose-400 font-semibold" : ""}`}>
+                {Math.max(activeAlerts.length, degradedAccounts.length)}
               </div>
             </Link>
           </section>
@@ -1109,7 +1263,7 @@ export default function Agonia() {
             {viewsReport.data && accountViewsMetrics.partial && <p className="text-xs text-muted-foreground">Consulta parcial: há mais vídeos ou métricas indisponíveis. Carregue mais vídeos; se o acesso estiver indisponível, confira a permissão de insights e reconecte a conta.</p>}
             {viewsReport.data && <p className="text-xs text-muted-foreground">Última consulta: {new Date(viewsReport.data.checked_at).toLocaleString("pt-BR")}. O ranking mostra totais acumulados.</p>}
 
-            {/* Filtro de Ranking por Modelo */}
+            {/* Filtro de Ranking por Modelo e Pasta */}
             <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por modelo">
               <span className="ranking-filter-label">Filtrar por modelo:</span>
               <div className="ranking-filter-tabs">
@@ -1127,6 +1281,43 @@ export default function Agonia() {
                 ))}
               </div>
             </div>
+            {allKnownFolders.length > 0 && (
+              <div className="ranking-filter-bar" role="tablist" aria-label="Filtrar ranking por pasta">
+                <span className="ranking-filter-label">Filtrar por pasta:</span>
+                <div className="ranking-filter-tabs">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedDashboardFolder === "*"}
+                    className={`ranking-filter-tab ${selectedDashboardFolder === "*" ? "is-active" : ""}`}
+                    onClick={() => setSelectedDashboardFolder("*")}
+                  >
+                    Todas as pastas
+                  </button>
+                  {allKnownFolders.map((folder) => (
+                    <button
+                      key={folder}
+                      type="button"
+                      role="tab"
+                      aria-selected={selectedDashboardFolder === folder}
+                      className={`ranking-filter-tab ${selectedDashboardFolder === folder ? "is-active" : ""}`}
+                      onClick={() => setSelectedDashboardFolder(folder)}
+                    >
+                      {folder}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedDashboardFolder === ""}
+                    className={`ranking-filter-tab ${selectedDashboardFolder === "" ? "is-active" : ""}`}
+                    onClick={() => setSelectedDashboardFolder("")}
+                  >
+                    Sem pasta
+                  </button>
+                </div>
+              </div>
+            )}
 
             {accountViewsMetrics.best && (
               <div className="performance-highlights">
@@ -1369,6 +1560,8 @@ export default function Agonia() {
           onRefresh={refreshAll}
           accountsPending={accountsQuery.isPending || linksQuery.isPending}
           accountsError={accountsQuery.isError || linksQuery.isError}
+          accountMeta={accountMeta}
+          accountFolders={allKnownFolders}
         />
       )}
 
@@ -1469,7 +1662,7 @@ export default function Agonia() {
             <select aria-label="Filtrar por pasta" className="ops-filter" value={selectedAccountFolder} onChange={(e) => setSelectedAccountFolder(e.target.value)}>
               <option value="*">Pastas: todas</option>
               <option value="">Sem pasta</option>
-              {accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+              {allKnownFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
             </select>
             <select aria-label="Filtrar por status" className="ops-filter" value={opsFilter} onChange={(e) => setOpsFilter(e.target.value)}>
               <option value="ALL">Status: todos</option>
@@ -1505,7 +1698,7 @@ export default function Agonia() {
           <div className="ig-accounts-list-toolbar">
             <label className="ig-accounts-select-all">
               <input type="checkbox" aria-label="Selecionar contas visíveis" disabled={!filteredOpsAccounts.length} checked={filteredOpsAccounts.length > 0 && filteredOpsAccounts.every((a) => opsSelectedIds.includes(a.id))} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, ...filteredOpsAccounts.map((a) => a.id)])] : current.filter((id) => !filteredOpsAccounts.some((a) => a.id === id)))} />
-              Selecionar
+              Selecionar todas
             </label>
             <span className="ig-accounts-result-count">{filteredOpsAccounts.length} {filteredOpsAccounts.length === 1 ? "conta" : "contas"}</span>
             {selectedAccountFolder !== "*" && selectedAccountFolder !== "" && user && (
@@ -1532,7 +1725,7 @@ export default function Agonia() {
               <select aria-label="Mover contas selecionadas para pasta" className="ops-filter" value="__placeholder__" onChange={(e) => { if (e.target.value !== "__placeholder__") moveSelectedAccountsToFolder(e.target.value); }}>
                 <option value="__placeholder__" disabled>Mover para pasta…</option>
                 <option value="">Sem pasta</option>
-                {accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+                {allKnownFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
               </select>
               <button type="button" className="button button-primary" onClick={() => { setReelAccountIds(opsSelectedIds); navigate("/avanca/reels-new"); }}><Film size={14} /> Publicar nas selecionadas</button>
               <button type="button" className="ig-accounts-text-button" onClick={() => setOpsSelectedIds([])}>Limpar seleção</button>
@@ -1548,86 +1741,134 @@ export default function Agonia() {
           ) : filteredOpsAccounts.length === 0 ? (
             <div className="ig-accounts-empty"><p>Nenhuma conta encontrada com esses filtros.</p><button type="button" className="ig-accounts-text-button" onClick={() => { setOpsSearch(""); setOpsFilter("ALL"); setSelectedAccountFolder("*"); }}>Limpar filtros</button></div>
           ) : (
-            <div className="ig-account-list">
-              {filteredOpsAccounts.map((acc) => {
-                const link = linkMap.get(acc.id);
-                const isSelected = opsSelectedIds.includes(acc.id);
-                const expanded = opsExpandedAccountId === acc.id;
-                const accPosts = posts.filter((p) => p.account_id === acc.id);
-                const todayCount = accPosts.filter((p) => p.status === "published" && isToday(p.published_at || p.created_at)).length;
-                const queueCount = accPosts.filter((p) => p.status === "scheduled" || p.status === "processing").length;
-                const days30Count = accPosts.filter((p) => p.status === "published" && isWithinDays(p.published_at || p.created_at, 30)).length;
-                const failedCount = accPosts.filter((p) => p.status === "failed" || p.status === "uncertain").length;
-                const lastPublished = accPosts.find((p) => p.status === "published");
-                const customName = nameDrafts[acc.id] ?? accountMeta[acc.id]?.customName ?? "";
-                const savedCustomName = accountMeta[acc.id]?.customName?.trim();
-                const currentFolder = accountMeta[acc.id]?.folder || "";
-                const activeDays = getAccountActiveDays(acc);
-                const checkedAt = accountMeta[acc.id]?.lastCheckedAt;
+            <div className="ig-account-list space-y-4">
+              {filteredOpsFolderGroups.map((group) => {
+                const groupIds = group.accounts.map((a) => a.id);
+                const selectedInGroup = groupIds.filter((id) => opsSelectedIds.includes(id)).length;
+                const allSelectedInGroup = groupIds.length > 0 && selectedInGroup === groupIds.length;
                 return (
-                  <article key={acc.id} className={`ig-account-item ${isSelected ? "is-selected" : ""}`}>
-                    <div className="ig-account-main">
-                      <input type="checkbox" aria-label={`Selecionar @${acc.username}`} checked={isSelected} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, acc.id])] : current.filter((id) => id !== acc.id))} />
-                      <div className="ig-account-identity">
-                        <InstagramAccountAvatar username={acc.username} name={savedCustomName} url={photoMap.get(acc.id) || acc.avatar_url} />
-                        <div><strong>{savedCustomName || `@${acc.username}`}</strong><small>{savedCustomName ? `@${acc.username}` : currentFolder || "Sem pasta"}</small></div>
+                  <div key={group.folder || "__no_folder__"} className="rounded-xl border border-white/10 bg-white/[0.015] p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1 border-b border-white/10">
+                      <div className="flex items-center gap-2 text-xs font-medium text-white/90">
+                        <Folder size={14} className="text-emerald-400" />
+                        <span>{group.label}</span>
+                        <span className="text-muted-foreground">({selectedInGroup}/{group.accounts.length})</span>
                       </div>
-                      <div className="ig-account-state">
-                        <span className={`ig-account-status ${link?.reconnect_required ? "needs-attention" : ""}`}>{link?.reconnect_required ? "Reconectar" : link?.paused ? "Pausada" : "Conectada"}</span>
-                        <span className="ig-account-queue">{queueCount} na fila</span>
-                      </div>
-                      <div className="ig-account-actions">
-                        <button type="button" className="ig-accounts-text-button" onClick={() => { setReelAccountIds([acc.id]); navigate("/avanca/reels-new"); }}>Publicar</button>
-                        <button type="button" className="ig-accounts-manage" aria-label={`Gerenciar @${acc.username}`} aria-expanded={expanded} aria-controls={`ig-account-${acc.id}`} onClick={() => setOpsExpandedAccountId(expanded ? null : acc.id)}>Gerenciar <ChevronDown size={14} className={expanded ? "is-expanded" : ""} /></button>
-                      </div>
+                      <button
+                        type="button"
+                        className="ig-accounts-text-button text-xs"
+                        aria-label={`${allSelectedInGroup ? "Desmarcar pasta" : "Selecionar pasta"} ${group.label}`}
+                        onClick={() =>
+                          setOpsSelectedIds((current) =>
+                            allSelectedInGroup
+                              ? current.filter((id) => !groupIds.includes(id))
+                              : [...new Set([...current, ...groupIds])],
+                          )
+                        }
+                      >
+                        {allSelectedInGroup ? "Desmarcar pasta" : "Selecionar pasta"}
+                      </button>
                     </div>
-                    {expanded && (
-                      <div id={`ig-account-${acc.id}`} role="region" aria-label={`Gerenciar @${acc.username}`} className="ig-account-details">
-                        <div className="ig-account-edit-fields">
-                          <div className="ig-account-edit-field"><label htmlFor={`ig-account-name-${acc.id}`}>Nome da conta</label><div><input id={`ig-account-name-${acc.id}`} aria-label={`Nome personalizado da conta @${acc.username}`} placeholder="Adicionar nome" value={customName} onChange={(e) => setNameDrafts((current) => ({ ...current, [acc.id]: e.target.value }))} /><button type="button" className="button button-secondary" onClick={() => saveNameForAccount(acc.id, acc.username)}>Salvar</button></div></div>
-                          <div className="ig-account-edit-field"><label htmlFor={`ig-account-folder-${acc.id}`}>Pasta</label><select id={`ig-account-folder-${acc.id}`} aria-label={`Pasta da conta @${acc.username}`} value={currentFolder} onChange={(e) => setFolderForAccount(acc.id, acc.username, e.target.value)} className="ops-filter"><option value="">Sem pasta</option>{accountFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select></div>
-                        </div>
-                        <AccountNotes
-                          username={acc.username}
-                          value={noteDrafts[acc.id] ?? acc.notes ?? ""}
-                          savedValue={acc.notes ?? ""}
-                          onChange={(value) => setNoteDrafts((current) => ({ ...current, [acc.id]: value }))}
-                          onSave={async (value) => {
-                            if (!user) throw new Error("Sessão expirada.");
-                            const notes = await saveAccountNotes(user.id, acc.id, value);
-                            queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user.id], (current) => current?.map((account) => account.id === acc.id ? { ...account, notes } : account));
-                          }}
-                        />
-                        <div className="ig-account-detail-stats">
-                          <span><strong>{todayCount}</strong> publicados hoje</span>
-                          <span><strong>{days30Count}</strong> nos últimos 30 dias</span>
-                          <span><strong>{failedCount}</strong> falhas</span>
-                          <span title="Dias de operação da conta na ferramenta"><strong>{activeDays}</strong> {activeDays === 1 ? "dia de operação" : "dias de operação"}</span>
-                        </div>
-                        <div className="ig-account-details-footer">
-                          <span>Última publicação: {lastPublished?.published_at ? new Date(lastPublished.published_at).toLocaleDateString("pt-BR") : "nenhuma"}{checkedAt ? ` · Verificação: ${new Date(checkedAt).toLocaleString("pt-BR")}` : ""}</span>
-                          <button type="button" className="ig-accounts-text-button" onClick={async () => {
-                            try {
-                              await publisherRequest("pause", { account_id: acc.id, paused: !link?.paused });
-                              await refreshAll();
-                              toast.success(link?.paused ? `Conta @${acc.username} retomada.` : `Conta @${acc.username} pausada.`);
-                            } catch (error) { toast.error(error instanceof Error ? error.message : "Erro ao alterar pausa."); }
-                          }}>{link?.paused ? "Retomar publicações" : "Pausar publicações"}</button>
-                          <RemoveInstagramAccount account={acc} onRemoved={async (id) => {
-                            setOpsSelectedIds((current) => current.filter((value) => value !== id));
-                            setReelAccountIds((current) => current.filter((value) => value !== id));
-                            setStoryAccountIds((current) => current.filter((value) => value !== id));
-                            setDiagAccountId((current) => current === id ? "" : current);
-                            setOpsExpandedAccountId(null);
-                            queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user?.id], (current) => current?.filter((item) => item.id !== id));
-                            await refreshAll();
-                            toast.success("Conta removida da Avança.");
-                          }} />
-                        </div>
-                        {link?.reconnect_required && <Link className="ig-accounts-text-button" to="/avanca/conectar">Reconectar esta conta <ArrowRight size={14} /></Link>}
-                      </div>
-                    )}
-                  </article>
+                    <div className="space-y-2">
+                      {group.accounts.map((acc) => {
+                        const link = linkMap.get(acc.id);
+                        const isSelected = opsSelectedIds.includes(acc.id);
+                        const expanded = opsExpandedAccountId === acc.id;
+                        const accPosts = posts.filter((p) => p.account_id === acc.id);
+                        const todayCount = accPosts.filter((p) => p.status === "published" && isToday(p.published_at || p.created_at)).length;
+                        const queueCount = accPosts.filter((p) => p.status === "scheduled" || p.status === "processing").length;
+                        const days30Count = accPosts.filter((p) => p.status === "published" && isWithinDays(p.published_at || p.created_at, 30)).length;
+                        const failedCount = accPosts.filter((p) => p.status === "failed" || p.status === "uncertain").length;
+                        const lastPublished = accPosts.find((p) => p.status === "published");
+                        const customName = nameDrafts[acc.id] ?? accountMeta[acc.id]?.customName ?? "";
+                        const savedCustomName = accountMeta[acc.id]?.customName?.trim();
+                        const currentFolder = accountMeta[acc.id]?.folder || "";
+                        const activeDays = getAccountActiveDays(acc);
+                        const health = healthMap.get(acc.id);
+                        const healthState = accountHealthState(health, link?.reconnect_required);
+                        const needsAttention = !["healthy", "unknown"].includes(healthState);
+                        const checkedAt = health?.checked_at || accountMeta[acc.id]?.lastCheckedAt;
+                        return (
+                          <article key={acc.id} className={`ig-account-item ${isSelected ? "is-selected" : ""}`}>
+                            <div className="ig-account-main">
+                              <input type="checkbox" aria-label={`Selecionar @${acc.username}`} checked={isSelected} onChange={(e) => setOpsSelectedIds((current) => e.target.checked ? [...new Set([...current, acc.id])] : current.filter((id) => id !== acc.id))} />
+                              <div className="ig-account-identity">
+                                <InstagramAccountAvatar username={acc.username} name={savedCustomName} url={photoMap.get(acc.id) || acc.avatar_url} />
+                                <div><strong>{savedCustomName || `@${acc.username}`}</strong><small>{savedCustomName ? `@${acc.username}` : currentFolder || "Sem pasta"}</small></div>
+                              </div>
+                              <div className="ig-account-state">
+                                <span className={`ig-account-status ${needsAttention ? "needs-attention" : ""}`}>{link?.reconnect_required || healthState === "reconnect" || healthState === "permissions" ? "Reconectar" : needsAttention ? healthLabels[healthState] : link?.paused ? "Pausada" : "Conectada"}</span>
+                                <span className="ig-account-queue">{queueCount} na fila</span>
+                              </div>
+                              <div className="ig-account-actions">
+                                {!currentFolder && (
+                                  <button
+                                    type="button"
+                                    className="ig-accounts-text-button"
+                                    onClick={() =>
+                                      setMandatoryFolderQueue((prev) =>
+                                        prev.includes(acc.id) ? prev : [...prev, acc.id],
+                                      )
+                                    }
+                                  >
+                                    Definir pasta
+                                  </button>
+                                )}
+                                <button type="button" className="ig-accounts-text-button" onClick={() => { setReelAccountIds([acc.id]); navigate("/avanca/reels-new"); }}>Publicar</button>
+                                <button type="button" className="ig-accounts-manage" aria-label={`Gerenciar @${acc.username}`} aria-expanded={expanded} aria-controls={`ig-account-${acc.id}`} onClick={() => setOpsExpandedAccountId(expanded ? null : acc.id)}>Gerenciar <ChevronDown size={14} className={expanded ? "is-expanded" : ""} /></button>
+                              </div>
+                            </div>
+                            {expanded && (
+                              <div id={`ig-account-${acc.id}`} role="region" aria-label={`Gerenciar @${acc.username}`} className="ig-account-details">
+                                <div className="ig-account-edit-fields">
+                                  <div className="ig-account-edit-field"><label htmlFor={`ig-account-name-${acc.id}`}>Nome da conta</label><div><input id={`ig-account-name-${acc.id}`} aria-label={`Nome personalizado da conta @${acc.username}`} placeholder="Adicionar nome" value={customName} onChange={(e) => setNameDrafts((current) => ({ ...current, [acc.id]: e.target.value }))} /><button type="button" className="button button-secondary" onClick={() => saveNameForAccount(acc.id, acc.username)}>Salvar</button></div></div>
+                                  <div className="ig-account-edit-field"><label htmlFor={`ig-account-folder-${acc.id}`}>Pasta</label><select id={`ig-account-folder-${acc.id}`} aria-label={`Pasta da conta @${acc.username}`} value={currentFolder} onChange={(e) => setFolderForAccount(acc.id, acc.username, e.target.value)} className="ops-filter"><option value="">Sem pasta</option>{allKnownFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select></div>
+                                </div>
+                                <AccountNotes
+                                  username={acc.username}
+                                  value={noteDrafts[acc.id] ?? acc.notes ?? ""}
+                                  savedValue={acc.notes ?? ""}
+                                  onChange={(value) => setNoteDrafts((current) => ({ ...current, [acc.id]: value }))}
+                                  onSave={async (value) => {
+                                    if (!user) throw new Error("Sessão expirada.");
+                                    const notes = await saveAccountNotes(user.id, acc.id, value);
+                                    queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user.id], (current) => current?.map((account) => account.id === acc.id ? { ...account, notes } : account));
+                                  }}
+                                />
+                                <div className="ig-account-detail-stats">
+                                  <span><strong>{todayCount}</strong> publicados hoje</span>
+                                  <span><strong>{days30Count}</strong> nos últimos 30 dias</span>
+                                  <span><strong>{failedCount}</strong> falhas</span>
+                                  <span title="Dias de operação da conta na ferramenta"><strong>{activeDays}</strong> {activeDays === 1 ? "dia de operação" : "dias de operação"}</span>
+                                </div>
+                                <div className="ig-account-details-footer">
+                                  <span>Última publicação: {lastPublished?.published_at ? new Date(lastPublished.published_at).toLocaleDateString("pt-BR") : "nenhuma"}{checkedAt ? ` · Verificação: ${new Date(checkedAt).toLocaleString("pt-BR")}` : ""}</span>
+                                  <button type="button" className="ig-accounts-text-button" onClick={async () => {
+                                    try {
+                                      await publisherRequest("pause", { account_id: acc.id, paused: !link?.paused });
+                                      await refreshAll();
+                                      toast.success(link?.paused ? `Conta @${acc.username} retomada.` : `Conta @${acc.username} pausada.`);
+                                    } catch (error) { toast.error(error instanceof Error ? error.message : "Erro ao alterar pausa."); }
+                                  }}>{link?.paused ? "Retomar publicações" : "Pausar publicações"}</button>
+                                  <RemoveInstagramAccount account={acc} onRemoved={async (id) => {
+                                    setOpsSelectedIds((current) => current.filter((value) => value !== id));
+                                    setReelAccountIds((current) => current.filter((value) => value !== id));
+                                    setStoryAccountIds((current) => current.filter((value) => value !== id));
+                                    setDiagAccountId((current) => current === id ? "" : current);
+                                    setOpsExpandedAccountId(null);
+                                    queryClient.setQueryData<PublisherAccount[]>(["instagram-publisher-accounts", user?.id], (current) => current?.filter((item) => item.id !== id));
+                                    await refreshAll();
+                                    toast.success("Conta removida da Avança.");
+                                  }} />
+                                </div>
+                                {link?.reconnect_required && <Link className="ig-accounts-text-button" to="/avanca/conectar">Reconectar esta conta <ArrowRight size={14} /></Link>}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1982,7 +2223,7 @@ export default function Agonia() {
 
                   <div className="field">
                     <div className="reel-accounts-head">
-                      <label>Contas do Instagram</label>
+                      <label>Contas do Instagram (organizadas por pastas)</label>
                       <button
                         type="button"
                         className="link"
@@ -2006,29 +2247,71 @@ export default function Agonia() {
                     {accounts.length === 0 ? (
                       <div className="empty">Nenhuma conta conectada.</div>
                     ) : (
-                      <div className="account-list">
-                        {accounts.map((acc) => {
-                          const checked = reelAccountIds.includes(acc.id);
-                          const model =
-                            accountMeta[acc.id]?.modelName || "MEDIA_CREATOR";
+                      <div className="account-list space-y-3">
+                        {accountFolderGroups.map((group) => {
+                          const groupIds = group.accounts.map((a) => a.id);
+                          const selectedInGroup = groupIds.filter((id) =>
+                            reelAccountIds.includes(id),
+                          ).length;
+                          const allSelectedInGroup =
+                            groupIds.length > 0 && selectedInGroup === groupIds.length;
                           return (
-                            <label key={acc.id} className="account-option">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) =>
-                                  setReelAccountIds((prev) =>
-                                    e.target.checked
-                                      ? [...prev, acc.id]
-                                      : prev.filter((id) => id !== acc.id),
-                                  )
-                                }
-                              />
-                              <span>
-                                <strong>@{acc.username}</strong>
-                                <small>{model}</small>
-                              </span>
-                            </label>
+                            <div
+                              key={group.folder || "__no_folder__"}
+                              className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5 space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-2 pb-1 border-b border-white/10">
+                                <span className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+                                  <Folder size={13} className="text-emerald-400" />
+                                  {group.label}{" "}
+                                  <small className="text-muted-foreground">
+                                    ({selectedInGroup}/{group.accounts.length})
+                                  </small>
+                                </span>
+                                <button
+                                  type="button"
+                                  className="link text-xs"
+                                  aria-label={`${allSelectedInGroup ? "Desmarcar pasta" : "Selecionar pasta"} ${group.label}`}
+                                  onClick={() =>
+                                    setReelAccountIds((prev) =>
+                                      allSelectedInGroup
+                                        ? prev.filter((id) => !groupIds.includes(id))
+                                        : [...new Set([...prev, ...groupIds])],
+                                    )
+                                  }
+                                >
+                                  {allSelectedInGroup
+                                    ? "Desmarcar pasta"
+                                    : "Selecionar pasta"}
+                                </button>
+                              </div>
+                              <div className="space-y-1.5">
+                                {group.accounts.map((acc) => {
+                                  const checked = reelAccountIds.includes(acc.id);
+                                  const model =
+                                    accountMeta[acc.id]?.modelName || "MEDIA_CREATOR";
+                                  return (
+                                    <label key={acc.id} className="account-option">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={(e) =>
+                                          setReelAccountIds((prev) =>
+                                            e.target.checked
+                                              ? [...prev, acc.id]
+                                              : prev.filter((id) => id !== acc.id),
+                                          )
+                                        }
+                                      />
+                                      <span>
+                                        <strong>@{acc.username}</strong>
+                                        <small>{model}</small>
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
@@ -2159,7 +2442,7 @@ export default function Agonia() {
                           gap: 12,
                         }}
                       >
-                        <label>Contas do Instagram</label>
+                        <label>Contas do Instagram (organizadas por pastas)</label>
                         <button
                           type="button"
                           className="link"
@@ -2189,30 +2472,72 @@ export default function Agonia() {
                           <div className="empty">Nenhuma conta conectada.</div>
                         ) : (
                           <div
-                            className="account-list"
+                            className="account-list space-y-3"
                             style={{ padding: 10 }}
                           >
-                            {accounts.map((acc) => (
-                              <label key={acc.id} className="account-option">
-                                <input
-                                  type="checkbox"
-                                  checked={storyAccountIds.includes(acc.id)}
-                                  onChange={(e) =>
-                                    setStoryAccountIds((prev) =>
-                                      e.target.checked
-                                        ? [...prev, acc.id]
-                                        : prev.filter((id) => id !== acc.id),
-                                    )
-                                  }
-                                />
-                                <span>
-                                  <strong>@{acc.username}</strong>
-                                  <small>
-                                    MEDIA_CREATOR · pronta para publicar
-                                  </small>
-                                </span>
-                              </label>
-                            ))}
+                            {accountFolderGroups.map((group) => {
+                              const groupIds = group.accounts.map((a) => a.id);
+                              const selectedInGroup = groupIds.filter((id) =>
+                                storyAccountIds.includes(id),
+                              ).length;
+                              const allSelectedInGroup =
+                                groupIds.length > 0 && selectedInGroup === groupIds.length;
+                              return (
+                                <div
+                                  key={group.folder || "__no_folder__"}
+                                  className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5 space-y-2"
+                                >
+                                  <div className="flex items-center justify-between gap-2 pb-1 border-b border-white/10">
+                                    <span className="flex items-center gap-1.5 text-xs font-medium text-white/90">
+                                      <Folder size={13} className="text-emerald-400" />
+                                      {group.label}{" "}
+                                      <small className="text-muted-foreground">
+                                        ({selectedInGroup}/{group.accounts.length})
+                                      </small>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="link text-xs"
+                                      aria-label={`${allSelectedInGroup ? "Desmarcar pasta" : "Selecionar pasta"} ${group.label}`}
+                                      onClick={() =>
+                                        setStoryAccountIds((prev) =>
+                                          allSelectedInGroup
+                                            ? prev.filter((id) => !groupIds.includes(id))
+                                            : [...new Set([...prev, ...groupIds])],
+                                        )
+                                      }
+                                    >
+                                      {allSelectedInGroup
+                                        ? "Desmarcar pasta"
+                                        : "Selecionar pasta"}
+                                    </button>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {group.accounts.map((acc) => (
+                                      <label key={acc.id} className="account-option">
+                                        <input
+                                          type="checkbox"
+                                          checked={storyAccountIds.includes(acc.id)}
+                                          onChange={(e) =>
+                                            setStoryAccountIds((prev) =>
+                                              e.target.checked
+                                                ? [...prev, acc.id]
+                                                : prev.filter((id) => id !== acc.id),
+                                            )
+                                          }
+                                        />
+                                        <span>
+                                          <strong>@{acc.username}</strong>
+                                          <small>
+                                            MEDIA_CREATOR · pronta para publicar
+                                          </small>
+                                        </span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -2441,7 +2766,7 @@ export default function Agonia() {
               <div>
                 <h2 className="panel-title">Próximos jobs</h2>
                 <p className="panel-copy">
-                  Escolha um App Meta ou uma conta para visualizar e cancelar
+                  Escolha um App Meta, uma pasta ou uma conta para visualizar e cancelar
                   somente a fila desejada.
                 </p>
               </div>
@@ -2464,6 +2789,25 @@ export default function Agonia() {
                 </select>
               </div>
               <div className="field">
+                <label htmlFor="scheduled-folder-filter">Pasta</label>
+                <select
+                  id="scheduled-folder-filter"
+                  value={schedFolderFilter}
+                  onChange={(e) => {
+                    setSchedFolderFilter(e.target.value);
+                    setSchedAccountFilter("");
+                  }}
+                >
+                  <option value="*">Todas as pastas</option>
+                  {allKnownFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {folder}
+                    </option>
+                  ))}
+                  <option value="">Sem pasta</option>
+                </select>
+              </div>
+              <div className="field">
                 <label htmlFor="scheduled-account-filter">Conta</label>
                 <select
                   id="scheduled-account-filter"
@@ -2471,11 +2815,17 @@ export default function Agonia() {
                   onChange={(e) => setSchedAccountFilter(e.target.value)}
                 >
                   <option value="">Todas as contas</option>
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      @{acc.username}
-                    </option>
-                  ))}
+                  {accountFolderGroups
+                    .filter((g) => schedFolderFilter === "*" || g.folder === schedFolderFilter)
+                    .map((group) => (
+                      <optgroup key={group.folder || "__no_folder__"} label={group.label}>
+                        {group.accounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            @{acc.username}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                 </select>
               </div>
               <div className="schedule-filter-actions">
@@ -2484,6 +2834,7 @@ export default function Agonia() {
                   className="button button-secondary"
                   onClick={() => {
                     setSchedAppFilter("");
+                    setSchedFolderFilter("*");
                     setSchedAccountFilter("");
                   }}
                 >
@@ -2493,11 +2844,15 @@ export default function Agonia() {
             </div>
 
             {(() => {
-              const filtered = posts.filter(
-                (p) =>
-                  (p.status === "scheduled" || p.status === "processing") &&
-                  (!schedAccountFilter || p.account_id === schedAccountFilter),
-              );
+              const filtered = posts.filter((p) => {
+                if (p.status !== "scheduled" && p.status !== "processing") return false;
+                if (schedAccountFilter && p.account_id !== schedAccountFilter) return false;
+                if (schedFolderFilter !== "*") {
+                  const folder = accountMeta[p.account_id]?.folder?.trim() || "";
+                  if (folder !== schedFolderFilter) return false;
+                }
+                return true;
+              });
               return (
                 <>
                   <p className="schedule-filter-summary">
@@ -2598,7 +2953,7 @@ export default function Agonia() {
           </header>
 
           <section className="panel">
-            <div className="toolbar">
+            <div className="toolbar flex flex-wrap items-center justify-between gap-3">
               <div className="filter-tabs">
                 {(
                   [
@@ -2621,15 +2976,62 @@ export default function Agonia() {
                   </button>
                 ))}
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Filtrar publicações por pasta"
+                  className="ops-filter"
+                  value={pubFolderFilter}
+                  onChange={(e) => {
+                    setPubFolderFilter(e.target.value);
+                    setPubAccountFilter("");
+                    setPubPage(1);
+                  }}
+                >
+                  <option value="*">Pastas: todas</option>
+                  {allKnownFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {folder}
+                    </option>
+                  ))}
+                  <option value="">Sem pasta</option>
+                </select>
+                <select
+                  aria-label="Filtrar publicações por conta"
+                  className="ops-filter"
+                  value={pubAccountFilter}
+                  onChange={(e) => {
+                    setPubAccountFilter(e.target.value);
+                    setPubPage(1);
+                  }}
+                >
+                  <option value="">Todas as contas</option>
+                  {accountFolderGroups
+                    .filter((g) => pubFolderFilter === "*" || g.folder === pubFolderFilter)
+                    .map((group) => (
+                      <optgroup key={group.folder || "__no_folder__"} label={group.label}>
+                        {group.accounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            @{acc.username}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                </select>
+              </div>
             </div>
 
             {(() => {
               const filtered = posts.filter((p) => {
-                if (pubTab === "scheduled")
-                  return p.status === "scheduled" || p.status === "processing";
-                if (pubTab === "published") return p.status === "published";
-                if (pubTab === "failed")
-                  return p.status === "failed" || p.status === "uncertain";
+                if (pubTab === "scheduled" && p.status !== "scheduled" && p.status !== "processing")
+                  return false;
+                if (pubTab === "published" && p.status !== "published") return false;
+                if (pubTab === "failed" && p.status !== "failed" && p.status !== "uncertain")
+                  return false;
+                if (pubAccountFilter && p.account_id !== pubAccountFilter) return false;
+                if (pubFolderFilter !== "*") {
+                  const folder = accountMeta[p.account_id]?.folder?.trim() || "";
+                  if (folder !== pubFolderFilter) return false;
+                }
                 return true;
               });
               const pageSize = 25;
@@ -2815,10 +3217,14 @@ export default function Agonia() {
                     value={diagAccountId}
                     onChange={(e) => setDiagAccountId(e.target.value)}
                   >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        @{acc.username} · MEDIA_CREATOR · Instagram Login
-                      </option>
+                    {accountFolderGroups.map((group) => (
+                      <optgroup key={group.folder || "__no_folder__"} label={group.label}>
+                        {group.accounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            @{acc.username} · MEDIA_CREATOR · Instagram Login
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
@@ -3190,6 +3596,141 @@ export default function Agonia() {
           </div>
         </>
       )}
+
+      {/* MODAL OBRIGATÓRIO DE PASTA AO CONECTAR CONTA */}
+      <Dialog open={!!mandatoryFolderAccount} onOpenChange={() => {}}>
+        {mandatoryFolderAccount && (
+          <DialogContent
+            className="border-white/10 bg-[#0b101b] text-white sm:max-w-md [&>button]:hidden"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-white">
+                <Folder className="h-5 w-5 text-emerald-400" />
+                Adicionar conta a uma pasta (obrigatório)
+              </DialogTitle>
+              <DialogDescription className="text-slate-300">
+                A conta <strong className="text-white">@{mandatoryFolderAccount.username}</strong> foi conectada. Escolha uma pasta existente ou crie uma nova pasta para organizar esta conta em todo o sistema.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form
+              className="space-y-4 pt-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!user) return;
+                const chosen = mandatoryCreatingFolder
+                  ? mandatoryNewFolderName.trim()
+                  : mandatoryFolderChoice.trim();
+                if (!chosen) {
+                  toast.error("Selecione ou crie uma pasta para continuar.");
+                  return;
+                }
+                const nextFolders = [...new Set([...accountFolders, chosen])];
+                setAccountFolders(nextFolders);
+                saveAccountFolders(user.id, nextFolders);
+                const nextMeta: AccountMetaMap = {
+                  ...accountMeta,
+                  [mandatoryFolderAccount.id]: {
+                    ...accountMeta[mandatoryFolderAccount.id],
+                    folder: chosen,
+                  },
+                };
+                setAccountMeta(nextMeta);
+                saveAccountMeta(user.id, nextMeta);
+                setMandatoryNewFolderName("");
+                setMandatoryFolderQueue((prev) =>
+                  prev.filter((id) => id !== mandatoryFolderAccount.id),
+                );
+                toast.success(
+                  `@${mandatoryFolderAccount.username} adicionada à pasta "${chosen}".`,
+                );
+              }}
+            >
+              {allKnownFolders.length > 0 && !mandatoryCreatingFolder ? (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="mandatory-account-folder-select"
+                    className="block text-xs font-medium text-slate-300"
+                  >
+                    Selecionar pasta
+                  </label>
+                  <select
+                    id="mandatory-account-folder-select"
+                    aria-label="Selecionar pasta obrigatória da conta"
+                    value={mandatoryFolderChoice}
+                    onChange={(e) => setMandatoryFolderChoice(e.target.value)}
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                  >
+                    {allKnownFolders.map((folder) => (
+                      <option key={folder} value={folder}>
+                        {folder}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:underline"
+                    onClick={() => {
+                      setMandatoryCreatingFolder(true);
+                      setMandatoryNewFolderName("");
+                    }}
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" /> Criar nova pasta
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="mandatory-new-folder-input"
+                    className="block text-xs font-medium text-slate-300"
+                  >
+                    Nome da nova pasta
+                  </label>
+                  <input
+                    id="mandatory-new-folder-input"
+                    aria-label="Nome da nova pasta obrigatória"
+                    type="text"
+                    maxLength={60}
+                    autoFocus
+                    placeholder="Ex.: Operação Principal, Nicho Fitness..."
+                    value={mandatoryNewFolderName}
+                    onChange={(e) => setMandatoryNewFolderName(e.target.value)}
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                  />
+                  {allKnownFolders.length > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:underline"
+                      onClick={() => {
+                        setMandatoryCreatingFolder(false);
+                        setMandatoryFolderChoice(allKnownFolders[0] || "");
+                      }}
+                    >
+                      Escolher pasta existente
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="button button-primary w-full justify-center"
+                  disabled={
+                    mandatoryCreatingFolder
+                      ? !mandatoryNewFolderName.trim()
+                      : !mandatoryFolderChoice.trim()
+                  }
+                >
+                  Salvar conta na pasta
+                </button>
+              </div>
+            </form>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

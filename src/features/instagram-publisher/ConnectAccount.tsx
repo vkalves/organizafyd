@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import type { MetaApp, MetaConfig } from "@/features/meta-developer/meta-apps";
+import { markAwaitingNewConnection } from "@/features/agonia/schedule";
 import { loginRequest } from "./login";
 import { openBrowserLogin } from "./browser-login";
 
@@ -121,6 +122,7 @@ function ConnectAccountModalContent({ onClose, appId }: { onClose: () => void; a
       app_id: selectedApp || null,
       ...(expected ? { expected_username: expected } : {}),
     });
+    markAwaitingNewConnection();
     return data.url;
   }
 

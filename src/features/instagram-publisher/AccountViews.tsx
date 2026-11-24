@@ -8,7 +8,7 @@ export default function AccountViews() {
         <div>
           <div className="eyebrow">Análise de conta</div>
           <h1 className="page-title">Visualizações</h1>
-          <p className="page-subtitle">Acompanhe o desempenho dos vídeos das suas contas do Instagram.</p>
+          <p className="page-subtitle">Acompanhe visualizações, curtidas e seguidores das suas contas do Instagram organizadas por pastas.</p>
         </div>
       </header>
       <InstagramAnalytics />

@@ -6,7 +6,11 @@ import {
 } from "./library-sharing.ts";
 import { requireApprovedAccount } from "../_shared/account-approval.ts";
 import { hybridStorage } from "../_shared/hybrid-storage.ts";
-import { readVideoAnalytics } from "./analytics.ts";
+import {
+  type AccountProfile,
+  readAccountOverview,
+  readVideoAnalytics,
+} from "./analytics.ts";
 import { dayWindow } from "./day-window.ts";
 import { readSharedFlowProgress } from "./shared-flow-progress.ts";
 import {
@@ -79,6 +83,47 @@ async function graph(
     throw new GraphFailure(res.status, data.error || {}, token, path);
   }
   return data;
+}
+/**
+ * Stores one follower snapshot per account per UTC day and returns the last 90 days.
+ * Meta does not expose a historical follower total, so growth is built from snapshots.
+ * Failures never block the analytics response.
+ */
+async function recordFollowerSnapshot(
+  userId: string,
+  accountId: string,
+  profile: AccountProfile,
+) {
+  try {
+    const now = new Date();
+    if (profile.followers_count !== null) {
+      await db.from("ig_account_metrics_daily").upsert({
+        account_id: accountId,
+        user_id: userId,
+        day: now.toISOString().slice(0, 10),
+        followers_count: profile.followers_count,
+        follows_count: profile.follows_count,
+        media_count: profile.media_count,
+        updated_at: now.toISOString(),
+      }, { onConflict: "account_id,day" });
+    }
+    const since = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0, 10);
+    const { data, error } = await db.from("ig_account_metrics_daily")
+      .select("day,followers_count")
+      .eq("account_id", accountId)
+      .eq("user_id", userId)
+      .gte("day", since)
+      .order("day", { ascending: true })
+      .limit(120);
+    if (error || !Array.isArray(data)) return [];
+    return data.flatMap((row: { day: unknown; followers_count: unknown }) =>
+      typeof row.day === "string" && typeof row.followers_count === "number"
+        ? [{ day: row.day.slice(0, 10), followers_count: row.followers_count }]
+        : []
+    );
+  } catch {
+    return [];
+  }
 }
 async function credential(id: string) {
   const c = checked(
@@ -500,9 +545,22 @@ async function processJob(partition: WorkerPartition) {
     if (
       ["meta_190", "meta_10", "meta_200", "credential_missing"].includes(code)
     ) {
+      const degradedState = code === "meta_10" || code === "meta_200"
+        ? "permissions"
+        : "reconnect";
       await db
         .from("ig_publisher_connections")
         .update({ reconnect_required: true })
+        .eq("account_id", job.account_id);
+      await db
+        .from("ig_account_health")
+        .update({
+          state: degradedState,
+          candidate: degradedState,
+          failures: 1,
+          checked_at: new Date().toISOString(),
+          error_code: code,
+        })
         .eq("account_id", job.account_id);
     }
     const transient = canRetryBeforePublication(err, code, publishing);
@@ -727,17 +785,33 @@ Deno.serve(async (req) => {
       ) {
         try {
           const { c, token } = await credential(account.account_id);
-          const result = await readVideoAnalytics(
-            account.account_id,
-            c.graph_id,
-            (path, params) => graph(path, token, params, false, c.provider),
-            typeof body.after === "string" && body.after.length <= 2000
-              ? body.after
-              : undefined,
-          );
+          const read = (path: string, params: Record<string, string>) =>
+            graph(path, token, params, false, c.provider);
+          const after = typeof body.after === "string" && body.after.length <= 2000
+            ? body.after
+            : undefined;
+          // Account counters are only read with the first page; later pages only add videos.
+          const [result, overview] = await Promise.all([
+            readVideoAnalytics(account.account_id, c.graph_id, read, after),
+            after
+              ? Promise.resolve(null)
+              : readAccountOverview(c.graph_id, read).catch(() => null),
+          ]);
+          const followersHistory = overview?.profile
+            ? await recordFollowerSnapshot(user.id, account.account_id, overview.profile)
+            : undefined;
           accounts.push({
             account_id: account.account_id,
             ...result,
+            insights_error: result.insights_error ??
+              (overview?.insights_error === "permission_required" ? "permission_required" : null),
+            ...(overview
+              ? {
+                profile: overview.profile,
+                overview: overview.insights,
+                followers_history: followersHistory ?? [],
+              }
+              : {}),
             unavailable: false,
           });
         } catch {
@@ -771,14 +845,76 @@ Deno.serve(async (req) => {
       );
       if (!owned) return reply({ error: "account_missing" }, 404);
       const { c, token } = await credential(body.account_id);
-      const profile = await graph(
-        c.graph_id,
-        token,
-        { fields: "id,username" },
-        false,
-        c.provider,
-      );
-      return reply({ id: profile.id, username: profile.username });
+      const now = new Date().toISOString();
+      try {
+        const profile = await graph(
+          c.graph_id,
+          token,
+          { fields: "id,username" },
+          false,
+          c.provider,
+        );
+        if (
+          typeof profile.username === "string" &&
+          /^[a-zA-Z0-9._]{1,30}$/.test(profile.username)
+        ) {
+          await db
+            .from("instagram_accounts")
+            .update({ username: profile.username })
+            .eq("id", body.account_id)
+            .eq("user_id", user.id);
+        }
+        await db
+          .from("ig_publisher_connections")
+          .update({ reconnect_required: false })
+          .eq("account_id", body.account_id)
+          .eq("user_id", user.id);
+        await db
+          .from("ig_account_health")
+          .upsert(
+            {
+              account_id: body.account_id,
+              user_id: user.id,
+              state: "healthy",
+              candidate: "healthy",
+              failures: 0,
+              checked_at: now,
+              last_healthy_at: now,
+              error_code: null,
+            },
+            { onConflict: "account_id" },
+          );
+        return reply({ id: profile.id, username: profile.username });
+      } catch (err) {
+        const code = err instanceof Error && /^[a-zA-Z0-9_]+$/.test(err.message)
+          ? err.message
+          : "network_error";
+        if (["meta_190", "meta_102", "meta_10", "meta_200"].includes(code)) {
+          const degradedState = code === "meta_10" || code === "meta_200"
+            ? "permissions"
+            : "reconnect";
+          await db
+            .from("ig_publisher_connections")
+            .update({ reconnect_required: true })
+            .eq("account_id", body.account_id)
+            .eq("user_id", user.id);
+          await db
+            .from("ig_account_health")
+            .upsert(
+              {
+                account_id: body.account_id,
+                user_id: user.id,
+                state: degradedState,
+                candidate: degradedState,
+                failures: 1,
+                checked_at: now,
+                error_code: code,
+              },
+              { onConflict: "account_id" },
+            );
+        }
+        throw err;
+      }
     }
     if (body.action === "reconnect") {
       const owned = checked(

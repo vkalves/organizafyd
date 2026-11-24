@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { saveAccountFolders, saveAccountMeta } from "@/features/agonia/schedule";
 const request = vi.hoisted(() => vi.fn());
 vi.mock("./api", () => ({
   publisherRequest: request,
@@ -22,6 +23,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 import { InstagramAnalytics } from "./InstagramAnalytics";
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.clearAllMocks();
 });
 const video = (id: string, account_id: string, views: number | null) => ({
@@ -142,4 +144,103 @@ it("marks unavailable accounts without treating missing views as zero", async ()
   expect(await screen.findByText("Conta indisponível")).toBeInTheDocument();
   expect(within(screen.getByRole("table")).getByText("Indisponível")).toBeInTheDocument();
   expect(screen.getByText(/Relatório parcial:/)).toBeInTheDocument();
+});
+
+describe("Views, likes, followers and folder organization", () => {
+  it("displays views, likes, followers, growth and separates accounts by folders", async () => {
+    saveAccountFolders("owner", ["Fitness", "Moda"]);
+    saveAccountMeta("owner", {
+      a: { model: "M1", folder: "Fitness", dailyTarget: 5, notes: "" },
+      b: { model: "M2", folder: "Moda", dailyTarget: 5, notes: "" },
+    });
+    request.mockResolvedValueOnce({
+      checked_at: new Date().toISOString(),
+      accounts: [
+        {
+          account_id: "a",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "alfa",
+            name: "Alfa",
+            followers_count: 12500,
+            follows_count: 200,
+            media_count: 45,
+            profile_picture_url: null,
+          },
+          overview: {
+            period_days: 28,
+            since: "2026-10-15T00:00:00.000Z",
+            until: "2026-11-12T00:00:00.000Z",
+            views: 50000,
+            reach: 30000,
+            accounts_engaged: 4000,
+            total_interactions: 3500,
+            likes: 3000,
+            comments: 250,
+            shares: 150,
+            saves: 100,
+            follower_series: [],
+            new_followers: 420,
+          },
+          videos: [
+            {
+              ...video("v-alfa", "a", 1500),
+              likes: 180,
+              comments: 20,
+              shares: 10,
+              saves: 15,
+            },
+          ],
+        },
+        {
+          account_id: "b",
+          complete: true,
+          unavailable: false,
+          profile: {
+            username: "beta",
+            name: "Beta",
+            followers_count: 8300,
+            follows_count: 150,
+            media_count: 30,
+            profile_picture_url: null,
+          },
+          overview: null,
+          videos: [
+            {
+              ...video("v-beta", "b", 900),
+              likes: 640,
+              comments: 5,
+            },
+          ],
+        },
+      ],
+    });
+    renderAnalytics();
+
+    expect(await screen.findByText("Vídeo v-alfa")).toBeInTheDocument();
+    // Aggregate followers: 12.500 + 8.300 = 20.800; aggregate likes: 180 + 640 = 820
+    expect(screen.getByText("20.800")).toBeInTheDocument();
+    expect(screen.getByText("820")).toBeInTheDocument();
+    expect(screen.getByText("+420")).toBeInTheDocument();
+
+    // Sort ranking by likes -> v-beta (640 likes) moves to rank #1
+    fireEvent.click(screen.getByRole("button", { name: "Por curtidas" }));
+    const ranking = screen.getByRole("list");
+    expect(within(ranking).getAllByRole("listitem")[0]).toHaveTextContent("Vídeo v-beta");
+
+    // Filter by folder "Fitness" -> only @alfa remains
+    fireEvent.change(screen.getByLabelText("Pasta"), { target: { value: "Fitness" } });
+    expect(screen.queryByText("Vídeo v-beta")).not.toBeInTheDocument();
+    expect(screen.getByText("Vídeo v-alfa")).toBeInTheDocument();
+    expect(screen.getAllByText("12.500").length).toBeGreaterThanOrEqual(1);
+
+    // Select all accounts again and toggle individual account chip
+    fireEvent.click(screen.getByRole("button", { name: /Todas as contas/ }));
+    expect(screen.getByText("Vídeo v-beta")).toBeInTheDocument();
+    const alfaChip = screen.getByRole("button", { name: "@alfa", pressed: true });
+    fireEvent.click(alfaChip);
+    expect(screen.queryByText("Vídeo v-alfa")).not.toBeInTheDocument();
+    expect(screen.getByText("Vídeo v-beta")).toBeInTheDocument();
+  });
 });

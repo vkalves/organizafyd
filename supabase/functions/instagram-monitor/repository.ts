@@ -29,6 +29,11 @@ export function createMonitorRepository(
         ).eq("user_id", row.user_id).eq("lease", row.lease),
       );
     },
+    async syncAccount(accountId, userId, profile) {
+      await db.from("instagram_accounts").update({
+        username: profile.username,
+      }).eq("id", accountId).eq("user_id", userId);
+    },
   };
   async function pages<T>(
     read: (

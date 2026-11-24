@@ -353,4 +353,143 @@ describe("AWS RDS PostgreSQL Bootstrap + Cognito Auth + API Gateway Integration"
     expect(verified?.cognitoSub).toBe("cognito-sub-alice");
     expect(verified?.displayName).toBe("Alice AWS");
   });
+
+  it("synchronizes Instagram account health, alerts, live Meta username updates, and read counts end-to-end", async () => {
+    const { createMonitorRepository } = await import(
+      "../../../supabase/functions/instagram-monitor/repository"
+    );
+
+    for (const relPath of [
+      "../../../supabase/migrations/20260920000000_instagram.sql",
+      "../../../supabase/migrations/20261103051144_instagram_publisher_live.sql",
+      "../../../supabase/migrations/20261103090600_instagram_oauth.sql",
+      "../../../supabase/migrations/20261104062523_instagram_account_monitor.sql",
+      "../../../supabase/migrations/20261124000000_instagram_account_alerts_real_sync.sql",
+    ]) {
+      await pg.exec(readFileSync(new URL(relPath, import.meta.url), "utf8"));
+    }
+
+    const serviceClient = createAwsClient({
+      apiUrl: "https://api.organizafy.site",
+      clientKey: "service-role-key",
+      storage: new MemoryStorage(),
+      fetch: async (input, init) =>
+        handleRestRequest(
+          new Request(String(input), init),
+          sqlExecutor,
+          { role: "service_role", userId: null },
+        ),
+    });
+
+    // 1. Connect an account for USER_A
+    const accountId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    await runInRlsTransaction(
+      sqlExecutor,
+      { role: "service_role", userId: null },
+      async () => {
+        const secretRes = await sqlExecutor.query<{ id: string }>(
+          "SELECT vault.create_secret('live-meta-token') AS id",
+        );
+        const secretId = secretRes.rows[0].id;
+        await sqlExecutor.query(
+          "INSERT INTO public.instagram_accounts (id, user_id, username, name, status) VALUES ($1, $2, 'old_handle', 'Old Handle', 'active')",
+          [accountId, USER_A],
+        );
+        await sqlExecutor.query(
+          "INSERT INTO public.ig_publisher_connections (account_id, user_id, graph_id, secret_id, provider) VALUES ($1, $2, '17841400001', $3, 'instagram')",
+          [accountId, USER_A, secretId],
+        );
+      },
+    );
+
+    let metaResponse: { status: number; body: Record<string, unknown> } = {
+      status: 200,
+      body: { id: "17841400001", username: "updated_real_handle" },
+    };
+
+    const repo = createMonitorRepository(
+      serviceClient as any,
+      (async () =>
+        new Response(JSON.stringify(metaResponse.body), {
+          status: metaResponse.status,
+          headers: { "Content-Type": "application/json" },
+        })) as unknown as typeof fetch,
+    );
+
+    // Initial connection trigger already populated ig_account_health as healthy
+    const initialStatus = (await repo.status(USER_A)) as {
+      health: Array<{ account_id: string; state: string }>;
+      alerts: Array<{ id: string; state: string; read_at: string | null; resolved_at: string | null }>;
+    };
+    expect(initialStatus.health).toHaveLength(1);
+    expect(initialStatus.health[0].state).toBe("healthy");
+    expect(initialStatus.alerts).toHaveLength(0);
+
+    // 2. Manual refresh verifies against Meta API and updates the real username in instagram_accounts
+    const refreshOk = await repo.refresh(USER_A, accountId);
+    expect(refreshOk).toBe("checked");
+
+    const updatedAccount = await serviceClient
+      .from("instagram_accounts")
+      .select("username")
+      .eq("id", accountId)
+      .single();
+    expect(updatedAccount.data?.username).toBe("updated_real_handle");
+
+    // 3. Simulate Meta token revocation (error code 190) on next check
+    await runInRlsTransaction(
+      sqlExecutor,
+      { role: "service_role", userId: null },
+      async () => {
+        await sqlExecutor.query(
+          "UPDATE public.ig_account_health SET checked_at = now() - interval '2 minutes', next_check_at = now() + interval '3 minutes' WHERE account_id = $1",
+          [accountId],
+        );
+      },
+    );
+    metaResponse = {
+      status: 400,
+      body: { error: { code: 190, message: "Invalid OAuth access token." } },
+    };
+
+    expect(await repo.refresh(USER_A, accountId)).toBe("checked");
+
+    const degradedStatus = (await repo.status(USER_A)) as {
+      health: Array<{ account_id: string; state: string; error_code: string }>;
+      alerts: Array<{ id: string; state: string; read_at: string | null; resolved_at: string | null }>;
+    };
+    expect(degradedStatus.health[0].state).toBe("reconnect");
+    expect(degradedStatus.health[0].error_code).toBe("meta_190");
+    expect(degradedStatus.alerts).toHaveLength(1);
+    expect(degradedStatus.alerts[0].state).toBe("reconnect");
+    expect(degradedStatus.alerts[0].read_at).toBeNull();
+    expect(degradedStatus.alerts[0].resolved_at).toBeNull();
+
+    // Verify trigger also marked ig_publisher_connections.reconnect_required = true
+    const connAfterError = await serviceClient
+      .from("ig_publisher_connections")
+      .select("reconnect_required")
+      .eq("account_id", accountId)
+      .single();
+    expect(connAfterError.data?.reconnect_required).toBe(true);
+
+    // 4. Mark alert as read and verify exact updated count via Content-Range
+    const readCount = await repo.read(USER_A, degradedStatus.alerts[0].id);
+    expect(readCount).toBe(1);
+    expect(await repo.read(USER_A, degradedStatus.alerts[0].id)).toBe(0);
+
+    // 5. Reconnecting the account automatically restores healthy state and resolves the alert
+    await serviceClient
+      .from("ig_publisher_connections")
+      .update({ reconnect_required: false })
+      .eq("account_id", accountId);
+
+    const recoveredStatus = (await repo.status(USER_A)) as {
+      health: Array<{ account_id: string; state: string }>;
+      alerts: Array<{ id: string; state: string; resolved_at: string | null }>;
+    };
+    expect(recoveredStatus.health[0].state).toBe("healthy");
+    expect(recoveredStatus.alerts).toHaveLength(1);
+    expect(recoveredStatus.alerts[0].resolved_at).not.toBeNull();
+  });
 });

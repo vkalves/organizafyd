@@ -10,6 +10,14 @@ import { createAwsClient } from "../../../src/integrations/aws/client";
 
 const { Pool } = pg;
 
+function formatPgTimestamptz(val: string): string {
+  const iso = val.replace(" ", "T");
+  return /[+-]\d{2}$/.test(iso) ? `${iso}:00` : iso;
+}
+
+pg.types.setTypeParser(1184, formatPgTimestamptz);
+pg.types.setTypeParser(1114, (val: string) => val.replace(" ", "T"));
+
 export const REGION = process.env.AWS_REGION || "us-east-2";
 export const USER_POOL_ID = process.env.AWS_COGNITO_USER_POOL_ID || "us-east-2_8hN58guGo";
 export const CLIENT_ID = process.env.AWS_COGNITO_CLIENT_ID || "5vv5jjam04u8kqbfn9c4guhjv6";
